@@ -16,6 +16,19 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-31b',
+    date: '2026-10-31',
+    title: 'Drawings: recolour, white, copy and paste, notes',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Change a markup’s colour after it’s drawn: select it and pick a colour in its panel.', where: 'File Room → Mark up → select a markup' },
+      { area: 'Drawings', kind: 'new', text: 'White is in the colours — draw over black lines to cover them.' },
+      { area: 'Drawings', kind: 'new', text: 'Copy and paste: select a markup, Ctrl/⌘+C, then Ctrl/⌘+V on this page or another. Duplicate (Ctrl/⌘+D) puts a copy beside it.' },
+      { area: 'Drawings', kind: 'new', text: 'Give any markup a short note — it shows beside the markup, in the list, in the downloaded PDF, and search finds it.' },
+      { area: 'Drawings', kind: 'improved', text: 'Making an RFI, task, change order or FOR RECORD item from a markup keeps you in the drawing; open it from the markup’s panel when you’re ready.' },
+      { area: 'Drawings', kind: 'improved', text: 'Admins and principals see and manage every markup, private drafts included.' },
+    ],
+  },
+  {
     id: '2026-10-31a',
     date: '2026-10-31',
     title: 'Six priority levels',

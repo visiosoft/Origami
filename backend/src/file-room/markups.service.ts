@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { FileRoomFileEntity, PdfMarkupEntity } from '../database/entities';
 import type { SessionClaims } from '../auth/crypto.util';
 import { FileRoomService } from './file-room.service';
-import { MAX_PIN_PHOTOS, canEditMarkup, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
+import { MAX_PIN_PHOTOS, canEditMarkup, leadsMarkups, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
 
 /** Where photos pinned to a drawing are kept in the project's File Room. */
 export const PIN_PHOTO_FOLDER = ['Markup photos'];
@@ -48,7 +48,7 @@ export class MarkupsService {
 
   async list(fileId: string, claims: SessionClaims | null) {
     const rows = await this.repo.find({ where: { fileId } });
-    return visibleTo(rows, claims?.sub).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return visibleTo(rows, claims?.sub, claims?.roleKey).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   async create(fileId: string, raw: unknown, claims: SessionClaims | null) {
@@ -72,7 +72,7 @@ export class MarkupsService {
   private async own(id: string, claims: SessionClaims | null) {
     const m = await this.repo.findOneBy({ id });
     if (!m) throw new NotFoundException('Markup not found');
-    if (!canEditMarkup(m, { id: claims?.sub, isAdmin: claims?.roleKey === 'admin' })) throw new ForbiddenException('Only whoever drew it (or an admin) can change it.');
+    if (!canEditMarkup(m, { id: claims?.sub, isAdmin: leadsMarkups(claims?.roleKey) })) throw new ForbiddenException('Only whoever drew it (or an admin or principal) can change it.');
     return m;
   }
 
@@ -116,7 +116,7 @@ export class MarkupsService {
     if (!to) throw new BadRequestException('Give the layer a name.');
     const from = cleanLayer(raw?.from);
     const key = from ? layerKey({ layer: from }) : layerKey({ authorId: raw?.authorId || claims!.sub });
-    if (!from && (raw?.authorId || claims!.sub) !== claims!.sub && claims!.roleKey !== 'admin') throw new ForbiddenException('Only its owner (or an admin) can name someone’s own layer.');
+    if (!from && (raw?.authorId || claims!.sub) !== claims!.sub && !leadsMarkups(claims!.roleKey)) throw new ForbiddenException('Only its owner (or an admin or principal) can name someone’s own layer.');
     const rows = (await this.list(fileId, claims)).filter((m) => layerKey(m) === key);
     if (!rows.length) throw new NotFoundException('That layer has no markups.');
     const now = new Date().toISOString();
@@ -129,7 +129,7 @@ export class MarkupsService {
     this.assertCanDraw(claims);
     const m = await this.repo.findOneBy({ id: mid });
     if (!m) throw new NotFoundException('Markup not found');
-    if (!visibleTo([m], claims!.sub).length) throw new NotFoundException('Markup not found');
+    if (!visibleTo([m], claims!.sub, claims!.roleKey).length) throw new NotFoundException('Markup not found');
     if (m.kind !== 'pin') throw new BadRequestException('Photos go on a pin.');
     const images = (incoming || []).filter((f) => /^image\//i.test(f.mimetype || ''));
     if (!images.length) throw new BadRequestException('Pick a photo.');
@@ -149,7 +149,7 @@ export class MarkupsService {
     this.assertCanDraw(claims);
     const m = await this.repo.findOneBy({ id: mid });
     if (!m) throw new NotFoundException('Markup not found');
-    if (!visibleTo([m], claims!.sub).length) throw new NotFoundException('Markup not found');
+    if (!visibleTo([m], claims!.sub, claims!.roleKey).length) throw new NotFoundException('Markup not found');
     const data = m.data as unknown as MarkupData;
     m.data = { ...data, photos: (data.photos || []).filter((p) => p.fileId !== fileId) } as any;
     m.updatedAt = new Date().toISOString();

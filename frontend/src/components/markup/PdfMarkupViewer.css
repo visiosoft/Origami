@@ -20,6 +20,9 @@
 .mk-sep { width: 26px; height: 1px; background: var(--border); margin: 4px 0; }
 .mk-swatch { width: 20px; height: 20px; border-radius: 999px; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); cursor: pointer; padding: 0; }
 .mk-swatch.is-on { box-shadow: 0 0 0 2px var(--ink); }
+.mk-swatch.is-white { box-shadow: 0 0 0 1px #9CA3AF; }
+.mk-swatch.is-white.is-on { box-shadow: 0 0 0 2px var(--ink); }
+.mk-recolor { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
 .mk-private { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--muted); gap: 2px; cursor: pointer; }
 .mk-scale { font-size: 10px; font-weight: 700; color: #7C3AED; text-align: center; }
 .mk-stage { flex: 1; min-width: 0; overflow: auto; padding: 16px; position: relative; }

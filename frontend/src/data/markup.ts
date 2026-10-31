@@ -21,6 +21,8 @@ export interface MarkupData {
   target?: LinkTarget;
   /** stamp: which icon (data/stamps.ts), drawn in the box its two points make. */
   icon?: string;
+  /** A short note on any markup (Oct 31), shown as a small tag beside it. */
+  note?: string;
 }
 
 export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
@@ -70,7 +72,20 @@ export function layersOf(marks: Pick<Markup, 'layer' | 'authorId' | 'authorName'
   }
   return [...map.values()].sort((a, b) => Number(b.named) - Number(a.named) || a.name.localeCompare(b.name));
 }
-export const MARKUP_COLORS = ['#E0321B', '#1D4ED8', '#047857', '#B45309', '#7C3AED', '#111827', '#FACC15'];
+/** White last: drawn over black lines, it covers them (Oct 31). */
+export const MARKUP_COLORS = ['#E0321B', '#1D4ED8', '#047857', '#B45309', '#7C3AED', '#111827', '#FACC15', '#FFFFFF'];
+
+/** Who sees and manages every markup: i-1 (admin) and i-2 (principal). Mirrors the server. */
+export const MARKUP_LEADS = ['admin', 'principal'];
+
+/** A copy of a markup for pasting: nudged down-right on the same page, in place on another page; pin photos stay with the original. */
+export function pasteCopy(m: Pick<Markup, 'kind' | 'data' | 'page'>, page: number): MarkupData {
+  const off = m.page === page ? 0.015 : 0;
+  const clamp = (n: number) => Math.min(1, Math.max(0, n));
+  const copy: MarkupData = { ...m.data, points: m.data.points.map(([x, y]) => [clamp(x + off), clamp(y + off)] as Pt) };
+  delete copy.photos;
+  return copy;
+}
 
 /** A revision cloud around the box a-b (same shape as the server draws). */
 export function cloudPath(a: Pt, b: Pt, scallop: number): string {

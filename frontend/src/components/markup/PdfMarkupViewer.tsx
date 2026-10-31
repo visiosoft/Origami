@@ -1,11 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  MARKUP_LINKS, linkLabel, markupLink, overlayPixels, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
+  MARKUP_LEADS, linkLabel, markupLink, overlayPixels, pasteCopy, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
@@ -83,9 +82,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   revisions?: Revision[];
 }) {
   const { toast, currentUser, authUser } = useApp();
-  const navigate = useNavigate();
   const me = authUser?.id || currentUser?.id || '';
-  const isAdmin = authUser?.roleKey === 'admin';
+  // i-1 and i-2 (admin, principal) see and manage every markup.
+  const isAdmin = MARKUP_LEADS.includes(authUser?.roleKey || '');
   const canDraw = (authUser?.tier || currentUser?.tier) !== 'client';
 
   const [doc, setDoc] = useState<PdfDoc | null>(null);
@@ -296,6 +295,20 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not deleted')); }
   };
 
+  /** Copy and paste (Oct 31): Ctrl/⌘+C, then Ctrl/⌘+V on this page or another; Duplicate does both. */
+  const clip = useRef<Markup | null>(null);
+  const copyMarkup = (m: Markup, quiet = false) => {
+    if (m.kind === 'scale') { toast('A page has one scale — draw a new one instead of copying it.'); return; }
+    clip.current = m;
+    if (!quiet) toast('Copied — Ctrl+V (⌘V) pastes it, on this page or another');
+  };
+  const pasteMarkup = async () => {
+    const m = clip.current;
+    if (!m) return;
+    const made = await save(m.kind, pasteCopy(m, pageNo), pageNo);
+    if (made) { setSelectedId(made.id); setTool('select'); clip.current = made; }
+  };
+
   /** Undo / redo this session's own changes (adds come back as new markups). */
   const step = async (back: boolean) => {
     const from = back ? undo.current : redo.current;
@@ -329,6 +342,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       if (e.key === 'Escape') { if (photoView) setPhotoView(null); else if (ask) setAsk(null); else if (draft) setDraft(null); else if (comparePick) setComparePick(false); else if (compare) setCompare(null); else if (search) setSearch(null); else if (selectedId) setSelectedId(null); }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected && mine(selected)) { e.preventDefault(); void removeMarkup(selected); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); void step(!e.shiftKey); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c' && selected) { e.preventDefault(); copyMarkup(selected); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'v' && clip.current && canDraw) { e.preventDefault(); void pasteMarkup(); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd' && selected && canDraw) { e.preventDefault(); copyMarkup(selected, true); void pasteMarkup(); }
       if (e.key === 'Enter' && draft && tool === 'measure_area') finishArea();
       if (e.key === 'PageDown' || e.key === 'ArrowRight') setPageNo((p) => Math.min(doc?.numPages || 1, p + 1));
       if (e.key === 'PageUp' || e.key === 'ArrowLeft') setPageNo((p) => Math.max(1, p - 1));
@@ -475,14 +491,12 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             drawings: [{ fileId: file.id, name: file.name, markupId: m.id, page: m.page }],
           });
           replace(await api.fileRoom.editMarkup(m.id, { linkType: 'rfi', linkId: rfi.id }));
-          toast(`RFI ${rfi.number ? '#' + rfi.number + ' ' : ''}drafted — opening it`);
-          navigate(`/rfis?rfi=${encodeURIComponent(rfi.id)}`);
+          toast(`RFI ${rfi.number ? '#' + rfi.number + ' ' : ''}drafted — open it from the markup’s panel when you’re ready`);
         } else if (ask.kind === 'co') {
           if (!projectId) throw new Error('This file isn’t in a project.');
           const co: any = await api.finance.createChangeOrder(projectId, { title: subject, reason: 'unforeseen', description: from });
           replace(await api.fileRoom.editMarkup(m.id, { linkType: 'co', linkId: co.id }));
-          toast(`Change order ${co.number || ''} drafted — opening it`);
-          navigate(MARKUP_LINKS.co.href(co.id));
+          toast(`Change order ${co.number || ''} drafted — open it from the markup’s panel when you’re ready`);
         } else {
           const record = ask.kind === 'record';
           const t: any = await api.tasks.create({
@@ -490,10 +504,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             ...(record ? { topicType: ask.topic || 'Observation' } : {}),
           });
           replace(await api.fileRoom.editMarkup(m.id, { linkType: record ? 'record' : 'task', linkId: t.id }));
-          toast(record ? `${ask.topic || 'Observation'} added to FOR RECORD — opening it` : 'Task created — opening it');
-          navigate(MARKUP_LINKS[record ? 'record' : 'task'].href(t.id));
+          toast(record ? `${ask.topic || 'Observation'} added to FOR RECORD` : 'Task created');
         }
-        onClose();
+        // Stay in the drawing (Oct 31): the panel links to what was made.
+        setSelectedId(m.id);
+        setPanel(true);
       } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not created')); }
       finally { setBusy(false); }
     }
@@ -604,7 +619,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     }
     const ql = q.trim().toLowerCase();
     for (const m of shownMarks) {
-      const note = m.data.text || m.data.label || (m.kind === 'link' ? linkLabel(m.data.target) : '');
+      const note = [m.data.note, m.data.text || m.data.label || (m.kind === 'link' ? linkLabel(m.data.target) : '')].filter(Boolean).join(' · ');
       if (note.toLowerCase().includes(ql)) hits.push({ page: m.page, markupId: m.id, box: boundsOf(m, 0.02, 0.02), context: `${KIND_LABEL[m.kind]}: ${note.split('\n')[0].slice(0, 70)}` });
     }
     hits.sort((a, b) => a.page - b.page || a.box.y0 - b.box.y0);
@@ -724,7 +739,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           ))}
           {canDraw && <>
             <i className="mk-sep" />
-            {MARKUP_COLORS.map((c) => <button key={c} type="button" className={'mk-swatch' + (color === c ? ' is-on' : '')} style={{ background: c }} aria-label={`Colour ${c}`} onClick={() => setColor(c)} />)}
+            {MARKUP_COLORS.map((c) => <button key={c} type="button" className={'mk-swatch' + (color === c ? ' is-on' : '') + (c === '#FFFFFF' ? ' is-white' : '')} style={{ background: c }} aria-label={c === '#FFFFFF' ? 'White (covers lines)' : `Colour ${c}`} title={c === '#FFFFFF' ? 'White — draw over lines to cover them' : undefined} onClick={() => setColor(c)} />)}
             <i className="mk-sep" />
             <select aria-label="Thickness (points)" title="Thickness (points)" value={width} onChange={(e) => setWidth(Number(e.target.value))}>
               {[1, 2, 3, 5, 8].map((w) => <option key={w} value={w}>{w}</option>)}
@@ -860,9 +875,26 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                   </label>
                 )}
                 {selected.data.label && <p className="mk-quote">{selected.data.label}</p>}
+                {mine(selected) ? (
+                  <label className="mk-move">Note
+                    <input key={selected.id} defaultValue={selected.data.note || ''} maxLength={120} placeholder="A short label, e.g. Patch drywall" aria-label="Note on this markup"
+                      onBlur={(e) => { const v = e.target.value.trim(); if (v !== (selected.data.note || '')) { const data: MarkupData = { ...selected.data, note: v }; if (!v) delete data.note; void editMarkup(selected, { data }); } }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
+                  </label>
+                ) : selected.data.note ? <p className="mk-quote">{selected.data.note}</p> : null}
+                {mine(selected) && !['link', 'scale', 'pin'].includes(selected.kind) && (
+                  <div className="mk-recolor" role="group" aria-label="Change its colour">
+                    {MARKUP_COLORS.map((c) => <button key={c} type="button" className={'mk-swatch' + (selected.data.color.toUpperCase() === c ? ' is-on' : '') + (c === '#FFFFFF' ? ' is-white' : '')} style={{ background: c }} aria-label={`Make it ${c === '#FFFFFF' ? 'white' : c}`}
+                      onClick={() => { if (selected.data.color.toUpperCase() !== c) void editMarkup(selected, { data: { ...selected.data, color: c } }); }} />)}
+                  </div>
+                )}
                 {selected.kind === 'link' && selected.data.target && <p><button type="button" className="mk-btn is-text is-dark" onClick={() => follow(selected)}>{selected.data.target.type === 'page' ? `Go to page ${selected.data.target.page}` : `Open ${selected.data.target.name}${selected.data.target.page ? `, p. ${selected.data.target.page}` : ''}`}</button></p>}
                 {(() => { const l = markupLink(selected.linkType, selected.linkId); return l && <p><a href={l.href}>Open the {l.label} made from it →</a></p>; })()}
                 <div className="mk-actions">
+                  {canDraw && selected.kind !== 'scale' && <>
+                    <button type="button" className="mk-btn is-text" title="Copy it (Ctrl/⌘+C), then paste on any page (Ctrl/⌘+V)" onClick={() => copyMarkup(selected)}>Copy</button>
+                    <button type="button" className="mk-btn is-text" title="A copy beside it (Ctrl/⌘+D)" onClick={() => { copyMarkup(selected, true); void pasteMarkup(); }}>Duplicate</button>
+                  </>}
                   {canDraw && !selected.linkType && selected.kind !== 'scale' && <>
                     <button type="button" className="mk-btn is-text" disabled={busy || !projectId} title={projectId ? '' : 'Only for files in a project'} onClick={() => setAsk({ kind: 'rfi', markup: selected, value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create RFI</button>
                     <button type="button" className="mk-btn is-text" disabled={busy} onClick={() => setAsk({ kind: 'task', markup: selected, value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create task</button>
@@ -897,7 +929,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 {listed.map((m) => (
                   <li key={m.id} className={m.id === selectedId ? 'is-on' : ''} onClick={() => { setSelectedId(m.id); setPageNo(m.page); setTool('select'); }}>
                     <i style={{ background: m.data.color }} />
-                    <span><b>{KIND_LABEL[m.kind]}</b>{m.data.text ? ` — ${m.data.text.split('\n')[0]}` : m.data.label ? ` — ${m.data.label}` : m.kind === 'link' ? ` ${linkLabel(m.data.target)}` : ''}<small>{m.authorName}{listAll ? ` · p. ${m.page}` : ''}{m.private ? ' · private' : ''}{markupLink(m.linkType, m.linkId) ? ` · ${markupLink(m.linkType, m.linkId)!.label}` : ''}</small></span>
+                    <span><b>{m.data.note || KIND_LABEL[m.kind]}</b>{m.data.note ? ` · ${KIND_LABEL[m.kind]}` : ''}{m.data.text ? ` — ${m.data.text.split('\n')[0]}` : m.data.label ? ` — ${m.data.label}` : m.kind === 'link' ? ` ${linkLabel(m.data.target)}` : ''}<small>{m.authorName}{listAll ? ` · p. ${m.page}` : ''}{m.private ? ' · private' : ''}{markupLink(m.linkType, m.linkId) ? ` · ${markupLink(m.linkType, m.linkId)!.label}` : ''}</small></span>
                   </li>
                 ))}
               </ul>
@@ -1029,6 +1061,16 @@ function PinPhotos({ markup, canAdd, busy, onAdd, onRemove, onOpen }: {
 
 /** How one markup looks, in page points (size = the page as shown, in points). */
 function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false) {
+  const shape = bareShape(m, size, scale, ghost);
+  if (!m.data.note) return shape;
+  // A note sits just above the markup's top-left corner, the same size on screen at any zoom.
+  const xs = m.data.points.map((p) => p[0] * size.w), ys = m.data.points.map((p) => p[1] * size.h);
+  const x = Math.min(...xs), y = Math.min(...ys) - (m.kind === 'pin' ? 30 / scale : 5 / scale);
+  const ink = m.data.color.toUpperCase() === '#FFFFFF' ? '#111827' : m.data.color;
+  return <g>{shape}<text x={x} y={y} fontSize={11 / scale} fontWeight={700} fill={ink} stroke="#fff" strokeWidth={3 / scale} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif">{m.data.note}</text></g>;
+}
+
+function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false) {
   const P = (p: Pt): Pt => [p[0] * size.w, p[1] * size.h];
   const pts = m.data.points.map(P);
   const stroke = m.data.color;

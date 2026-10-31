@@ -26,6 +26,10 @@ describe('PDF markup rules', () => {
     expect(canEditMarkup({ authorId: 'U-1' }, { id: 'U-1' })).toBe(true);
     expect(canEditMarkup({ authorId: 'U-1' }, { id: 'U-2' })).toBe(false);
     expect(canEditMarkup({ authorId: 'U-1' }, { id: 'U-2', isAdmin: true })).toBe(true);
+    // i-1 (admin) and i-2 (principal) see private drafts too (Oct 31).
+    expect(visibleTo(rows, 'U-3', 'principal').map((r) => r.id)).toEqual(['a', 'b', 'c']);
+    expect(visibleTo(rows, 'U-3', 'admin').map((r) => r.id)).toEqual(['a', 'b', 'c']);
+    expect(visibleTo(rows, 'U-3', 'pm').map((r) => r.id)).toEqual(['a']);
   });
 
   it('maps a shown point onto the page for every rotation', () => {
@@ -100,8 +104,11 @@ describe('MarkupsService', () => {
   it('a private draft stays with its author; others may only link a markup to their RFI', async () => {
     const { svc } = setup();
     const m = await svc.create('F1', { kind: 'cloud', page: 2, private: true, data: { points: [[0.1, 0.1], [0.2, 0.2]] } }, an);
-    expect(await svc.list('F1', ed)).toHaveLength(0);
+    expect(await svc.list('F1', { ...ed, roleKey: 'staff' })).toHaveLength(0);
     expect(await svc.list('F1', an)).toHaveLength(1);
+    // i-1 / i-2 see every markup, private drafts included.
+    expect(await svc.list('F1', ed)).toHaveLength(1);
+    expect(await svc.list('F1', { ...ed, roleKey: 'principal' })).toHaveLength(1);
     await svc.update(m.id, { private: false }, an);
     await expect(svc.update(m.id, { data: { points: [[0, 0], [1, 1]] } }, { ...ed, roleKey: 'staff' })).rejects.toThrow(/Only whoever drew it/);
     expect((await svc.update(m.id, { linkType: 'rfi', linkId: 'RFI-7' }, { ...ed, roleKey: 'staff' })).linkId).toBe('RFI-7');
@@ -178,5 +185,12 @@ describe('MarkupsService', () => {
     expect(dicts.map((d) => d.get(PDFName.of('Subtype')).toString())).toEqual(['/Link', '/Link']);
     expect(dicts[0].get(PDFName.of('Dest')).toString()).toContain('/Fit');
     expect(dicts[1].get(PDFName.of('A')).get(PDFName.of('URI')).decodeText()).toBe('https://app.example/planroom?file=F5');
+  });
+
+  it('keeps a short note on any markup, tidied', () => {
+    const m = cleanMarkup({ kind: 'cloud', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], color: '#FFFFFF', note: '  Patch   drywall \n here ' } });
+    expect(m.data.note).toBe('Patch drywall here');
+    expect(m.data.color).toBe('#FFFFFF');
+    expect(cleanMarkup({ kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], note: '   ' } }).data.note).toBeUndefined();
   });
 });

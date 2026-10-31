@@ -26,6 +26,8 @@ export interface MarkupData {
   target?: LinkTarget;
   /** stamp: which icon (file-room/stamps.ts), drawn in the box its two points make. */
   icon?: string;
+  /** A short note on any markup (Oct 31), shown as a small tag beside it. */
+  note?: string;
 }
 
 export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
@@ -95,6 +97,7 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
   if (kind === 'text' && !data.text?.trim()) throw new Error('Type some text.');
   if (d.size !== undefined) data.size = Math.min(72, Math.max(6, Number(d.size) || 12));
   if (typeof d.label === 'string') data.label = d.label.slice(0, 60);
+  if (typeof d.note === 'string' && d.note.trim()) data.note = d.note.replace(/\s+/g, ' ').trim().slice(0, 120);
   if (kind === 'scale') {
     const real = Number(d.real);
     if (!(real > 0)) throw new Error('Type the real length of the line.');
@@ -111,8 +114,13 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
   return { kind, page, data, private: raw?.private === true, layer: cleanLayer(raw?.layer) };
 }
 
-/** Everyone's shared markups, and the caller's own private drafts. */
-export function visibleTo<T extends { private?: boolean | null; authorId?: string | null }>(rows: T[], userId?: string): T[] {
+/** The internal leadership, "i-1" (admin) and "i-2" (principal): they see and manage every markup (Oct 31). */
+export const MARKUP_LEADS = ['admin', 'principal'];
+export const leadsMarkups = (roleKey?: string | null) => MARKUP_LEADS.includes(String(roleKey || ''));
+
+/** Everyone's shared markups, and the caller's own private drafts; i-1 and i-2 see every markup. */
+export function visibleTo<T extends { private?: boolean | null; authorId?: string | null }>(rows: T[], userId?: string, roleKey?: string | null): T[] {
+  if (leadsMarkups(roleKey)) return rows;
   return rows.filter((m) => !m.private || (!!userId && m.authorId === userId));
 }
 
@@ -182,6 +190,18 @@ export function toPage(p: Pt, w: number, h: number, rotation: number): Pt {
 
 /** Draw one markup onto a pdf-lib page. */
 function drawMarkup(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
+  drawShape(page, font, kind, d);
+  if (d.note) {
+    // The note sits just above the markup's top-left corner.
+    const { width: w, height: h } = page.getSize();
+    const rot = page.getRotation().angle;
+    const xs = d.points.map((p) => p[0]), ys = d.points.map((p) => p[1]);
+    const at = toPage([Math.min(...xs), Math.min(...ys)], w, h, rot);
+    page.drawText(latin1(d.note), { x: at[0], y: h - at[1] + 4, size: 9, font, color: colorOf(d.color === '#FFFFFF' ? '#111827' : d.color), rotate: degrees(rot) });
+  }
+}
+
+function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
   const { width: w, height: h } = page.getSize();
   const rot = page.getRotation().angle;
   const pts = d.points.map((p) => toPage(p, w, h, rot));

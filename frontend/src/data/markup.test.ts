@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
-import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, overlayPixels, pickCompareDefault, textMatches } from './markup';
+import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, pasteCopy, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
 describe('markup measuring', () => {
   it('reads lengths as people type them', () => {
@@ -110,5 +110,15 @@ describe('markupLink', () => {
     expect(markupLink('task', 'T1')?.href).toBe('/tasks?task=T1&type=log');
     expect(markupLink('invoice', 'X')).toBeNull();
     expect(markupLink('co', null)).toBeNull();
+  });
+});
+
+describe('pasteCopy', () => {
+  const m = { kind: 'pin' as const, page: 2, data: { points: [[0.5, 0.995]] as [number, number][], color: '#E0321B', width: 1, note: 'Crack', photos: [{ fileId: 'P1', name: 'a.jpg' }] } };
+  it('nudges a copy on the same page, keeps it in place on another, and leaves the photos behind', () => {
+    expect(pasteCopy(m, 2).points).toEqual([[0.515, 1]]);
+    expect(pasteCopy(m, 3).points).toEqual([[0.5, 0.995]]);
+    expect(pasteCopy(m, 2).photos).toBeUndefined();
+    expect(pasteCopy(m, 2).note).toBe('Crack');
   });
 });
