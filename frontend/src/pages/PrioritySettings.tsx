@@ -10,7 +10,7 @@ const box: React.CSSProperties = {
 };
 
 /**
- * Settings -> Task priorities: what Urgent, High, Medium and Low mean, in the
+ * Settings -> Task priorities: what Emergency, Urgent, High, Medium, Low and Very Low mean, in the
  * office's words. Shown under every priority picker. The due-date windows are
  * fixed (picking a priority fills in the due date from them).
  */

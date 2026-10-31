@@ -1,4 +1,5 @@
 import { pageArgs, pageOf, sortRows } from '../common/paging';
+import { ACTION_TAGS } from '../database/task.types';
 
 /**
  * The Special Actions Log's filters, worked out on the server so the browser
@@ -55,7 +56,7 @@ const SORTS: Record<string, (t: T) => string | number | null | undefined> = {
 };
 
 export interface LogQuery {
-  tab?: string; pf?: string; archived?: boolean; q?: string;
+  tab?: string; pf?: string; archived?: boolean; q?: string; tag?: string;
   scope?: Scope; person?: Person; parts?: MineParts; restricted?: boolean;
   sort?: string; dir?: 'asc' | 'desc'; page?: unknown; size?: unknown;
 }
@@ -81,7 +82,7 @@ export function queryLog(all: T[], viewer: Person, o: LogQuery) {
   const tab = (TABS as readonly string[]).includes(o.tab || '') ? o.tab! : 'internal';
   const tabs = Object.fromEntries(TABS.map((t) => [t, scoped(byProject(live.filter((x) => x.tab === t))).length]));
   const inTab = byProject(live.filter((x) => x.tab === tab));
-  const filtered = scoped(inTab).filter((t) => matchesQuery(t, o.q || ''));
+  const filtered = scoped(inTab).filter((t) => matchesQuery(t, o.q || '') && (!o.tag || (Array.isArray(t.tags) && t.tags.includes(o.tag))));
   const sorted = sortRows(filtered, o.sort ? SORTS[o.sort] : undefined, o.dir);
 
   // The project picker lists projects first, then leads, in the order they first appear.
@@ -106,6 +107,7 @@ export function queryLog(all: T[], viewer: Person, o: LogQuery) {
       projects,
       hasGeneral: all.some((x) => !x.project && !x.leadId),
       labels: [...new Set(all.flatMap((t) => (Array.isArray(t.labels) ? t.labels : [])))].sort(),
+      tags: Object.fromEntries(ACTION_TAGS.map((g) => [g, inTab.filter((t) => Array.isArray(t.tags) && t.tags.includes(g)).length])),
     },
   };
 }

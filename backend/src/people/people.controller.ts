@@ -89,6 +89,12 @@ export class PeopleController {
     return this.activity.removeInteraction(id, interactionId);
   }
 
+  /** Which phases they work on for one project: { project, phases: ['design', 'construction'] }. */
+  @Put(':id/project-phases')
+  projectPhases(@Param('id') id: string, @Body() body: { project?: string; phases?: string[] }) {
+    return this.peopleService.setProjectPhases(id, String(body?.project || ''), body?.phases);
+  }
+
   /** Point of contact for their company (one per company). */
   @Put(':id/point-of-contact')
   pointOfContact(@Param('id') id: string, @Body() body: { on?: boolean }) {

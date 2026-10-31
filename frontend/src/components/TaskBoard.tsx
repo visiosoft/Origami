@@ -36,6 +36,7 @@ import { leadLabel } from '../data/linkTargets';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine, type TaskScope as TaskScopeKind } from './TaskScope';
 import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { filesFromClipboard, nameClipboardFile } from './Attachments';
+import { Skeleton } from './Skeleton';
 
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = {
@@ -428,7 +429,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     api.projectTasks.reorder(sectionId, ids).catch(() => toast('⚠ Failed to reorder'));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)', padding: 20 }}>Loading tasks…</div>;
+  if (loading) return <Skeleton label="Loading tasks…" />;
 
   // ---- task card ----
   // Card JSX is inlined (not a nested component) so a re-render during drag
@@ -1153,7 +1154,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 <select disabled={!canManage} value={d.priority || ''} title={d.priority ? PRIORITY_HINT[d.priority as Priority] : 'Picking a priority fills in the due date'}
                   onChange={(e) => { const r = linkPriorityDue({ priority: d.priority, dueDate: d.dueDate, auto: autoPD.current[selected.id] }, { priority: e.target.value as Priority | '' }); autoPD.current[selected.id] = r.auto; set({ priority: (r.priority || undefined) as Priority, dueDate: r.dueDate }); }}
                   style={{ ...inputStyle, width: '100%' }}>
-                  <option value="">None</option>{['Urgent', 'High', 'Medium', 'Low'].map((p) => <option key={p} value={p}>{p} — {PRIORITY_HINT[p as Priority].replace('Due ', '')}</option>)}
+                  <option value="">None</option>{PRIORITY_ORDER.map((p) => <option key={p} value={p}>{p} — {PRIORITY_HINT[p as Priority].replace('Due ', '')}</option>)}
                 </select>
                 {autoPD.current[selected.id] === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
                 <PriorityHelp value={d.priority} />
@@ -1241,18 +1242,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               />
             </div>
 
-            {/* Activity — comments plus a record of what changed */}
-            <div style={{ padding: '16px 22px' }}>
-              <ActivityFeed
-                comments={selected.comments ?? []}
-                activity={selected.activity ?? []}
-                canManage={canManage}
-                onComment={addComment}
-              />
-            </div>
-
             {canManage && (
-              <div style={{ padding: '0 22px 24px' }}>
+              <div style={{ padding: '16px 22px 4px' }}>
                 <div style={{ marginBottom: 12 }}>
                   <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} onMade={(made) => {
                     // Copies onto this board appear at once; the task's own history now notes them.
@@ -1263,6 +1254,16 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 <div onClick={() => deleteTask(selected.id)} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
               </div>
             )}
+
+            {/* Activity — comments plus a record of what changed, a page at a time from the server */}
+            <div style={{ padding: '16px 22px 24px' }}>
+              <ActivityFeed
+                source={{ kind: 'board', id: selected.id }}
+                version={`${selected.activity?.length ?? 0}:${selected.comments?.length ?? 0}:${selected.commentCount ?? 0}`}
+                canManage={canManage}
+                onComment={addComment}
+              />
+            </div>
           </div>
         </div>,
         document.body);

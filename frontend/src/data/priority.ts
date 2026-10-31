@@ -1,28 +1,34 @@
 import type { Priority } from './projectTasks';
 
 /**
- * Priority and due date go together (Oct 16):
- *   Urgent — due within 24 hours          default: tomorrow
- *   High   — within 5 business days       default: 5 business days out
- *   Medium — within a month               default: 2 weeks out
- *   Low    — more than a month            default: 1 month out
+ * Priority and due date go together (Oct 16; six levels Oct 31):
+ *   Emergency — within 1 to 3 hours        default: today
+ *   Urgent    — within 24 hours            default: tomorrow
+ *   High      — within 5 business days     default: 5 business days out
+ *   Medium    — within 2 weeks             default: 2 weeks out
+ *   Low       — within a month             default: 1 month out
+ *   Very Low  — more than a month          default: 2 months out
  * Whichever is set first fills in the other; nothing typed by hand is overwritten.
  */
 export const PRIORITY_HINT: Record<Priority, string> = {
+  Emergency: 'Due within 1 to 3 hours',
   Urgent: 'Due within 24 hours',
   High: 'Due within 5 business days',
-  Medium: 'Due within a month',
-  Low: 'Due in more than a month',
+  Medium: 'Due within 2 weeks',
+  Low: 'Due within a month',
+  'Very Low': 'Due in more than a month',
 };
 
 /** What a priority means (Settings -> Task priorities). Mirrors backend tasks/priority-definitions.ts. */
 export interface PriorityDef { priority: Priority; window: string; meaning: string }
 
 export const DEFAULT_PRIORITY_DEFS: PriorityDef[] = [
+  { priority: 'Emergency', window: PRIORITY_HINT.Emergency, meaning: 'Someone\'s safety, the site or the building is at risk right now (a leak, a collapse, an injury, a site shut down). Stop and deal with it within the next few hours.' },
   { priority: 'Urgent', window: PRIORITY_HINT.Urgent, meaning: 'Work on site, a client or someone\'s safety is stopped or at risk, or money or a permit is on the line. Drop other work and deal with it today.' },
   { priority: 'High', window: PRIORITY_HINT.High, meaning: 'Holds up the schedule, a client decision or someone else\'s work if it slips. Get it done this week.' },
-  { priority: 'Medium', window: PRIORITY_HINT.Medium, meaning: 'Normal project work with a real deadline. Plan it into the next few weeks.' },
-  { priority: 'Low', window: PRIORITY_HINT.Low, meaning: 'Useful, but nothing is waiting on it. Do it when there\'s time.' },
+  { priority: 'Medium', window: PRIORITY_HINT.Medium, meaning: 'Normal project work with a real deadline. Plan it into the next two weeks.' },
+  { priority: 'Low', window: PRIORITY_HINT.Low, meaning: 'Needs doing this month, but nothing is waiting on it yet.' },
+  { priority: 'Very Low', window: PRIORITY_HINT['Very Low'], meaning: 'Useful, but nothing is waiting on it. Do it when there\'s time.' },
 ];
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -41,10 +47,12 @@ export const todayIso = () => iso(new Date());
 export function dueForPriority(p: Priority | '' | null | undefined, from = todayIso()): string {
   const d = parse(from);
   switch (p) {
+    case 'Emergency': return iso(d);
     case 'Urgent': return iso(addDays(d, 1));
     case 'High': return iso(addBusinessDays(d, 5));
     case 'Medium': return iso(addDays(d, 14));
     case 'Low': return iso(addMonths(d, 1));
+    case 'Very Low': return iso(addMonths(d, 2));
     default: return '';
   }
 }
@@ -54,10 +62,12 @@ export function priorityForDue(due: string | null | undefined, from = todayIso()
   if (!due || !/^\d{4}-\d{2}-\d{2}/.test(due)) return '';
   const d = parse(due.slice(0, 10));
   const start = parse(from);
+  // Emergency is a call someone makes, not a date: a due date of today or tomorrow reads as Urgent.
   if (d <= addDays(start, 1)) return 'Urgent';
   if (d <= addBusinessDays(start, 5)) return 'High';
-  if (d <= addMonths(start, 1)) return 'Medium';
-  return 'Low';
+  if (d <= addDays(start, 14)) return 'Medium';
+  if (d <= addMonths(start, 1)) return 'Low';
+  return 'Very Low';
 }
 
 /**

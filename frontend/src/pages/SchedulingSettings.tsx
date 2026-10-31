@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { SiteVisitGuests } from '../components/SiteVisitGuests';
 import type { Guest } from '../data/siteVisitInvite';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = {
@@ -49,7 +50,7 @@ export function SchedulingSettings() {
       .finally(() => setSaving(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (loading) return <Skeleton label="Loading…" />;
 
   return (
     <div>
@@ -120,7 +121,7 @@ function SiteVisitTeam() {
         Invited to every site visit along with the client — each required or optional. Whoever schedules a visit can still change the list on that invite.
       </div>
       <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: 18 }}>
-        {team === null ? <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div> : <SiteVisitGuests guests={team} onChange={setTeam} />}
+        {team === null ? <Skeleton label="Loading…" /> : <SiteVisitGuests guests={team} onChange={setTeam} />}
         <div style={{ display: 'flex', marginTop: 14 }}>
           <button type="button" onClick={save} disabled={saving || !team}
             style={{ marginLeft: 'auto', padding: '9px 18px', borderRadius: 999, border: 0, fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>

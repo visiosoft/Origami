@@ -47,8 +47,8 @@ export interface ActivityEvent {
   at: string;                 // ISO timestamp
 }
 
-/** One priority scale for every special action (Oct 16): Urgent, High, Medium, Low, or none (''). */
-export const PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'] as const;
+/** One priority scale for every special action (Oct 16; six levels Oct 31): Emergency, Urgent, High, Medium, Low, Very Low, or none (''). */
+export const PRIORITIES = ['Emergency', 'Urgent', 'High', 'Medium', 'Low', 'Very Low'] as const;
 export const cleanPriority = (v: unknown) => (PRIORITIES as readonly string[]).includes(String(v)) ? String(v) : '';
 
 /** The kinds of special action that can be duplicated or converted into one another. */
@@ -215,3 +215,18 @@ export function diffEvents(
   }
   return out;
 }
+
+/**
+ * Access tags on a special action (Oct 26 review notes), one or more. Anything
+ * Financial comes in Internal too (it can be untagged later); Internal or
+ * Financial items are never shown to client or consultant accounts.
+ */
+export const ACTION_TAGS = ['internal', 'client', 'external', 'financial', 'crm', 'design', 'construction'] as const;
+export function cleanTags(raw: unknown, before?: unknown): string[] {
+  const list = [...new Set((Array.isArray(raw) ? raw : []).map((t) => String(t).toLowerCase()))].filter((t) => (ACTION_TAGS as readonly string[]).includes(t));
+  const had = Array.isArray(before) ? before.map(String) : [];
+  if (list.includes('financial') && !had.includes('financial') && !list.includes('internal')) list.unshift('internal');
+  return ACTION_TAGS.filter((t) => list.includes(t));
+}
+/** Internal or Financial: for our own team only. */
+export const internalOnly = (tags: unknown) => Array.isArray(tags) && tags.some((t) => t === 'internal' || t === 'financial');

@@ -169,6 +169,28 @@ export const cacheableRead = (path: string, options?: RequestInit) =>
 export function clearReadCache() { readCache.clear(); readsInFlight.clear(); }
 const copy = <T,>(v: T): T => (v === undefined || v === null ? v : structuredClone(v));
 
+// ---- Busy count: how many reads (and page downloads) are in flight, for the top loading bar ----
+let busyCount = 0;
+const busyListeners = new Set<(n: number) => void>();
+/** Hear the in-flight count change; returns the unsubscribe. */
+export function onBusy(fn: (n: number) => void): () => void {
+  busyListeners.add(fn);
+  fn(busyCount);
+  return () => { busyListeners.delete(fn); };
+}
+/** Count one more thing loading; call the returned function when it's done (safe to call twice). */
+export function markBusy(): () => void {
+  busyCount++;
+  busyListeners.forEach((fn) => fn(busyCount));
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    busyCount = Math.max(0, busyCount - 1);
+    busyListeners.forEach((fn) => fn(busyCount));
+  };
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!cacheableRead(path, options)) {
     try { return await send<T>(path, options); }
@@ -190,6 +212,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 async function send<T>(path: string, options?: RequestInit): Promise<T> {
   const token = session.get();
+  // Reads drive the top loading bar; writes have their own Saving… states.
+  const done = (options?.method || 'GET').toUpperCase() === 'GET' ? markBusy() : () => { };
+  try { return await sendNow<T>(path, options, token); } finally { done(); }
+}
+
+async function sendNow<T>(path: string, options: RequestInit | undefined, token: string | null | undefined): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
@@ -296,6 +324,8 @@ export const api = {
   },
   /** Duplicate a special action (to several projects at once) or convert it into another kind. */
   specialActions: {
+    /** One project's special actions: open counts, and when each kind last changed (for the blinking buttons). */
+    projectSummary: (projectId: number) => request<{ latest: Record<'tasks' | 'rfis' | 'meetings' | 'forRecord' | 'changeOrders', string | null>; counts: { meetingsUpcoming: number; meetings: number; forRecord: number; changeOrdersOpen: number; changeOrders: number; rfisOpen: number } }>(`/special-actions/project/${projectId}`, { cache: 'no-store' }),
     duplicate: (d: { kind: ActionKind; id: string; projectIds: (number | null)[] }) =>
       request<{ created: MadeAction[]; failed: { projectId: number | null; projectName: string; reason: string }[] }>('/special-actions/duplicate', { method: 'POST', body: JSON.stringify(d) }),
     convert: (d: { from: { kind: ActionKind; id: string }; to: ActionKind; topicType?: string; projectId?: number | null; title?: string; body?: string }) =>
@@ -410,6 +440,8 @@ export const api = {
     resume: (id: string | number) => request(`/projects/${id}/resume`, { method: 'POST' }),
   },
   people: {
+    /** Which phases someone works on for one project (crm, design, precon, construction). */
+    setProjectPhases: (id: number, project: string, phases: string[]) => request<any>(`/people/${id}/project-phases`, { method: 'PUT', body: JSON.stringify({ project, phases }) }),
     list: (project?: string) => request(`/people${project ? `?project=${encodeURIComponent(project)}` : ''}`),
     get: (id: string) => request(`/people/${id}`),
     create: (data: unknown) => request('/people', { method: 'POST', body: JSON.stringify(data) }),
@@ -453,7 +485,7 @@ export const api = {
     remove: (id: string) => request(`/meetings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     get: (id: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`),
     /** Raise a task, or a FOR RECORD item (FYI, observation, decision), from the meeting: a Special Actions Log entry linked to it. */
-    addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string }) =>
+    addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string; priority?: string; tags?: string[] }) =>
       request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
   },
   tasks: {
@@ -477,13 +509,13 @@ export const api = {
     },
     get: (id: string) => request(`/tasks/${id}`),
     /** One page of the Special Actions Log -- filtered, searched and sorted on the server. */
-    page: (o: { tab?: string; pf?: string; archived?: boolean; q?: string; scope?: string; person?: string; parts?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
+    page: (o: { tab?: string; pf?: string; archived?: boolean; q?: string; tag?: string; scope?: string; person?: string; parts?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
       const params = new URLSearchParams();
       for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '' && v !== false) params.set(k, v === true ? '1' : String(v));
       return request<{
         rows: import('./data/tasks').Task[]; total: number; page: number; size: number; pages: number;
         counts: { tabs: Record<string, number>; archived: number; mine: number; scope: { all: number; mine: number; fromMe: number; assigned: number } };
-        facets: { projects: string[]; hasGeneral: boolean; labels: string[] };
+        facets: { projects: string[]; hasGeneral: boolean; labels: string[]; tags?: Record<string, number> };
       }>(`/tasks/page?${params}`);
     },
     create: (data: unknown) => request('/tasks', { method: 'POST', body: JSON.stringify(data) }),
@@ -492,6 +524,8 @@ export const api = {
     uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/tasks/${id}/attachments`, filesForm(files)),
     addLink: (id: string, name: string, url: string) => request(`/tasks/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    /** One page of a log entry's comments and history from the server, newest first. */
+    activity: (id: string, q: { page?: number; size?: number } = {}) => request<import('./components/ActivityFeed').HistoryPage>(`/tasks/${encodeURIComponent(id)}/activity?page=${q.page ?? 1}&size=${q.size ?? 20}`, { cache: 'no-store' }),
     addComment: (id: string, text: string) => request(`/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
     /** FOR RECORD: attach an entry to a task or a change order, or detach it. */
     link: (id: string, kind: 'task' | 'changeOrder', targetId: string) => request<any>(`/tasks/${encodeURIComponent(id)}/links`, { method: 'POST', body: JSON.stringify({ kind, targetId }) }),
@@ -511,6 +545,10 @@ export const api = {
       request(`/pipeline/${id}/archived`, { method: 'PUT', body: JSON.stringify({ archived }) }),
     setRoles: (id: string, roles: Record<string, string>) =>
       request(`/pipeline/${id}/roles`, { method: 'PUT', body: JSON.stringify(roles) }),
+    /** Why a lead died, in full (Cold / Lost / Cancelled / Pass, reasons, notes). */
+    /** Who picks a held lead back up (follow_up) or monitors a referral (monitor). */
+    setWatcher: (id: string, body: { role: 'follow_up' | 'monitor'; id: string; name: string }) => request<any>(`/pipeline/${id}/watcher`, { method: 'PUT', body: JSON.stringify(body) }),
+    setDeadReason: (id: string, body: import('./data/deadReasons').DeadReason) => request<any>(`/pipeline/${id}/dead-reason`, { method: 'PUT', body: JSON.stringify(body) }),
     setLoss: (id: string, data: { lossReason: string; note?: string }) => request(`/pipeline/${id}/loss`, { method: 'PUT', body: JSON.stringify(data) }),
     setRejection: (id: string, data: { rejectionType: 'internal' | 'client' | 'referred'; rejectionReason?: string; lossReason?: string; referredToName?: string; referredToCompany?: string; referredToContact?: string }) =>
       request(`/pipeline/${id}/rejection`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -527,6 +565,8 @@ export const api = {
     remove: (id: string) => request(`/pipeline/${id}`, { method: 'DELETE' }),
   },
   leads: {
+    /** What each save of a lead changed, newest first (Full Details history). */
+    history: (id: string) => request<{ id: number; at: string; by?: string; changes: Record<string, { from: unknown; to: unknown }> }[]>(`/leads/${encodeURIComponent(id)}/versions`, { cache: 'no-store' }),
     list: () => request('/leads'),
     options: () => request('/leads/options'),
     get: (id: string) => request(`/leads/${id}`),
@@ -639,6 +679,8 @@ export const api = {
     uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/project-tasks/${id}/attachments`, filesForm(files)),
     addLink: (id: string, name: string, url: string) => request(`/project-tasks/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/project-tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    /** One page of a task's comments and history from the server, newest first. */
+    activity: (id: string, q: { page?: number; size?: number } = {}) => request<import('./components/ActivityFeed').HistoryPage>(`/project-tasks/${encodeURIComponent(id)}/activity?page=${q.page ?? 1}&size=${q.size ?? 20}`, { cache: 'no-store' }),
     addComment: (id: string, text: string) => request(`/project-tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
   },
   projectProgram: {
@@ -856,6 +898,14 @@ export const api = {
     editMarkup: (mid: string, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer' | 'linkType' | 'linkId'>>) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'PUT', body: JSON.stringify(patch) }),
     removeMarkup: (mid: string) => request(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'DELETE' }),
     /** Rename a layer on a drawing (from: its name, or null for someone's own unnamed layer). */
+    /** The shared drawing-symbol library (admins add, rename, delete). */
+    symbols: () => request<{ id: string; name: string; image: string }[]>('/file-room/symbols'),
+    addSymbol: (name: string, image: string) => request<{ id: string; name: string; image: string }>('/file-room/symbols', { method: 'POST', body: JSON.stringify({ name, image }) }),
+    renameSymbol: (id: string, name: string) => request<{ id: string; name: string; image: string }>(`/file-room/symbols/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+    removeSymbol: (id: string) => request(`/file-room/symbols/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    /** A drawing's sheet names by page ("1": "A100"); saving merges page by page unless `replace`. */
+    sheets: (id: string) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { cache: 'no-store' } as any),
+    setSheets: (id: string, names: Record<string, string>, replace = false) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { method: 'PUT', body: JSON.stringify({ names, replace }) }),
     renameLayer: (id: string, from: string | null, to: string, authorId?: string | null) => request<{ layer: string; updated: number }>(`/file-room/files/${encodeURIComponent(id)}/layers`, { method: 'PUT', body: JSON.stringify({ from, to, authorId }) }),
     addPinPhotos: (mid: string, files: File[] | FileList) => requestForm<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos`, filesForm(files)),
     removePinPhoto: (mid: string, fileId: string) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos/${encodeURIComponent(fileId)}`, { method: 'DELETE' }),
@@ -1009,6 +1059,19 @@ export const api = {
     changeOrders: (projectId: number) => request(`/finance/projects/${projectId}/change-orders`),
     createChangeOrder: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/change-orders`, { method: 'POST', body: JSON.stringify(d) }),
     changeOrder: (id: string) => request(`/finance/change-orders/${id}`),
+    // Change events -> CORs -> PCCO -> CCOs (Oct 26 review notes).
+    changeEvents: (projectId?: number) => request<any[]>(`/finance/change-events${projectId ? `?projectId=${projectId}` : ''}`, { cache: 'no-store' }),
+    changeEvent: (id: string) => request<any>(`/finance/change-events/${id}`, { cache: 'no-store' }),
+    createChangeEvent: (projectId: number, d: unknown) => request<any>(`/finance/projects/${projectId}/change-events`, { method: 'POST', body: JSON.stringify(d) }),
+    updateChangeEvent: (id: string, d: unknown) => request<any>(`/finance/change-events/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+    sendPco: (id: string, d: unknown) => request<any>(`/finance/change-events/${id}/pco`, { method: 'POST', body: JSON.stringify(d) }),
+    directive: (id: string, d: unknown) => request<any>(`/finance/change-events/${id}/directive`, { method: 'POST', body: JSON.stringify(d) }),
+    addCor: (id: string, d: unknown) => request<any>(`/finance/change-events/${id}/cors`, { method: 'POST', body: JSON.stringify(d) }),
+    priceCor: (id: string, d: unknown) => request<any>(`/finance/cors/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+    decideCor: (id: string, decision: 'validate' | 'hold' | 'reject', note?: string) => request<any>(`/finance/cors/${id}/${decision}`, { method: 'POST', body: JSON.stringify({ note }) }),
+    makePcco: (d: { corIds: string[]; title?: string; markupPct?: number }) => request<{ changeOrderId: string; number: string }>('/finance/pccos', { method: 'POST', body: JSON.stringify(d) }),
+    ccos: (projectId?: number) => request<any[]>(`/finance/ccos${projectId ? `?projectId=${projectId}` : ''}`, { cache: 'no-store' }),
+    actCco: (id: string, action: 'send' | 'sign' | 'void', d: unknown = {}) => request<any>(`/finance/ccos/${id}/${action}`, { method: 'POST', body: JSON.stringify(d) }),
     changeOrderImpact: (id: string) => request(`/finance/change-orders/${id}/impact`),
     updateChangeOrder: (id: string, d: unknown) => request(`/finance/change-orders/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
     deleteChangeOrder: (id: string) => request(`/finance/change-orders/${id}`, { method: 'DELETE' }),

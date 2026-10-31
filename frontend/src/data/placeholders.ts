@@ -11,6 +11,9 @@ export const PLACEHOLDER_RE = /\{\{\s*([A-Za-z][\w.]*)\s*\}\}|\{([A-Za-z][A-Za-z
 export const KNOWN_TOKENS = [
   'clientName', 'clientEmail', 'clientPhone', 'projectTitle', 'projectScope',
   'date', 'senderName', 'senderEmail', 'invoiceNumber', 'documentName',
+  // Oct 31: more fields to build templates with.
+  'clientFirstName', 'projectAddress', 'projectNumber', 'projectType', 'senderPhone',
+  'companyName', 'companyPhone', 'companyEmail', 'companyAddress', 'companyWebsite',
 ] as const;
 
 /** Filled in when the document is signed, so they're meant to be there until then. */
@@ -20,6 +23,9 @@ const LABELS: Record<string, string> = {
   clientName: 'client name', clientEmail: 'client email', clientPhone: 'client phone', projectTitle: 'project title',
   projectScope: 'project scope', date: 'date', senderName: 'your name', senderEmail: 'your email',
   invoiceNumber: 'invoice number', documentName: 'document name',
+  clientFirstName: 'client first name', projectAddress: 'project address', projectNumber: 'project number', projectType: 'type of work',
+  senderPhone: 'your phone', companyName: 'company name', companyPhone: 'company phone', companyEmail: 'company email',
+  companyAddress: 'company address', companyWebsite: 'company website',
 };
 
 /** `client_name`, `Client-Name`, `ClientName` -> `clientName`; a known field matches whatever its case. */
@@ -75,3 +81,21 @@ export function unknownTokens(...texts: (string | null | undefined)[]): string[]
 
 /** True when the texts still hold a merge field -- for disabling Send. */
 export const hasUnfilled = (...texts: (string | null | undefined)[]) => unfilled(...texts).length > 0;
+
+/** The merge fields, grouped for the "Insert field" picker. */
+export const TOKEN_GROUPS: { label: string; tokens: string[] }[] = [
+  { label: 'Client', tokens: ['clientName', 'clientFirstName', 'clientEmail', 'clientPhone'] },
+  { label: 'Project', tokens: ['projectTitle', 'projectAddress', 'projectNumber', 'projectType', 'projectScope'] },
+  { label: 'You', tokens: ['senderName', 'senderEmail', 'senderPhone'] },
+  { label: 'Company', tokens: ['companyName', 'companyPhone', 'companyEmail', 'companyAddress', 'companyWebsite'] },
+  { label: 'Other', tokens: ['date', 'invoiceNumber', 'documentName'] },
+];
+export const tokenLabel = (t: string) => LABELS[t] || t;
+
+/** What a template looks like filled in, for the preview: made-up client and project, the real company. */
+export const SAMPLE_TOKENS: Record<string, string> = {
+  clientName: 'Jordan Lee', clientFirstName: 'Jordan', clientEmail: 'jordan.lee@example.com', clientPhone: '(415) 555-0142',
+  projectTitle: 'Lee Residence', projectAddress: '2140 Pine St, San Francisco', projectNumber: 'LEE', projectType: 'Residential · Renovation',
+  projectScope: 'Kitchen remodel and a rear addition', invoiceNumber: 'INV-0042', documentName: 'Project Program',
+  date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+};

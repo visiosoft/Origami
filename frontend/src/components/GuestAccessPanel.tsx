@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { Skeleton } from './Skeleton';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -112,7 +113,7 @@ export function GuestAccessPanel({ projectId }: { projectId: number }) {
       )}
 
       {loading ? (
-        <div style={{ fontSize: 12, color: 'var(--c-9aa39d)' }}>Loading…</div>
+        <Skeleton label="Loading…" />
       ) : grants.length === 0 ? (
         <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No guest access granted on this project yet.</div>
       ) : (

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { loadPicklists, setPicklists, type Picklists } from '../data/picklists';
+import { Skeleton } from './Skeleton';
 
 const LISTS: { key: keyof Picklists; title: string; hint: string }[] = [
   { key: 'departments', title: 'Departments', hint: 'Where someone sits in the company.' },
@@ -21,7 +22,7 @@ export function PicklistsSetup({ canManage }: { canManage: boolean }) {
   const [error, setError] = useState('');
   const fill = (p: Picklists) => setText({ departments: p.departments.join('\n'), designations: p.designations.join('\n'), skills: p.skills.join('\n') });
   useEffect(() => { loadPicklists(true).then(fill); }, []);
-  if (!text) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (!text) return <Skeleton label="Loading…" />;
 
   const save = () => {
     const body = Object.fromEntries(LISTS.map(({ key }) => [key, text[key].split('\n').map((s) => s.trim()).filter(Boolean)])) as unknown as Picklists;

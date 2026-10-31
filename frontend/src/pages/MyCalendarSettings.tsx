@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const card: React.CSSProperties = {
@@ -56,7 +57,7 @@ export function MyCalendarSettings() {
       .finally(() => setDisconnecting(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (loading) return <Skeleton label="Loading…" />;
 
   return (
     <div>

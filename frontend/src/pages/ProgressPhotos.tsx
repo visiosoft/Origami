@@ -7,6 +7,7 @@ import { AkPage, AkSeg, AkStats, akToday } from '../components/ActionKit';
 import { Drawer } from '../components/manpowerUi';
 import { PROGRESS_STATUS, groupBy, photoDate, weekOf, type PhotoCategories, type PhotoTrack, type ProgressNote, type ProgressPhoto, type ProgressStatus, type ProgressSummary, type UnsortedPhoto } from '../data/progressPhotos';
 import './ProgressPhotos.css';
+import { Skeleton } from '../components/Skeleton';
 
 const PROJECT_KEY = 'origami.progressPhotos.project';
 const TRACKS: [PhotoTrack, string][] = [['construction', 'Construction'], ['design', 'Design']];
@@ -191,7 +192,7 @@ export function ProgressPhotos() {
       )}
 
       {!projectId ? <section className="ak-card"><div className="ak-empty">Pick a project.</div></section>
-        : !data ? <section className="ak-card"><div className="ak-empty">Loading…</div></section>
+        : !data ? <section className="ak-card"><div style={{ padding: 16 }}><Skeleton rows={4} /></div></section>
         : view === 'unsorted' ? <Unsorted rows={data.unsorted} cats={cats} onSorted={load} />
         : view === 'compare' ? <Compare photos={shown} onOpen={setOpen} />
         : view === 'progress' ? (

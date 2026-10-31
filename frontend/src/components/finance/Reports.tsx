@@ -3,6 +3,7 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, btn, card, fmtDate, headRow, input, todayISO } from '../manpowerUi';
 import { CO_REASONS, CoBadge, downloadCsv, failed, label, usd0, type Rights } from './financeUi';
+import { Skeleton } from '../Skeleton';
 
 type ReportKey = 'wip' | 'ar-aging' | 'budget-vs-actual' | 'change-orders' | 'retention' | 'contract-vs-invoiced' | 'cash-forecast';
 const REPORTS: [ReportKey, string, string, keyof Rights][] = [
@@ -123,7 +124,7 @@ export function FinanceReports({ rights, onProject }: { rights: Rights; onProjec
           {key === 'ar-aging' && <div onClick={exportInvoices} style={btn()}>Export invoices</div>}
           <div onClick={exportCsv} style={btn()}>Export CSV</div>
         </div>
-        {!data && <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>}
+        {!data && <Skeleton label="Loading…" />}
         {data && !data.error && key === 'ar-aging' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
             {[['current', 'Current'], ['d1_30', '1–30 days'], ['d31_60', '31–60 days'], ['d61_90', '61–90 days'], ['d90_plus', '90+ days'], ['total', 'Total owed']].map(([k, l]) => (

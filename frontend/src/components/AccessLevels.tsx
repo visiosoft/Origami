@@ -4,6 +4,7 @@ import { useApp } from '../AppContext';
 import { EXTENT_LABEL, LEVELS, LEVEL_HINT, LEVEL_LABEL, LEVEL_SHORT, OVERALL_KEY, dataTypeLabel, levelOf, type Extent, type Level } from '../data/accessLevels';
 import { MODULES, type RolePermissions, type User } from '../data/users';
 import { Drawer } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 /**
  * One cell of the access grid for a role that uses levels: the level (Block …
@@ -80,7 +81,7 @@ export function UserAccessDrawer({ user, onClose, onSaved }: { user: User; onClo
         <button type="button" className="ab-btn" onClick={onClose}>Cancel</button>
         <button type="button" className="ab-btn is-dark" disabled={busy || !data} onClick={save}>{busy ? 'Saving…' : 'Save access'}</button>
       </div>}>
-      {!data ? <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div> : (
+      {!data ? <Skeleton label="Loading…" /> : (
         <div style={{ display: 'grid', gap: 14 }}>
           <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontSize: 12.5, color: 'var(--body)' }}>
             <input type="checkbox" checked={onlyChanged} onChange={(e) => setOnlyChanged(e.target.checked)} /> Show only what’s changed

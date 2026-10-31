@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { STAGES, type Deal } from '../data/pipeline';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay, akDaysFrom, akToday } from '../components/ActionKit';
+import { Skeleton } from '../components/Skeleton';
+import { askPerson } from '../components/AskPerson';
+import { useApp } from '../AppContext';
 
 type View = 'hold' | 'referred' | 'closed';
 const stageOf = (k: string) => STAGES.find((s) => s.key === k);
@@ -17,7 +20,27 @@ const isClosedNotReferred = (d: Deal) => !!stageOf(d.stage)?.isClosed && !isRefe
  */
 export function HoldingReferOut() {
   const navigate = useNavigate();
+  const { users, toast } = useApp();
   const [deals, setDeals] = useState<Deal[] | null>(null);
+  /** Who picks a held lead back up, or monitors a referral (Oct 26 review notes). */
+  const assign = async (d: Deal, role: 'follow_up' | 'monitor') => {
+    const who = await askPerson(role === 'follow_up'
+      ? { heading: 'Who picks it back up?', why: `Pick who gets back in touch with “${d.name}” on ${d.holdUntil || 'the hold date'} — they get a task due that day.`, users, current: d.followUpById }
+      : { heading: 'Who monitors it?', why: `Pick who keeps an eye on “${d.name}” and adds updates.`, users, current: d.monitorId });
+    if (!who) return;
+    api.pipeline.setWatcher(d.id, { role, ...who })
+      .then((saved: any) => setDeals((cur) => (cur || []).map((x) => (x.id === d.id ? { ...x, ...saved } : x))))
+      .catch((e: Error) => toast('⚠ Not saved — ' + (e.message || 'try again')));
+  };
+  const watcherButton = (d: Deal, role: 'follow_up' | 'monitor') => {
+    const name = role === 'follow_up' ? d.followUpByName : d.monitorName;
+    return (
+      <button type="button" className="ak-btn" onClick={(e) => { e.stopPropagation(); void assign(d, role); }}
+        title={role === 'follow_up' ? 'Who picks it back up' : 'Who monitors it'} style={{ padding: '4px 10px', fontSize: 12 }}>
+        {name ? (role === 'follow_up' ? 'Follow-up: ' : 'Monitor: ') + name : role === 'follow_up' ? 'Assign follow-up' : 'Assign monitor'}
+      </button>
+    );
+  };
   const [view, setView] = useState<View>('hold');
   const [q, setQ] = useState('');
   const [archived, setArchived] = useState(false);
@@ -51,18 +74,18 @@ export function HoldingReferOut() {
 
   return (
     <AkPage
-      lead="Leads that aren’t active: on hold until a date, referred out to someone else, or gone cold. Click one to open it on the CRM board."
+      lead="Leads that aren’t active: on hold until a date, referred out to someone else, or dead (Cold / Lost, Cancelled / Pass). Click one to open it on the CRM board."
       action={<button type="button" className="ak-btn" onClick={() => navigate('/pipeline')}>Open CRM board</button>}
     >
       <AkStats items={[
         { key: 'due', label: 'Due to pick back up', value: deals ? dueBack.length : '—', sub: soon.length ? `${soon.length} more in the next 2 weeks` : 'on or past their date', tone: dueBack.length ? 'yellow' : undefined, onClick: () => setView('hold') },
         { key: 'hold', label: 'On hold', value: deals ? hold.length : '—', sub: '1, 3, 6 and 12-month holds', onClick: () => setView('hold'), on: view === 'hold' },
         { key: 'ref', label: 'Referred out', value: deals ? referred.length : '—', sub: 'handed to a partner', onClick: () => setView('referred'), on: view === 'referred' },
-        { key: 'closed', label: 'Cold or cancelled', value: deals ? closed.length : '—', sub: 'not referred', onClick: () => setView('closed'), on: view === 'closed' },
+        { key: 'closed', label: 'Dead leads', value: deals ? closed.length : '—', sub: 'Cold / Lost, Cancelled / Pass', onClick: () => setView('closed'), on: view === 'closed' },
       ]} />
 
       <div className="ak-tools">
-        <AkSeg<View> value={view} onChange={setView} options={[['hold', 'On hold', hold.length], ['referred', 'Referred out', referred.length], ['closed', 'Cold & cancelled', closed.length]]} />
+        <AkSeg<View> value={view} onChange={setView} options={[['hold', 'On hold', hold.length], ['referred', 'Referred out', referred.length], ['closed', 'Dead leads', closed.length]]} />
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search lead, client, partner…" />
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--muted)' }}>
           <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Include archived
@@ -70,7 +93,7 @@ export function HoldingReferOut() {
       </div>
 
       <section className="ak-card">
-        {deals === null && <div className="ak-empty">Loading…</div>}
+        {deals === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {deals && !list.length && <div className="ak-empty">{needle ? 'No lead matches.' : view === 'hold' ? 'No leads on hold.' : view === 'referred' ? 'No leads referred out.' : 'No cold or cancelled leads.'}</div>}
         {list.map((d, i) => (
           <AkRow key={d.id} index={i} muted={d.archived} onClick={() => navigate(`/pipeline?open=${encodeURIComponent(d.id)}`)}
@@ -80,9 +103,11 @@ export function HoldingReferOut() {
               ? ['Referred to ' + ([d.referredToName, d.referredToCompany].filter(Boolean).join(', ') || 'a partner'), d.client, d.rejectionReason].filter(Boolean).join(' · ')
               : view === 'closed'
                 ? [stageOf(d.stage)?.name, d.client, d.rejectionReason].filter(Boolean).join(' · ')
-                : [stageOf(d.stage)?.name, d.client, d.assignee && 'with ' + d.assignee].filter(Boolean).join(' · ')}
+                : [stageOf(d.stage)?.name, d.client].filter(Boolean).join(' · ')}
             right={<>
               {d.value && <span className="ak-hide-sm">{d.value}</span>}
+              {view === 'hold' && !d.archived && watcherButton(d, 'follow_up')}
+              {view === 'referred' && !d.archived && d.stage === 'referred_monitoring' && watcherButton(d, 'monitor')}
               {view === 'hold' ? holdWhen(d) : view === 'referred' ? <AkPill tone="green">Monitoring</AkPill> : <AkPill tone="soft">{stageOf(d.stage)?.name || d.stage}</AkPill>}
               {d.archived && <AkPill tone="outline">Archived</AkPill>}
             </>}

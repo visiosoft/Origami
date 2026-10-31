@@ -1,6 +1,7 @@
 import { OpenedBadge } from './OpenedBadge';
 import { useEffect, useState } from 'react';
 import { api, type FileShare } from '../api';
+import { Skeleton } from './Skeleton';
 
 const when = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -14,7 +15,7 @@ export function ShareHistory({ projectId, fileId, refreshKey = 0, onOpenFile, em
     api.fileRoom.shares({ projectId, fileId }).then((r) => { if (live) setRows(Array.isArray(r) ? r : []); }).catch(() => { if (live) setRows([]); });
     return () => { live = false; };
   }, [projectId, fileId, refreshKey]);
-  if (!rows) return <div style={{ fontSize: 12, color: 'var(--muted)' }}>Loading…</div>;
+  if (!rows) return <Skeleton label="Loading…" />;
   if (!rows.length) return <div style={{ fontSize: 12, color: 'var(--muted)' }}>{empty || 'Nothing emailed yet.'}</div>;
   return (
     <div style={{ display: 'grid', gap: 8 }}>

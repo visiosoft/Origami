@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { NotificationMatrix } from '../components/NotificationMatrix';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 
@@ -75,7 +76,7 @@ export function NotificationSettings() {
       .finally(() => setSaving(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (loading) return <Skeleton label="Loading…" />;
 
   const row = (title: string, hint: string, on: boolean, onChange: (v: boolean) => void) => (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>

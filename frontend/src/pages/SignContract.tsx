@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { ContractSigner } from '../components/ContractSigner';
 import type { ContractSigningView } from '../data/contracts';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const card: React.CSSProperties = { background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: 20, marginBottom: 16 };
@@ -34,7 +35,7 @@ export function SignContract() {
       </div>
     </div>
   );
-  if (loading) return shell(<div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>);
+  if (loading) return shell(<Skeleton label="Loading…" />);
   if (!doc) return shell(<div role="alert" style={{ fontSize: 13.5, color: '#8E2E0A', fontWeight: 600 }}>{error || 'This contract could not be found.'}</div>);
 
   const attachments = doc.attachments.length > 0 && (

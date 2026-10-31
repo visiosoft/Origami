@@ -8,8 +8,12 @@ import { ClampText } from '../components/ClampText';
 import { SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { ClientBackgroundPanel, type ClientBackground } from '../components/ClientBackgroundPanel';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt, previousStage, LOSS_REASONS } from '../data/pipeline';
-import { askChoice } from '../components/CompletionNote';
+import { askDeadReason } from '../components/DeadReasonDialog';
+import { askPerson } from '../components/AskPerson';
+import { ClientScore } from '../components/ClientScore';
+import { LeadFullDetails } from '../components/LeadFullDetails';
+import { deadReasonLabels, type DeadKind, type DeadReason } from '../data/deadReasons';
+import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt, previousStage } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
@@ -35,6 +39,7 @@ import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { SiteVisitGuests } from '../components/SiteVisitGuests';
 import { TextClient } from '../components/TextClient';
 import { inviteGuests, siteVisitDescription, zoningSections, type Guest } from '../data/siteVisitInvite';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const OPT = LEAD_DROPDOWN_OPTIONS;
@@ -237,20 +242,15 @@ const ACTIVE_STAGES = STAGES.filter((s) => !s.isHold && !s.isClosed);
 /** The three ways a Project Fit Review rejection can go, each its own color so
  *  a "we said no" card reads differently from a "referred elsewhere" one. */
 const REJECTION_STYLE: Record<string, { bg: string; c: string; label: (d: Deal) => string }> = {
-  internal: { bg: '#F2DFD4', c: '#8E2E0A', label: () => 'We Declined' },
-  client: { bg: '#F6E0C4', c: '#93520F', label: (d) => `Client Passed${d.lossReason ? ` — ${d.lossReason}` : ''}` },
-  lost: { bg: '#DCE7EC', c: '#4A6C7A', label: (d) => `Lost — ${d.lossReason || 'no reason'}` },
+  internal: { bg: '#F2DFD4', c: '#8E2E0A', label: (d) => `We passed${d.lossReason ? ` — ${d.lossReason}` : ''}` },
+  client: { bg: '#F6E0C4', c: '#93520F', label: (d) => `Cancelled${d.lossReason ? ` — ${d.lossReason}` : ''}` },
+  lost: { bg: '#DCE7EC', c: '#4A6C7A', label: (d) => `${d.deadReason?.kind === 'cold' ? 'Cold' : 'Lost'} — ${d.lossReason || 'no reason'}` },
   referred: { bg: '#D8E2F0', c: '#3C5C8A', label: (d) => `Referred to ${d.referredToName || 'contact'}` },
 };
 
-/** The outcome badge a card carries: a rejection outcome, or a Cold / Loss reason. */
+/** The outcome badge a card carries: a rejection outcome, or a Cold / Lost reason. */
 const outcomeOf = (d: Deal) => d.rejectionType || (d.lossReason ? 'lost' : '');
 
-const LOSS_COPY = {
-  label: 'Why was it lost', heading: 'Why was this lead lost?', why: 'Pick the main reason. Loss reasons are tracked to improve marketing and training.',
-  placeholder: 'Anything to add, e.g. went with a cheaper builder', button: 'Save',
-};
-const askLoss = (name: string) => askChoice(LOSS_COPY, LOSS_REASONS, 'Other', name);
 
 /** Canonical index for a stage key, so no call site hardcodes a number. */
 const stageIndex = (key: string) => STAGES.findIndex((s) => s.key === key);
@@ -427,6 +427,8 @@ export function Pipeline() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const [deals, setDeals] = useState<Deal[]>([]);
+  // False until the first list arrives, so the columns show placeholders rather than "No deals".
+  const [dealsLoaded, setDealsLoaded] = useState(false);
   // /pipeline?open=<dealId> (global search) opens that deal once it has loaded.
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
@@ -589,7 +591,7 @@ export function Pipeline() {
       const rows = res as Deal[];
       setDeals(rows);
       setNotesByDeal(Object.fromEntries(rows.map((d) => [d.id, ((d as any).stageNotes || []) as LeadNote[]])));
-    }).catch(() => { });
+    }).catch(() => { }).finally(() => setDealsLoaded(true));
   }, [showArchived]);
 
   useEffect(() => {
@@ -785,18 +787,44 @@ export function Pipeline() {
     if (createdNow) { setSelectedId(id); setDetailTab('overview'); }
   };
 
-  /** Moving a lead to Cold / Loss asks why first (Oct 27 sync); cancelling leaves it where it was. */
-  const applyOverride = (id: string, o: Override) => {
+  /**
+   * Moving a lead to Cold / Lost or Cancelled / Pass asks why first (Oct 26 review
+   * notes: Cold or Lost, Cancelled or Pass, the reasons and notes); cancelling the
+   * question leaves the lead where it was.
+   */
+  const applyOverride = (id: string, o: Override, kind?: DeadKind) => {
     const deal = data.find((d) => d.id === id);
-    if (o.stage !== 'cold' || !deal || deal.stage === 'cold') { applyOverrideNow(id, o); return; }
-    void askLoss(deal.name).then((loss) => {
-      if (!loss) return;
+    const dead = o.stage === 'cold' || o.stage === 'rejected' ? o.stage : null;
+    if (!dead || !deal || deal.stage === dead) {
       applyOverrideNow(id, o);
-      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, lossReason: loss.choice, rejectionReason: loss.note } : d)));
-      // After the move is saved, so the stage change doesn't clear it again.
-      void persist(() => api.pipeline.setLoss(id, { lossReason: loss.choice, note: loss.note }))
-        .catch((e: Error) => toast('⚠ Moved, but the reason was not saved — ' + (e.message || 'try again')));
+      // On hold: who picks it back up when the date comes (Oct 26 review notes).
+      const target = STAGES.find((st) => st.key === o.stage);
+      if (deal && target?.isHold && deal.stage !== o.stage) void askWatcher(deal, 'follow_up');
+      return;
+    }
+    void askDeadReason(deal.name, dead, kind, (leadDetails[deal.id] as any)?.fitScore).then((why) => {
+      if (!why) return;
+      applyOverrideNow(id, o);
+      saveDeadReason(id, why);
     });
+  };
+  /** Who follows up a held lead, or monitors a referral; "Later" leaves it for the Holding page. */
+  const askWatcher = async (deal: Deal, role: 'follow_up' | 'monitor') => {
+    const who = await askPerson(role === 'follow_up'
+      ? { heading: 'Who picks it back up?', why: `“${deal.name}” is on hold. Pick who gets back in touch when the date comes — they get a task due that day.`, users, current: deal.followUpById || deal.assignee || currentUser?.id }
+      : { heading: 'Who monitors it?', why: `“${deal.name}” was referred out. Pick who keeps an eye on it and adds updates.`, users, current: deal.monitorId || currentUser?.id });
+    if (!who) return;
+    setDeals((prev) => prev.map((d) => (d.id === deal.id ? (role === 'follow_up' ? { ...d, followUpById: who.id, followUpByName: who.name } : { ...d, monitorId: who.id, monitorName: who.name }) : d)));
+    persist(() => api.pipeline.setWatcher(deal.id, { role, ...who }))
+      .then((saved: any) => { if (saved?.id) setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, ...saved } : d))); })
+      .catch((e: Error) => toast('⚠ Not saved — ' + (e.message || 'try again')));
+  };
+  const saveDeadReason = (id: string, why: DeadReason) => {
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, deadReason: why, lossReason: deadReasonLabels(why.kind, why.reasons).join(', '), rejectionReason: why.note || '' } : d)));
+    // After the move is saved, so the stage change doesn't clear it again.
+    void persist(() => api.pipeline.setDeadReason(id, why))
+      .then((saved: any) => { if (saved?.id) setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, deadReason: saved.deadReason, lossReason: saved.lossReason, timeline: saved.timeline ?? d.timeline } : d))); })
+      .catch((e: Error) => toast('⚠ Moved, but the reason was not saved — ' + (e.message || 'try again')));
   };
   const applyOverrideNow = (id: string, o: Override) => {
     setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...o } }));
@@ -836,22 +864,24 @@ export function Pipeline() {
    * the audit trail records why -- not just "Moved to Cancelled / Rejected".
    */
   const confirmReject = async (deal: Deal, type: 'internal' | 'client' | 'referred', referral?: { name: string; company: string; contact: string }) => {
-    // The client passing is a loss: say why (Oct 27 sync).
-    const loss = type === 'client' ? await askLoss(deal.name) : null;
-    if (type === 'client' && !loss) return;
+    // We pass, or it was cancelled: say why (Oct 26 review notes).
+    const why = type === 'referred' ? null : await askDeadReason(deal.name, 'rejected', type === 'internal' ? 'pass' : 'cancelled', (leadDetails[deal.id] as any)?.fitScore);
+    if (type !== 'referred' && !why) return;
     // A referral isn't a dead end -- it goes to its own stage so it doesn't
     // read as closed like a true rejection does.
     const stage = type === 'referred' ? 'referred_monitoring' : 'rejected';
-    applyOverride(deal.id, { stage, stageIdx: stageIndex(stage), daysInStage: 0 });
-    api.pipeline.setRejection(deal.id, {
+    applyOverrideNow(deal.id, { stage, stageIdx: stageIndex(stage), daysInStage: 0 });
+    // In order after the move: the outcome, then the full why.
+    persist(() => api.pipeline.setRejection(deal.id, {
       rejectionType: type,
-      ...(loss ? { lossReason: loss.choice, rejectionReason: loss.note } : {}),
       referredToName: referral?.name.trim(),
       referredToCompany: referral?.company.trim(),
       referredToContact: referral?.contact.trim(),
-    })
+    }))
       .then((saved: any) => setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, ...saved } : d))))
-      .catch(() => toast('⚠ Rejected, but the reason could not be saved'));
+      .catch(() => toast('⚠ Moved, but the outcome could not be saved'));
+    if (why) saveDeadReason(deal.id, why);
+    if (type === 'referred') void askWatcher(deal, 'monitor');
     setRejectChoice(null);
     setSelectedId(null);
   };
@@ -1187,6 +1217,28 @@ export function Pipeline() {
     if (reason.trim()) logEvent(deal.id, `Moved back to ${to.name}: ${reason.trim()}`);
   };
 
+  /**
+   * "Move to…" in the lead panel (Oct 26 review notes): straight to any stage, e.g.
+   * Project Programming → Hold - 3 Months, with the same rules as dragging (a dead
+   * stage asks why; a referral asks who it went to).
+   */
+  const moveTo = (deal: Deal, stageKey: string) => {
+    const target = STAGES.find((st) => st.key === stageKey);
+    if (!target || stageKey === deal.stage) return;
+    if (blockedFor(deal.id, stageKey)) {
+      toast(`⚠ ${target.name} doesn't apply to a ${deliveryCode(leadDetails[deal.id]?.contractType)} lead`);
+      return;
+    }
+    if (stageKey === 'referred_monitoring') {
+      const who = window.prompt(`Who was “${deal.name}” referred to? (name, company)`, '');
+      if (who === null) return;
+      const [name, ...company] = who.split(',');
+      void confirmReject(deal, 'referred', { name: name || '', company: company.join(',').trim(), contact: '' });
+      return;
+    }
+    applyOverride(deal.id, { stage: stageKey, stageIdx: stageIndex(stageKey), daysInStage: 0, status: 'in_progress' });
+  };
+
   const onDrop = (e: React.DragEvent, stageKey: string, stageIdx: number) => {
     e.preventDefault();
     const id = e.dataTransfer.getData('text/plain');
@@ -1353,7 +1405,7 @@ export function Pipeline() {
                         </div>
                       );
                     })}
-                    {cards.length === 0 && <div style={{ padding: '16px 8px', textAlign: 'center', fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No deals</div>}
+                    {cards.length === 0 && (dealsLoaded ? <div style={{ padding: '16px 8px', textAlign: 'center', fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No deals</div> : <Skeleton rows={2} height={48} label="Loading leads…" />)}
                   </div>
                 </div>
               );
@@ -1431,24 +1483,29 @@ export function Pipeline() {
               {selected.archived && (
                 <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: 'var(--c-efede8)', color: 'var(--muted)' }}>Archived</span>
               )}
+              <ClientScore compact score={(leadDetails[selected.id] as any)?.fitScore} />
             </div>
           </div>
 
           {/* Tabs -- Project Programming only while the lead is actually on that
               stage; otherwise Full Details takes its place, as before. */}
-          <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', padding: '0 20px' }}>
-            {(['overview', 'notes', 'client', 'tasks', 'files', selected.stage === 'zoning' ? 'programming' : 'details'] as const).map((t) => {
-              const count = t === 'notes' ? (notesByDeal[selected.id] || []).length : t === 'files' ? leadFiles.files.length : 0;
+          <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', padding: '0 12px', overflowX: 'auto', scrollbarWidth: 'thin' }}>
+            {(['overview', 'tasks', 'client', 'files', ...(selected.stage === 'zoning' ? ['programming' as const] : []), 'details'] as const).map((t) => {
+              // Special Actions holds the lead's tasks and its FYI notes (Oct 26 review notes).
+              const on = detailTab === t || (t === 'tasks' && detailTab === 'notes');
+              const count = t === 'tasks' ? (notesByDeal[selected.id] || []).length : t === 'files' ? leadFiles.files.length : 0;
               return (
-                <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? 'var(--forest)' : 'transparent'), color: detailTab === t ? 'var(--ink)' : 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {t === 'overview' ? 'Overview' : t === 'notes' ? 'Notes' : t === 'client' ? 'Client' : t === 'tasks' ? 'Tasks' : t === 'files' ? 'Files' : t === 'programming' ? 'Project Programming' : 'Full Details'}
-                  {count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: detailTab === t ? 'var(--forest)' : 'var(--c-efede8)', color: detailTab === t ? 'white' : 'var(--muted)' }}>{count}</span>}
+                <div key={t} onClick={() => setDetailTab(t)} style={{ flexShrink: 0, padding: '11px 9px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (on ? 'var(--forest)' : 'transparent'), color: on ? 'var(--ink)' : 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                  {t === 'overview' ? 'Current Stage' : t === 'client' ? 'Client Card' : t === 'tasks' ? 'Special Actions' : t === 'files' ? 'CRM Files' : t === 'programming' ? 'Project Programming' : 'Full Details'}
+                  {count > 0 && <span title={`${count} FYI note${count === 1 ? '' : 's'}`} style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: on ? 'var(--forest)' : 'var(--c-efede8)', color: on ? 'white' : 'var(--muted)' }}>{count}</span>}
                 </div>
               );
             })}
           </div>
 
           {detailTab === 'client' ? (
+            <>
+            <div style={{ padding: '14px 20px 0' }}><ClientScore score={(leadDetails[selected.id] as any)?.fitScore} /></div>
             <ClientBackgroundPanel
               leadId={selected.id}
               clientName={(leadDetails[selected.id]?.firstName || '').trim() ? `${leadDetails[selected.id]?.firstName} ${leadDetails[selected.id]?.lastName || ''}`.trim() : selected.client || selected.name}
@@ -1456,11 +1513,19 @@ export function Pipeline() {
               version={() => leadStamp(selected.id, leadDetailsRef.current[selected.id]?.updatedAt)}
               onSaved={(bg, updatedAt) => setLeadDetails((p) => ({ ...p, [selected.id]: { ...(p[selected.id] || baseLead(selected)), clientBackground: bg, ...(updatedAt ? { updatedAt } : {}) } as NewLead }))}
             />
+            </>
           ) : detailTab === 'notes' ? (
+            <>
+            <div role="tablist" aria-label="Special actions" style={{ display: 'flex', gap: 6, padding: '12px 20px 0' }}>
+              {([['tasks', 'Tasks'], ['notes', `FYI · ${(notesByDeal[selected.id] || []).length}`]] as const).map(([k, label]) => (
+                <button key={k} type="button" role="tab" aria-selected={detailTab === k} onClick={() => setDetailTab(k)}
+                  style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid ' + (detailTab === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'), background: detailTab === k ? 'var(--forest)' : 'var(--surface)', color: detailTab === k ? '#fff' : 'var(--body)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{label}</button>
+              ))}
+            </div>
             <div style={{ padding: '16px 20px 24px' }}>
               <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.09)', borderRadius: 'var(--r-12)', padding: '12px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 6 }}>
-                  {editingNoteId ? 'Edit note' : `New note · ${selectedStage.name}`}
+                  {editingNoteId ? 'Edit FYI note' : `New FYI note · ${selectedStage.name}`}
                 </div>
                 <textarea
                   value={noteDraft}
@@ -1498,6 +1563,7 @@ export function Pipeline() {
                 ))}
               </div>
             </div>
+            </>
           ) : detailTab === 'files' ? (
             <>
             <div style={{ padding: '16px 20px 0' }}><ClientWelcomeCard leadId={selected.id} defaultTo={leadDetails[selected.id]?.email || selected.email} homework={leadDetails[selected.id]?.homeworkCompleted || []} /></div>
@@ -1509,7 +1575,15 @@ export function Pipeline() {
             <LeadFilesTab leadId={selected.id} files={leadFiles.files} onChange={leadFiles.setFiles} stages={STAGES.map((s) => ({ key: s.key, name: s.name }))} currentStage={selected.stage} />
             </>
           ) : detailTab === 'tasks' ? (
+            <>
+            <div role="tablist" aria-label="Special actions" style={{ display: 'flex', gap: 6, padding: '12px 20px 0' }}>
+              {([['tasks', 'Tasks'], ['notes', `FYI · ${(notesByDeal[selected.id] || []).length}`]] as const).map(([k, label]) => (
+                <button key={k} type="button" role="tab" aria-selected={detailTab === k} onClick={() => setDetailTab(k)}
+                  style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid ' + (detailTab === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'), background: detailTab === k ? 'var(--forest)' : 'var(--surface)', color: detailTab === k ? '#fff' : 'var(--body)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{label}</button>
+              ))}
+            </div>
             <DealTasksPanel dealId={selected.id} dealName={selected.name} currentStageName={selectedStage.name} stages={STAGES.map((s) => s.name)} openTaskId={convertedTaskId} />
+            </>
           ) : detailTab === 'contacts' ? (
             (() => {
               const ld = leadDetails[selected.id];
@@ -2211,57 +2285,63 @@ export function Pipeline() {
             <div style={{ padding: '14px 20px' }}>
               {(() => {
                 const ld = leadDetails[selected.id];
-                const sections: { title: string; rows: [string, string][] }[] = [
-                  { key: 'contact', title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Business / Project Name', ld?.businessName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || ''],
+                const sections: { key: string; title: string; rows: [string, string, string?][] }[] = [
+                  { key: 'contact', title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || '', 'firstName'], ['Last Name', ld?.lastName || '', 'lastName'], ['Go-By Name', ld?.goByName || '', 'goByName'], ['Business / Project Name', ld?.businessName || '', 'businessName'], ['Pronouns', ld?.pronouns || '', 'pronouns'], ['Pronunciation', ld?.namePronunciation || '', 'namePronunciation'], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || '', 'primaryPointOfContact'], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || '', 'preferredContactMatrix'],
                     ...(ld?.additionalContacts || []).flatMap((c, i) => ([
-                      [`Contact ${i + 2} — Name`, [c.firstName, c.lastName].filter(Boolean).join(' ') || c.goByName || ''],
-                      [`Contact ${i + 2} — Phone`, c.phone || ''],
-                      [`Contact ${i + 2} — Email`, c.email || ''],
-                      [`Contact ${i + 2} — Preferred Contact Method`, c.preferredContactMethod || ''],
-                    ] as [string, string][])),
+                      [`Contact ${i + 2} — Name`, [c.firstName, c.lastName].filter(Boolean).join(' ') || c.goByName || '', 'additionalContacts'],
+                      [`Contact ${i + 2} — Phone`, c.phone || '', 'additionalContacts'],
+                      [`Contact ${i + 2} — Email`, c.email || '', 'additionalContacts'],
+                      [`Contact ${i + 2} — Preferred Contact Method`, c.preferredContactMethod || '', 'additionalContacts'],
+                    ] as [string, string, string?][])),
                   ] },
-                  { key: 'source', title: '2. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Referrer Phone', ld?.leadSourceReferrerPhone || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
-                  { key: 'location', title: '3. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['Address 2', ld?.projectAddress2 || ''], ['Owner or Tenant', ld?.occupancyStatus || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || ''],
+                  { key: 'source', title: '2. Source', rows: [['Lead Source', ld?.leadSource || selected.source || '', 'leadSource'], ['Referred By', ld?.leadSourceReferrerName || '', 'leadSourceReferrerName'], ['Referrer Phone', ld?.leadSourceReferrerPhone || '', 'leadSourceReferrerPhone'], ['Where It Was', ld?.leadSourceEventDetail || '', 'leadSourceEventDetail']] },
+                  { key: 'location', title: '3. Location', rows: [['Street Address', ld?.projectStreetAddress || '', 'projectStreetAddress'], ['Street Name', ld?.projectStreetName || '', 'projectStreetName'], ['City', ld?.projectCity || '', 'projectCity'], ['ZIP', ld?.projectZipCode || '', 'projectZipCode'], ['Address 2', ld?.projectAddress2 || '', 'projectAddress2'], ['Owner or Tenant', ld?.occupancyStatus || '', 'occupancyStatus'], ['County', ld?.countyLocation || '', 'countyLocation'], ['HOA', ld?.hasHOA || '', 'hasHOA'],
                     ...(ld?.addresses?.businessMailing ? ([
-                      ['Business Mailing — Street', ld.addresses.businessMailing.street || ''],
-                      ['Business Mailing — Unit', ld.addresses.businessMailing.unit || ''],
-                      ['Business Mailing — City', ld.addresses.businessMailing.city || ''],
-                      ['Business Mailing — State', ld.addresses.businessMailing.state || ''],
-                      ['Business Mailing — ZIP', ld.addresses.businessMailing.zip || ''],
-                      ['Business Mailing — County', ld.addresses.businessMailing.county || ''],
-                    ] as [string, string][]) : []),
+                      ['Business Mailing — Street', ld.addresses.businessMailing.street || '', 'addresses'],
+                      ['Business Mailing — Unit', ld.addresses.businessMailing.unit || '', 'addresses'],
+                      ['Business Mailing — City', ld.addresses.businessMailing.city || '', 'addresses'],
+                      ['Business Mailing — State', ld.addresses.businessMailing.state || '', 'addresses'],
+                      ['Business Mailing — ZIP', ld.addresses.businessMailing.zip || '', 'addresses'],
+                      ['Business Mailing — County', ld.addresses.businessMailing.county || '', 'addresses'],
+                    ] as [string, string, string?][]) : []),
                   ] },
-                  { key: 'project', title: '4. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Contract Type', ld?.contractType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || ''], ['Website', ld?.website || '']] },
-                  { key: 'budget', title: '5. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
-                  { key: 'clientProfile', title: '6. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Client Personality', ld?.clientPersonality || '']] },
+                  { key: 'project', title: '4. Project', rows: [['Property Type', ld?.propertyType || '', 'propertyType'], ['Potential Project Type', ld?.potentialProjectType || '', 'potentialProjectType'], ['Contract Type', ld?.contractType || '', 'contractType'], ['Homework Completed', (ld?.homeworkCompleted || []).join(', '), 'homeworkCompleted'], ['Vision / Scope', ld?.projectVision || selected.notes || '', 'projectVision'], ['Website', ld?.website || '', 'website']] },
+                  { key: 'budget', title: '5. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || '', 'reasonForProject'], ['Budget Position', ld?.budgetPosition || '', 'budgetPosition'], ['Funding Status', ld?.fundingStatus || '', 'fundingStatus'], ['Desired Start', ld?.desiredStart || '', 'desiredStart'], ['Expected Duration', ld?.expectedDuration || '', 'expectedDuration'], ['Length of Ownership', ld?.expectedLengthOfOwnership || '', 'expectedLengthOfOwnership']] },
+                  { key: 'clientProfile', title: '6. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || '', 'decisionMakers'], ['Client Personality', ld?.clientPersonality || '', 'clientPersonality']] },
                 ].map((s) => ({
+                  key: s.key,
                   title: s.title,
                   rows: [
                     ...s.rows.filter(([, val]) => val && String(val).trim()),
-                    ...(ld?.sectionNotes?.[s.key] ? [['Notes', ld.sectionNotes[s.key]]] : []),
-                    ...(ld?.sectionCustomFields?.[s.key] || []).filter((f) => f.label || f.value).map((f) => [f.label || 'Custom field', f.value || '']),
-                  ] as [string, string][],
+                    ...(ld?.sectionNotes?.[s.key] ? [['Notes', ld.sectionNotes[s.key, 'sectionNotes']]] : []),
+                    ...(ld?.sectionCustomFields?.[s.key] || []).filter((f) => f.label || f.value).map((f) => [f.label || 'Custom field', f.value || '', 'sectionCustomFields']),
+                  ] as [string, string, string?][],
                 })).filter((s) => s.rows.length > 0);
                 if (sections.length === 0) return <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No additional details captured yet. Use "Edit Lead" to complete the intake form.</div>;
-                return sections.map((s) => (
-                  <div key={s.title} style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--forest)', marginBottom: 8 }}>{s.title}</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {s.rows.map(([label, value]) => (
-                        <div key={label} style={{ display: 'flex', gap: 10, padding: '8px 10px', background: 'var(--panel)', borderRadius: 8 }}>
-                          <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, flex: '0 0 44%' }}>{label}</span>
-                          <span style={{ fontSize: 12, color: 'var(--ink)', flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ));
+                return <LeadFullDetails leadId={selected.id} stamp={ld?.updatedAt} sections={sections} />;
               })()}
             </div>
           )}
           </div>
           {/* End scrollable content region */}
 
+          {/* Move to any stage without dragging (Oct 26 review notes) */}
+          <div style={{ padding: '10px 20px 0', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', flexShrink: 0, background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label htmlFor="lead-move-to" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Move to</label>
+            <select id="lead-move-to" value="" onChange={(e) => { moveTo(selected, e.target.value); e.target.value = ''; }}
+              style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', color: 'var(--body)', fontFamily: 'inherit', fontSize: 12.5, padding: '0 8px' }}>
+              <option value="">{selectedStage.name} — pick a stage…</option>
+              <optgroup label="Active">
+                {STAGES.filter((st) => !st.isHold && !st.isClosed && st.key !== 'referred_monitoring').map((st) => <option key={st.key} value={st.key} disabled={st.key === selected.stage || blockedFor(selected.id, st.key)}>{st.name}</option>)}
+              </optgroup>
+              <optgroup label="On hold">
+                {STAGES.filter((st) => st.isHold).map((st) => <option key={st.key} value={st.key} disabled={st.key === selected.stage}>{st.name}</option>)}
+              </optgroup>
+              <optgroup label="Dead or referred">
+                {STAGES.filter((st) => (st.isClosed && !st.isHold) || st.key === 'referred_monitoring').map((st) => <option key={st.key} value={st.key} disabled={st.key === selected.stage}>{st.name}</option>)}
+              </optgroup>
+            </select>
+          </div>
           {/* Actions */}
           {selectedStage.isDecision ? (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', flexShrink: 0, background: 'var(--surface)' }}>
@@ -2280,8 +2360,8 @@ export function Pipeline() {
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>What happened to this lead?</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div onClick={() => confirmReject(selected, 'internal')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>We Rejected — Not a Fit</div>
-                    <div onClick={() => confirmReject(selected, 'client')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F6E0C4', color: '#93520F' }}>Client Passed</div>
+                    <div onClick={() => confirmReject(selected, 'internal')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>We Pass — not referring it</div>
+                    <div onClick={() => confirmReject(selected, 'client')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F6E0C4', color: '#93520F' }}>Cancelled</div>
                     <div onClick={() => setRejectChoice({ name: '', company: '', contact: '' })} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#D8E2F0', color: '#3C5C8A' }}>Referred Out</div>
                     <div onClick={() => setRejectChoice(null)} style={{ padding: 7, borderRadius: 999, fontSize: 11.5, fontWeight: 600, textAlign: 'center', cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
                   </div>

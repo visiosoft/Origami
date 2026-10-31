@@ -7,8 +7,12 @@ import {
   type PSection, type PField, type ProgramData,
 } from '../data/projectProgram';
 import { PERSONALITY_TEMPLATE, templateKeyForPersonality, mergeTokens } from '../data/clientPersonality';
-import { hasUnfilled } from '../data/placeholders';
+import { hasUnfilled, TOKEN_GROUPS, tokenLabel } from '../data/placeholders';
+import { asHtml, isHtml } from '../data/templateHtml';
+import { loadCompanyTokens } from '../data/companyTokens';
+import { RichTextEditor } from '../components/RichTextEditor';
 import { UnfilledPlaceholders } from '../components/UnfilledPlaceholders';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = {
@@ -104,14 +108,16 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
     if (noteTouched.current) return;
     const tpl = templates.find((t: any) => t.key === key);
     if (!tpl) return;
-    setNote(mergeTokens(tpl.body || '', {
+    void loadCompanyTokens().then((company) => { if (!noteTouched.current) setNote(mergeTokens(asHtml(tpl.body || ''), {
+      ...company,
+      clientFirstName: (clientName || 'there').split(/\s+/)[0],
       clientName: clientName || 'there',
       projectTitle: projectName || '',
       projectScope: String(data.title?.['main.projectScope'] || ''),
       date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
       senderName: currentUser?.name || '',
       senderEmail: currentUser?.email || '',
-    }).trim());
+    }).trim()); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templates, tone, clientPersonality]);
 
@@ -282,8 +288,8 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
     if (hasUnfilled(subject, note)) { toast('⚠ Fill in the highlighted merge fields first'); return; }
     setSending(true);
     try {
-      const html = note.trim()
-        ? note.trim().split(/\n{2,}/).map((para) => `<p>${para.replace(/\n/g, '<br/>')}</p>`).join('')
+      const html = note.replace(/<[^>]+>/g, '').trim()
+        ? (isHtml(note) ? note : asHtml(note))
         : `<p>Please find the Project Program for ${projectName || 'your project'} attached.</p>`;
       const extraAttachments = await Promise.all(extraFiles.map(async (f) => ({
         filename: f.name, mimeType: f.type || 'application/octet-stream', contentBase64: await fileToBase64(f),
@@ -314,7 +320,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
   const totals = stepTotals(step, values);
   const hasTotals = !!step.totalOf;
 
-  if (loading) return <div style={{ padding: 28, fontSize: 12.5, color: 'var(--muted)' }}>Loading the program…</div>;
+  if (loading) return <Skeleton label="Loading the program…" />;
 
   const label = (text: string, hint?: string) => (
     <div style={{ marginBottom: 5 }}>
@@ -603,12 +609,8 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 {label('Message', 'Written in the tone above. Edit freely — switching tone will not overwrite your words.')}
-                <textarea
-                  value={note}
-                  onChange={(e) => { noteTouched.current = true; setNote(e.target.value); }}
-                  rows={12}
-                  style={{ ...input, resize: 'vertical', lineHeight: 1.55 }}
-                />
+                <RichTextEditor value={note} onChange={(html) => { noteTouched.current = true; setNote(html); }} minHeight={220}
+                  fields={TOKEN_GROUPS.map((g) => ({ label: g.label, tokens: g.tokens.map((k) => ({ key: k, label: tokenLabel(k) })) }))} />
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 {label('Attachments')}
@@ -676,7 +678,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
             </div>
             <div style={{ padding: '10px 14px' }}>
               {loadingVersions ? (
-                <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', padding: '14px 8px' }}>Loading…</div>
+                <Skeleton label="Loading…" />
               ) : versions.length === 0 ? (
                 <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', padding: '14px 8px' }}>No saves recorded yet — this becomes populated the next time it's saved.</div>
               ) : (

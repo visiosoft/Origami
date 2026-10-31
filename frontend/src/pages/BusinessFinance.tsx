@@ -4,6 +4,7 @@ import { api } from '../api';
 import { stageLabel } from '../data/projects';
 import { AkPage, AkPill, AkSeg, AkStats } from '../components/ActionKit';
 import './BusinessFinance.css';
+import { Skeleton } from '../components/Skeleton';
 
 interface Row {
   projectId: number; name: string; stage?: string; hasClientContract?: boolean;
@@ -125,7 +126,7 @@ export function BusinessFinance() {
 
       <section className="ak-card bf-table-card">
         <div className="ak-card-head"><h3>Projects</h3><span>click a column to sort</span></div>
-        {rows === null ? <div className="ak-empty">Loading…</div> : !table.length ? <div className="ak-empty">No projects here.</div> : (
+        {rows === null ? <div style={{ padding: 16 }}><Skeleton rows={4} /></div> : !table.length ? <div className="ak-empty">No projects here.</div> : (
           <div className="bf-scroll">
             <table className="bf-table">
               <thead><tr>

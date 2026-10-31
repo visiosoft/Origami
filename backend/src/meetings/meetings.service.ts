@@ -110,7 +110,8 @@ export class MeetingsService implements OnApplicationBootstrap {
         patch.reviewedAt = new Date().toISOString();
       }
     }
-    for (const k of ['recordingUrl', 'transcriptUrl'] as const) if (typeof patch[k] === 'string') patch[k] = patch[k]!.trim();
+    for (const k of ['recordingUrl', 'transcriptUrl', 'organizer', 'organizerOrg'] as const) if (typeof patch[k] === 'string') patch[k] = patch[k]!.trim();
+    if (patch.platform === '') patch.platform = null;
     Object.assign(m, patch, { updatedAt: new Date().toISOString() });
     const saved = await this.repo.save(m);
     return (await this.settle([saved]))[0];
@@ -128,8 +129,10 @@ export class MeetingsService implements OnApplicationBootstrap {
     const m = await this.load(id);
     const t = await this.tasks.create({
       topicType: dto.topicType, subject: dto.subject.trim(), description: dto.description || '',
-      assignedTo: dto.assignedTo, assignedToId: dto.assignedToId, dueDate: dto.dueDate || undefined,
+      assignedTo: dto.assignedTo, assignedToId: dto.assignedToId, dueDate: dto.dueDate || undefined, priority: dto.priority || undefined, tags: dto.tags,
       project: m.project || '', meetingType: m.type || 'Internal', meetingDate: m.date, meetingId: m.id, tab: 'internal',
+      // Where it came from, e.g. "HOM Cafe Weekly Sync - 2026/10/24 12:45" (Oct 26 review notes).
+      sourceType: 'meeting', sourceId: m.id, sourceLabel: [m.title, [m.date?.replace(/-/g, '/'), m.time].filter(Boolean).join(' ')].filter(Boolean).join(' - '),
     }, actor as any);
     await this.settle([m]); // a new open task takes a complete meeting back to reviewed
     return t;

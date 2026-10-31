@@ -3,10 +3,10 @@ import { SettingsService } from '../settings/settings.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { FileRoomFileEntity, PdfMarkupEntity } from '../database/entities';
+import { FileRoomFileEntity, MarkupSymbolEntity, PdfMarkupEntity } from '../database/entities';
 import type { SessionClaims } from '../auth/crypto.util';
 import { FileRoomService } from './file-room.service';
-import { MAX_PIN_PHOTOS, canEditMarkup, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
+import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, cleanSymbolImage, cleanSymbolName, isMarkable, isPhotoName, leadsMarkups, photoToPdf, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
 
 /** Where photos pinned to a drawing are kept in the project's File Room. */
 export const PIN_PHOTO_FOLDER = ['Markup photos'];
@@ -19,7 +19,41 @@ export class MarkupsService {
     @InjectRepository(FileRoomFileEntity) private readonly files: Repository<FileRoomFileEntity>,
     private readonly fileRoom: FileRoomService,
     @Optional() private readonly settings?: SettingsService,
+    @Optional() @InjectRepository(MarkupSymbolEntity) private readonly symbolRepo?: Repository<MarkupSymbolEntity>,
   ) {}
+
+  // ---------------------------------------------------------------- symbols (Oct 31)
+  /** The shared symbol library, in order. */
+  async symbols() {
+    const rows = (await this.symbolRepo?.find()) || [];
+    return rows.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)).map(({ id, name, image }) => ({ id, name, image }));
+  }
+  /** Admins keep the library: add, rename, delete. */
+  private assertSymbolAdmin(claims: SessionClaims | null) {
+    if (claims?.roleKey !== 'admin') throw new ForbiddenException('Only admins add or change symbols.');
+  }
+  async addSymbol(body: any, claims: SessionClaims | null) {
+    this.assertSymbolAdmin(claims);
+    let name: string, image: string;
+    try { name = cleanSymbolName(body?.name); image = cleanSymbolImage(body?.image); } catch (e) { throw new BadRequestException((e as Error).message); }
+    const n = (await this.symbolRepo!.find()).length;
+    const row = await this.symbolRepo!.save(this.symbolRepo!.create({ id: 'SYM-' + randomUUID(), name, image, sortOrder: n, createdBy: claims!.name, createdAt: new Date().toISOString() }));
+    return { id: row.id, name: row.name, image: row.image };
+  }
+  async renameSymbol(id: string, body: any, claims: SessionClaims | null) {
+    this.assertSymbolAdmin(claims);
+    const row = await this.symbolRepo!.findOneBy({ id });
+    if (!row) throw new NotFoundException('Symbol not found');
+    try { row.name = cleanSymbolName(body?.name); } catch (e) { throw new BadRequestException((e as Error).message); }
+    await this.symbolRepo!.save(row);
+    return { id: row.id, name: row.name, image: row.image };
+  }
+  /** Deleting a symbol leaves the ones already placed as a labelled box. */
+  async removeSymbol(id: string, claims: SessionClaims | null) {
+    this.assertSymbolAdmin(claims);
+    await this.symbolRepo!.delete({ id });
+    return { id, deleted: true };
+  }
 
   /** A link may only point at a file in the drawing's own project. */
   private async assertLinkTarget(drawing: { projectId?: unknown }, data: MarkupData) {
@@ -48,13 +82,13 @@ export class MarkupsService {
 
   async list(fileId: string, claims: SessionClaims | null) {
     const rows = await this.repo.find({ where: { fileId } });
-    return visibleTo(rows, claims?.sub).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return visibleTo(rows, claims?.sub, claims?.roleKey).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   async create(fileId: string, raw: unknown, claims: SessionClaims | null) {
     this.assertCanDraw(claims);
     const f = await this.file(fileId);
-    if (!/\.pdf$/i.test(f.name) && f.mimeType !== 'application/pdf') throw new BadRequestException('Only PDFs can be marked up.');
+    if (!isMarkable(f)) throw new BadRequestException('Only PDFs and photos (JPG, PNG) can be marked up.');
     let clean;
     try { clean = cleanMarkup(raw); } catch (e) { throw new BadRequestException((e as Error).message); }
     await this.assertLinkTarget(f, clean.data);
@@ -72,7 +106,7 @@ export class MarkupsService {
   private async own(id: string, claims: SessionClaims | null) {
     const m = await this.repo.findOneBy({ id });
     if (!m) throw new NotFoundException('Markup not found');
-    if (!canEditMarkup(m, { id: claims?.sub, isAdmin: claims?.roleKey === 'admin' })) throw new ForbiddenException('Only whoever drew it (or an admin) can change it.');
+    if (!canEditMarkup(m, { id: claims?.sub, isAdmin: leadsMarkups(claims?.roleKey) })) throw new ForbiddenException('Only whoever drew it (or an admin or principal) can change it.');
     return m;
   }
 
@@ -92,7 +126,8 @@ export class MarkupsService {
       m.private = clean.private;
     }
     if (raw?.layer !== undefined) m.layer = cleanLayer(raw.layer);
-    if (raw?.linkType !== undefined) m.linkType = raw.linkType === 'rfi' || raw.linkType === 'task' ? raw.linkType : null;
+    // What the markup was turned into: an RFI, a task, a change order or a FOR RECORD item.
+    if (raw?.linkType !== undefined) m.linkType = ['rfi', 'task', 'co', 'record'].includes(String(raw.linkType)) ? raw.linkType : null;
     if (raw?.linkId !== undefined) m.linkId = raw.linkId ? String(raw.linkId).slice(0, 80) : null;
     m.updatedAt = new Date().toISOString();
     return this.repo.save(m);
@@ -115,7 +150,7 @@ export class MarkupsService {
     if (!to) throw new BadRequestException('Give the layer a name.');
     const from = cleanLayer(raw?.from);
     const key = from ? layerKey({ layer: from }) : layerKey({ authorId: raw?.authorId || claims!.sub });
-    if (!from && (raw?.authorId || claims!.sub) !== claims!.sub && claims!.roleKey !== 'admin') throw new ForbiddenException('Only its owner (or an admin) can name someone’s own layer.');
+    if (!from && (raw?.authorId || claims!.sub) !== claims!.sub && !leadsMarkups(claims!.roleKey)) throw new ForbiddenException('Only its owner (or an admin or principal) can name someone’s own layer.');
     const rows = (await this.list(fileId, claims)).filter((m) => layerKey(m) === key);
     if (!rows.length) throw new NotFoundException('That layer has no markups.');
     const now = new Date().toISOString();
@@ -128,7 +163,7 @@ export class MarkupsService {
     this.assertCanDraw(claims);
     const m = await this.repo.findOneBy({ id: mid });
     if (!m) throw new NotFoundException('Markup not found');
-    if (!visibleTo([m], claims!.sub).length) throw new NotFoundException('Markup not found');
+    if (!visibleTo([m], claims!.sub, claims!.roleKey).length) throw new NotFoundException('Markup not found');
     if (m.kind !== 'pin') throw new BadRequestException('Photos go on a pin.');
     const images = (incoming || []).filter((f) => /^image\//i.test(f.mimetype || ''));
     if (!images.length) throw new BadRequestException('Pick a photo.');
@@ -148,7 +183,7 @@ export class MarkupsService {
     this.assertCanDraw(claims);
     const m = await this.repo.findOneBy({ id: mid });
     if (!m) throw new NotFoundException('Markup not found');
-    if (!visibleTo([m], claims!.sub).length) throw new NotFoundException('Markup not found');
+    if (!visibleTo([m], claims!.sub, claims!.roleKey).length) throw new NotFoundException('Markup not found');
     const data = m.data as unknown as MarkupData;
     m.data = { ...data, photos: (data.photos || []).filter((p) => p.fileId !== fileId) } as any;
     m.updatedAt = new Date().toISOString();
@@ -165,12 +200,34 @@ export class MarkupsService {
   async flatten(fileId: string, claims: SessionClaims | null, authors?: string[], layers?: string[]) {
     const marks = this.pick(await this.list(fileId, claims), authors, layers);
     const { file, body } = await this.fileRoom.content(fileId);
-    const buf = Buffer.from(await new Response(body as any).arrayBuffer());
+    let buf: Uint8Array = Buffer.from(await new Response(body as any).arrayBuffer());
+    // A photo becomes a one-page PDF first, so its markups draw in the same way.
+    if (isPhotoName(file)) {
+      try { buf = await photoToPdf(buf, file.name); } catch (e) { throw new BadRequestException((e as Error).message); }
+    }
     const base = (await this.settings?.baseUrl().catch(() => '')) || '';
     const pdf = await flattenPdf(buf, marks.map((m) => ({ page: m.page, kind: m.kind, data: m.data as unknown as MarkupData })), {
       fileUrl: base ? (id) => `${base}/planroom?file=${encodeURIComponent(id)}` : undefined,
+      sheetNames: (await this.file(fileId)).sheetNames,
+      symbols: Object.fromEntries((await this.symbols()).map((s) => [s.id, s])),
     });
     return { file, pdf: Buffer.from(pdf), count: marks.length };
+  }
+
+  /** A drawing's sheet names by page (Oct 31): read from its title blocks by the viewer, correctable by the team. */
+  async sheetNames(fileId: string) {
+    return cleanSheetNames((await this.file(fileId)).sheetNames);
+  }
+
+  /** Save sheet names: `names` merges page by page (an empty name clears that page); `replace` swaps the whole set. */
+  async setSheetNames(fileId: string, body: { names?: unknown; replace?: boolean }, claims: SessionClaims | null) {
+    this.assertCanDraw(claims);
+    const f = await this.file(fileId);
+    const incoming = (body?.names && typeof body.names === 'object' ? body.names : {}) as Record<string, unknown>;
+    const merged: Record<string, unknown> = body?.replace ? { ...incoming } : { ...(f.sheetNames || {}), ...incoming };
+    const names = cleanSheetNames(merged);
+    await this.files.update({ id: fileId }, { sheetNames: names });
+    return names;
   }
 
   /** Keep a marked-up copy next to the drawing ("<name> — markup <date>.pdf"); the drawing stays Current. */
@@ -178,7 +235,7 @@ export class MarkupsService {
     this.assertCanDraw(claims);
     const { file, pdf, count } = await this.flatten(fileId, claims, authors, layers);
     if (!count) throw new BadRequestException('There are no markups to save.');
-    const base = file.name.replace(/\.pdf$/i, '');
+    const base = file.name.replace(/\.(pdf|jpe?g|png|webp|gif)$/i, '');
     const name = `${base} — markup ${new Date().toISOString().slice(0, 10)}.pdf`;
     const [saved] = await this.fileRoom.upload(Number(file.projectId), file.folderPath || [], [{ originalname: name, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], { name: claims!.name, id: claims!.sub });
     return saved;

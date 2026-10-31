@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { Employee } from './EmployeeDirectory';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, todayISO, type Project } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 export interface CsiCode { id: string; code: string; division: string; active: boolean }
 interface LeaveType { id: string; name: string; active: boolean; trackBalance: boolean }
@@ -172,7 +173,7 @@ export function TimesheetEditor({ employeeId, weekStart, onWeek, projects, csiCo
   };
 
   if (error) return <div style={{ ...card, padding: 18, fontSize: 13, color: DANGER }}>{error}</div>;
-  if (!data) return <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>;
+  if (!data) return <Skeleton label="Loading…" />;
   const sheet = data.sheet;
   const cols = `minmax(${compact ? 240 : 300}px, 1.6fr) repeat(7, 64px) 64px 28px`;
   const projectName = (id?: number | null) => projects.find((p) => p.id === id)?.name || (id ? `Project ${id}` : '—');
@@ -463,7 +464,7 @@ export function TimesheetsModule({ employees, projects, csiCodes, canManage, onO
           <div style={{ overflowX: 'auto' }}>
             <div style={{ minWidth: 860 }}>
               <div style={headRow(cols)}><span>Person</span><span>Week</span><span style={{ textAlign: 'right' }}>Work h</span><span style={{ textAlign: 'right' }}>Leave h</span><span>Status</span><span>Submitted</span></div>
-              {rows === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+              {rows === null && <Skeleton label="Loading…" />}
               {shown.map((s) => {
                 const e = emp(s.employeeId);
                 const leaveH = r2((s.lines || []).filter((l) => l.kind === 'leave').reduce((a, l) => a + lineTotal(l), 0));

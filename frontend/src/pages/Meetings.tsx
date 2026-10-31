@@ -16,6 +16,10 @@ import { SavedViews } from '../components/SavedViews';
 import { ActionMenu, ActionTrail, OriginatorLine } from '../components/ActionTools';
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
+import { Skeleton } from '../components/Skeleton';
+import { MeetingNotesImport } from '../components/MeetingNotesImport';
+import { TagPicker } from '../components/TagPicker';
+import { OutsideMeeting } from '../components/OutsideMeeting';
 
 type View = 'upcoming' | 'past' | 'all';
 type StatusFilter = 'all' | 'review' | MeetingStatus;
@@ -42,7 +46,8 @@ const linkOk = (u?: string) => !!u && /^https?:\/\//i.test(u.trim());
  * Complete by itself once everything raised in it is done. Past meetings
  * recorded only in the Special Actions Log (its meeting type and date) are listed too.
  */
-export function Meetings() {
+/** `projectName`: shown inside a project (its Special Actions tab) -- that project's only, no project picker. */
+export function Meetings({ projectName }: { projectName?: string } = {}) {
   const { can } = useApp();
   const [meetings, setMeetings] = useState<Meeting[] | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -52,7 +57,8 @@ export function Meetings() {
   const [view, setView] = useState<View>('upcoming');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [where, setWhere] = useState<WhereFilter>('all');
-  const [project, setProject] = useState('');
+  const [project, setProjectRaw] = useState(projectName || '');
+  const setProject = (v: string) => { if (!projectName) setProjectRaw(v); };
   const [q, setQ] = useState('');
   // ?open=<meeting id> opens that meeting (links from Special Actions).
   const [params] = useSearchParams();
@@ -69,7 +75,7 @@ export function Meetings() {
 
   const today = akToday();
   const items = useMemo<Item[]>(() => {
-    const out: Item[] = (meetings || []).map((m) => ({
+    const out: Item[] = (meetings || []).filter((m) => !projectName || m.project === projectName).map((m) => ({
       key: m.id, kind: 'meeting', date: m.date, time: m.time, title: m.title, type: m.type, project: m.project, status: meetingStatus(m.status), meeting: m,
       actions: tasks.filter((t) => t.meetingId === m.id),
     }));
@@ -85,7 +91,7 @@ export function Meetings() {
       out.push({ key: 'legacy:' + k, kind: 'legacy', date: isoDay(md) || raisedOn(list[0]) || '', title: `${type} meeting${isoDay(md) ? '' : ' · ' + md}`, type, project: proj, status: 'legacy', actions: list });
     }
     return out;
-  }, [meetings, tasks]);
+  }, [meetings, tasks, projectName]);
 
   const real = items.filter((i) => i.kind === 'meeting');
   const isUpcoming = (i: Item) => i.kind === 'meeting' && isPlanned(i.status) && i.date >= today;
@@ -128,10 +134,10 @@ export function Meetings() {
 
       <div className="ak-tools">
         <AkSeg<View> value={view} onChange={setView} options={[['upcoming', 'Coming up', upcoming.length], ['past', 'Past'], ['all', 'All']]} />
-        <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
+        {!projectName && <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
           <option value="">All projects</option>
           {projectNames.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
+        </select>}
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, project, attendee…" />
         <SortSelect className="ak-select" value={sort} onChange={setSort} options={[
           { key: 'default', dir: 'asc', label: view === 'upcoming' ? 'Soonest first' : 'Newest first' }, { key: 'date', dir: 'desc', label: 'Newest first' }, { key: 'date', dir: 'asc', label: 'Oldest first' },
@@ -148,7 +154,7 @@ export function Meetings() {
         onApply={(v) => { setView(v.view as View); setStatus(v.status as StatusFilter); setWhere(v.where as WhereFilter); setProject(String(v.project || '')); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
 
       <section className="ak-card">
-        {meetings === null && <div className="ak-empty">Loading…</div>}
+        {meetings === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {meetings && !shown.length && (
           <div className="ak-empty">
             {view === 'upcoming' && status === 'all' ? 'Nothing scheduled.' : 'No meetings here.'}
@@ -239,6 +245,7 @@ function NewMeeting({ projects, onClose, onCreated }: { projects: { id: number; 
           <label className="is-wide">Title<input autoFocus value={m.title} onChange={(e) => setM({ ...m, title: e.target.value })} placeholder="e.g. Weekly OAC meeting" onKeyDown={(e) => { if (e.key === 'Enter') create(); }} /></label>
           <label>Type<select value={m.type} onChange={(e) => setM({ ...m, type: e.target.value })}>{MEETING_TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
           <label>Project<ProjectSelect projects={projects} value={m.projectId ?? null} onChange={(id, name) => setM({ ...m, projectId: id, project: name })} /></label>
+          {m.type === 'Outside' && <OutsideMeeting m={m} today={akToday()} onChange={(p) => setM((cur) => ({ ...cur, ...p }))} />}
           <label>Date<input type="date" value={m.date} onChange={(e) => setM({ ...m, date: e.target.value })} /></label>
           <label>Time<input type="time" value={m.time} onChange={(e) => setM({ ...m, time: e.target.value })} /></label>
           <div className="is-wide mt-field"><span>How it’s held <em>required</em></span><LocationTypePick value={m.locationType} onChange={(v) => setM({ ...m, locationType: v })} /></div>
@@ -351,6 +358,7 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
             <div className="mt-form">
               <label>Type<select disabled={!editable} value={draft.type} onChange={(e) => set({ type: e.target.value })}>{MEETING_TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
               <label>Project<ProjectSelect disabled={!editable} projects={projects} value={draft.projectId ?? null} onChange={(id, name) => set({ projectId: id, project: name })} /></label>
+              {draft.type === 'Outside' && <OutsideMeeting m={draft} today={akToday()} disabled={!editable} onChange={set} />}
               <label>Date<input disabled={!editable} type="date" value={draft.date || ''} onChange={(e) => e.target.value && set({ date: e.target.value })} /></label>
               <label>Time<input disabled={!editable} type="time" value={draft.time || ''} onChange={(e) => set({ time: e.target.value })} /></label>
               <div className="is-wide mt-field"><span>How it’s held{!draft.locationType && editable && <em>choose one</em>}</span><LocationTypePick disabled={!editable} value={draft.locationType} onChange={(v) => set({ locationType: v })} /></div>
@@ -490,6 +498,7 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
   const [details, setDetails] = useState('');
   const [assignee, setAssignee] = useState('');
   const [due, setDue] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
   // A passage picked in the review: a short one is the subject; a long one goes in the details with its first line as the subject.
   useEffect(() => {
@@ -517,13 +526,13 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
         toast(`${made.label} drafted`);
       } else {
         const u = users.find((x) => x.id === assignee);
-        const t = await api.meetings.addAction(draft.id, { topicType: kind, subject: subject.trim().slice(0, 300), description: details.trim() || undefined, assignedTo: u?.name, assignedToId: u?.id, dueDate: due || undefined });
+        const t = await api.meetings.addAction(draft.id, { topicType: kind, subject: subject.trim().slice(0, 300), description: details.trim() || undefined, assignedTo: u?.name, assignedToId: u?.id, dueDate: due || undefined, tags: tags.length ? tags : undefined });
         ctx.onAction(t);
         // A new open task takes a complete meeting back to reviewed.
         api.meetings.get(draft.id).then(ctx.applyServer).catch(() => { });
         toast(`${kind} added${u ? ' — ' + u.name + ' is emailed' : ''}`);
       }
-      setSubject(''); setDetails(''); setDue('');
+      setSubject(''); setDetails(''); setDue(''); setTags([]);
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not added')); }
     finally { setAdding(false); }
   };
@@ -543,6 +552,7 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
           {kind === 'Task' && <input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Due date" />}
         </div>
       )}
+      {assignable && <TagPicker compact tags={tags} onChange={setTags} />}
       <button type="button" className="ak-btn is-dark" disabled={adding} onClick={() => void add()}>{adding ? 'Adding…' : KIND_TEXT[kind].btn}</button>
     </div>
   );
@@ -562,6 +572,7 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
   const [src, setSrc] = useState<'minutes' | 'transcript'>(draft.transcript?.trim() ? 'transcript' : 'minutes');
   const [sel, setSel] = useState('');
   const [seed, setSeed] = useState<{ text: string; n: number }>({ text: '', n: 0 });
+  const [importing, setImporting] = useState(false);
   const st = meetingStatus(draft.status);
   const pickSel = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     const el = e.currentTarget;
@@ -595,6 +606,12 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
               <span className="mt-muted">{sel ? `${sel.length} characters selected` : 'Select a passage to raise it as an item.'}</span>
               <button type="button" className="ak-btn is-dark" disabled={!sel} onClick={() => setSeed((s) => ({ text: sel, n: s.n + 1 }))}>Use selection →</button>
             </div>
+            {src === 'minutes' && (
+              <div className="mt-row" style={{ alignItems: 'center' }}>
+                <span className="mt-muted">Pasted Google Meet notes? Each summary bullet becomes a FOR RECORD item and each next step a task — you check them first.</span>
+                <button type="button" className="ak-btn" disabled={!text.trim()} onClick={() => setImporting(true)}>Turn notes into items</button>
+              </div>
+            )}
           </section>
           <section className="mt-review-out">
             <ActionForm ctx={ctx} seed={seed} />
@@ -606,6 +623,10 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
           <button type="button" className="ak-btn" onClick={onClose}>Close</button>
           {st !== 'reviewed' && st !== 'complete' && <button type="button" className="ak-btn is-dark" onClick={() => { set({ status: 'reviewed' }); onClose(); }}>Mark reviewed</button>}
         </div>
+        {importing && (
+          <MeetingNotesImport meeting={{ id: draft.id, title: draft.title, date: draft.date }} text={text} onClose={() => setImporting(false)}
+            onAdded={(made) => { made.forEach((t) => ctx.onAction(t)); api.meetings.get(draft.id).then(ctx.applyServer).catch(() => { }); }} />
+        )}
       </aside>
     </div>
   );

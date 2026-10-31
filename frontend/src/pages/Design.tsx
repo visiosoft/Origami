@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { PHASE_SCOPES } from '../data/projects';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 
@@ -223,7 +224,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
     if (Number.isFinite(id)) moveTo(id, phaseKey);
   };
 
-  if (loading) return <div style={{ padding: 24, fontSize: 13, color: 'var(--muted)' }}>Loading design board…</div>;
+  if (loading) return <Skeleton label="Loading design board…" />;
 
   return (
     <div style={{ padding: '18px 22px', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>

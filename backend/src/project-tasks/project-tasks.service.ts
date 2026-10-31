@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { activityPage } from '../common/activity-page';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Not, Repository } from 'typeorm';
 import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '../database/slim-tasks';
@@ -177,6 +178,13 @@ export class ProjectTasksService implements OnApplicationBootstrap {
   /** One task in full (comments, history), for its drawer. */
   async findOne(id: string) {
     return this.hydrate(await this.load(id));
+  }
+
+  /** One page of a task's history, reading only its id, project and history columns. */
+  async activityPage(id: string, q: { page?: unknown; size?: unknown }) {
+    const t = await this.repo.findOne({ where: { id }, select: { id: true, projectId: true, comments: true, activity: true } });
+    if (!t) throw new NotFoundException(`Task ${id} not found`);
+    return { projectId: t.projectId, page: activityPage(t.comments, t.activity, q) };
   }
 
   private async load(id: string) {

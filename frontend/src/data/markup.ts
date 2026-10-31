@@ -3,7 +3,8 @@
  * (0-1 across the page as shown), so they hold at any zoom; widths and text
  * sizes are in PDF points. Mirrors backend/src/file-room/markups.ts.
  */
-export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale' | 'pin' | 'link';
+export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale' | 'pin' | 'link' | 'stamp'
+  | 'polyline' | 'measure_path' | 'triangle' | 'polygon' | 'symbol';
 export type Pt = [number, number];
 
 export interface MarkupData {
@@ -19,12 +20,44 @@ export interface MarkupData {
   photos?: { fileId: string; name: string }[];
   /** link: where the box goes -- a page of this PDF, or another File Room file. */
   target?: LinkTarget;
+  /** stamp: which icon (data/stamps.ts), drawn in the box its two points make. */
+  icon?: string;
+  /** A short note on any markup (Oct 31), shown as a small tag beside it. */
+  note?: string;
+  /** Box, ellipse, triangle, polyshape: a see-through fill of its colour. */
+  fill?: boolean;
+  /** text: the box's width (share of the page's width); the text wraps inside it. Older text has none and runs on. */
+  boxW?: number;
+  /** symbol: which library symbol, drawn in its box; `label` keeps its name for the hover and the list. */
+  symbolId?: string;
 }
+/** A symbol from the shared library: its name and a small PNG/JPEG data URL. */
+export interface MarkupSymbol { id: string; name: string; image: string }
 
 export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
 
-/** What a link box says: "→ p. 5" or "→ Inspection card 3.pdf, p. 2" (same as the server draws). */
-export const linkLabel = (t?: LinkTarget | null) => !t ? 'Link' : t.type === 'page' ? `→ p. ${t.page}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
+/** What a link box says: "→ A501" (the sheet, when named), "→ p. 5", or "→ Inspection card 3.pdf, p. 2" (same as the server draws). */
+export const linkLabel = (t?: LinkTarget | null, sheet?: (page: number) => string | undefined) =>
+  !t ? 'Link' : t.type === 'page' ? `→ ${sheet?.(t.page) || `p. ${t.page}`}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
+
+/** Photos can be marked up too (Oct 31). */
+export const isPhotoFile = (f: { name?: string; mimeType?: string | null }) => /\.(jpe?g|png|webp|gif)$/i.test(f.name || '') || /^image\/(jpeg|png|webp|gif)$/.test(f.mimeType || '');
+/** A photo's page: its long side is this many points (the server sizes the downloaded PDF the same way). */
+export const PHOTO_LONG_SIDE = 1200;
+
+/** A sheet number as drawings write it: A100, E103, A-201, S2.1, M001A. */
+const SHEET_RE = /^[A-Z]{1,3}[-.]?\s?\d{1,4}(?:\.\d{1,3})?[A-Z]?$/;
+
+/**
+ * A page's sheet number, read from its text (Oct 31): the biggest sheet-number-
+ * looking text in the title block (bottom-right), else along the right edge
+ * (a vertical title block). Null when there's none -- the page keeps "p. 3".
+ */
+export function sheetNameFrom(runs: { str: string; x0: number; y0: number; x1: number; y1: number }[]): string | null {
+  const hits = runs.map((r) => ({ ...r, s: r.str.trim() })).filter((r) => SHEET_RE.test(r.s));
+  const pick = (list: typeof hits) => list.sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0))[0]?.s || null;
+  return pick(hits.filter((r) => r.x0 > 0.55 && r.y0 > 0.55)) || pick(hits.filter((r) => r.x0 > 0.8));
+}
 export interface Markup {
   id: string;
   fileId: string;
@@ -36,7 +69,7 @@ export interface Markup {
   private: boolean;
   /** Its named layer; null = its author's own layer. */
   layer?: string | null;
-  linkType: 'rfi' | 'task' | null;
+  linkType: MarkupLinkType | null;
   linkId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -44,8 +77,54 @@ export interface Markup {
 
 export const KIND_LABEL: Record<MarkupKind, string> = {
   pen: 'Pen', highlight: 'Highlight', text: 'Text', line: 'Line', arrow: 'Arrow', rect: 'Box', ellipse: 'Ellipse', cloud: 'Cloud',
-  measure_len: 'Length', measure_area: 'Area', scale: 'Scale', pin: 'Pin', link: 'Link',
+  measure_len: 'Length', measure_area: 'Area', scale: 'Scale', pin: 'Pin', link: 'Link', stamp: 'Stamp',
+  polyline: 'Polyline', measure_path: 'Path length', triangle: 'Triangle', polygon: 'Polyshape', symbol: 'Symbol',
 };
+
+/** Shapes that can be filled (a see-through fill of their colour). */
+export const FILLABLE: MarkupKind[] = ['rect', 'ellipse', 'triangle', 'polygon'];
+/** Drawn by clicking points and double-clicking (or Enter) to finish. */
+export const MULTI_POINT: MarkupKind[] = ['measure_area', 'measure_path', 'polyline', 'polygon'];
+/** The fewest points each click-to-draw kind needs. */
+export const MIN_POINTS: Partial<Record<MarkupKind, number>> = { measure_area: 3, polygon: 3, measure_path: 2, polyline: 2 };
+
+/** A triangle in the box a-b: apex top-centre, base along the bottom. */
+export function trianglePts(a: Pt, b: Pt): Pt[] {
+  const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+  return [[(x0 + x1) / 2, y0], [x1, y1], [x0, y1]];
+}
+
+/** Clicked points without the near-duplicates a double-click leaves (within `eps`, page share). */
+export function dedupePoints(pts: Pt[], eps = 0.002): Pt[] {
+  return pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > eps);
+}
+
+/**
+ * Text wrapped to a width: each paragraph broken at spaces, a word longer than
+ * the line broken by letters. `measure` gives a string's width (same unit as maxW).
+ * Mirrors the server, which wraps the same way when drawing the PDF.
+ */
+export function wrapLines(text: string, maxW: number, measure: (s: string) => number): string[] {
+  const out: string[] = [];
+  for (const para of text.split('\n')) {
+    const words = para.split(/ +/);
+    let line = '';
+    for (let w of words) {
+      while (measure(w) > maxW && w.length > 1) {
+        // A long word: as many letters as fit, the rest on the next line.
+        if (line) { out.push(line); line = ''; }
+        let n = w.length - 1;
+        while (n > 1 && measure(w.slice(0, n)) > maxW) n--;
+        out.push(w.slice(0, n));
+        w = w.slice(n);
+      }
+      const next = line ? `${line} ${w}` : w;
+      if (line && measure(next) > maxW) { out.push(line); line = w; } else line = next;
+    }
+    out.push(line);
+  }
+  return out;
+}
 
 /** The key a layer is shown, hidden and downloaded by (same as the server's). */
 export const layerKey = (m: { layer?: string | null; authorId?: string | null; authorName?: string | null }) =>
@@ -68,7 +147,20 @@ export function layersOf(marks: Pick<Markup, 'layer' | 'authorId' | 'authorName'
   }
   return [...map.values()].sort((a, b) => Number(b.named) - Number(a.named) || a.name.localeCompare(b.name));
 }
-export const MARKUP_COLORS = ['#E0321B', '#1D4ED8', '#047857', '#B45309', '#7C3AED', '#111827', '#FACC15'];
+/** White last: drawn over black lines, it covers them (Oct 31). */
+export const MARKUP_COLORS = ['#E0321B', '#1D4ED8', '#047857', '#B45309', '#7C3AED', '#111827', '#FACC15', '#FFFFFF'];
+
+/** Who sees and manages every markup: i-1 (admin) and i-2 (principal). Mirrors the server. */
+export const MARKUP_LEADS = ['admin', 'principal'];
+
+/** A copy of a markup for pasting: nudged down-right on the same page, in place on another page; pin photos stay with the original. */
+export function pasteCopy(m: Pick<Markup, 'kind' | 'data' | 'page'>, page: number): MarkupData {
+  const off = m.page === page ? 0.015 : 0;
+  const clamp = (n: number) => Math.min(1, Math.max(0, n));
+  const copy: MarkupData = { ...m.data, points: m.data.points.map(([x, y]) => [clamp(x + off), clamp(y + off)] as Pt) };
+  delete copy.photos;
+  return copy;
+}
 
 /** A revision cloud around the box a-b (same shape as the server draws). */
 export function cloudPath(a: Pt, b: Pt, scallop: number): string {
@@ -108,6 +200,13 @@ export function arrowHead(a: Pt, b: Pt, size: number): [Pt, Pt] {
 
 /** A line's length in PDF points on a page of w x h points (as shown). */
 export const lengthPts = (a: Pt, b: Pt, w: number, h: number) => Math.hypot((b[0] - a[0]) * w, (b[1] - a[1]) * h);
+
+/** A path's total length in PDF points (each segment added up). */
+export function pathLengthPts(pts: Pt[], w: number, h: number) {
+  let s = 0;
+  for (let i = 1; i < pts.length; i++) s += lengthPts(pts[i - 1], pts[i], w, h);
+  return s;
+}
 
 /** A polygon's area in square PDF points. */
 export function areaPts(pts: Pt[], w: number, h: number) {
@@ -166,10 +265,10 @@ export function parseLength(raw: string, unit: 'ft' | 'm'): number | null {
 }
 
 /** The measured value's label for a length or area markup on a page with this scale. */
-export function measureLabel(kind: 'measure_len' | 'measure_area', pts: Pt[], w: number, h: number, scale: { perPt: number; unit: 'ft' | 'm' }) {
-  return kind === 'measure_len'
-    ? formatLength(lengthPts(pts[0], pts[1], w, h) * scale.perPt, scale.unit)
-    : formatArea(areaPts(pts, w, h) * scale.perPt * scale.perPt, scale.unit);
+export function measureLabel(kind: 'measure_len' | 'measure_area' | 'measure_path', pts: Pt[], w: number, h: number, scale: { perPt: number; unit: 'ft' | 'm' }) {
+  if (kind === 'measure_len') return formatLength(lengthPts(pts[0], pts[1], w, h) * scale.perPt, scale.unit);
+  if (kind === 'measure_path') return formatLength(pathLengthPts(pts, w, h) * scale.perPt, scale.unit);
+  return formatArea(areaPts(pts, w, h) * scale.perPt * scale.perPt, scale.unit);
 }
 
 /** Where a markup sits, as a box (0-1), for selection and hit-testing. */
@@ -267,3 +366,17 @@ export function pickCompareDefault(currentId: string, revisions: Revision[]): Re
   if (i < 0) return list.filter((r) => r.id !== currentId).pop() || null;
   return list[i - 1] || list[i + 1] || null;
 }
+
+/** What a markup can be turned into (Oct 26 review notes, A6): an RFI, a task, a change order or a FOR RECORD item. */
+export type MarkupLinkType = 'rfi' | 'task' | 'co' | 'record';
+export const MARKUP_LINKS: Record<MarkupLinkType, { label: string; href: (id: string) => string }> = {
+  rfi: { label: 'RFI', href: (id) => `/rfis?rfi=${encodeURIComponent(id)}` },
+  task: { label: 'task', href: (id) => `/tasks?task=${encodeURIComponent(id)}&type=log` },
+  co: { label: 'change order', href: (id) => `/changeorders?co=${encodeURIComponent(id)}` },
+  record: { label: 'FOR RECORD item', href: (id) => `/observations?item=${encodeURIComponent(id)}` },
+};
+/** The link for whatever was made from a markup; null for an unknown kind (an older or bad row). */
+export const markupLink = (type?: string | null, id?: string | null) => {
+  const l = type ? MARKUP_LINKS[type as MarkupLinkType] : undefined;
+  return l && id ? { label: l.label, href: l.href(id) } : null;
+};

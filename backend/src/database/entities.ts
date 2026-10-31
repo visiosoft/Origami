@@ -81,6 +81,8 @@ export class PersonEntity {
   @Column() phone!: string;
   @Column() email!: string;
   @Column('simple-json') projects!: string[];
+  /** Which phases they work on, per project (Oct 26 review notes): { "HOM Cafe": ["design", "construction"] }. */
+  @Column({ type: 'simple-json', nullable: true }) projectPhases!: Record<string, string[]> | null;
   @Column('int') openTasks!: number;
   /** Set for staff and contractor workers: the Manpower employee this entry is (one record, two views). */
   @Column({ nullable: true }) employeeId!: string;
@@ -227,7 +229,7 @@ export class TaskEntity {
   @Column({ nullable: true }) assignedTo!: string;
   @Column() status!: string;
   @Column({ nullable: true }) originator!: string;
-  /** Urgent / High / Medium / Low, or empty for none -- the same scale as every special action. */
+  /** Emergency / Urgent / High / Medium / Low / Very Low, or empty for none -- the same scale as every special action. */
   @Column({ nullable: true }) priority!: string;
   @Column() topicType!: string;
   /** The task's name. Older tasks have none: their first description line serves as the name. */
@@ -255,6 +257,8 @@ export class TaskEntity {
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
+  /** Access tags (internal, client, external, financial, crm, design, construction); see task.types cleanTags. */
+  @Column({ type: 'simple-json', nullable: true }) tags!: string[] | null;
   /** Confirmed by whoever raised it; archived 7 days later. */
   @Column({ nullable: true }) confirmedAt!: string;
   @Column({ nullable: true }) archivedAt!: string;
@@ -290,7 +294,12 @@ export class MeetingEntity {
   /** History: created, converted / duplicated, links. */
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[] | null;
   @Column() title!: string;
-  @Column({ default: 'Internal' }) type!: string; // Internal | Client | Consultant | Subcontractor | Site
+  @Column({ default: 'Internal' }) type!: string; // Internal | Client | Consultant | Subcontractor | Site | Outside
+  /** Outside meetings (someone else's invite -- the city on Teams, a consultant's Zoom): who set it up, their company, the platform, and the invite as pasted. */
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) organizer!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) organizerOrg!: string | null;
+  @Column({ type: 'nvarchar', length: 30, nullable: true }) platform!: string | null;
+  @Column({ ...TEXT, nullable: true }) invite!: string | null;
   @Column({ type: 'int', nullable: true }) projectId!: number | null;
   /** The project's name, as the Request Log stores it on each entry. */
   @Column({ nullable: true }) project!: string;
@@ -364,6 +373,15 @@ export class DealEntity {
   @Column({ nullable: true }) rejectionReason!: string;
   /** Why a lost lead was lost (Oct 27 sync): one of LOSS_REASONS in pipeline/dead-leads.ts; the note is in rejectionReason. */
   @Column({ nullable: true }) lossReason!: string;
+  /** Why it died, in full (Oct 26 review notes): Cold / Lost / Cancelled / Pass, the reasons, notes (pipeline/dead-leads.ts DeadReason). */
+  @Column({ type: 'simple-json', nullable: true }) deadReason!: import('../pipeline/dead-leads').DeadReason | null;
+  /** On hold: who picks it back up when the date comes (Oct 26 review notes), and the reminder task made for them. */
+  @Column({ nullable: true }) followUpById!: string;
+  @Column({ nullable: true }) followUpByName!: string;
+  @Column({ nullable: true }) followUpTaskId!: string;
+  /** Referred out: who keeps an eye on it and adds updates (the "Monitor"). */
+  @Column({ nullable: true }) monitorId!: string;
+  @Column({ nullable: true }) monitorName!: string;
   @Column({ nullable: true }) referredToName!: string;
   @Column({ nullable: true }) referredToCompany!: string;
   @Column({ nullable: true }) referredToContact!: string;
@@ -490,6 +508,21 @@ export class FinanceEntity {
   @Column('int') coUsed!: number;
   @Column('int') reimbUsed!: number;
   @Column('int') timePct!: number;
+}
+
+/**
+ * One save of a lead's details, as the fields it changed (Oct 26 review notes:
+ * Full Details shows what changed, in orange, and each section's earlier versions).
+ */
+@Entity('lead_versions')
+@Index('IX_lead_versions_lead', ['leadId'])
+export class LeadVersionEntity {
+  @PrimaryGeneratedColumn() id!: number;
+  @Column() leadId!: string;
+  @Column() at!: string;
+  @Column({ nullable: true }) by!: string;
+  /** field -> { from, to } for each field this save changed. */
+  @Column({ type: 'simple-json' }) changes!: Record<string, { from: unknown; to: unknown }>;
 }
 
 @Entity('leads')
@@ -635,7 +668,7 @@ export class TicketEntity {
   @PrimaryColumn() id!: string;
   @Column() subject!: string;
   @Column({ nullable: true }) category!: string;
-  @Column({ nullable: true }) priority!: string; // Low | Medium | High | Urgent
+  @Column({ nullable: true }) priority!: string; // Emergency | Urgent | High | Medium | Low | Very Low
   @Column(TEXT) message!: string;
   @Column({ nullable: true }) requesterName!: string;
   @Column({ nullable: true }) requesterEmail!: string;
@@ -753,7 +786,7 @@ export class ProjectTaskEntity {
   @Column({ ...TEXT, nullable: true }) description!: string;
   @Column({ nullable: true }) assignee!: string;
   @Column({ nullable: true }) dueDate!: string;
-  @Column({ nullable: true }) priority!: string; // Low | Medium | High | Urgent
+  @Column({ nullable: true }) priority!: string; // Emergency | Urgent | High | Medium | Low | Very Low
   @Column('int') order!: number;
   @Column({ default: false }) completed!: boolean;
   @Column({ nullable: true }) parentId!: string; // subtask -> parent task id
@@ -994,6 +1027,21 @@ export class UserViewEntity {
  * the drawing, which itself never changes. Points are page-relative (0-1) as
  * the page is shown, so they hold at any zoom; sizes are in PDF points.
  */
+/**
+ * A drawing symbol (Oct 31): a small image admins add to one shared library;
+ * anyone marking up drops it on a drawing like a pin. Kept as a PNG/JPEG data
+ * URL (the browser shrinks it to 256 px first), so it's small.
+ */
+@Entity('markup_symbols')
+export class MarkupSymbolEntity {
+  @PrimaryColumn() id!: string;
+  @Column({ type: 'nvarchar', length: 80 }) name!: string;
+  @Column({ type: 'nvarchar', length: 'MAX' }) image!: string;
+  @Column({ type: 'int', nullable: true }) sortOrder!: number | null;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column() createdAt!: string;
+}
+
 @Entity('pdf_markups')
 export class PdfMarkupEntity {
   @PrimaryColumn() id!: string;
@@ -1105,6 +1153,8 @@ export class FileRoomFileEntity {
   @Column({ nullable: true, default: true }) isLatest!: boolean;
   /** Free notes about the document — what it is, what changed, what to watch. */
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) notes!: string;
+  /** A drawing's sheet numbers by page ("1": "A100"), read from the title blocks and correctable (Oct 31). */
+  @Column({ type: 'simple-json', nullable: true }) sheetNames!: Record<string, string> | null;
 }
 
 /** A folder someone created that holds no files yet — otherwise it would vanish. */
@@ -2083,8 +2133,19 @@ export class ChangeOrderEntity extends FinanceStamped {
   @Column() number!: string;
   @Column() title!: string;
   @Column({ ...TEXT, nullable: true }) description!: string;
-  /** client_request | design_change | unforeseen | scope_addition | scope_reduction | allowance | code_requirement | other */
+  /**
+   * What drives it (Oct 26 review notes): force_majeure | unknown_site | authority | procurement |
+   * client_request | design_eo | builder | sub_third_party. Older rows may hold design_change,
+   * unforeseen, scope_addition, scope_reduction, allowance, code_requirement or other.
+   */
   @Column({ default: 'client_request' }) reason!: string;
+  /** Its category, one or more of additive / deductive / zero_sum on dollar, time or scope: e.g. "additive.dollar". */
+  @Column({ type: 'simple-json', nullable: true }) effects!: string[] | null;
+  /** Who raised it and who approves it: internal | client | third_party. */
+  @Column({ nullable: true }) originatorType!: string;
+  @Column({ nullable: true }) approverType!: string;
+  /** The change events (and their CORs) this owner change order (PCCO) was made from. */
+  @Column({ type: 'simple-json', nullable: true }) changeEventIds!: string[] | null;
   @Column({ nullable: true }) requestedBy!: string;
   /** draft | internal_review | submitted | approved | rejected | cancelled */
   @Column({ default: 'draft' }) status!: string;
@@ -2109,6 +2170,108 @@ export class ChangeOrderEntity extends FinanceStamped {
   @Column({ nullable: true }) cancelledAt!: string;
   @Column({ nullable: true }) cancelledBy!: string;
   @Column({ ...TEXT, nullable: true }) closedReason!: string;
+}
+
+/**
+ * A change event (Oct 26 review notes): the field issue or request that may
+ * shift cost, time or scope. It goes out as a PCO -- a request for pricing --
+ * to the subs it touches; their CORs come back, are validated, held or
+ * rejected, and validated ones are rolled into an owner change order (PCCO).
+ * A CCD / DCD directive lets the work start before the price is agreed.
+ */
+@Entity('change_events')
+@Index('IX_change_events_project', ['projectId'])
+@Index('UQ_change_events_number', ['projectId', 'number'], { unique: true })
+export class ChangeEventEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** CE-001, per project. */
+  @Column() number!: string;
+  @Column() title!: string;
+  @Column({ ...TEXT, nullable: true }) description!: string;
+  /** What drives it (same list as a change order's). */
+  @Column({ default: 'client_request' }) reason!: string;
+  @Column({ nullable: true }) originatorType!: string;
+  /** open | pricing | priced | closed | void */
+  @Column({ default: 'open' }) status!: string;
+  /** The PCO: when pricing was asked for, by when, and what was asked. */
+  @Column({ nullable: true }) pcoSentAt!: string;
+  @Column({ nullable: true }) pcoDue!: string;
+  @Column({ ...TEXT, nullable: true }) pcoNote!: string;
+  /** A construction / design change directive: ccd | dcd, how it was given (signature | verbal | email), by whom, when. */
+  @Column({ nullable: true }) directiveType!: string;
+  @Column({ nullable: true }) directiveMethod!: string;
+  @Column({ nullable: true }) directiveSigner!: string;
+  @Column({ nullable: true }) directiveDate!: string;
+  @Column({ ...TEXT, nullable: true }) directiveNote!: string;
+  @Column({ nullable: true }) directiveBy!: string;
+  /** Owner change orders (PCCOs) made from it. */
+  @Column({ type: 'simple-json', nullable: true }) changeOrderIds!: string[] | null;
+}
+
+/** A change order request (COR): one party's priced proposal for a change event -- ours (prime) or a sub's. */
+@Entity('change_order_requests')
+@Index('IX_cors_project', ['projectId'])
+@Index('IX_cors_event', ['changeEventId'])
+@Index('UQ_cors_number', ['projectId', 'number'], { unique: true })
+export class ChangeOrderRequestEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() changeEventId!: string;
+  /** COR-001, per project. */
+  @Column() number!: string;
+  /** prime | sub */
+  @Column({ default: 'sub' }) partyType!: string;
+  /** The sub's subcontract or PO on this project, and their contractor record, when known. */
+  @Column({ nullable: true }) commitmentId!: string;
+  @Column({ nullable: true }) contractorId!: string;
+  @Column() partyName!: string;
+  @Column({ nullable: true }) partyEmail!: string;
+  @Column({ ...TEXT, nullable: true }) scope!: string;
+  /** Their price (our cost); null until they send it. */
+  @Column({ ...MONEY, nullable: true }) amount!: number | null;
+  @Column({ type: 'int', default: 0 }) scheduleImpactDays!: number;
+  /** requested | submitted | validated | hold | rejected */
+  @Column({ default: 'requested' }) status!: string;
+  @Column({ nullable: true }) requestedAt!: string;
+  @Column({ nullable: true }) submittedAt!: string;
+  @Column({ nullable: true }) decidedAt!: string;
+  @Column({ nullable: true }) decidedBy!: string;
+  @Column({ ...TEXT, nullable: true }) decisionNote!: string;
+  /** The owner change order (PCCO) it was rolled into. */
+  @Column({ nullable: true }) changeOrderId!: string;
+}
+
+/**
+ * A commitment change order (CCO): the change to one sub's subcontract, made
+ * when the owner approves the PCCO. Only that sub sees its cost; signing it
+ * adds the change to their subcontract's schedule of values.
+ */
+@Entity('commitment_change_orders')
+@Index('IX_ccos_project', ['projectId'])
+@Index('IX_ccos_pcco', ['changeOrderId'])
+@Index('UQ_ccos_number', ['projectId', 'number'], { unique: true })
+export class CommitmentChangeOrderEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** CCO-001, per project. */
+  @Column() number!: string;
+  @Column() changeOrderId!: string;
+  @Column() corId!: string;
+  @Column({ nullable: true }) commitmentId!: string;
+  @Column() partyName!: string;
+  @Column({ nullable: true }) partyEmail!: string;
+  @Column({ ...TEXT, nullable: true }) scope!: string;
+  @Column({ ...MONEY }) amount!: number;
+  @Column({ type: 'int', default: 0 }) scheduleImpactDays!: number;
+  /** draft | sent | signed | void */
+  @Column({ default: 'draft' }) status!: string;
+  @Column({ nullable: true }) sentAt!: string;
+  @Column({ nullable: true }) signedAt!: string;
+  @Column({ nullable: true }) signer!: string;
+  @Column({ nullable: true }) signedReference!: string;
+  /** The subcontract line added when it was signed. */
+  @Column({ nullable: true }) commitmentLineId!: string;
 }
 
 /** One priced change inside a change order, and the schedule-of-values item it changes. */

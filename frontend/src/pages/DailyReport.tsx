@@ -12,6 +12,7 @@ import { ACCENT, BG, INK, LINE, MUTED, ReportCtx, SectionCard, input, pill, Labe
 import { CrewSheet, type Code, type Emp, type Entry } from '../components/dailyReport/CrewSheet';
 import { ActivitySection, DeliveriesSection, EquipmentSection, InspectorsSection, NotesSection, SubsSection, VisitorsSection, YesNoSection } from '../components/dailyReport/ReportSections';
 import { SignaturePad } from '../components/dailyReport/SignaturePad';
+import { Skeleton } from '../components/Skeleton';
 
 // ------------------------------------------------------------------ shapes
 
@@ -451,7 +452,7 @@ export function DailyReport() {
           </div>
         </Card>
 
-        {loading ? <div style={{ fontSize: 13, color: MUTED, padding: 20 }}>Loading…</div> : !projectId ? null : !exists ? (
+        {loading ? <Skeleton label="Loading…" /> : !projectId ? null : !exists ? (
           <Card style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 640 }}>
             <div>
               <div style={{ fontFamily: BG, fontSize: 22, color: INK }}>Daily report for {niceDate(date)}</div>

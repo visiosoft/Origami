@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { DEFAULT_LOG_STATUSES, LOG_BUCKETS, loadLogStatuses, logStatusTone, setLogStatuses, type LogStatus } from '../data/logStatuses';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = { boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--ink)' };
@@ -23,7 +24,7 @@ export function RequestLogStatusSettings() {
   const [error, setError] = useState('');
   useEffect(() => { loadLogStatuses(true).then((l) => setList(l.map((s) => ({ ...s })))); }, []);
 
-  if (!list) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (!list) return <Skeleton label="Loading…" />;
   const set = (i: number, patch: Partial<LogStatus>) => setList(list.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= list.length) return; const next = [...list]; [next[i], next[j]] = [next[j], next[i]]; setList(next); };
   // The six task buckets stay; an admin can recolour them and add their own in between.

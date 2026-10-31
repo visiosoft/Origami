@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api, type WeeklyReport as Week } from '../../api';
 import { useApp } from '../../AppContext';
 import { AkPill, AkStats, akToday } from '../ActionKit';
+import { Skeleton } from '../Skeleton';
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const mondayOf = (day: string) => { const d = new Date(day + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return iso(d); };
@@ -80,7 +81,7 @@ export function WeeklyReport({ projects, initialProject }: { projects: { id: num
         <button type="button" className="ak-btn is-dark" disabled={!projectId || sending} onClick={email}>{sending ? 'Sending…' : 'Email PDF / Excel'}</button>
       </div>
 
-      {loading && !data && <section className="ak-card"><div className="ak-empty">Loading…</div></section>}
+      {loading && !data && <section className="ak-card"><div style={{ padding: 16 }}><Skeleton rows={4} /></div></section>}
       {data && t && (
         <>
           <AkStats items={[

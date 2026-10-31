@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { mergeTokens } from '../data/clientPersonality';
+import { useCompanyTokens } from '../data/companyTokens';
 import { hasUnfilled } from '../data/placeholders';
 import { smsSegments, type SmsMessage } from '../data/sms';
 import { UnfilledPlaceholders } from './UnfilledPlaceholders';
@@ -53,14 +54,17 @@ function TextClientDialog({ entityType, entityId, phone, clientName, projectTitl
   const [ready, setReady] = useState<boolean | null>(null);
   const [sending, setSending] = useState(false);
 
+  const company = useCompanyTokens();
   const tokens = useMemo(() => ({
+    ...company,
     clientName: (clientName || '').split(/\s+/)[0] || 'there',
+    clientFirstName: (clientName || '').split(/\s+/)[0] || 'there',
     clientPhone: phone || '',
     projectTitle: projectTitle || '',
     senderName: currentUser?.name || '',
     senderEmail: currentUser?.email || '',
     date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
-  }), [clientName, phone, projectTitle, currentUser?.name, currentUser?.email]);
+  }), [clientName, phone, projectTitle, currentUser?.name, currentUser?.email, company]);
 
   useEffect(() => {
     api.emailTemplates.list().then((r) => setTemplates((Array.isArray(r) ? r : []).filter((t: Template) => t.kind === 'sms'))).catch(() => setTemplates([]));

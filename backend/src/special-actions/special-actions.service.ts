@@ -300,4 +300,50 @@ export class SpecialActionsService {
     await this.record(src, made, 'converted', actor);
     return made;
   }
+
+  /**
+   * One project's special actions at a glance (Oct 26 review notes): how many of
+   * each are open, and when each kind last changed -- the project's Special
+   * Actions buttons blink when something changed since the viewer last looked.
+   */
+  async projectSummary(projectId: number) {
+    const project = await this.projects.findOne({ where: { id: projectId }, select: { id: true, name: true } });
+    if (!project) throw new NotFoundException(`Project ${projectId} not found`);
+    const RECORD = ['FYI', 'Observation', 'Decision'];
+    const max = async (q: Promise<{ m: string | null } | undefined>) => (await q)?.m || null;
+    const [tasksAt, rfisAt, meetingsAt, cosAt] = await Promise.all([
+      max(this.boardRepo.createQueryBuilder('t').select('MAX(COALESCE(t.updatedAt, t.createdAt))', 'm').where('t.projectId = :id', { id: projectId }).getRawOne()),
+      max(this.rfiRepo.createQueryBuilder('r').select('MAX(COALESCE(r.updatedAt, r.createdAt))', 'm').where('r.projectId = :id', { id: projectId }).getRawOne()),
+      max(this.meetingRepo.createQueryBuilder('m').select('MAX(COALESCE(m.updatedAt, m.createdAt))', 'm').where('m.projectId = :id', { id: projectId }).getRawOne()),
+      max(this.coRepo.createQueryBuilder('c').select('MAX(COALESCE(c.updatedAt, c.createdAt))', 'm').where('c.projectId = :id', { id: projectId }).getRawOne()),
+    ]);
+    const log = await this.logRepo.find({ where: { project: project.name }, select: { id: true, topicType: true, status: true, updatedAt: true } });
+    const record = log.filter((t) => RECORD.includes(t.topicType));
+    const logTasks = log.filter((t) => !RECORD.includes(t.topicType) && t.topicType !== 'RFI');
+    const latest = (rows: { updatedAt?: string }[]) => rows.reduce<string | null>((m, r) => (r.updatedAt && (!m || r.updatedAt > m) ? r.updatedAt : m), null);
+    const later = (a: string | null, b: string | null) => (!a ? b : !b ? a : a > b ? a : b);
+    const [meetings, cos, openRfis] = await Promise.all([
+      this.meetingRepo.find({ where: { projectId }, select: { id: true, date: true, status: true } as any }),
+      this.coRepo.find({ where: { projectId }, select: { id: true, status: true } as any }),
+      this.rfiRepo.count({ where: { projectId, status: 'open' } as any }).catch(() => 0),
+    ]);
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      latest: {
+        tasks: later(tasksAt, latest(logTasks)),
+        rfis: rfisAt,
+        meetings: meetingsAt,
+        forRecord: latest(record),
+        changeOrders: cosAt,
+      },
+      counts: {
+        meetingsUpcoming: meetings.filter((m: any) => String(m.date || '') >= today && m.status !== 'cancelled').length,
+        meetings: meetings.length,
+        forRecord: record.length,
+        changeOrdersOpen: cos.filter((c: any) => !['approved', 'rejected', 'cancelled', 'void'].includes(String(c.status))).length,
+        changeOrders: cos.length,
+        rfisOpen: openRfis,
+      },
+    };
+  }
 }

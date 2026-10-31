@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { FILLABLE, sheetNameFrom, dedupePoints, pathLengthPts, trianglePts, wrapLines } from './markup';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
-import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, nextSize, overlayPixels, pickCompareDefault, textMatches } from './markup';
+import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, pasteCopy, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
 describe('markup measuring', () => {
   it('reads lengths as people type them', () => {
@@ -99,5 +100,57 @@ describe('comparing revisions', () => {
     expect(pickCompareDefault('c', revs)?.id).toBe('b');
     expect(pickCompareDefault('a', revs)?.id).toBe('b');
     expect(pickCompareDefault('x', [revs[0]])?.id).toBe('a');
+  });
+});
+
+describe('markupLink', () => {
+  it('links each kind made from a markup to its page', () => {
+    expect(markupLink('co', 'CO 1')).toEqual({ label: 'change order', href: '/changeorders?co=CO%201' });
+    expect(markupLink('record', 'T-3')).toEqual({ label: 'FOR RECORD item', href: '/observations?item=T-3' });
+    expect(markupLink('rfi', 'R1')?.href).toBe('/rfis?rfi=R1');
+    expect(markupLink('task', 'T1')?.href).toBe('/tasks?task=T1&type=log');
+    expect(markupLink('invoice', 'X')).toBeNull();
+    expect(markupLink('co', null)).toBeNull();
+  });
+});
+
+describe('pasteCopy', () => {
+  const m = { kind: 'pin' as const, page: 2, data: { points: [[0.5, 0.995]] as [number, number][], color: '#E0321B', width: 1, note: 'Crack', photos: [{ fileId: 'P1', name: 'a.jpg' }] } };
+  it('nudges a copy on the same page, keeps it in place on another, and leaves the photos behind', () => {
+    expect(pasteCopy(m, 2).points).toEqual([[0.515, 1]]);
+    expect(pasteCopy(m, 3).points).toEqual([[0.5, 0.995]]);
+    expect(pasteCopy(m, 2).photos).toBeUndefined();
+    expect(pasteCopy(m, 2).note).toBe('Crack');
+  });
+});
+
+describe('new shapes and wrapping (Oct 31)', () => {
+  it('adds up a path and labels it with the scale', () => {
+    expect(pathLengthPts([[0, 0], [0.5, 0], [0.5, 0.5]], 100, 100)).toBe(100);
+    expect(measureLabel('measure_path', [[0, 0], [0.5, 0], [0.5, 0.5]], 100, 100, { perPt: 0.1, unit: 'ft' })).toBe(measureLabel('measure_len', [[0, 0], [1, 0]], 100, 100, { perPt: 0.1, unit: 'ft' }));
+  });
+  it('puts a triangle in its box and drops double-click duplicates', () => {
+    expect(trianglePts([0.4, 0.2], [0.2, 0.6])).toEqual([[0.30000000000000004, 0.2], [0.4, 0.6], [0.2, 0.6]]);
+    expect(dedupePoints([[0, 0], [0.5, 0.5], [0.5001, 0.5], [0.5, 0.5]])).toEqual([[0, 0], [0.5, 0.5]]);
+    expect(FILLABLE).toContain('polygon');
+  });
+  it('wraps words to the width, and breaks a word too long for a line', () => {
+    const m = (s: string) => s.length; // one unit a letter
+    expect(wrapLines('the quick brown fox', 10, m)).toEqual(['the quick', 'brown fox']);
+    expect(wrapLines('one\ntwo three', 7, m)).toEqual(['one', 'two', 'three']);
+    expect(wrapLines('abcdefghij kl', 4, m)).toEqual(['abcd', 'efgh', 'ij', 'kl']);
+  });
+});
+
+describe('sheetNameFrom', () => {
+  const run = (str: string, x0: number, y0: number, hgt = 0.01) => ({ str, x0, y0, x1: x0 + 0.05, y1: y0 + hgt });
+  it('reads the biggest sheet number in the title block', () => {
+    expect(sheetNameFrom([run('A100', 0.1, 0.1, 0.03), run('A-201', 0.9, 0.92, 0.03), run('A201', 0.85, 0.8, 0.01), run('SHEET', 0.9, 0.88)])).toBe('A-201');
+    expect(sheetNameFrom([run('E103', 0.92, 0.2, 0.02)])).toBe('E103');
+    expect(sheetNameFrom([run('S2.1', 0.7, 0.7)])).toBe('S2.1');
+  });
+  it('finds nothing in a page without one', () => {
+    expect(sheetNameFrom([run('FLOOR PLAN', 0.8, 0.9), run('1/4" = 1\'-0"', 0.8, 0.95), run('2026', 0.9, 0.9)])).toBeNull();
+    expect(sheetNameFrom([])).toBeNull();
   });
 });

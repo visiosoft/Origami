@@ -4,8 +4,11 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { mergeTokens } from '../data/clientPersonality';
 import { RichTextEditor } from './RichTextEditor';
+import { asHtml } from '../data/templateHtml';
+import { useCompanyTokens } from '../data/companyTokens';
 import { hasUnfilled } from '../data/placeholders';
 import { UnfilledPlaceholders } from './UnfilledPlaceholders';
+import { Skeleton } from './Skeleton';
 
 const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -105,13 +108,15 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
       .catch(() => { });
   }, []);
 
+  const company = useCompanyTokens();
   const tokens = useMemo(() => ({
+    ...company,
     clientName: dealName || 'there',
     projectTitle: dealName || '',
     senderName: currentUser?.name || '',
     senderEmail: currentUser?.email || '',
     date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-  }), [dealName, currentUser?.name, currentUser?.email]);
+  }), [dealName, currentUser?.name, currentUser?.email, company]);
 
   const applyTemplate = (id: string) => {
     setTemplateId(id);
@@ -119,7 +124,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
     const tpl = templates.find((t) => t.id === id);
     if (!tpl) return;
     if (tpl.subject) setSubject(mergeTokens(tpl.subject, tokens));
-    setHtml(mergeTokens(tpl.body, tokens));
+    setHtml(mergeTokens(asHtml(tpl.body), tokens));
   };
 
   const applyAgreementTemplate = (id: string) => {
@@ -128,7 +133,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
     const tpl = agreementTemplates.find((t) => t.id === id);
     if (!tpl) return;
     if (tpl.subject) setSubject(mergeTokens(tpl.subject, tokens));
-    setHtml(mergeTokens(tpl.body, tokens));
+    setHtml(mergeTokens(asHtml(tpl.body), tokens));
   };
 
   const openPdf = (renderHtml: string) =>
@@ -200,7 +205,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
       .finally(() => setSending(false));
   };
 
-  if (loading) return <div style={{ padding: '14px 20px', fontSize: 12, color: 'var(--c-9aa39d)' }}>Loading…</div>;
+  if (loading) return <Skeleton label="Loading…" />;
 
   return (
     <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', background: 'var(--mist)' }}>

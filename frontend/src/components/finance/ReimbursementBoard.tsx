@@ -4,6 +4,7 @@ import { useApp } from '../../AppContext';
 import { ReimbursableDrawer } from './Reimbursables';
 import { REIMB_CATEGORIES, failed, label, usd, usd0, type Reimbursable, type Rights } from './financeUi';
 import './ReimbursementBoard.css';
+import { Skeleton } from '../Skeleton';
 
 type Status = Reimbursable['status'];
 const STATUS: Record<Status, [string, string]> = {
@@ -123,7 +124,7 @@ export function ReimbursementBoard({ rights }: { rights: Rights }) {
 
       <div className="rb-main">
         <section className="rb-card rb-list">
-          {rows === null && <div className="rb-empty">Loading…</div>}
+          {rows === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
           {rows && !shown.length && (
             <div className="rb-empty">
               {all.length ? 'Nothing matches these filters.' : 'No expenses yet.'}

@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { outcomeLabel } from '../data/contractorBids';
 import { INTERACTION_KINDS, companyOf, type ContactActivity as Activity, type ContactInteraction, type Person } from '../data/people';
+import { Skeleton } from './Skeleton';
 
 const head: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 };
 const input: React.CSSProperties = { boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--ink)', outline: 'none', minWidth: 0 };
@@ -41,7 +42,7 @@ export function ContactActivity({ person, canManage, onChanged }: { person: Pers
   return (
     <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'grid', gap: 14 }}>
       <div style={{ ...head, marginBottom: 0 }}>Activity</div>
-      {!a ? <div style={{ fontSize: 12, color: 'var(--muted)' }}>Loading…</div> : <>
+      {!a ? <Skeleton label="Loading…" /> : <>
         {a.alerts.length > 0 && (
           <div role="alert" style={{ display: 'grid', gap: 6, padding: '11px 13px', borderRadius: 10, background: '#FFF6E5', border: '1px solid #F1D29A' }}>
             {a.alerts.map((x, i) => (

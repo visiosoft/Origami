@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, attachmentUrl } from '../api';
+import { Skeleton } from './Skeleton';
 
 type Source = 'lead' | 'client' | 'lead-task' | 'project-task' | 'rfi' | 'file-room';
 interface IndexedFile {
@@ -47,7 +48,7 @@ export function AllFiles({ leadId, projectId, reloadKey }: { leadId?: string; pr
     && (!q.trim() || `${f.name} ${f.where} ${f.uploadedBy || ''}`.toLowerCase().includes(q.trim().toLowerCase())));
 
   if (error) return <div style={{ fontSize: 12.5, color: '#8E2E0A' }}>{error}</div>;
-  if (!data) return <div style={{ fontSize: 12.5, color: MUTED }}>Loading files…</div>;
+  if (!data) return <Skeleton label="Loading files…" />;
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>

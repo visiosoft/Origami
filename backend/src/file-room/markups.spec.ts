@@ -1,5 +1,5 @@
 import { PDFDocument, PDFName, degrees } from 'pdf-lib';
-import { canEditMarkup, cleanMarkup, cloudPath, flattenPdf, layerKey, linkLabel, toPage, visibleTo } from './markups';
+import { canEditMarkup, cleanMarkup, cleanSheetNames, isMarkable, photoPageSize, photoToPdf, cloudPath, flattenPdf, layerKey, linkLabel, toPage, trianglePts, visibleTo, wrapLines } from './markups';
 import { MarkupsService, PIN_PHOTO_FOLDER } from './markups.service';
 
 const twoPages = async (rotate = 0) => {
@@ -26,6 +26,10 @@ describe('PDF markup rules', () => {
     expect(canEditMarkup({ authorId: 'U-1' }, { id: 'U-1' })).toBe(true);
     expect(canEditMarkup({ authorId: 'U-1' }, { id: 'U-2' })).toBe(false);
     expect(canEditMarkup({ authorId: 'U-1' }, { id: 'U-2', isAdmin: true })).toBe(true);
+    // i-1 (admin) and i-2 (principal) see private drafts too (Oct 31).
+    expect(visibleTo(rows, 'U-3', 'principal').map((r) => r.id)).toEqual(['a', 'b', 'c']);
+    expect(visibleTo(rows, 'U-3', 'admin').map((r) => r.id)).toEqual(['a', 'b', 'c']);
+    expect(visibleTo(rows, 'U-3', 'pm').map((r) => r.id)).toEqual(['a']);
   });
 
   it('maps a shown point onto the page for every rotation', () => {
@@ -77,13 +81,20 @@ describe('MarkupsService', () => {
       save: jest.fn(async (x: any) => { const i = rows.findIndex((r) => r.id === x.id); if (i >= 0) rows[i] = x; else rows.push(x); return x; }),
       delete: jest.fn(async (w: any) => { const i = rows.findIndex((r) => r.id === w.id); if (i >= 0) rows.splice(i, 1); }),
     };
-    const files = { findOneBy: async () => ({ id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'] }) };
+    const fileRow: any = { id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'], sheetNames: null };
+    const files = { findOneBy: async () => fileRow, update: async (_w: any, patch: any) => Object.assign(fileRow, patch) };
     const uploads: any[] = [];
     const fileRoom = {
       content: async () => ({ file: { id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'] }, body: new Blob([await twoPages()]).stream() }),
       upload: async (...a: any[]) => { uploads.push(a); return [{ id: 'F2', name: a[2][0].originalname }]; },
     };
-    return { svc: new MarkupsService(repo as any, files as any, fileRoom as any), rows, uploads };
+    const symRows: any[] = [];
+    const symbolRepo = {
+      find: async () => symRows, findOneBy: async (w: any) => symRows.find((r) => r.id === w.id) || null, create: (x: any) => x,
+      save: async (x: any) => { const i = symRows.findIndex((r) => r.id === x.id); if (i >= 0) symRows[i] = x; else symRows.push(x); return x; },
+      delete: async (w: any) => { const i = symRows.findIndex((r) => r.id === w.id); if (i >= 0) symRows.splice(i, 1); },
+    };
+    return { svc: new MarkupsService(repo as any, files as any, fileRoom as any, undefined, symbolRepo as any), rows, uploads, symRows };
   };
   const ed = { sub: 'U-1', name: 'Edward', roleKey: 'admin', tier: 'internal' } as any;
   const an = { sub: 'U-2', name: 'Andrea', roleKey: 'staff', tier: 'internal' } as any;
@@ -100,11 +111,22 @@ describe('MarkupsService', () => {
   it('a private draft stays with its author; others may only link a markup to their RFI', async () => {
     const { svc } = setup();
     const m = await svc.create('F1', { kind: 'cloud', page: 2, private: true, data: { points: [[0.1, 0.1], [0.2, 0.2]] } }, an);
-    expect(await svc.list('F1', ed)).toHaveLength(0);
+    expect(await svc.list('F1', { ...ed, roleKey: 'staff' })).toHaveLength(0);
     expect(await svc.list('F1', an)).toHaveLength(1);
+    // i-1 / i-2 see every markup, private drafts included.
+    expect(await svc.list('F1', ed)).toHaveLength(1);
+    expect(await svc.list('F1', { ...ed, roleKey: 'principal' })).toHaveLength(1);
     await svc.update(m.id, { private: false }, an);
     await expect(svc.update(m.id, { data: { points: [[0, 0], [1, 1]] } }, { ...ed, roleKey: 'staff' })).rejects.toThrow(/Only whoever drew it/);
     expect((await svc.update(m.id, { linkType: 'rfi', linkId: 'RFI-7' }, { ...ed, roleKey: 'staff' })).linkId).toBe('RFI-7');
+  });
+
+  it('records a change order or FOR RECORD item made from a markup, and nothing else', async () => {
+    const { svc } = setup();
+    const m = await svc.create('F1', { kind: 'pin', page: 1, data: { points: [[0.4, 0.4]], text: 'Crack at footing' } }, an);
+    expect((await svc.update(m.id, { linkType: 'co', linkId: 'CO-9' }, an)).linkType).toBe('co');
+    expect((await svc.update(m.id, { linkType: 'record', linkId: 'T-3' }, an)).linkType).toBe('record');
+    expect((await svc.update(m.id, { linkType: 'invoice', linkId: 'X' } as any, an)).linkType).toBeNull();
   });
 
   it('saves a marked-up copy beside the drawing, named so the drawing stays Current', async () => {
@@ -170,5 +192,76 @@ describe('MarkupsService', () => {
     expect(dicts.map((d) => d.get(PDFName.of('Subtype')).toString())).toEqual(['/Link', '/Link']);
     expect(dicts[0].get(PDFName.of('Dest')).toString()).toContain('/Fit');
     expect(dicts[1].get(PDFName.of('A')).get(PDFName.of('URI')).decodeText()).toBe('https://app.example/planroom?file=F5');
+  });
+
+  it('keeps a short note on any markup, tidied', () => {
+    const m = cleanMarkup({ kind: 'cloud', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], color: '#FFFFFF', note: '  Patch   drywall \n here ' } });
+    expect(m.data.note).toBe('Patch drywall here');
+    expect(m.data.color).toBe('#FFFFFF');
+    expect(cleanMarkup({ kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], note: '   ' } }).data.note).toBeUndefined();
+  });
+
+  it('takes the new shapes (Oct 31): polyline, path length, triangle, polyshape, fills and wrapping text', async () => {
+    expect(() => cleanMarkup({ kind: 'polygon', page: 1, data: { points: [[0, 0], [1, 1]] } })).toThrow(/no shape/);
+    const poly = cleanMarkup({ kind: 'polygon', page: 1, data: { points: [[0, 0], [1, 0], [1, 1]], fill: true } });
+    expect(poly.data.fill).toBe(true);
+    expect(cleanMarkup({ kind: 'line', page: 1, data: { points: [[0, 0], [1, 1]], fill: true } }).data.fill).toBeUndefined();
+    expect(cleanMarkup({ kind: 'text', page: 1, data: { points: [[0.1, 0.1]], text: 'Hi', boxW: 5 } }).data.boxW).toBe(1);
+    expect(trianglePts([0.4, 0.2], [0.2, 0.6])[1]).toEqual([0.4, 0.6]);
+    expect(wrapLines('the quick brown fox', 10, (s) => s.length)).toEqual(['the quick', 'brown fox']);
+    const { PDFDocument } = await import('pdf-lib');
+    const doc = await PDFDocument.create(); doc.addPage([600, 400]);
+    const out = await flattenPdf(await doc.save(), [
+      { page: 1, kind: 'polyline', data: { points: [[0.1, 0.1], [0.2, 0.3], [0.4, 0.2]], color: '#1D4ED8', width: 2 } },
+      { page: 1, kind: 'measure_path', data: { points: [[0.1, 0.5], [0.3, 0.5], [0.3, 0.7]], color: '#1D4ED8', width: 2, label: `20'-0"` } },
+      { page: 1, kind: 'triangle', data: { points: [[0.5, 0.1], [0.7, 0.3]], color: '#047857', width: 2, fill: true } },
+      { page: 1, kind: 'polygon', data: { points: [[0.6, 0.5], [0.8, 0.5], [0.7, 0.8]], color: '#7C3AED', width: 2, fill: true } },
+      { page: 1, kind: 'text', data: { points: [[0.1, 0.8]], color: '#111827', width: 1, size: 12, boxW: 0.2, text: 'A long note that has to wrap inside its box on the drawing' } },
+    ]);
+    expect(out.byteLength).toBeGreaterThan(1000);
+  });
+
+  it('keeps sheet names by page (Oct 31): merged, cleared, cleaned; links show them', async () => {
+    expect(cleanSheetNames({ 1: ' A100 ', 2: '', x: 'E1', 0: 'Z', 3: 'A-201 Floor plan level two extra long name' })).toEqual({ 1: 'A100', 3: 'A-201 Floor plan level two ext' });
+    expect(linkLabel({ type: 'page', page: 2 }, (n) => (n === 2 ? 'A501' : undefined))).toBe('→ A501');
+    expect(linkLabel({ type: 'page', page: 3 }, () => undefined)).toBe('→ p. 3');
+    const { svc } = setup();
+    await expect(svc.setSheetNames('F1', { names: { 1: 'A100' } }, client)).rejects.toThrow(/team and consultants/);
+    expect(await svc.setSheetNames('F1', { names: { 1: 'A100', 2: 'A101' } }, an)).toEqual({ 1: 'A100', 2: 'A101' });
+    expect(await svc.setSheetNames('F1', { names: { 2: 'A102', 1: '' } }, an)).toEqual({ 2: 'A102' });
+    expect(await svc.sheetNames('F1')).toEqual({ 2: 'A102' });
+  });
+
+  it('marks up photos too (Oct 31): JPG and PNG become a one-page PDF sized like the viewer', async () => {
+    expect(isMarkable({ name: 'site.JPG' })).toBe(true);
+    expect(isMarkable({ name: 'x.docx' })).toBe(false);
+    expect(photoPageSize(4000, 3000)).toEqual([1200, 900]);
+    const { PDFDocument } = await import('pdf-lib');
+    // A 1x1 PNG.
+    const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'));
+    const pdf = await PDFDocument.load(await photoToPdf(png, 'a.png'));
+    expect(pdf.getPage(0).getSize()).toEqual({ width: 1200, height: 1200 });
+    await expect(photoToPdf(new Uint8Array([1, 2, 3]), 'b.gif')).rejects.toThrow(/JPG and PNG/);
+  });
+
+  it('keeps a symbol library admins look after, and places symbols like pins (Oct 31)', async () => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const { svc } = setup();
+    await expect(svc.addSymbol({ name: 'Fire extinguisher', image: png }, an)).rejects.toThrow(/Only admins/);
+    await expect(svc.addSymbol({ name: '', image: png }, ed)).rejects.toThrow(/name/);
+    await expect(svc.addSymbol({ name: 'X', image: 'data:image/gif;base64,AAAA' }, ed)).rejects.toThrow(/PNG, JPG or SVG/);
+    const s = await svc.addSymbol({ name: '  Fire   extinguisher ', image: png }, ed);
+    expect(s.name).toBe('Fire extinguisher');
+    expect((await svc.renameSymbol(s.id, { name: 'FE' }, ed)).name).toBe('FE');
+    expect((await svc.symbols()).map((x) => x.name)).toEqual(['FE']);
+    await expect(svc.create('F1', { kind: 'symbol', page: 1, data: { points: [[0.1, 0.1], [0.15, 0.15]] } }, an)).rejects.toThrow(/Pick a symbol/);
+    const m = await svc.create('F1', { kind: 'symbol', page: 1, data: { points: [[0.1, 0.1], [0.15, 0.15]], symbolId: s.id, label: 'FE' } }, an);
+    expect(m.data).toMatchObject({ symbolId: s.id, label: 'FE' });
+    const { pdf } = await svc.flatten('F1', an);
+    expect(pdf.length).toBeGreaterThan(1000);
+    await svc.removeSymbol(s.id, ed);
+    expect(await svc.symbols()).toEqual([]);
+    // A deleted symbol still draws, as a labelled box.
+    expect((await svc.flatten('F1', an)).pdf.length).toBeGreaterThan(1000);
   });
 });

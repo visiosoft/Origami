@@ -7,6 +7,7 @@ import { NewTaskDrawer } from './NewTaskDrawer';
 import { RequestLogTaskDrawer } from './RequestLogTaskDrawer';
 import { askCompletionNote } from './CompletionNote';
 import { logTaskDetails, logTaskTitle, type Task } from '../data/tasks';
+import { Skeleton } from './Skeleton';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -137,7 +138,7 @@ export function DealTasksPanel({
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 12, color: 'var(--c-9aa39d)' }}>Loading…</div>
+        <Skeleton label="Loading…" />
       ) : grouped.length === 0 ? (
         <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No tasks on this lead yet.</div>
       ) : (

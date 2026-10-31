@@ -16,6 +16,226 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-31h',
+    date: '2026-10-31',
+    title: 'A cleaner Project Program PDF',
+    items: [
+      { area: 'Projects', kind: 'improved', text: 'The Project Program PDF is laid out afresh: a cover with your logo, the project and the date; an at-a-glance page listing every section with its budget and actual; About Us; then the sections, each with a clear heading band and tables that carry their headings onto the next page. Every page has your logo, the project and page numbers. It no longer goes through Google Docs, which dropped most of the styling.', where: 'A project → Project Program → Download / Send' },
+    ],
+  },
+  {
+    id: '2026-10-31g',
+    date: '2026-10-31',
+    title: 'Templates: formatting, preview, more merge fields',
+    items: [
+      { area: 'Templates', kind: 'new', text: 'Every template but SMS now has the formatting toolbar — bold, headings, lists, links, images, tables. Older plain-text templates open as paragraphs.', where: 'Library → Email, SMS & Documents (and Settings) → a template' },
+      { area: 'Templates', kind: 'new', text: 'Preview a template before using it: it’s filled with a sample client and your company’s details and shown as the exact PDF that’s sent (SMS shows as a text bubble).', where: 'A template → Preview' },
+      { area: 'Templates', kind: 'new', text: 'More merge fields — client first name, project address / number / type of work, your phone, and the company’s name, phone, email, address and website (from Settings → Branding) — picked from “+ Insert field” in the editor.' },
+      { area: 'Projects', kind: 'improved', text: 'The Project Program’s cover message has the formatting toolbar and the same merge fields.' },
+    ],
+  },
+  {
+    id: '2026-10-31f',
+    date: '2026-10-31',
+    title: 'Drawings: your own symbols',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'A shared symbol library: admins add symbols (PNG, JPG or SVG) with a name; anyone marking up picks one with the ◆ tool and clicks to drop it (or drags to size it). Pointing at a placed symbol shows its name, and it prints in the downloaded PDF.', where: 'File Room → Mark up → ◆ Symbol (＋ to add, ⚙ to rename or delete — admins)' },
+    ],
+  },
+  {
+    id: '2026-10-31e',
+    date: '2026-10-31',
+    title: 'Mark up photos',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Photos (JPG, PNG) can be marked up with the same tools as drawings — open a photo in the File Room and choose ✎ Mark up, or open a pin’s photo and choose “Mark up this photo”. Download marked-up PDF gives the photo with its markups.', where: 'File Room → a photo → ✎ Mark up' },
+    ],
+  },
+  {
+    id: '2026-10-31d',
+    date: '2026-10-31',
+    title: 'Drawings: sheet names and touch gestures',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Pages are named by their sheet number (A100, E103…), read from each page’s title block the first time a drawing is opened. Pick a sheet from the list at the top; ✎ names or corrects one. Links, the markup list and search show the sheet names, and so do links in the downloaded PDF.', where: 'File Room → Mark up → the sheet list at the top' },
+      { area: 'Drawings', kind: 'new', text: 'On a tablet or phone: pinch with two fingers to zoom, move two fingers to pan; one finger or a stylus draws.' },
+    ],
+  },
+  {
+    id: '2026-10-31c',
+    date: '2026-10-31',
+    title: 'Drawings: polylines, path lengths, more shapes, wrapping text',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Measure a path: click each point and double-click to finish — the segments are added up into one length (set the page’s scale first).', where: 'File Room → Mark up → 〽' },
+      { area: 'Drawings', kind: 'new', text: 'Polyline: straight lines from point to point; double-click (or Enter) to finish.' },
+      { area: 'Drawings', kind: 'new', text: 'Triangle and polyshape join the box and circle. Tick Fill for a see-through fill of the colour, or select a shape and choose Fill it / Outline only.' },
+      { area: 'Drawings', kind: 'improved', text: 'Text wraps in a box. Select it and drag the blue handle on its right edge to make it wider or narrower; older text can be wrapped with “Wrap in a box”. The downloaded PDF wraps it the same way.' },
+    ],
+  },
+  {
+    id: '2026-10-31b',
+    date: '2026-10-31',
+    title: 'Drawings: recolour, white, copy and paste, notes',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Change a markup’s colour after it’s drawn: select it and pick a colour in its panel.', where: 'File Room → Mark up → select a markup' },
+      { area: 'Drawings', kind: 'new', text: 'White is in the colours — draw over black lines to cover them.' },
+      { area: 'Drawings', kind: 'new', text: 'Copy and paste: select a markup, Ctrl/⌘+C, then Ctrl/⌘+V on this page or another. Duplicate (Ctrl/⌘+D) puts a copy beside it.' },
+      { area: 'Drawings', kind: 'new', text: 'Give any markup a short note — it shows beside the markup, in the list, in the downloaded PDF, and search finds it.' },
+      { area: 'Drawings', kind: 'improved', text: 'Making an RFI, task, change order or FOR RECORD item from a markup keeps you in the drawing; open it from the markup’s panel when you’re ready.' },
+      { area: 'Drawings', kind: 'improved', text: 'Admins and principals see and manage every markup, private drafts included.' },
+    ],
+  },
+  {
+    id: '2026-10-31a',
+    date: '2026-10-31',
+    title: 'Six priority levels',
+    items: [
+      { area: 'Special Actions', kind: 'new', text: 'Priorities now run Emergency (1 to 3 hours), Urgent (24 hours), High (5 business days), Medium (2 weeks), Low (a month) and Very Low (past a month). Picking one fills in the due date — Emergency is today — and a due date fills in the priority. Tasks already set keep their priority.', where: 'Any priority picker; Settings → Task priorities' },
+    ],
+  },
+  {
+    id: '2026-10-29a',
+    date: '2026-10-29',
+    title: 'Drawings: change orders and FOR RECORD from a markup; revert to the original',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'Select a markup or pin and make a draft change order from it, or add it to FOR RECORD as an Observation, FYI or Decision — each links back to that spot on the drawing, next to Create RFI and Create task.', where: 'File Room → a drawing → Mark up → select a markup' },
+      { area: 'File Room', kind: 'new', text: '“Revert to original (v1)” makes the first upload of a revised drawing current again, and “Make current” does the same for any older version. Later versions stay in the history; nothing is deleted.', where: 'File Room → a revised drawing → Version history' },
+    ],
+  },
+  {
+    id: '2026-10-28zc',
+    date: '2026-10-28',
+    title: 'Outside meetings',
+    items: [
+      { area: 'Meetings', kind: 'new', text: 'A new “Outside” meeting type for someone else’s invite — the city on Teams, a consultant’s Zoom. Paste their invite and it fills in the link, platform, organiser, their company, the date, time and title; the meeting ID and passcode stay on the meeting.', where: 'Special Actions → Meetings → + Meeting → Type: Outside' },
+      { area: 'Meetings', kind: 'new', text: 'Outside meetings carry the steps to follow: paste the invite, add who’s going, add their notes or ours afterwards, then review for special actions like any meeting.' },
+    ],
+  },
+  {
+    id: '2026-10-28zb',
+    date: '2026-10-28',
+    title: 'Change events, sub pricing and sub change orders',
+    items: [
+      { area: 'Change orders', kind: 'new', text: 'Start a change as a change event (CE) before anyone has a price. Ask the subs it touches for pricing (PCO) — each gets a change order request (COR), emailed if they have an address.', where: 'Change Orders → Change events; a project → Financials → Change orders' },
+      { area: 'Change orders', kind: 'new', text: 'Enter each sub’s price, then validate, hold or reject it (hold and reject need a note). Tick the validated CORs and create one owner change order (PCCO) at cost plus your markup.', where: 'Change events → open an event' },
+      { area: 'Change orders', kind: 'new', text: 'When the owner approves a PCCO, each sub gets their own change order (CCO) — mark it sent, record their signature (it adds to their subcontract), void it or print it.', where: 'Change Orders → Sub change orders (CCO)' },
+      { area: 'Change orders', kind: 'new', text: 'Record a directive (CCD / DCD) on a change event to let work start before the price is agreed — signed, verbal or by email.', where: 'Change events → open an event → Directive' },
+    ],
+  },
+  {
+    id: '2026-10-28za',
+    date: '2026-10-28',
+    title: 'Access tags on special actions',
+    items: [
+      { area: 'Special Actions', kind: 'new', text: 'Tasks and FOR RECORD items take access tags — Internal, Client, External, Financial, CRM, Design, Construction (one or more). Tagging Financial adds Internal too. Internal or Financial items are never shown to client or consultant accounts, even when assigned to them.', where: 'Open a log entry; meeting items; Turn notes into items' },
+      { area: 'Special Actions', kind: 'new', text: 'Filter the Special Actions Log and FOR RECORD by tag.', where: 'Special Actions → Task → Special Actions Log; FOR RECORD' },
+    ],
+  },
+  {
+    id: '2026-10-28z',
+    date: '2026-10-28',
+    title: 'Client score on every client',
+    items: [
+      { area: 'CRM', kind: 'new', text: 'The client score — the Project Fit score from the lead’s Project Fit Review — shows on the lead (header and Client Card), is filled into the Pass dialog, and shows on the project Overview. Green from 70%, amber from 40%.', where: 'CRM & Leads; Projects → Overview' },
+    ],
+  },
+  {
+    id: '2026-10-28y',
+    date: '2026-10-28',
+    title: 'Projects: tabs by phase — CRM, Design, Precon, Build',
+    items: [
+      { area: 'Projects', kind: 'improved', text: 'A project’s tabs are now Overview, Special Actions, CRM, Design, Precon, Build, Financials, People and Files. CRM shows the lead it came from (stage history, FYI notes, files) read-only. Design holds the design phases of the Phase Board and the Project Program; Build holds the construction phases and daily reports; Precon links the schedule (estimating and selections are still to come).', where: 'Projects → open a project' },
+    ],
+  },
+  {
+    id: '2026-10-28x',
+    date: '2026-10-28',
+    title: 'Project People: who works on which phase',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Each person on a project can be marked for CRM, Design, Precon and/or Construction, and the list filters by phase.', where: 'Projects → open a project → Project People' },
+    ],
+  },
+  {
+    id: '2026-10-28w',
+    date: '2026-10-28',
+    title: 'Drawings: stamps that scale with the sheet',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'The Stamp tool drops an icon on a drawing — check, X, warning, question, north arrow, section or detail bubble. Click for a standard size or drag to size it; it scales with the drawing and prints into the downloaded PDF.', where: 'File Room → open a PDF → Mark up → ✓ Stamp' },
+      { area: 'File Room', kind: 'improved', text: '“Save marked-up copy” now says what it does: a separate PDF beside the drawing — the original is never changed and the markups stay editable, so deleting the copy takes you back.', where: 'File Room → Mark up' },
+    ],
+  },
+  {
+    id: '2026-10-28v',
+    date: '2026-10-28',
+    title: 'Meetings: turn the notes into FOR RECORD items and tasks',
+    items: [
+      { area: 'Meetings', kind: 'new', text: 'Paste the Google Meet notes into a meeting and press “Turn notes into items”: each summary bullet becomes a FOR RECORD item titled with its heading, and each “Next steps” line a task — [Name] is the assignee, the text before the colon the title, and a date like “Monday” or “Tuesday the 27th” the due date (no date: High priority). Check, change or untick each one before adding.', where: 'Meetings → open a meeting → Review → Turn notes into items' },
+      { area: 'Meetings', kind: 'improved', text: 'Everything raised from a meeting says where it came from, e.g. “Hom Cafe Weekly Sync - 2026/10/24 12:45”.', where: 'Special Actions Log, FOR RECORD' },
+    ],
+  },
+  {
+    id: '2026-10-28u',
+    date: '2026-10-28',
+    title: 'Change orders: what drives them, their category, and who raised and approves them',
+    items: [
+      { area: 'Change Orders', kind: 'new', text: '“Drives the change” is one of: force majeure, unknown site conditions, authority driven, procurement, client request, design E&O, builder, or sub / third-party driven. Older change orders keep their reason.', where: 'Change Orders → open one' },
+      { area: 'Change Orders', kind: 'new', text: 'Category: tick one or more of additive, deductive or zero-sum, on dollar, timeline or scope. Originator and approver: internal, client or third party.', where: 'Change Orders → open one' },
+    ],
+  },
+  {
+    id: '2026-10-28t',
+    date: '2026-10-28',
+    title: 'Projects: every special action on the project, and a blink when something changes',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'The project tab “Tasks & RFIs” is now “Special Actions”: Tasks, RFIs, Meetings, FOR RECORD, Change Orders and Approvals for that project, each one button away. A button blinks when something in it changed since you last opened it.', where: 'Projects → open a project → Special Actions' },
+      { area: 'Projects', kind: 'improved', text: 'The Overview’s special actions summary adds Meetings, FOR RECORD, open change orders and Approvals; each tile opens that list.', where: 'Projects → open a project → Overview' },
+    ],
+  },
+  {
+    id: '2026-10-28s',
+    date: '2026-10-28',
+    title: 'Lead panel: clearer tabs, and Full Details shows what changed',
+    items: [
+      { area: 'CRM', kind: 'improved', text: 'The lead panel tabs are now Current Stage (the stage’s tools and the audit trail), Special Actions (the lead’s tasks and FYI notes), Client Card, CRM Files and Full Details.', where: 'CRM & Leads → open a lead' },
+      { area: 'CRM', kind: 'new', text: 'Full Details shows one section at a time. A value changed after it was first filled in is highlighted orange (hover for what it was), and each section ends with its earlier versions — who changed what, and when.', where: 'CRM & Leads → open a lead → Full Details' },
+    ],
+  },
+  {
+    id: '2026-10-28r',
+    date: '2026-10-28',
+    title: 'CRM: move a lead anywhere; someone owns every hold and referral',
+    items: [
+      { area: 'CRM', kind: 'new', text: '“Move to” in the lead panel sends a lead straight to any stage — e.g. Project Programming → Hold - 3 Months — with the same checks as dragging.', where: 'CRM & Leads → open a lead → Move to' },
+      { area: 'CRM', kind: 'new', text: 'Putting a lead on hold asks who picks it back up; they get a task due on the hold date. Referring a lead out asks who monitors it. Both show (and can be changed) on Holding & Refer Out.', where: 'CRM & Leads; Holding & Refer Out' },
+    ],
+  },
+  {
+    id: '2026-10-28q',
+    date: '2026-10-28',
+    title: 'Dead leads: Cold / Lost and Cancelled / Pass, with the full reasons',
+    items: [
+      { area: 'CRM', kind: 'improved', text: 'The dead-lead columns are now Cold / Lost and Cancelled / Pass, and Holding & Refer Out groups them as “Dead leads”.', where: 'CRM & Leads; Holding & Refer Out' },
+      { area: 'CRM', kind: 'new', text: 'Moving a lead to Cold / Lost asks: Cold (ours or theirs, with the last conversation date) or Lost (unclear, value, experience, reputation, trust, quality, timeline — one or more). Moving to Cancelled / Pass asks: Cancelled (budget, funding, legal, site, market or other, each with its own sub-reasons) or Pass (score too low, bandwidth, cash flow, too small, too big, scope). Our own notes go with every one.', where: 'CRM & Leads → drag to a dead column, or Reject' },
+      { area: 'CRM', kind: 'new', text: 'Lost for Reputation asks where the review was found and makes a high-priority task for the lead’s owner to follow it up.', where: 'CRM & Leads' },
+    ],
+  },
+  {
+    id: '2026-10-28p',
+    date: '2026-10-28',
+    title: 'You can always see when something is loading',
+    items: [
+      { area: 'General', kind: 'improved', text: 'A thin bar runs along the top of the screen while a page or its data is on the way, so a slow first open no longer looks frozen.', where: 'Everywhere' },
+      { area: 'General', kind: 'improved', text: 'Pages and panels show shimmering placeholders until their data arrives, instead of a blank space or a misleading “0” / “No one matches” (Dashboard, Projects, People, CRM & Leads and every list).', where: 'Everywhere' },
+    ],
+  },
+  {
+    id: '2026-10-28o',
+    date: '2026-10-28',
+    title: 'Task panel: actions first, history in pages',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Duplicate…, Convert to and Delete task now sit above the comments, so you don’t scroll past the whole history to reach them.', where: 'Open any task' },
+      { area: 'Tasks', kind: 'improved', text: 'A task’s comments and history show 20 at a time with page numbers, loaded from the server a page at a time, so long histories open quickly.', where: 'Open any task → Activity' },
+    ],
+  },
+  {
     id: '2026-10-28n',
     date: '2026-10-28',
     title: 'Faster pages: smaller downloads, pages, and quick back-and-forth',

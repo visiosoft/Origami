@@ -11,6 +11,7 @@ import type { TaskAttachment } from '../database/task.types';
 import { FinancialsService, type FinRights } from './financials.service';
 import { InvoicesService } from './invoices.service';
 import { ChangeOrdersService } from './change-orders.service';
+import { ChangeEventsService } from './change-events.service';
 import { ReimbursablesService } from './reimbursables.service';
 import { RetentionService } from './retention.service';
 import { FinanceHubService } from './finance-hub.service';
@@ -42,6 +43,7 @@ export class FinanceController {
     private readonly costs: CostsService,
     private readonly reports: ReportsService,
     private readonly subs: ProjectSubsService,
+    private readonly events: ChangeEventsService,
   ) {}
 
   private actor(a?: string) { return this.access.actor(a); }
@@ -71,6 +73,20 @@ export class FinanceController {
   @Get('projects/:id/invoices') async invoiceList(@Param('id') id: string, @Headers('authorization') a?: string) { return this.invoices.list(Number(id), await this.actor(a)); }
   @Post('projects/:id/invoices') async draft(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.createDraft(Number(id), dto, await this.actor(a)); }
   @Get('projects/:id/payments') async payments(@Param('id') id: string, @Headers('authorization') a?: string) { return this.invoices.projectPayments(Number(id), await this.actor(a)); }
+  // --- change events -> CORs -> PCCO -> CCOs (Oct 26 review notes)
+  @Get('change-events') async allEvents(@Query('projectId') projectId: string, @Headers('authorization') a?: string) { return this.events.list(Number(projectId) || null, await this.actor(a)); }
+  @Post('projects/:id/change-events') async newEvent(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.events.create(Number(id), dto || {}, await this.actor(a)); }
+  @Get('change-events/:id') async event(@Param('id') id: string, @Headers('authorization') a?: string) { return this.events.get(id, await this.actor(a)); }
+  @Put('change-events/:id') async updateEvent(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.events.update(id, dto || {}, await this.actor(a)); }
+  @Post('change-events/:id/pco') async sendPco(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.events.sendPco(id, dto || {}, await this.actor(a)); }
+  @Post('change-events/:id/directive') async directive(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.events.directive(id, dto || {}, await this.actor(a)); }
+  @Post('change-events/:id/cors') async addCor(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.events.addCor(id, dto || {}, await this.actor(a)); }
+  @Put('cors/:id') async priceCor(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.events.priceCor(id, dto || {}, await this.actor(a)); }
+  @Post('cors/:id/:decision') async decideCor(@Param('id') id: string, @Param('decision') decision: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.events.decideCor(id, decision, dto?.note, await this.actor(a)); }
+  @Post('pccos') async makePcco(@Body() dto: any, @Headers('authorization') a?: string) { return this.events.makePcco(dto || {}, await this.actor(a)); }
+  @Get('ccos') async ccos(@Query('projectId') projectId: string, @Headers('authorization') a?: string) { return this.events.listCcos(Number(projectId) || null, await this.actor(a)); }
+  @Post('ccos/:id/:action') async actCco(@Param('id') id: string, @Param('action') action: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.events.actCco(id, action, dto || {}, await this.actor(a)); }
+
   @Get('projects/:id/change-orders') async cosOf(@Param('id') id: string, @Headers('authorization') a?: string) { return this.cos.list(Number(id), await this.actor(a)); }
   @Post('projects/:id/change-orders') async newCo(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.cos.create(Number(id), dto, await this.actor(a)); }
   @Get('projects/:id/reimbursables') async reimbsOf(@Param('id') id: string, @Headers('authorization') a?: string) { return this.reimbs.list(Number(id), await this.actor(a)); }

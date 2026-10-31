@@ -67,6 +67,15 @@ export class ProjectTasksController {
     return { sections, tasks: scopeTasks(tasks, claims) };
   }
 
+  /** One page of a task's comments and history, newest first (?page=&size=, 20 a page). */
+  @Get(':id/activity')
+  async activity(@Param('id') id: string, @Query() q: Record<string, string>, @Claims() claims: SessionClaims | null) {
+    await this.mayTouch(id, claims);
+    const { projectId, page } = await this.service.activityPage(id, q);
+    if (!this.access.isStaff(claims) && !projectId) throw new ForbiddenException('That task isn’t on one of your projects.');
+    return page;
+  }
+
   /** One task in full -- its comments and history -- for the drawer. */
   @Get(':id')
   async findOne(@Param('id') id: string, @Claims() claims: SessionClaims | null) {

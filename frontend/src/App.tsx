@@ -6,6 +6,7 @@ import { Auth } from './pages/Auth';
 import { useApp } from './AppContext';
 import { rememberReturnTo } from './returnTo';
 import { Suspense, lazy, type ComponentType } from 'react';
+import { BusyWhileMounted, PageSkeleton, TopProgress } from './components/Skeleton';
 
 /**
  * Each page's code is downloaded the first time it's opened, not all up front:
@@ -89,7 +90,7 @@ function NotPortal({ children }: { children: ReactNode }) {
 
 /** Shown for the moment a page's code is downloading. */
 export function PageLoading() {
-  return <div role="status" style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>;
+  return <div style={{ padding: '32px 24px' }}><BusyWhileMounted /><TopProgress /><PageSkeleton label="Loading…" /></div>;
 }
 
 export default function App() {

@@ -3,6 +3,7 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { ACCENT, BG, DANGER, INK, MUTED, Label, btn, card, fmtDate, headRow, input } from '../manpowerUi';
 import { RELEASE_REASONS, ReasonBox, ReleaseBadge, failed, label, usd, type Overview, type RetentionRelease, type Rights } from './financeUi';
+import { Skeleton } from '../Skeleton';
 
 interface RetentionView {
   accrued: number; released: number; held: number; open: number; available: number;
@@ -24,7 +25,7 @@ export function RetentionPanel({ projectId, overview, rights, onOpenInvoice, onC
   const [rejecting, setRejecting] = useState<RetentionRelease | null>(null);
   const load = () => api.finance.retention(projectId).then((r: any) => setV(r)).catch((e: any) => failed(toast, e));
   useEffect(() => { load(); }, [projectId]);
-  if (!v) return <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>;
+  if (!v) return <Skeleton label="Loading…" />;
 
   const phases = overview.sov.groups.flatMap((g) => g.rows.filter((r) => r.kind === 'phase'));
   const tasks = overview.sov.groups.flatMap((g) => g.rows.flatMap((r) => (r.kind === 'task' ? [r] : r.children || [])));

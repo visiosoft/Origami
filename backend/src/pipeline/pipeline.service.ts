@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { NEEDS_INTAKE, missingIntake } from './lead-intake';
-import { cleanLossReason, DEAD_STAGES, isDueForArchive } from './dead-leads';
+import { cleanDeadReason, cleanLossReason, DEAD_STAGES, deadReasonLabels, deadReasonSummary, isDueForArchive, type DeadReason } from './dead-leads';
 import { leadStreetAddress } from '../leads/lead-address';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -288,6 +288,7 @@ export class PipelineService implements OnApplicationBootstrap {
     // badge on a lead that's back in play.
     // Back in play: a loss reason no longer applies either.
     if (!DEAD_STAGES.includes(stage) && deal.lossReason) deal.lossReason = '';
+    if (!DEAD_STAGES.includes(stage) && deal.deadReason) deal.deadReason = null;
     if (stage !== 'rejected' && stage !== 'referred_monitoring' && deal.rejectionType) {
       deal.rejectionType = '';
       deal.rejectionReason = '';
@@ -296,6 +297,9 @@ export class PipelineService implements OnApplicationBootstrap {
       deal.referredToContact = '';
     }
 
+    // The follow-up person belongs to a hold, the monitor to a referral: leaving clears them.
+    if (!target?.isHold) { deal.followUpById = ''; deal.followUpByName = ''; deal.followUpTaskId = ''; }
+    if (stage !== 'referred_monitoring') { deal.monitorId = ''; deal.monitorName = ''; }
     const detail = deal.holdUntil ? `Moved to ${stageName} — follow up ${deal.holdUntil}` : `Moved to ${stageName}`;
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
     const saved = await this.repo.save(deal);
@@ -357,11 +361,13 @@ export class PipelineService implements OnApplicationBootstrap {
   }, actor?: DealActor) {
     const deal = await this.findOne(id);
     deal.rejectionType = rejection.rejectionType;
-    deal.rejectionReason = rejection.rejectionReason || '';
-    if (rejection.rejectionType === 'client') {
+    // The full why (Cancelled / Pass reasons and notes) now comes on its own (PUT :id/dead-reason);
+    // a note or one-word reason sent here is still kept.
+    if (rejection.rejectionReason !== undefined) deal.rejectionReason = rejection.rejectionReason || '';
+    if (rejection.rejectionType === 'client' && rejection.lossReason !== undefined) {
       const loss = cleanLossReason(rejection.lossReason);
       if (!loss) throw new BadRequestException('Say why the client passed: value proposition, experience, trust, quality, timeline or other.');
-      if (loss === 'Other' && !deal.rejectionReason.trim()) throw new BadRequestException('Add a note for "Other".');
+      if (loss === 'Other' && !String(deal.rejectionReason || '').trim()) throw new BadRequestException('Add a note for "Other".');
       deal.lossReason = loss;
     }
     deal.referredToName = rejection.referredToName || '';
@@ -371,14 +377,14 @@ export class PipelineService implements OnApplicationBootstrap {
     const detail = rejection.rejectionType === 'referred'
       ? `Referred to ${[rejection.referredToName, rejection.referredToCompany].filter(Boolean).join(', ') || 'an external contact'}${rejection.referredToContact ? ` (${rejection.referredToContact})` : ''}`
       : rejection.rejectionType === 'client'
-        ? `Client passed — ${deal.lossReason}${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`
-        : `Rejected — not a fit for us${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`;
+        ? `Cancelled${rejection.lossReason ? ` — ${deal.lossReason}` : ''}${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`
+        : `We passed${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`;
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
     this.leadMoved(id, (name) => `${name}: ${detail}`, actor);
     return this.repo.save(deal);
   }
 
-  /** Why a lead went Cold / Loss (or was lost on Cancelled / Passed): a reason, and a note for "Other". */
+  /** Why a lead went Cold / Lost (or was lost on Cancelled / Pass): a reason, and a note for "Other". */
   async setLoss(id: string, body: { lossReason?: string; note?: string }, actor?: DealActor) {
     const deal = await this.findOne(id);
     const loss = cleanLossReason(body?.lossReason);
@@ -393,7 +399,77 @@ export class PipelineService implements OnApplicationBootstrap {
     return this.repo.save(deal);
   }
 
-  /** Cold / Loss and Cancelled / Passed leads 7 business days on: archived (restorable), with a timeline line saying so. */
+  /**
+   * Why a lead died, in full (Oct 26 review notes): Cold (ours / theirs, with the
+   * last conversation date), Lost, Cancelled or Pass, one or more reasons, notes.
+   * Lost for Reputation also makes a task to follow up the review, for the lead's owner.
+   */
+  async setDeadReason(id: string, body: unknown, actor?: DealActor) {
+    const deal = await this.findOne(id);
+    const clean = cleanDeadReason(body);
+    if (!clean.ok) throw new BadRequestException(clean.message);
+    const r: DeadReason = { ...clean.value, at: new Date().toISOString(), by: actor?.name || '' };
+    deal.deadReason = r;
+    deal.lossReason = deadReasonLabels(r.kind, r.reasons).join(', ').slice(0, 250);
+    deal.rejectionReason = r.note || '';
+    const detail = deadReasonSummary(r) + (r.lastContactAt ? ` (last conversation ${r.lastContactAt})` : '') + (r.reviewWhere ? ` (review found: ${r.reviewWhere})` : '');
+    deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
+    this.leadMoved(id, (name) => `${name}: ${detail}`, actor);
+    const saved = await this.repo.save(deal);
+    if (r.reviewWhere && this.tasks) {
+      const name = await this.leadName(id, (deal as any).name);
+      await this.tasks.create({
+        topicType: 'Task', priority: 'High', leadId: id, tab: 'internal', status: 'To Do',
+        subject: `Follow up a bad review — ${name}`,
+        description: `${name} was lost on reputation. The review was found at: ${r.reviewWhere}. Find it, read it and decide how to respond.`,
+        assignedTo: (deal as any).assignee || actor?.name || '',
+      }, { name: actor?.name || 'System', id: actor?.id } as any).catch((e: Error) => this.log.warn(`Review follow-up task not made: ${e.message}`));
+    }
+    return saved;
+  }
+
+  /**
+   * Who looks after a parked lead (Oct 26 review notes): on hold, the person who
+   * picks it back up -- they get a task due on the hold date; referred out, the
+   * Monitor who keeps an eye on it and adds updates.
+   */
+  async setWatcher(id: string, body: { role?: string; id?: string; name?: string }, actor?: DealActor) {
+    const deal = await this.findOne(id);
+    const role = body?.role === 'monitor' ? 'monitor' : body?.role === 'follow_up' ? 'follow_up' : '';
+    const name = String(body?.name || '').trim().slice(0, 200);
+    const personId = String(body?.id || '').trim().slice(0, 100);
+    if (!role) throw new BadRequestException('Say whether this is the follow-up person or the monitor.');
+    if (!name) throw new BadRequestException('Pick a person.');
+    const leadName = await this.leadName(id, (deal as any).name);
+    if (role === 'follow_up') {
+      if (!deal.holdUntil) throw new BadRequestException('Only a lead on hold has someone to follow up.');
+      deal.followUpById = personId;
+      deal.followUpByName = name;
+      if (this.tasks) {
+        const task: any = deal.followUpTaskId
+          ? await this.tasks.update(deal.followUpTaskId, { assignedTo: name, assignedToId: personId, dueDate: deal.holdUntil } as any, { name: actor?.name || 'System', id: actor?.id } as any).catch(() => null)
+          : null;
+        if (!task) {
+          const made: any = await this.tasks.create({
+            topicType: 'Task', priority: 'Medium', leadId: id, tab: 'internal', status: 'To Do',
+            subject: `Pick back up — ${leadName}`,
+            description: `${leadName} was put on hold until ${deal.holdUntil}. Get back in touch and move it back into the pipeline, or on.`,
+            assignedTo: name, assignedToId: personId, dueDate: deal.holdUntil,
+          }, { name: actor?.name || 'System', id: actor?.id } as any).catch((e: Error) => { this.log.warn(`Follow-up task not made: ${e.message}`); return null; });
+          if (made?.id) deal.followUpTaskId = made.id;
+        }
+      }
+    } else {
+      if (deal.stage !== 'referred_monitoring') throw new BadRequestException('Only a referred lead has a monitor.');
+      deal.monitorId = personId;
+      deal.monitorName = name;
+    }
+    const detail = role === 'follow_up' ? `${name} follows up on ${deal.holdUntil}` : `${name} monitors the referral`;
+    deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
+    return this.repo.save(deal);
+  }
+
+  /** Cold / Lost and Cancelled / Pass leads 7 business days on: archived (restorable), with a timeline line saying so. */
   async archiveDeadLeads(now: Date = new Date()): Promise<number> {
     try {
       const dead = await this.repo.find({ where: { stage: In(DEAD_STAGES) } });

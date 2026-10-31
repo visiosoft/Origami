@@ -13,6 +13,8 @@ import { ActionMenu, ActionTrail, OriginatorLine } from '../components/ActionToo
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
 import { leadLabel } from '../data/linkTargets';
+import { Skeleton } from '../components/Skeleton';
+import { ACTION_TAGS } from '../data/actionTags';
 
 type Kind = 'all' | (typeof FOR_RECORD_TOPICS)[number];
 type Pill = 'soft' | 'yellow' | 'dark' | 'outline' | 'green';
@@ -36,7 +38,8 @@ export const raisedOn = (t: Task) => {
  * link an existing one, or create a task / change-order draft from it.
  * ?item=<task id> opens one.
  */
-export function Observations() {
+/** `projectName`: shown inside a project (its Special Actions tab) -- that project's only, no project picker. */
+export function Observations({ projectName }: { projectName?: string } = {}) {
   const { can } = useApp();
   const numberOf = useTaskNumber();
   const [params] = useSearchParams();
@@ -45,8 +48,10 @@ export function Observations() {
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [kind, setKind] = useState<Kind>('all');
   const [state, setState] = useState<'open' | 'closed' | 'all'>('open');
-  const [project, setProject] = useState('');
+  const [project, setProjectRaw] = useState(projectName || '');
+  const setProject = (v: string) => { if (!projectName) setProjectRaw(v); };
   const [q, setQ] = useState('');
+  const [tag, setTag] = useState('');
   const [creating, setCreating] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(params.get('item'));
   const load = () => api.tasks.list().then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => setTasks([]));
@@ -57,11 +62,11 @@ export function Observations() {
     api.projects.list().then((r: any) => setProjects((Array.isArray(r) ? r : []).map((p: any) => ({ id: p.id, name: p.name })))).catch(() => { });
   }, []);
 
-  const rows = useMemo(() => (tasks ? tasks.filter(isForRecord) : null), [tasks]);
+  const rows = useMemo(() => (tasks ? tasks.filter((t) => isForRecord(t) && (!projectName || t.project === projectName)) : null), [tasks, projectName]);
   const all = useMemo(() => rows || [], [rows]);
   const projectNames = useMemo(() => [...new Set(all.map((t) => t.project).filter(Boolean))].sort(), [all]);
   const needle = q.trim().toLowerCase();
-  const inScope = all.filter((t) => (!project || t.project === project) && (kind === 'all' || t.topicType === kind));
+  const inScope = all.filter((t) => (!project || t.project === project) && (kind === 'all' || t.topicType === kind) && (!tag || (t.tags || []).includes(tag)));
   const shown = inScope
     .filter((t) => (state === 'all' || (state === 'open' ? !isLogClosed(t.status) : isLogClosed(t.status)))
       && (!needle || [t.serial, t.subject, t.description, t.project, t.assignedTo, t.originator].filter(Boolean).join(' ').toLowerCase().includes(needle)))
@@ -97,10 +102,14 @@ export function Observations() {
       <div className="ak-tools">
         <AkSeg<Kind> value={kind} onChange={setKind} options={[['all', 'All', all.length], ['Observation', 'Observations'], ['FYI', 'FYI'], ['Decision', 'Decisions']]} />
         <AkSeg value={state} onChange={setState} options={[['open', 'Open'], ['closed', 'Closed'], ['all', 'All']]} />
-        <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
+        <select className="ak-select" aria-label="Access tag" value={tag} onChange={(e) => setTag(e.target.value)}>
+          <option value="">Any tag</option>
+          {ACTION_TAGS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+        {!projectName && <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
           <option value="">All projects</option>
           {projectNames.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
+        </select>}
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" />
         <SortSelect className="ak-select" value={sort} onChange={setSort} options={[
           { key: 'default', dir: 'asc', label: 'Newest first' }, { key: 'date', dir: 'asc', label: 'Oldest first' }, { key: 'title', dir: 'asc', label: 'A–Z' },
@@ -111,7 +120,7 @@ export function Observations() {
         onApply={(v) => { setKind(v.kind as Kind); setState(v.state as 'open' | 'closed' | 'all'); setProject(String(v.project || '')); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
 
       <section className="ak-card">
-        {rows === null && <div className="ak-empty">Loading…</div>}
+        {rows === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {rows && !shown.length && (
           <div className="ak-empty">
             {all.length ? 'Nothing matches these filters.' : 'Nothing on record yet.'}

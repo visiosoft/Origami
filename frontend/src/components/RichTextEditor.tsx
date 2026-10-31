@@ -18,10 +18,12 @@ const BTN: React.CSSProperties = {
  * Controlled by `value`/`onChange` (an HTML string), the same shape a plain
  * textarea's body already was, so it drops into the same field.
  */
-export function RichTextEditor({ value, onChange, minHeight = 260 }: {
+export function RichTextEditor({ value, onChange, minHeight = 260, fields }: {
   value: string;
   onChange: (html: string) => void;
   minHeight?: number;
+  /** Merge fields to offer in an "Insert field" list (Oct 31), grouped. */
+  fields?: { label: string; tokens: { key: string; label: string }[] }[];
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -99,6 +101,13 @@ export function RichTextEditor({ value, onChange, minHeight = 260 }: {
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { insertImage(e.target.files?.[0]); e.currentTarget.value = ''; }} />
         <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(var(--rgb-shade), 0.1)', margin: '0 3px' }} />
         {btn('✕', () => run('removeFormat'), 'Clear formatting')}
+        {fields && fields.length > 0 && (
+          <select aria-label="Insert a merge field" value="" onMouseDown={() => ref.current?.focus()} onChange={(e) => { if (e.target.value) run('insertText', `{{${e.target.value}}}`); e.target.value = ''; }}
+            style={{ marginLeft: 'auto', height: 26, borderRadius: 6, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, color: 'var(--body)' }}>
+            <option value="">+ Insert field…</option>
+            {fields.map((g) => <optgroup key={g.label} label={g.label}>{g.tokens.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</optgroup>)}
+          </select>
+        )}
       </div>
       <div
         ref={ref}

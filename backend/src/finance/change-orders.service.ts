@@ -20,7 +20,26 @@ import { emailShell, escapeHtml, loadEmailBrand } from '../email/shell';
 import { changeOrderEmailBody, changeOrderHtml } from './co.document';
 import { fromCents, sumCents, toCents } from './money';
 
-export const CO_REASONS = ['client_request', 'design_change', 'unforeseen', 'scope_addition', 'scope_reduction', 'allowance', 'code_requirement', 'other'];
+/** What drives a change order (Oct 26 review notes); the older reasons stay valid for existing change orders. */
+export const CO_DRIVERS = ['force_majeure', 'unknown_site', 'authority', 'procurement', 'client_request', 'design_eo', 'builder', 'sub_third_party'];
+export const CO_REASONS = [...CO_DRIVERS, 'design_change', 'unforeseen', 'scope_addition', 'scope_reduction', 'allowance', 'code_requirement', 'other'];
+/** Category: additive / deductive / zero-sum, on dollar, time or scope (one or more). */
+export const CO_EFFECTS = ['additive', 'deductive', 'zero_sum'].flatMap((k) => ['dollar', 'time', 'scope'].map((on) => `${k}.${on}`));
+export const CO_PARTY_TYPES = ['internal', 'client', 'third_party'];
+/** The effects sent, checked; undefined when none were sent. */
+export function cleanEffects(raw: unknown): string[] | undefined {
+  if (raw === undefined) return undefined;
+  const list = Array.isArray(raw) ? [...new Set(raw.map(String))] : [];
+  const bad = list.find((e) => !CO_EFFECTS.includes(e));
+  if (bad) throw new BadRequestException(`Unknown category "${bad}".`);
+  return list;
+}
+const partyType = (v: unknown, what: string) => {
+  if (v === undefined) return undefined;
+  const s = String(v || '');
+  if (s && !CO_PARTY_TYPES.includes(s)) throw new BadRequestException(`${what} is internal, client or third party.`);
+  return s || null;
+};
 const TARGETS = ['phase', 'task', 'new_phase', 'new_task', 'none'];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const now = () => new Date().toISOString();
@@ -39,6 +58,9 @@ interface ItemDto {
  */
 @Injectable()
 export class ChangeOrdersService {
+  /** Run after an owner change order is approved (the change events workflow makes its subs' CCOs). */
+  readonly onApproved: ((co: ChangeOrderEntity, actor: Actor) => Promise<void>)[] = [];
+
   constructor(
     @InjectRepository(ChangeOrderEntity) private readonly cos: Repository<ChangeOrderEntity>,
     @InjectRepository(ChangeOrderItemEntity) private readonly items: Repository<ChangeOrderItemEntity>,
@@ -190,6 +212,7 @@ export class ChangeOrdersService {
       try {
         co = await this.cos.save(this.cos.create({
           id: newId('CO'), projectId, number, title, status: 'draft', reason: CO_REASONS.includes(dto.reason) ? dto.reason : 'client_request',
+          effects: cleanEffects(dto.effects) ?? null, originatorType: partyType(dto.originatorType, 'The originator') ?? undefined, approverType: partyType(dto.approverType, 'The approver') ?? undefined,
           requestedBy: dto.requestedBy?.trim() || undefined, dateRequested: ISO.test(dto.dateRequested || '') ? dto.dateRequested : todayISO(),
           description: dto.description?.trim() || undefined, scheduleImpactDays: Number(dto.scheduleImpactDays) || 0, attachments: [], createdAt: now(), createdBy: actor.name,
         }));
@@ -253,6 +276,9 @@ export class ChangeOrdersService {
     const before = { ...co };
     if (dto.title !== undefined) { const t = String(dto.title || '').trim(); if (!t) throw new BadRequestException('Give the change order a title.'); co.title = t; }
     if (dto.reason !== undefined) { if (!CO_REASONS.includes(dto.reason)) throw new BadRequestException('Unknown reason.'); co.reason = dto.reason; }
+    { const e = cleanEffects(dto.effects); if (e !== undefined) co.effects = e; }
+    { const o = partyType(dto.originatorType, 'The originator'); if (o !== undefined) co.originatorType = o as any; }
+    { const a = partyType(dto.approverType, 'The approver'); if (a !== undefined) co.approverType = a as any; }
     if (dto.dateRequested !== undefined) { if (dto.dateRequested && !ISO.test(dto.dateRequested)) throw new BadRequestException('The request date must be a date.'); co.dateRequested = dto.dateRequested || null as any; }
     if (dto.scheduleImpactDays !== undefined) {
       const n = Number(dto.scheduleImpactDays);
@@ -264,7 +290,8 @@ export class ChangeOrdersService {
     if (dto.items) await this.saveItems(co, dto.items);
     await this.cos.save(co);
     const changes: Record<string, { from: unknown; to: unknown }> = {};
-    for (const k of ['title', 'reason', 'scheduleImpactDays'] as const) if (String(before[k] ?? '') !== String(co[k] ?? '')) changes[k] = { from: before[k] ?? null, to: co[k] ?? null };
+    for (const k of ['title', 'reason', 'scheduleImpactDays', 'originatorType', 'approverType'] as const) if (String(before[k] ?? '') !== String(co[k] ?? '')) changes[k] = { from: before[k] ?? null, to: co[k] ?? null };
+    if (JSON.stringify(before.effects ?? []) !== JSON.stringify(co.effects ?? [])) changes.effects = { from: before.effects ?? null, to: co.effects ?? null };
     if (dto.items) changes.items = { from: null, to: dto.items.length };
     await this.fin.log(null, { projectId: co.projectId, entityType: 'change_order', entityId: id, action: 'co_changed', changes }, actor);
     return this.get(id, actor);
@@ -467,6 +494,7 @@ export class ChangeOrdersService {
       await this.fin.approval(m, { projectId: co.projectId, entityType: 'change_order', entityId: co.id, decision: 'client_approved', signer: c.signer, amount: fromCents(totalC), comment: [c.reference, c.comment].filter(Boolean).join(' · ') }, actor);
       await this.fin.log(m, { projectId: co.projectId, entityType: 'change_order', entityId: co.id, action: 'co_approved', changes: { status: { from: before, to: 'approved' }, amount: { from: null, to: fromCents(totalC) } } }, actor);
     });
+    for (const fn of this.onApproved) await fn(co, actor);
     return this.get(co.id, actor);
   }
 

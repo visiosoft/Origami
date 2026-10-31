@@ -18,7 +18,9 @@ import { RequestLogStatusSettings } from './RequestLogStatusSettings';
 import { ChecklistTemplateSettings } from './ChecklistTemplateSettings';
 import { mergeTokens } from '../data/clientPersonality';
 import { smsSegments } from '../data/sms';
-import { hasUnfilled, KNOWN_TOKENS, unknownTokens } from '../data/placeholders';
+import { hasUnfilled, SAMPLE_TOKENS, TOKEN_GROUPS, tokenLabel, unknownTokens } from '../data/placeholders';
+import { asHtml } from '../data/templateHtml';
+import { loadCompanyTokens, useCompanyTokens } from '../data/companyTokens';
 import { UnfilledPlaceholders } from '../components/UnfilledPlaceholders';
 import { RichTextEditor } from '../components/RichTextEditor';
 import type { ScoringCriterion } from '../data/scoring';
@@ -27,6 +29,7 @@ import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import { useTheme } from '../theme';
 import { SettingsBoard, type SettingsSection, type SettingsTab } from '../components/SettingsBoard';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 
@@ -93,7 +96,7 @@ export function Settings() {
       { key: 'notice', tab: 'workspace', label: 'System notice', hint: 'A banner shown to everyone', render: () => <SystemNoticeSettings /> },
       { key: 'daily-log-backup', tab: 'workspace', label: 'Daily log backup', hint: 'Copies of daily logs to Drive', render: () => <DailyLogBackupSettings /> },
       ...(isAdmin ? [{ key: 'contract-templates', tab: 'workspace' as SettingsTab, label: 'Contract templates', hint: 'Wording for each kind of contract', render: () => <ContractTemplateSettings /> }] : []),
-      ...(isAdmin ? [{ key: 'priorities', tab: 'workspace' as SettingsTab, label: 'Task priorities', hint: 'What Urgent, High, Medium and Low mean', render: () => <PrioritySettings /> }] : []),
+      ...(isAdmin ? [{ key: 'priorities', tab: 'workspace' as SettingsTab, label: 'Task priorities', hint: 'What Emergency, Urgent, High, Medium, Low and Very Low mean', render: () => <PrioritySettings /> }] : []),
       ...(isAdmin ? [{ key: 'audit-log', tab: 'workspace' as SettingsTab, label: 'Audit log', hint: 'Who changed what, across the app', render: () => <AuditLogSettings /> }] : []),
       { key: 'google', tab: 'integrations', label: 'Google Workspace', hint: 'Email, Drive and sign-in', render: () => <GoogleSettings /> },
       { key: 'sms', tab: 'integrations', label: 'SMS', hint: 'Text messages through Twilio', render: () => <SmsSettings /> },
@@ -209,7 +212,7 @@ export function ScoringTemplateEditor() {
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading template…</div>
+        <Skeleton label="Loading template…" />
       ) : (
         <>
           {criteria.map((c, ci) => (
@@ -253,11 +256,13 @@ export function ScoringTemplateEditor() {
 
 interface EmailTemplate { id: string; key?: string; name: string; subject?: string; body: string; kind?: string; category?: string; updatedAt?: string; }
 const BLANK_TEMPLATE: EmailTemplate = { id: '', name: 'New Template', subject: '', body: '', kind: 'email', category: '' };
-/** Kinds edited with the full rich text editor (tables, images, headings) rather than a plain textarea. */
-const isRichKind = (kind?: string) => kind === 'agreement' || kind === 'introduction';
+/** Every kind but SMS is formatted (Oct 31): edited with the toolbar, kept as HTML. Older plain bodies open as paragraphs. */
+const isRichKind = (kind?: string) => kind !== 'sms';
+/** The merge fields as the editors' "Insert field" list shows them. */
+const FIELD_GROUPS = TOKEN_GROUPS.map((g) => ({ label: g.label, tokens: g.tokens.map((k) => ({ key: k, label: tokenLabel(k) })) }));
 
 export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: string; sendable?: boolean } = {}) {
-  const { toast, can } = useApp();
+  const { toast, can, currentUser } = useApp();
   const canManage = can('settings', 'manage');
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -265,6 +270,21 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
   const [draft, setDraft] = useState<EmailTemplate | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [sendingTemplate, setSendingTemplate] = useState<EmailTemplate | null>(null);
+  /** Preview (Oct 31): the template filled with sample client details and the real company, as it will look. */
+  const [preview, setPreview] = useState<{ url?: string; text?: string; busy: boolean; error?: string } | null>(null);
+  const company = useCompanyTokens();
+  const closePreview = () => setPreview((p) => { if (p?.url) URL.revokeObjectURL(p.url); return null; });
+  const showPreview = async () => {
+    if (!draft) return;
+    const tokens: Record<string, string> = { ...SAMPLE_TOKENS, ...company, senderName: currentUser?.name || 'Your name', senderEmail: currentUser?.email || 'you@company.com', senderPhone: (currentUser as any)?.phone || '(415) 555-0100' };
+    const subject = mergeTokens(draft.subject || draft.name, tokens);
+    if (!isRichKind(draft.kind)) { setPreview({ busy: false, text: mergeTokens(draft.body, tokens) }); return; }
+    setPreview({ busy: true });
+    try {
+      const blob = await api.google.letterPdf({ subject, html: mergeTokens(asHtml(draft.body), tokens), recipient: tokens.clientName, filename: draft.name });
+      setPreview({ busy: false, url: URL.createObjectURL(blob) });
+    } catch (e) { setPreview({ busy: false, error: (e as Error).message || 'Couldn’t make the preview' }); }
+  };
 
   const reload = (selectId?: string) => {
     api.emailTemplates.list()
@@ -278,7 +298,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
 
   const openTemplate = (t: EmailTemplate) => { setDraft({ ...t }); setIsNew(false); };
   const openNew = () => { setDraft({ ...BLANK_TEMPLATE, kind: filterKind || 'email' }); setIsNew(true); };
-  const closeEditor = () => { setDraft(null); setIsNew(false); };
+  const closeEditor = () => { setDraft(null); setIsNew(false); closePreview(); };
 
   const save = () => {
     if (!draft || !draft.name.trim() || !draft.body.trim()) { toast('Name and body are required'); return; }
@@ -323,7 +343,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading templates…</div>
+        <Skeleton label="Loading templates…" />
       ) : draft ? (
         <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.07)', borderRadius: 'var(--r-14)', padding: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
@@ -369,10 +389,23 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                 })()}
               </div>
               {isRichKind(draft.kind) ? (
-                <RichTextEditor value={draft.body} onChange={(html) => setDraft({ ...draft, body: html })} minHeight={360} />
-              ) : (
-                <textarea value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={draft.kind === 'sms' ? 5 : 20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
-              )}
+                <RichTextEditor value={asHtml(draft.body)} onChange={(html) => setDraft({ ...draft, body: html })} minHeight={360} fields={FIELD_GROUPS} />
+              ) : (<>
+                <textarea id="tpl-sms-body" value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={draft.kind === 'sms' ? 5 : 20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
+                {canManage && (
+                  <select aria-label="Insert a merge field" value="" style={{ ...inputStyle, marginTop: 6, width: 'auto' }}
+                    onChange={(e) => {
+                      const k = e.target.value; if (!k) return;
+                      const ta = document.getElementById('tpl-sms-body') as HTMLTextAreaElement | null;
+                      const at = ta ? ta.selectionStart : draft.body.length;
+                      setDraft({ ...draft, body: draft.body.slice(0, at) + `{{${k}}}` + draft.body.slice(ta ? ta.selectionEnd : at) });
+                      e.target.value = '';
+                    }}>
+                    <option value="">+ Insert field…</option>
+                    {FIELD_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.tokens.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</optgroup>)}
+                  </select>
+                )}
+              </>)}
               {draft.kind === 'sms' && (
                 <div style={{ fontSize: 10.5, color: 'var(--c-9aa39d)', marginTop: 4, lineHeight: 1.45 }}>
                   One segment is 160 characters, or 70 if any character is outside the GSM set. Longer messages are sent as several segments and billed as several.
@@ -383,7 +416,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                 return (
                   <div style={{ fontSize: 11, marginTop: 6, lineHeight: 1.5, color: 'var(--muted)' }}>
                     {bad.map((b) => <div key={b} role="alert" style={{ color: '#8E2E0A', fontWeight: 600 }}>{b}</div>)}
-                    Merge fields: {KNOWN_TOKENS.map((k) => `{{${k}}}`).join(' ')} — {'{client_name}'} style works too.
+                    Merge fields fill in when the template is used — pick one from “+ Insert field”, or type it like <code>{'{{clientName}}'}</code> ({'{client_name}'} works too).
                   </div>
                 );
               })()}
@@ -395,6 +428,20 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
               {!isNew && <div onClick={del} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete</div>}
             </div>
           )}
+          <div style={{ marginTop: 12 }}>
+            <button type="button" onClick={() => void (preview ? closePreview() : showPreview())} disabled={preview?.busy}
+              style={{ padding: '9px 18px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>
+              {preview?.busy ? 'Making the preview…' : preview ? 'Hide preview' : 'Preview'}
+            </button>
+            {preview && !preview.busy && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 6 }}>Filled in with a sample client (Jordan Lee, Lee Residence) and your company’s details{isRichKind(draft.kind) ? ' — exactly the PDF that’s sent' : ''}.</div>
+                {preview.error ? <div role="alert" style={{ fontSize: 12.5, color: '#8E2E0A' }}>{preview.error}</div>
+                  : preview.url ? <iframe title="Template preview" src={preview.url} style={{ width: '100%', height: 620, border: '1px solid rgba(var(--rgb-shade), 0.12)', borderRadius: 10, background: '#fff' }} />
+                  : <div style={{ maxWidth: 340, padding: '10px 14px', borderRadius: 18, background: '#E9E9EB', color: '#111', fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{preview.text}</div>}
+              </div>
+            )}
+          </div>
         </div>
       ) : visible.length === 0 ? (
         <div style={{ fontSize: 13, color: 'var(--c-9aa39d)', fontStyle: 'italic', padding: '20px 0' }}>No templates yet. Click “+ New Template” to create one.</div>
@@ -436,9 +483,11 @@ function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onC
   const [sending, setSending] = useState(false);
 
   const fill = () => {
-    const tokens = { clientName: clientName || 'there', clientEmail: to, projectTitle, senderName: currentUser?.name || '', senderEmail: currentUser?.email || '', date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) };
-    setSubject(mergeTokens(template.subject || template.name, tokens));
-    setBody(mergeTokens(template.body, tokens));
+    void loadCompanyTokens().then((company) => {
+      const tokens = { ...company, clientName: clientName || 'there', clientFirstName: (clientName || 'there').split(/\s+/)[0], clientEmail: to, projectTitle, senderName: currentUser?.name || '', senderEmail: currentUser?.email || '', date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) };
+      setSubject(mergeTokens(template.subject || template.name, tokens));
+      setBody(mergeTokens(isRichKind(template.kind) ? asHtml(template.body) : template.body, tokens));
+    });
   };
   useEffect(fill, []); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -1,4 +1,4 @@
-import { addBusinessDays, archiveDueAt, cleanLossReason, isDueForArchive } from './dead-leads';
+import { addBusinessDays, archiveDueAt, cleanDeadReason, cleanLossReason, deadReasonLabels, isDueForArchive } from './dead-leads';
 
 describe('dead leads', () => {
   it('counts business days, skipping weekends', () => {
@@ -6,7 +6,7 @@ describe('dead leads', () => {
     expect(addBusinessDays(new Date('2026-10-30T10:00:00Z'), 7).toISOString().slice(0, 10)).toBe('2026-11-10');
   });
 
-  it('archives Cold / Loss and Cancelled / Passed 7 business days after they got there', () => {
+  it('archives Cold / Lost and Cancelled / Pass 7 business days after they got there', () => {
     const deal = { stage: 'cold', stageEnteredAt: '2026-11-02T09:00:00Z' }; // Mon
     expect(archiveDueAt(deal)!.toISOString().slice(0, 10)).toBe('2026-11-11');
     expect(isDueForArchive(deal, new Date('2026-11-10T23:00:00Z'))).toBe(false);
@@ -54,7 +54,7 @@ describe('PipelineService dead-lead sweep and loss', () => {
     expect((rows[1] as any).archived).toBeUndefined();
     expect(repo.save).toHaveBeenCalledTimes(1);
   });
-  it('records a Cold / Loss reason', async () => {
+  it('records a Cold / Lost reason', async () => {
     const rows = [{ id: 'A', stage: 'cold', timeline: [] }];
     const { svc } = make(rows);
     (svc as any).leadMoved = jest.fn();
@@ -62,5 +62,47 @@ describe('PipelineService dead-lead sweep and loss', () => {
     expect(saved.lossReason).toBe('Trust');
     expect(saved.timeline[0].action).toBe('Lost — Trust: Chose their cousin');
     await expect(svc.setLoss('A', { lossReason: 'Other' })).rejects.toThrow(/note/);
+  });
+
+  it('records why a lead died in full, and asks for a review follow-up on Reputation', async () => {
+    const rows = [{ id: 'A', name: 'Campus Burger', stage: 'cold', assignee: 'Edward', timeline: [] }];
+    const { svc } = make(rows);
+    const tasks = { create: jest.fn().mockResolvedValue({}) };
+    Object.assign(svc, { tasks, leadMoved: jest.fn() });
+    const saved: any = await svc.setDeadReason('A', { kind: 'lost', reasons: ['value', 'reputation', 'bogus'], note: 'Went cheaper', reviewWhere: 'Yelp' }, { name: 'Andrea' } as any);
+    expect(saved.deadReason).toMatchObject({ kind: 'lost', reasons: ['value', 'reputation'], reviewWhere: 'Yelp', by: 'Andrea' });
+    expect(saved.lossReason).toBe('Value, Reputation');
+    expect(saved.timeline[0].action).toBe('Lost — Value; Reputation: Went cheaper (review found: Yelp)');
+    expect(tasks.create).toHaveBeenCalledWith(expect.objectContaining({ leadId: 'A', priority: 'High', assignedTo: 'Edward', subject: expect.stringMatching(/bad review/) }), expect.anything());
+  });
+
+  it('checks each kind: cold needs one reason and the last conversation date; cancelled takes sub-reasons', () => {
+    expect(cleanDeadReason({ kind: 'cold', reasons: ['ours', 'theirs'], lastContactAt: '2026-10-01' })).toMatchObject({ ok: false, message: expect.stringMatching(/one reason/) });
+    expect(cleanDeadReason({ kind: 'cold', reasons: ['theirs'] })).toMatchObject({ ok: false, message: expect.stringMatching(/last known conversation/) });
+    expect(cleanDeadReason({ kind: 'cold', reasons: ['theirs'], lastContactAt: '2026-10-01T10:00' })).toMatchObject({ ok: true, value: { lastContactAt: '2026-10-01' } });
+    expect(cleanDeadReason({ kind: 'lost', reasons: ['reputation'] })).toMatchObject({ ok: false, message: expect.stringMatching(/review/) });
+    expect(cleanDeadReason({ kind: 'nope', reasons: ['x'] }).ok).toBe(false);
+    const c = cleanDeadReason({ kind: 'cancelled', reasons: ['funding.lender', 'legal.zoning'] });
+    expect(c.ok && deadReasonLabels('cancelled', c.value.reasons)).toEqual(['Funding and financial failure: Lender denied the loan', 'Legal roadblocks: Zoning']);
+    expect(cleanDeadReason({ kind: 'pass', reasons: [] })).toMatchObject({ ok: false, message: expect.stringMatching(/at least one/) });
+  });
+
+  it('a held lead gets a follow-up person with a task due on the hold date; a referral gets a monitor', async () => {
+    const rows: any[] = [{ id: 'H', name: 'Qamaria Coffee', stage: 'hold_3m', holdUntil: '2027-01-10', timeline: [] }, { id: 'R', name: 'Ref', stage: 'referred_monitoring', timeline: [] }];
+    const { svc } = make(rows);
+    const tasks = { create: jest.fn().mockResolvedValue({ id: 'T-9' }), update: jest.fn().mockResolvedValue({ id: 'T-9' }) };
+    Object.assign(svc, { tasks });
+    const h: any = await svc.setWatcher('H', { role: 'follow_up', id: 'U-2', name: 'Andrea' });
+    expect(h).toMatchObject({ followUpById: 'U-2', followUpByName: 'Andrea', followUpTaskId: 'T-9' });
+    expect(tasks.create).toHaveBeenCalledWith(expect.objectContaining({ leadId: 'H', assignedTo: 'Andrea', dueDate: '2027-01-10', subject: expect.stringMatching(/Pick back up/) }), expect.anything());
+    rows[0].followUpTaskId = h.followUpTaskId; // the fake repo doesn't keep saves
+    await svc.setWatcher('H', { role: 'follow_up', id: 'U-3', name: 'Kai' });
+    expect(tasks.update).toHaveBeenCalledWith('T-9', expect.objectContaining({ assignedTo: 'Kai', dueDate: '2027-01-10' }), expect.anything());
+    expect(tasks.create).toHaveBeenCalledTimes(1);
+    const r: any = await svc.setWatcher('R', { role: 'monitor', id: 'U-4', name: 'Langston' });
+    expect(r).toMatchObject({ monitorId: 'U-4', monitorName: 'Langston' });
+    expect(r.timeline.at(-1).action).toBe('Langston monitors the referral');
+    await expect(svc.setWatcher('R', { role: 'follow_up', name: 'X' })).rejects.toThrow(/on hold/);
+    await expect(svc.setWatcher('H', { role: 'monitor', name: 'X' })).rejects.toThrow(/referred/);
   });
 });

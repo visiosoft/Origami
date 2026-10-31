@@ -5,10 +5,12 @@ const FRI = '2026-10-16'; // a Friday
 
 describe('priority and due date', () => {
   it('gives each priority its default due date', () => {
+    expect(dueForPriority('Emergency', FRI)).toBe('2026-10-16'); // the same day
     expect(dueForPriority('Urgent', FRI)).toBe('2026-10-17');
     expect(dueForPriority('High', FRI)).toBe('2026-10-23'); // 5 business days, skipping the weekend
     expect(dueForPriority('Medium', FRI)).toBe('2026-10-30');
     expect(dueForPriority('Low', FRI)).toBe('2026-11-16');
+    expect(dueForPriority('Very Low', FRI)).toBe('2026-12-16');
     expect(dueForPriority('', FRI)).toBe('');
     expect(addBusinessDays(new Date('2026-10-16T12:00:00'), 1).getDate()).toBe(19);
   });
@@ -17,8 +19,9 @@ describe('priority and due date', () => {
     expect(priorityForDue('2026-10-16', FRI)).toBe('Urgent');
     expect(priorityForDue('2026-10-17', FRI)).toBe('Urgent');
     expect(priorityForDue('2026-10-22', FRI)).toBe('High');
-    expect(priorityForDue('2026-11-10', FRI)).toBe('Medium');
-    expect(priorityForDue('2026-12-01', FRI)).toBe('Low');
+    expect(priorityForDue('2026-10-30', FRI)).toBe('Medium'); // within 2 weeks
+    expect(priorityForDue('2026-11-10', FRI)).toBe('Low'); // within a month
+    expect(priorityForDue('2026-12-01', FRI)).toBe('Very Low'); // past a month
   });
 
   it('fills the other one in, but never overwrites what was typed', () => {

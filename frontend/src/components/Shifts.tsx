@@ -6,6 +6,7 @@ import {
   ACCENT, BG, DANGER, INK, LINE, MUTED, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, money, todayISO,
   type Assignment, type PayrollSettings, type Project,
 } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 export interface ShiftTemplate { id: string; name: string; code?: string; kind: string; startTime: string; endTime: string; allowancePerDay: number; color?: string; active: boolean; order: number }
 export interface ShiftAssignment { id: string; employeeId: string; templateIds: string[]; rotateEveryDays?: number | null; startDate: string; endDate?: string | null; notes?: string; createdByName?: string; endedByName?: string; createdAt: string }
@@ -146,7 +147,7 @@ export function ShiftRoster({ employees, projects, assignments, settings, canMan
               );
             })}
           </div>
-          {assigns === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+          {assigns === null && <Skeleton label="Loading…" />}
           {assigns && people.map((e) => (
             <div key={e.id} style={{ ...bodyRow(cols), padding: '6px 14px', background: picked.has(e.id) ? 'var(--c-f3f8f3)' : undefined }}>
               {canManage && <input type="checkbox" checked={picked.has(e.id)} onChange={() => toggle(e.id)} />}
@@ -351,7 +352,7 @@ export function EmployeeShiftPanel({ employee, employees, canManage, currency }:
         <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, color: INK, flex: 1 }}>Shift</div>
         {canManage && <div onClick={() => setAssigning(true)} style={btn(true)}>{current || upcoming.length ? 'Change shift' : '+ Assign shift'}</div>}
       </div>
-      {rows === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div> : !current && !upcoming.length ? (
+      {rows === null ? <Skeleton label="Loading…" /> : !current && !upcoming.length ? (
         <div style={{ fontSize: 12.5, color: MUTED }}>Not on a shift roster.</div>
       ) : (
         <>

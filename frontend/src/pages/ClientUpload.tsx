@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import { Skeleton } from '../components/Skeleton';
 
 interface View {
   company: string; accent?: string; project: string; firstName: string; items: string[]; expiresAt: string;
@@ -45,7 +46,7 @@ export function ClientUpload() {
     return (
       <div style={wrap}><div style={cardStyle}>
         {error ? <><div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>This link isn’t working</div><div style={{ fontSize: 14, color: 'var(--c-5c6b65)', lineHeight: 1.6 }}>{error}</div></>
-          : <div style={{ fontSize: 14, color: 'var(--muted)' }}>Loading…</div>}
+          : <Skeleton label="Loading…" />}
       </div></div>
     );
   }

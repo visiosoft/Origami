@@ -15,14 +15,17 @@ export interface Meeting extends ActionTrailFields {
   /** The address (in person) or the link / dial-in. */
   location?: string;
   locationType?: MeetingLocationType | null;
+  /** Outside meetings: who set it up, their company, the platform, the invite as pasted. */
+  organizer?: string | null; organizerOrg?: string | null; platform?: string | null; invite?: string | null;
   attendees?: Attendee[] | null; agenda?: string; minutes?: string; status: MeetingStatus; rfiIds?: string[] | null;
   changeOrderIds?: string[] | null;
   recordingUrl?: string; transcriptUrl?: string; transcript?: string;
   reviewedBy?: string; reviewedAt?: string;
   createdBy?: string; createdAt?: string; updatedAt?: string;
 }
-export const MEETING_TYPES = ['Internal', 'Client', 'Consultant', 'Subcontractor', 'Site'];
-export const MEETING_FIELDS: (keyof Meeting)[] = ['title', 'type', 'projectId', 'project', 'date', 'time', 'location', 'locationType', 'attendees', 'agenda', 'minutes', 'status', 'rfiIds', 'changeOrderIds', 'recordingUrl', 'transcriptUrl', 'transcript'];
+/** Outside = someone else's invite (the city on Teams, a consultant's Zoom). */
+export const MEETING_TYPES = ['Internal', 'Client', 'Consultant', 'Subcontractor', 'Site', 'Outside'];
+export const MEETING_FIELDS: (keyof Meeting)[] = ['title', 'type', 'projectId', 'project', 'date', 'time', 'location', 'locationType', 'organizer', 'organizerOrg', 'platform', 'invite', 'attendees', 'agenda', 'minutes', 'status', 'rfiIds', 'changeOrderIds', 'recordingUrl', 'transcriptUrl', 'transcript'];
 
 type Tone = 'yellow' | 'soft' | 'outline' | 'dark' | 'green' | 'warn';
 /** Label, pill tone and what it means -- in the order they're offered. */
