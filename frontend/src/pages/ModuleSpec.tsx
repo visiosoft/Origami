@@ -36,8 +36,9 @@ const MODULE_SPECS: Record<string, { title: string; purpose: string; screens: st
   library: { title: 'Document & Template Library', purpose: 'Shared templates, standard documents, and company knowledge base.', screens: ['Template Browser', 'Document Editor', 'Category Manager'], fields: ['template_name', 'category', 'version', 'last_updated', 'author'] },
 };
 
-export function ModuleSpec() {
-  const { slug } = useParams<{ slug: string }>();
+export function ModuleSpec({ slug: given }: { slug?: string } = {}) {
+  const params = useParams<{ slug: string }>();
+  const slug = given || params.slug;
   // Schedule also sits under Construction, as its own menu entry.
   const spec = MODULE_SPECS[slug === 'schedule_con' ? 'schedule' : slug || ''];
 

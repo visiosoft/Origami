@@ -18,6 +18,8 @@ export interface NavItem {
   superintendent?: boolean;
   /** Not in the menu (opened from another page) but still a module with its own permission. */
   hidden?: boolean;
+  /** A page that brings several modules together: shown to anyone who can see one of them (not a module itself). */
+  anyOf?: string[];
 }
 
 export interface NavGroup {
@@ -25,6 +27,10 @@ export interface NavGroup {
   label: string;
   /** What the section as a whole covers, shown when hovering its heading. */
   hint?: string;
+  /** Shown nested under another group (Oct 30 sync: Special Actions under Main). */
+  parent?: string;
+  /** For the back office only: hidden from site superintendents and outside accounts (Oct 30 sync). */
+  backOffice?: boolean;
   items: NavItem[];
 }
 
@@ -38,7 +44,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'People', route: 'people', icon: 'people', desc: 'Internal executive, internal staff, clients, consultants, subs, authorities and vendors' },
     { label: 'All Files', route: 'allfiles', icon: 'files', desc: 'Every file in the business Google Drive. Limited access' },
   ] },
-  { key: 'actions', label: 'Special Actions', hint: 'Your calendar and timesheets, and everything that needs action: meetings, FOR RECORD (observations, FYI, decisions), RFI, tasks, change orders and approvals', items: [
+  { key: 'actions', label: 'Special Actions', parent: 'main', hint: 'Your calendar and timesheets, and everything that needs action: meetings, FOR RECORD (observations, FYI, decisions), RFI, tasks, change orders and approvals', items: [
     { label: 'My Calendar', route: 'my-calendar', icon: 'cal', desc: 'Your calendar: meetings, due dates and Google Calendar' },
     { label: 'My Timesheets', route: 'my-timesheet', icon: 'clip', personal: true, desc: 'Your own hours, week by week' },
     { label: 'Meetings', route: 'meetings', icon: 'cal', desc: 'Manage, track and create meetings; generate the actions below from them' },
@@ -60,29 +66,30 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'Consultant Prequalifying & RFP', route: 'prequal', icon: 'shieldc', desc: 'Consultants: who is coming due for licences and insurance, RFPs sent and answered' },
     { label: 'Design', route: 'design', icon: 'pen', note: 'Board', desc: 'Design work, board view' },
   ] },
-  { key: 'precon', label: 'Preconstruction', items: [
+  { key: 'precon', label: 'Preconstruction', backOffice: true, items: [
     { label: 'Estimating', route: 'estimating', icon: 'calc', desc: 'Estimating tools for design and/or build work that needs estimating' },
     { label: 'Selections & Specifications', route: 'selections', icon: 'list', desc: 'Our library, and one place to make selections, manage orders and track orders' },
     { label: 'Schedule', route: 'schedule', icon: 'cal', desc: 'All projects and their timelines' },
-    { label: 'Plan & File Room', route: 'planroom', icon: 'files', desc: 'File management, tracking the latest files, and sending and managing RFPs' },
     { label: 'GC & Sub Prequalify & RFP', route: 'sub_prequal', icon: 'shieldc', desc: 'General contractors and subcontractors: prequalification and RFPs' },
   ] },
   { key: 'construction', label: 'Construction', items: [
     { label: 'Project Management', route: 'pm', icon: 'clip', note: 'Board', desc: 'Construction work, board view' },
-    { label: 'QA/QC', route: 'quality', icon: 'shielda', desc: 'Inspections and checklists for quality assurance and quality control' },
-    { label: 'Safety', route: 'safety', icon: 'shielda', desc: 'Safety inspections and checklists, toolbox meetings, incident reports' },
+    { label: 'QA/QC & Safety', route: 'quality', icon: 'shielda', desc: 'Quality and safety in one place: inspections and checklists, toolbox meetings, incident reports' },
+    { label: 'Safety', route: 'safety', icon: 'shielda', hidden: true, desc: 'Safety inspections and checklists, toolbox meetings, incident reports' },
     { label: 'Schedule', route: 'schedule_con', perm: 'schedule', icon: 'cal', desc: 'All projects and their timelines' },
-    { label: 'Equipment Management', route: 'equipment', icon: 'crew', desc: 'Equipment across projects: where it is, rentals, maintenance and cost' },
-    { label: 'Procurement Management', route: 'procurement', icon: 'receipt', desc: 'Purchasing and deliveries for build: orders, lead times and receiving' },
+    { label: 'Equipment Management', route: 'equipment', icon: 'crew', hidden: true, desc: 'Equipment across projects: where it is, rentals, maintenance and cost' },
+    { label: 'Procurement Management', route: 'procurement', icon: 'receipt', hidden: true, desc: 'Purchasing and deliveries for build: orders, lead times and receiving' },
     { label: 'Daily Report (field)', route: 'daily-log', icon: 'clip', superintendent: true, desc: 'Fill in today’s Daily Report for your site' },
     { label: 'Daily Reports', route: 'daily_reports', icon: 'clip', desc: 'Every site’s daily report, and the weekly report' },
     { label: 'Manpower & Resource (Build)', route: 'manpower_build', perm: 'manpower_con', icon: 'crew', desc: 'RFPs for several projects for build, equipment, timesheets for build, labor and resource projection, deliveries and daily reports' },
     { label: 'Progress Photos', route: 'progress_photos', icon: 'files', desc: 'Site progress photos by project and date' },
+    { label: 'Plan & File Room', route: 'planroom', icon: 'files', desc: 'File management, tracking the latest files, and sending and managing RFPs' },
   ] },
   { key: 'financial', label: 'Financial & Resource', items: [
     { label: 'Business', route: 'fin_business', icon: 'bank', desc: 'Rolls up all projects, design and build' },
     { label: 'Project Invoicing', route: 'fin_project', icon: 'dollar', desc: 'Payables and receivables, including reimbursables and change orders: client, internal staff, subcontractors, consultants, vendors' },
-    { label: 'Manpower & Resource Management', route: 'manpower_con', icon: 'crew', desc: 'Plan and run the week(s) for subs, labor and admin, and manage timesheets' },
+    { label: 'Resource Enterprise Management', route: 'resources', icon: 'crew', anyOf: ['procurement', 'equipment', 'manpower_con'], desc: 'Procurement, equipment and manpower in one place' },
+    { label: 'Manpower & Resource Management', route: 'manpower_con', icon: 'crew', hidden: true, desc: 'Plan and run the week(s) for subs, labor and admin, and manage timesheets' },
     { label: 'Accounting', route: 'accounting', icon: 'calc', desc: 'For the accountant and bookkeeper' },
     { label: 'Affiliates', route: 'affiliates', icon: 'people', desc: 'Affiliates and their rates, contracted projects, and amounts due, paid and overdue' },
     // Opened from Project Invoicing and Approvals / from Manpower; kept as their own permissions.
@@ -109,12 +116,12 @@ export interface ModuleRef {
 // Flat, ordered list of every module (used by the role permission matrix).
 // A second entry for a module (perm set) shares that module's permission, so it is not listed again.
 export const MODULES: ModuleRef[] = NAV_GROUPS.flatMap((g) =>
-  g.items.filter((it) => !it.personal && !it.superintendent && !it.perm).map((it) => ({ key: it.route, label: it.label, group: g.label })),
+  g.items.filter((it) => !it.personal && !it.superintendent && !it.perm && !it.anyOf).map((it) => ({ key: it.route, label: it.label, group: g.label })),
 );
 
 /** Route -> permission key, for the route guard. */
 export const PERM_BY_ROUTE: Record<string, string> = {
-  ...Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items.map((it) => [it.route, permOf(it)]))),
+  ...Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items.filter((it) => !it.anyOf).map((it) => [it.route, permOf(it)]))),
   // Pages without their own menu entry: the Special Actions Log opens inside Tasks; the phase lists of special actions.
   requests: 'tasks',
   actions_design: 'design',
@@ -123,3 +130,6 @@ export const PERM_BY_ROUTE: Record<string, string> = {
 
 /** Routes every internal user may open regardless of role. */
 export const PERSONAL_ROUTES = new Set(NAV_GROUPS.flatMap((g) => g.items.filter((it) => it.personal).map((it) => it.route)));
+
+/** Pages that bring modules together: route -> the modules any one of which opens it. */
+export const ANY_OF_BY_ROUTE: Record<string, string[]> = Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items.filter((it) => it.anyOf).map((it) => [it.route, it.anyOf!])));

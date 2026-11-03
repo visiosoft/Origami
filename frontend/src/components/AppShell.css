@@ -543,3 +543,7 @@
 .nav-search-all { display: block; width: calc(100% - 16px); margin: 8px 8px; padding: 8px 10px; border: 1px dashed rgba(var(--rgb-shade), 0.18); border-radius: 10px; background: transparent; font: inherit; font-size: 12px; text-align: left; color: var(--body); cursor: pointer; }
 .nav-search-all:hover { background: rgba(var(--rgb-shade), 0.04); }
 .nav-item.is-first:not(.active) { background: rgba(245, 196, 67, 0.18); }
+
+/* A group nested under another (Oct 30 sync: Special Actions under Main). */
+.nav-group.is-sub { margin-top: -6px; margin-left: 12px; padding-left: 8px; border-left: 1px solid rgba(var(--rgb-shade), 0.10); }
+.nav-group.is-sub .nav-group-label { font-size: 10px; }

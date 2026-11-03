@@ -26,6 +26,7 @@ const People = page(() => import('./pages/People'), 'People');
 const Tasks = page(() => import('./pages/Tasks'), 'Tasks');
 const SuperintendentTasks = page(() => import('./pages/SuperintendentHome'), 'SuperintendentTasks');
 const ModuleSpec = page(() => import('./pages/ModuleSpec'), 'ModuleSpec');
+const TabHub = page(() => import('./pages/TabHub'), 'TabHub');
 const ProgressPhotos = page(() => import('./pages/ProgressPhotos'), 'ProgressPhotos');
 const PublicPage = page(() => import('./pages/PublicPage'), 'PublicPage');
 const HoldingReferOut = page(() => import('./pages/HoldingReferOut'), 'HoldingReferOut');
@@ -157,6 +158,16 @@ export default function App() {
         <Route path="/actions_design" element={<SpecialActions key="design" phase="design" />} />
         <Route path="/actions_con" element={<SpecialActions key="construction" phase="construction" />} />
         <Route path="/progress_photos" element={<ProgressPhotos />} />
+        {/* One page for several modules (Oct 30 sync); each module's own route still opens. */}
+        <Route path="/resources" element={<TabHub title="Resource Enterprise Management" tabs={[
+          { key: 'procurement', label: 'Procurement', perm: 'procurement', render: () => <ModuleSpec slug="procurement" /> },
+          { key: 'equipment', label: 'Equipment', perm: 'equipment', render: () => <ModuleSpec slug="equipment" /> },
+          { key: 'manpower', label: 'Manpower', perm: 'manpower_con', render: () => <Manpower /> },
+        ]} />} />
+        <Route path="/quality" element={<TabHub title="QA/QC & Safety" tabs={[
+          { key: 'quality', label: 'QA/QC', perm: 'quality', render: () => <ModuleSpec slug="quality" /> },
+          { key: 'safety', label: 'Safety', perm: 'safety', render: () => <ModuleSpec slug="safety" /> },
+        ]} />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>
     </Routes>

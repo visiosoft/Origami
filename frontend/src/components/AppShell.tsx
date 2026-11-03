@@ -8,7 +8,7 @@ import { Notifications } from './Notifications';
 import { ThemeToggle } from './ThemeToggle';
 import { GlobalSearch, openGlobalSearch } from './GlobalSearch';
 import { useApp, type ViewMode } from '../AppContext';
-import { NAV_GROUPS, PERSONAL_ROUTES, PERM_BY_ROUTE, permOf } from '../data/nav';
+import { ANY_OF_BY_ROUTE, NAV_GROUPS, PERSONAL_ROUTES, PERM_BY_ROUTE, permOf } from '../data/nav';
 import { AutosaveIndicator, AutosaveProvider } from '../autosave';
 import { ServerStatusBanner } from './ServerStatusBanner';
 import { SessionExpired } from './SessionExpired';
@@ -39,14 +39,19 @@ export function AppShell() {
     // The daily log decides for itself (superintendents only), so it isn't a role permission either.
     if (slug === 'dashboard' || slug === 'help' || slug === 'login' || slug === 'daily-log' || PERSONAL_ROUTES.has(slug)) return;
     // A second menu entry for a module (e.g. Schedule under Construction) checks that module's permission.
+    // A page that brings modules together opens for anyone who sees one of them.
+    if (ANY_OF_BY_ROUTE[slug]) { if (!ANY_OF_BY_ROUTE[slug].some((m) => can(m, 'view'))) navigate('/dashboard', { replace: true }); return; }
     if (!can(PERM_BY_ROUTE[slug] || slug, 'view')) navigate('/dashboard', { replace: true });
   }, [slug, loadingAccess, can, navigate]);
 
   // Only show nav items the current role can view; drop groups left empty.
   // The phone daily log is only for superintendents (whoever runs a site).
   const runsSite = !!authUser?.isSuperintendent;
+  // Pre-construction is for the back office (Oct 30 sync): not for site superintendents or outside accounts.
+  const backOffice = authUser?.roleKey === 'admin' || (!runsSite && currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant');
   const visibleGroups = NAV_GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((it) => !it.hidden && (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(permOf(it), 'view'))) }))
+    .filter((g) => !g.backOffice || backOffice)
+    .map((g) => ({ ...g, items: g.items.filter((it) => !it.hidden && (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : it.anyOf ? it.anyOf.some((m) => can(m, 'view')) : can(permOf(it), 'view'))) }))
     .filter((g) => g.items.length > 0);
 
   const searchPages = useMemo(() => visibleGroups.flatMap((g) => g.items.map((it) => ({ label: it.label, route: it.route, icon: it.icon }))),
@@ -123,7 +128,7 @@ export function AppShell() {
         <nav className="nav om-nav-scroll">
           {nq && !shownGroups.length && <div className="nav-search-none">No menu item matches.</div>}
           {shownGroups.map((group) => (
-            <div key={group.key} className="nav-group">
+            <div key={group.key} className={`nav-group${group.parent && shownGroups.some((x) => x.key === group.parent) ? ' is-sub' : ''}`}>
               <div className="nav-group-header" onClick={() => toggleGroup(group.key)} title={group.hint}>
                 <span className="nav-group-label">{group.label}</span>
                 <span

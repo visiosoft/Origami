@@ -171,4 +171,5 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | I7 | Tags: standard set + custom tags in one shared list, reusable and filterable; auto-tags | ✅ (shared tag bank, Settings → Tags; auto: Internal by default, CRM/Design/Construction by origin, Financial with a CO, personal tags Internal; filters on board and Log) |
 | I10 | Layer access: choose who sees each layer (Internal only, a given sub) | ✅ (Everyone / Our team / picked people or companies; downloads follow it) |
 | I11 | iPad: tune markup tools for tablets | ✅ (44px+ tools, bigger swatches/grips, slide-over list in portrait, Pencil palm rejection) |
+| I6 | Navigation regroup | ✅ (Special Actions under Main; Pre-construction back office only; Construction regrouped with QA/QC & Safety and Plan & File Room; Resource Enterprise Management = Procurement + Equipment + Manpower) |
 | I9 | Emergency tasks alert the team at once | ✅ (assignee, collaborators, originator + every admin; text + email + bell, always on; sent once) |

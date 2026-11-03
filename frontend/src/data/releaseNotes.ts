@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03h',
+    date: '2026-11-03',
+    title: 'The menu, regrouped',
+    items: [
+      { area: 'Menu', kind: 'improved', text: 'Special Actions sit nested under Main, as on a project page.' },
+      { area: 'Menu', kind: 'improved', text: 'Pre-construction is for the back office: site superintendents and outside accounts no longer see it.' },
+      { area: 'Menu', kind: 'improved', text: 'Construction now holds Project Management, QA/QC & Safety (one item, with a tab each), Schedule, Daily Reports, Progress Photos and the Plan & File Room.' },
+      { area: 'Menu', kind: 'new', text: 'Resource Enterprise Management brings Procurement, Equipment and Manpower together, a tab each.', where: 'Financial & Resource → Resource Enterprise Management' },
+      { area: 'Menu', kind: 'improved', text: 'Nothing moved behind the scenes: old links still open, and who sees what still comes from User Access & Roles.' },
+    ],
+  },
+  {
     id: '2026-11-03g',
     date: '2026-11-03',
     title: 'Drawings on the iPad',
