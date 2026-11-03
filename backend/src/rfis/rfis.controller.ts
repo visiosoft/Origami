@@ -13,8 +13,10 @@ import { AddLinkDto } from '../tasks/dto/update-task.dto';
 import { RfisService } from './rfis.service';
 import { Claims } from '../auth/guards/claims.decorator';
 import type { SessionClaims } from '../auth/crypto.util';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
 @Tiers('internal')
+@UseInterceptors(ProjectScope)
 @Controller('rfis')
 export class RfisController {
   constructor(

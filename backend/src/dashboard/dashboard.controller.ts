@@ -12,6 +12,7 @@ import { TasksService } from '../tasks/tasks.service';
 import { isClosedStatus } from '../tasks/log-statuses';
 import { DashboardService } from './dashboard.service';
 import { myTaskRows, taskSummary } from './task-summary';
+import { Perm } from '../auth/guards/perm.guard';
 
 @Controller('dashboard')
 export class DashboardController {
@@ -69,30 +70,35 @@ export class DashboardController {
   }
 
   @Tiers('internal')
+  @Perm('fin_project', 'fin_business')
   @Get('kpis')
   getKpis() {
     return this.dashboardService.getKpis();
   }
 
   @Tiers('internal')
+  @Perm('fin_project', 'fin_business')
   @Get('budget-vs-spend')
   getBudgetVsSpend() {
     return this.dashboardService.getBudgetVsSpend();
   }
 
   @Tiers('internal')
+  @Perm('fin_project', 'fin_business')
   @Get('revenue-by-month')
   getRevenueByMonth() {
     return this.dashboardService.getRevenueByMonth();
   }
 
   @Tiers('internal')
+  @Perm('pipeline', 'crm_holding')
   @Get('lead-funnel')
   getLeadFunnel() {
     return this.dashboardService.getLeadFunnel();
   }
 
   @Tiers('internal')
+  @Perm('tasks', 'people')
   @Get('workload')
   getWorkload() {
     return this.dashboardService.getWorkload();

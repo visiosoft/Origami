@@ -3,8 +3,10 @@ import { AuthService } from '../auth/auth.service';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
+import { Perm } from '../auth/guards/perm.guard';
 
 @Tiers('internal')
+@Perm('pipeline', 'crm_holding')
 @Controller('leads')
 export class LeadsController {
     constructor(private readonly leadsService: LeadsService, @Optional() private readonly auth?: AuthService) { }

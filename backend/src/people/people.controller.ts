@@ -12,8 +12,11 @@ import type { SessionClaims } from '../auth/crypto.util';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES } from '../google/attachments.service';
+import { Perm } from '../auth/guards/perm.guard';
+import { ProjectAccessService } from '../auth/project-access.service';
 
 @Tiers('internal')
+@Perm('people')
 @Controller('people')
 export class PeopleController {
   constructor(
@@ -21,11 +24,19 @@ export class PeopleController {
     private readonly auth: AuthService,
     private readonly attachments: AttachmentsService,
     private readonly activity: ContactActivityService,
+    private readonly access: ProjectAccessService,
   ) {}
 
+  // The list also feeds a project's People tab and pickers: project staff get the people on their projects (the service narrows it).
+  @Perm('people', 'projects', 'tasks')
   @Get()
-  findAll(@Query('project') project?: string) {
-    return this.peopleService.findAll(project);
+  async findAll(@Query('project') project?: string, @Claims() claims?: SessionClaims | null) {
+    const all = await this.peopleService.findAll(project);
+    // The whole directory for People; otherwise (and on "Assigned projects") the people on the caller's projects, and themselves.
+    const names = await this.access.allowedNames(claims ?? null);
+    const wholeDirectory = names === 'all' && (await this.access.canView(claims ?? null, 'people'));
+    if (wholeDirectory) return all;
+    return all.filter((p: any) => p.userId === claims?.sub || (p.projects || []).some((n: string) => names === 'all' || names.has(n)));
   }
 
   /**

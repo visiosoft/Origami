@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03b',
+    date: '2026-11-03',
+    title: 'Access settings are enforced everywhere',
+    items: [
+      { area: 'Access', kind: 'fixed', text: 'What a role may see is now checked by the server, not only hidden from the menu. A module that isn’t ticked for a role (or for the person) can’t be opened or read some other way — for example the dashboard’s money figures, CRM & Leads, People, Meetings, contracts and proposals.', where: 'Settings → User Access & Roles' },
+      { area: 'Access', kind: 'fixed', text: '“Assigned projects” now holds everywhere: the Special Actions Log, Meetings, People, the File Room, project tasks, finance, RFIs and contracts only show that person’s projects (the ones on their People record).' },
+      { area: 'Access', kind: 'improved', text: 'A person’s own access changes now also decide their menu (before, only their role did).' },
+    ],
+  },
+  {
     id: '2026-11-03a',
     date: '2026-11-03',
     title: 'Every login is in People',

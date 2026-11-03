@@ -9,18 +9,30 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto, AddCommentDto, AddLinkDto, LinkDto, LinkedTaskDto } from './dto/update-task.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../google/attachments.service';
-import { scopeTasks, isRestrictedViewer, assignedTo } from '../database/viewer.util';
+import { scopeTasks, isRestrictedViewer, assignedTo, onMyProjects } from '../database/viewer.util';
 import { Roles } from '../auth/guards/roles.decorator';
 import { queryLog, type Scope } from './task-query';
 import { internalOnly } from '../database/task.types';
+import { Perm } from '../auth/guards/perm.guard';
+import type { SessionClaims } from '../auth/crypto.util';
+import { ProjectAccessService } from '../auth/project-access.service';
 
+@Perm('tasks', 'observations', 'meetings')
 @Controller('tasks')
 export class TasksController {
   constructor(
     private readonly tasksService: TasksService,
     private readonly auth: AuthService,
     private readonly attachments: AttachmentsService,
+    private readonly access: ProjectAccessService,
   ) {}
+
+  /** Restricted viewers: their own entries; staff on "Assigned projects": their projects' entries (Oct 30 sync). */
+  private async scoped<T extends Record<string, any>>(rows: T[], claims: SessionClaims | null): Promise<T[]> {
+    const mine = scopeTasks(rows, claims);
+    if (!claims || isRestrictedViewer(claims)) return mine;
+    return onMyProjects(mine, await this.access.allowedNames(claims), claims);
+  }
 
   @Get()
   async findAll(
@@ -31,7 +43,7 @@ export class TasksController {
   ) {
     // ?slim=1: without each entry's comments and history (the drawer loads those when it opens).
     const rows = await this.tasksService.findAll(tab, project, { slim: slim === '1' });
-    return scopeTasks(rows, await this.auth.verify(auth));
+    return this.scoped(rows, await this.auth.verify(auth));
   }
 
   /**
@@ -41,7 +53,7 @@ export class TasksController {
   @Get('page')
   async page(@Query() q: Record<string, string>, @Headers('authorization') auth?: string) {
     const claims = await this.auth.verify(auth);
-    const rows = scopeTasks(await this.tasksService.findAll(undefined, undefined, { slim: true }), claims);
+    const rows = await this.scoped(await this.tasksService.findAll(undefined, undefined, { slim: true }), claims);
     const viewer = { id: claims?.sub || '', name: claims?.name || '' };
     const person = q.person ? await this.tasksService.person(q.person) : undefined;
     const partList = (q.parts || 'assigned,collab,originated').split(',');
@@ -86,7 +98,13 @@ export class TasksController {
     // Clients and subcontractors never see the list of leads and projects.
     const claims = await this.auth.verify(auth);
     if (!claims || isRestrictedViewer(claims)) return { projects: [], leads: [] };
-    return this.tasksService.linkTargets();
+    const all = await this.tasksService.linkTargets();
+    const names = await this.access.allowedNames(claims);
+    return {
+      projects: names === 'all' ? all.projects : all.projects.filter((p) => names.has(p.name)),
+      // Leads only for those whose role includes CRM.
+      leads: (await this.access.canView(claims, 'pipeline', 'crm_holding')) ? all.leads : [],
+    };
   }
 
   /** One page of a log entry's comments and history, newest first (?page=&size=, 20 a page). */
@@ -106,6 +124,7 @@ export class TasksController {
     if (claims && isRestrictedViewer(claims) && (!assignedTo(task, claims) || internalOnly((task as any).tags))) {
       throw new NotFoundException(`Task ${id} not found`);
     }
+    if (claims && !(await this.scoped([task as any], claims)).length) throw new NotFoundException(`Task ${id} not found`);
     return task;
   }
 

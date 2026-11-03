@@ -9,6 +9,7 @@ import type { DocStep } from '../documents/program-document';
 import { buildProgramPdf } from '../documents/program-pdf';
 import type { AuthedRequest } from '../auth/guards/session.guard';
 import { assertFilled } from '../email-templates/placeholders';
+import { Perm } from '../auth/guards/perm.guard';
 
 /** Who did it, off the verified session -- never off anything the client claims. */
 const actorFrom = (req: AuthedRequest): ProgramActor => ({ id: req.claims?.sub, name: req.claims?.name });
@@ -23,6 +24,7 @@ interface DocumentInput {
 }
 
 @Tiers('internal')
+@Perm('pipeline', 'projects', 'design')
 @Controller('project-program')
 export class ProjectProgramController {
   constructor(

@@ -3,8 +3,10 @@ import { Tiers } from '../auth/guards/roles.decorator';
 import { PipelineService, type FollowUpInput } from './pipeline.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateDealDto } from './dto/create-deal.dto';
+import { Perm } from '../auth/guards/perm.guard';
 
 @Tiers('internal')
+@Perm('pipeline', 'crm_holding')
 @Controller('pipeline')
 export class PipelineController {
   constructor(

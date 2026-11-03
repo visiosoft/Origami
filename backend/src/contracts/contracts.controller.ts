@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Response } from 'express';
 import { Readable } from 'stream';
 import { Public } from '../auth/guards/public.decorator';
@@ -6,6 +6,8 @@ import { Roles, Tiers } from '../auth/guards/roles.decorator';
 import type { AuthedRequest } from '../auth/guards/session.guard';
 import { CONTRACT_TYPES, MERGE_FIELDS } from './contract-types';
 import { ContractsService, type ContractActor } from './contracts.service';
+import { Perm } from '../auth/guards/perm.guard';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
 const actorOf = (req: AuthedRequest): ContractActor => ({ id: req.claims?.sub, name: req.claims?.name, email: req.claims?.email, roleKey: req.claims?.roleKey });
 const meta = (req: AuthedRequest) => ({ ip: req.ip || '', userAgent: String(req.headers['user-agent'] || '') });
@@ -16,6 +18,8 @@ const sendPdf = (res: Response, r: { pdf: Buffer; filename: string }, download: 
 };
 
 /** Contracts signed inside ODIN: templates, drafts, sending, signing, counter-signing and the signed PDF. */
+@Perm('changeorders')
+@UseInterceptors(ProjectScope)
 @Controller('contracts')
 export class ContractsController {
   constructor(private readonly contracts: ContractsService) {}
