@@ -37,6 +37,8 @@ export class ProjectEntity {
   @Column({ nullable: true }) fileRoomSyncedAt!: string; // ISO time the File Room last pulled this project's Drive folder
   /** Top-level File Room folders that make up the build set (drawings, selections, specs): the project's Plan & File Room under Construction shows these (Oct 30 sync). */
   @Column({ type: 'simple-json', nullable: true }) buildSetFolders!: string[] | null;
+  /** Its backup Google Sheet (Tasks, RFIs, change orders, FOR RECORD, meetings), refreshed nightly (Oct 30 sync). */
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) backupSheetId!: string | null;
   @Column({ nullable: true }) introLetterSentAt!: string; // ISO timestamp when the Introduction Letter was sent
   // The composed Introduction Letter, saved as a draft before it's sent --
   // separate from the plain-text template default, so an edit survives a

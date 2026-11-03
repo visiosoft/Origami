@@ -638,6 +638,12 @@ export const api = {
     /** Just mine, now -- whatever the schedule says. */
     mine: () => request<{ sent: boolean; reason?: string; overdue: number; today: number; soon: number }>('/reminders/mine', { method: 'POST' }),
   },
+  /** Backup sheets per project (Oct 30 sync; admins). */
+  backup: {
+    sheets: () => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean }>('/backup/sheets', { cache: 'no-store' } as any),
+    setSheets: (enabled: boolean) => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean }>('/backup/sheets', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    runSheets: (projectId?: number) => request<{ at: string; projects: number; failed: { project: string; error?: string }[] }>('/backup/sheets/run', { method: 'POST', body: JSON.stringify({ projectId }) }),
+  },
   /** The shared tag bank (Oct 30 sync): standard tags plus everyone's custom ones. */
   tags: {
     list: () => request<TagInfo[]>('/tags', { cache: 'no-store' } as any),

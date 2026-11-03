@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03k',
+    date: '2026-11-03',
+    title: 'A backup sheet for every project',
+    items: [
+      { area: 'Backups', kind: 'new', text: 'Each active project can have a Google Sheet in its Drive folder — tabs for Tasks, RFIs, Change orders, FOR RECORD and Meetings — rewritten every night at 2am, so work can carry on if the system is down. Off until an admin switches it on; “Refresh now” makes or updates them at once.', where: 'Settings → Integrations → Google Workspace → Backup sheets' },
+    ],
+  },
+  {
     id: '2026-11-03j',
     date: '2026-11-03',
     title: 'Drive keeps the record',

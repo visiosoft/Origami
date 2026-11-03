@@ -28,6 +28,7 @@ import { RfisModule } from './rfis/rfis.module';
 import { FileRoomModule } from './file-room/file-room.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TagsModule } from './tags/tags.module';
+import { BackupModule } from './backup/backup.module';
 import { SmsModule } from './sms/sms.module';
 import { TrackingModule } from './tracking/tracking.module';
 import { ProjectProgramModule } from './project-program/project-program.module';
@@ -99,6 +100,7 @@ import { PermGuard } from './auth/guards/perm.guard';
     DashboardModule,
     NotificationsModule,
     TagsModule,
+    BackupModule,
     SmsModule,
     TrackingModule,
     ManpowerModule,

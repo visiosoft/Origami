@@ -38,7 +38,7 @@ export function parseFolderTemplate(text: string): string[][] {
 }
 
 /** Where the File Room keeps everything inside the connected account's Drive. */
-const DRIVE_ROOT = 'Origami File Room';
+export const DRIVE_ROOT = 'Origami File Room';
 
 /** The standard folders every project starts with; empty ones stay hidden. */
 export const DEFAULT_CATEGORIES = [

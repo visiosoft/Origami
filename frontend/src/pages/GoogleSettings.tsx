@@ -321,6 +321,7 @@ export function GoogleSettings() {
       )}
 
       {status?.connected && <DrivePanel />}
+      {status?.connected && <BackupSheetsPanel />}
     </div>
   );
 }
@@ -360,6 +361,53 @@ function DrivePanel() {
             </a>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Backup sheets (Oct 30 sync): a Google Sheet per active project in its Drive
+ * folder -- Tasks, RFIs, change orders, FOR RECORD, meetings -- rewritten every
+ * night at 2am, so the team can keep working if the system is down.
+ */
+function BackupSheetsPanel() {
+  const { toast, authUser } = useApp();
+  const [st, setSt] = useState<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const isAdmin = authUser?.roleKey === 'admin';
+  useEffect(() => { if (isAdmin) api.backup.sheets().then(setSt).catch(() => undefined); }, [isAdmin]);
+  if (!isAdmin || !st) return null;
+  const run = async () => {
+    setBusy(true);
+    try { const r = await api.backup.runSheets(); toast(`Backup sheets refreshed for ${r.projects} project${r.projects === 1 ? '' : 's'}${r.failed.length ? ` — ${r.failed.length} failed` : ''}`); setSt(await api.backup.sheets()); }
+    catch (e) { toast('⚠ ' + (e as Error).message); }
+    finally { setBusy(false); }
+  };
+  const toggle = async () => {
+    setBusy(true);
+    try { setSt(await api.backup.setSheets(!st.enabled)); }
+    catch (e) { toast('⚠ ' + (e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div style={card}>
+      <SectionTitle>Backup sheets</SectionTitle>
+      <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginBottom: 12, lineHeight: 1.55 }}>
+        A Google Sheet per active project, in its Drive folder, with a tab each for Tasks, RFIs, Change orders, FOR RECORD and Meetings. Rewritten every night at 2am so work can carry on if the system is down. Edits made in the sheet are overwritten.
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+          <input type="checkbox" checked={st.enabled} disabled={busy} onChange={() => void toggle()} /> Refresh every night
+        </label>
+        <div onClick={() => !busy && void run()} role="button" aria-disabled={busy}
+          style={{ padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', background: 'var(--mist)', color: 'var(--forest)', opacity: busy ? 0.6 : 1 }}>{busy ? 'Working…' : 'Refresh now'}</div>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+          {st.lastRun ? `Last refreshed ${new Date(st.lastRun).toLocaleString()} — ${st.lastResult?.projects ?? 0} project${st.lastResult?.projects === 1 ? '' : 's'}` : 'Not run yet'}
+        </span>
+      </div>
+      {!!st.lastResult?.failed?.length && (
+        <div style={{ marginTop: 10, fontSize: 12, color: '#8E2E0A' }}>{st.lastResult.failed.map((f) => `${f.project}: ${f.error || 'failed'}`).join(' · ')}</div>
       )}
     </div>
   );

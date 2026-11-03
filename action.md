@@ -174,4 +174,5 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | I6 | Navigation regroup | ✅ (Special Actions under Main; Pre-construction back office only; Construction regrouped with QA/QC & Safety and Plan & File Room; Resource Enterprise Management = Procurement + Equipment + Manpower) |
 | I5 | Two file areas: All Files vs per-project Plan & File Room (build set) | ✅ (☆ build-set folders per project; field roles see only those; file changes need File Room manage, enforced on the server) |
 | I3 | Drive as the backup of record (PDF, REV1/REV2) | ✅ for signed contracts and the Project Program as sent ("Backups of record" folder). Renderings and Word files: open |
+| I4 | Per-project backup Google Sheet, refreshed on a schedule | ✅ (Tasks, RFIs, COs, FOR RECORD, Meetings tabs; nightly 2am once switched on; Refresh now) |
 | I9 | Emergency tasks alert the team at once | ✅ (assignee, collaborators, originator + every admin; text + email + bell, always on; sent once) |
