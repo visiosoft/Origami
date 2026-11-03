@@ -79,6 +79,13 @@ export class ContractsController {
     return this.contracts.saveTemplate(id, body || {}, actorOf(req));
   }
 
+  /** Email yourself the template filled with sample details, and the PDF it makes (Oct 30 sync). */
+  @Tiers('internal')
+  @Post('templates/preview')
+  previewTemplate(@Body() body: any, @Req() req: AuthedRequest) {
+    return this.contracts.previewTemplate(body || {}, actorOf(req));
+  }
+
   @Roles('admin')
   @Delete('templates/:id')
   removeTemplate(@Param('id') id: string) {

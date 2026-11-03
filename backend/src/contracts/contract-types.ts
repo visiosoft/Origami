@@ -57,6 +57,16 @@ export const MERGE_FIELDS: [string, string][] = [
   ['subcontract.number', 'Subcontract / PO number'], ['subcontract.title', 'Subcontract title'], ['subcontract.amount', 'Subcontract amount'],
 ];
 
+/** Made-up details for previewing a template (Oct 30 sync): a real-looking contract, so gaps and layout show. */
+export const SAMPLE_MERGE: Record<string, string> = {
+  'contract.number': 'CT-2026-0000', 'contract.amount': '$185,000.00', 'contract.date': '',
+  'project.name': 'Lee Residence', 'project.address': '2140 Pine St, San Francisco, CA 94115', 'project.scope': 'Kitchen remodel and a rear addition',
+  'owner.name': 'Jordan Lee', 'owner.email': 'jordan.lee@example.com',
+  'party.name': 'Jordan Lee', 'party.company': 'Lee Family Trust', 'party.email': 'jordan.lee@example.com',
+  'changeOrder.number': 'CO-004', 'changeOrder.title': 'Add a skylight over the kitchen', 'changeOrder.description': 'Frame, flash and install one 2x4 ft skylight.', 'changeOrder.amount': '$6,450.00',
+  'subcontract.number': 'SC-012', 'subcontract.title': 'Electrical rough-in and finish', 'subcontract.amount': '$42,300.00',
+};
+
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /**

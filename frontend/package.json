@@ -13,6 +13,7 @@
     "check": "tsc -b && eslint src && vitest run"
   },
   "dependencies": {
+    "mammoth": "1.13.0",
     "origami-platform": "file:..",
     "pdfjs-dist": "4.10.38",
     "react": "^19.0.0",

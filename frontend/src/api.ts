@@ -769,6 +769,8 @@ export const api = {
     createTemplate: (d: Partial<ContractTemplate>) => request<ContractTemplate>('/contracts/templates', { method: 'POST', body: JSON.stringify(d) }),
     saveTemplate: (id: string, d: Partial<ContractTemplate>) => request<ContractTemplate>(`/contracts/templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     removeTemplate: (id: string) => request(`/contracts/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    /** Email yourself the template filled with sample details, with the PDF it makes (Oct 30 sync). */
+    previewTemplate: (t: { name: string; type: string; html: string }) => request<{ to: string }>('/contracts/templates/preview', { method: 'POST', body: JSON.stringify(t) }),
     list: (q: Record<string, string> = {}) => request<Contract[]>(`/contracts?${new URLSearchParams(q).toString()}`),
     get: (id: string) => request<Contract>(`/contracts/${encodeURIComponent(id)}`),
     create: (d: Record<string, unknown>) => request<Contract>('/contracts', { method: 'POST', body: JSON.stringify(d) }),

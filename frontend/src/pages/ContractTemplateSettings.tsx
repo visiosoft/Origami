@@ -19,7 +19,7 @@ export function ContractTemplateSettings() {
   const [sel, setSel] = useState<string | null>(null);
   const [draft, setDraft] = useState<ContractTemplate | null>(null);
   const load = () => api.contracts.templates().then((l) => { setList(l); if (!sel && l[0]) { setSel(l[0].id); setDraft(l[0]); } }).catch((e: Error) => toast('⚠ ' + e.message));
-  useEffect(() => { void load(); api.contracts.types().then((t) => setFields(t.mergeFields)).catch(() => undefined); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); api.contracts.types().then((t) => setFields(t?.mergeFields || [])).catch(() => undefined); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = (t: ContractTemplate) => { setSel(t.id); setDraft(t); };
   const saved = list.find((t) => t.id === sel);
   const dirty = !!draft && (!saved || draft.name !== saved.name || draft.html !== saved.html || !!draft.isDefault !== !!saved.isDefault || draft.type !== saved.type);
@@ -36,7 +36,20 @@ export function ContractTemplateSettings() {
     try { await api.contracts.removeTemplate(saved.id); const l = await api.contracts.templates(); setList(l); setSel(l[0]?.id || null); setDraft(l[0] || null); toast('Deleted'); }
     catch (e) { toast('⚠ ' + (e as Error).message); }
   };
-  const copy = async (k: string) => { try { await navigator.clipboard.writeText(`{{${k}}}`); toast(`Copied {{${k}}} — paste it into the template`); } catch { toast(`Type {{${k}}} into the template`); } };
+  const [previewing, setPreviewing] = useState(false);
+  /** Email yourself the template filled with sample details, with its PDF (Oct 30 sync: never send one out unseen). */
+  const preview = async () => {
+    if (!draft) return;
+    setPreviewing(true);
+    try { const r = await api.contracts.previewTemplate({ name: draft.name, type: draft.type, html: draft.html }); toast(`Preview sent to ${r.to} — open it to see what a client gets`); }
+    catch (e) { toast('⚠ ' + (e as Error).message); }
+    finally { setPreviewing(false); }
+  };
+  /** The contract's merge fields for the editor's "+ Insert field" list, with {{initials}} first. */
+  const fieldGroups = [{ label: 'Signing', tokens: [{ key: 'initials', label: 'Initials box (every signer)' }] }, ...['contract', 'project', 'owner', 'party', 'company', 'changeOrder', 'subcontract'].map((g) => ({
+    label: ({ contract: 'Contract', project: 'Project', owner: 'Owner', party: 'Other party', company: 'Our company', changeOrder: 'Change order', subcontract: 'Subcontract' } as Record<string, string>)[g],
+    tokens: fields.filter(([k]) => k.startsWith(g + '.')).map(([k, l]) => ({ key: k, label: l })),
+  })).filter((g) => g.tokens.length)];
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -60,13 +73,13 @@ export function ContractTemplateSettings() {
             <select aria-label="Contract type" value={draft.type} disabled={!!saved} onChange={(e) => setDraft({ ...draft, type: e.target.value as ContractType })} style={{ ...input, width: 230 }}>{CONTRACT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</select>
             <label style={{ fontSize: 12.5, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={!!draft.isDefault} onChange={(e) => setDraft({ ...draft, isDefault: e.target.checked })} />Default for this type</label>
           </div>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => void copy('initials')} style={{ ...btn(), padding: '3px 9px', fontSize: 11.5, background: '#FFF6E5', borderColor: '#F1D29A' }}>{'{{initials}}'}</button>
-            {fields.map(([k, l]) => <button type="button" key={k} title={l} onClick={() => void copy(k)} style={{ ...btn(), padding: '3px 9px', fontSize: 11.5, fontWeight: 500 }}>{`{{${k}}}`}</button>)}
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+            Bring a contract in with <b>⤓ Word</b> (a .docx keeps its headings, numbered lists and tables) or paste it from Word or Google Docs. Then put the fields in with <b>+ Insert field</b> — owner name, project address, amounts — and they fill in when a contract is made.
           </div>
-          <RichTextEditor value={draft.html} onChange={(html) => setDraft((d) => (d ? { ...d, html } : d))} minHeight={420} />
+          <RichTextEditor value={draft.html} onChange={(html) => setDraft((d) => (d ? { ...d, html } : d))} minHeight={420} fields={fieldGroups} wordImport />
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" style={btn(true)} disabled={!dirty} onClick={() => void save()}>Save</button>
+            <button type="button" style={btn()} disabled={previewing || !draft.html.replace(/<[^>]+>/g, '').trim()} onClick={() => void preview()} title="Emails you the template filled with sample details, as a client gets it, with the PDF attached">{previewing ? 'Sending…' : 'Email me a preview'}</button>
             {saved && <button type="button" style={{ ...btn(), color: '#8E2E0A' }} onClick={() => void remove()}>Delete</button>}
             {saved?.updatedAt && <span style={{ fontSize: 11.5, color: 'var(--muted)', alignSelf: 'center' }}>Last saved {new Date(saved.updatedAt).toLocaleDateString()}{saved.updatedBy ? ` by ${saved.updatedBy}` : ''}</span>}
           </div>

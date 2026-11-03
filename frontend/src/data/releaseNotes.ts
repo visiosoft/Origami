@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03c',
+    date: '2026-11-03',
+    title: 'Contracts keep their formatting',
+    items: [
+      { area: 'Contracts', kind: 'improved', text: 'Pasting a contract from Word or Google Docs keeps its headings, bold and italic, numbered and bulleted lists (with sub-levels) and tables; Word’s hidden clutter is left behind.', where: 'Settings → Contract templates' },
+      { area: 'Contracts', kind: 'new', text: '“⤓ Word” brings in a whole .docx contract with its headings, lists and tables.', where: 'Settings → Contract templates (also email templates in the Library)' },
+      { area: 'Contracts', kind: 'improved', text: '“+ Insert field” lists the contract fields by group — owner name, project address, amounts, our company, change order — and they fill in when a contract is made.' },
+      { area: 'Contracts', kind: 'new', text: '“Email me a preview” sends you the template filled with sample details and the PDF attached, exactly as a client would get it.', where: 'Settings → Contract templates' },
+    ],
+  },
+  {
     id: '2026-11-03b',
     date: '2026-11-03',
     title: 'Access settings are enforced everywhere',

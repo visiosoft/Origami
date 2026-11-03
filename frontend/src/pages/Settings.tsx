@@ -389,7 +389,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                 })()}
               </div>
               {isRichKind(draft.kind) ? (
-                <RichTextEditor value={asHtml(draft.body)} onChange={(html) => setDraft({ ...draft, body: html })} minHeight={360} fields={FIELD_GROUPS} />
+                <RichTextEditor value={asHtml(draft.body)} onChange={(html) => setDraft({ ...draft, body: html })} minHeight={360} fields={FIELD_GROUPS} wordImport />
               ) : (<>
                 <textarea id="tpl-sms-body" value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={draft.kind === 'sms' ? 5 : 20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
                 {canManage && (

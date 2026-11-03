@@ -77,4 +77,16 @@ describe('ContractsService', () => {
     await expect(svc.void(c.id, '')).rejects.toThrow('Say why');
     expect((await svc.void(c.id, 'Wrong amount')).status).toBe('void');
   });
+
+  it('emails a template preview, filled with sample details, with its PDF (Oct 30 sync)', async () => {
+    const { svc, mails } = setup();
+    await expect(svc.previewTemplate({ html: '<p></p>' }, { name: 'Edward', email: 'e@o.test' })).rejects.toThrow('empty');
+    await expect(svc.previewTemplate({ html: '<p>Hi</p>' }, { name: 'Edward' })).rejects.toThrow('no email');
+    const r = await svc.previewTemplate({ name: 'Owner agreement', type: 'owner', html: '<h2>Agreement</h2><p>Between {{company.name}} and <strong>{{owner.name}}</strong> for {{project.name}}.</p><p>{{initials}}</p>' }, { name: 'Edward', email: 'e@o.test' });
+    expect(r).toEqual({ to: 'e@o.test' });
+    expect(mails[0]).toMatchObject({ to: 'e@o.test', subject: 'Preview: Owner agreement' });
+    expect(mails[0].html).toContain('Between Origami Design + Build and <strong>Jordan Lee</strong> for Lee Residence.');
+    expect(mails[0].html).toContain('Initials:');
+    expect(mails[0].attachments[0]).toMatchObject({ filename: 'Owner agreement (preview).pdf', mimeType: 'application/pdf' });
+  });
 });

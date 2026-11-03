@@ -12,7 +12,7 @@ import { FileRoomService } from '../file-room/file-room.service';
 import { ChangeOrdersService } from '../finance/change-orders.service';
 import { BRAND_KEYS, brandingFrom, buildLetterHtml, safeFilename } from '../documents/letterhead';
 import {
-  CONTRACT_TYPES, DEFAULT_TEMPLATES, countInitials, initialsOf, isContractType, mergeContract, renderSigned, statusFromParties, typeOf, unfilledFields,
+  CONTRACT_TYPES, DEFAULT_TEMPLATES, SAMPLE_MERGE, countInitials, initialsOf, isContractType, mergeContract, renderSigned, statusFromParties, typeOf, unfilledFields,
   type ContractAttachment, type ContractParty, type ContractType,
 } from './contract-types';
 
@@ -364,6 +364,38 @@ export class ContractsService implements OnApplicationBootstrap {
         this.log.warn(`Change order ${row.changeOrderId} approval not recorded from ${row.number}: ${(e as Error).message}`);
       }
     }
+  }
+
+  /**
+   * Email yourself a template filled with sample details (Oct 30 sync): the
+   * wording as the client reads it on the signing page, and the PDF that gets
+   * filed once it's signed -- so it's never sent out unseen.
+   */
+  async previewTemplate(dto: { name?: string; type?: string; html?: string }, actor: ContractActor) {
+    const to = String(actor.email || '').trim();
+    if (!to) throw new BadRequestException('Your account has no email to send the preview to.');
+    if (!String(dto?.html || '').replace(/<[^>]+>/g, '').trim()) throw new BadRequestException('The template is empty.');
+    if (!(await this.google.isConnected())) throw new BadRequestException('Connect Google Workspace (Settings) to email a preview.');
+    const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
+    const lic = (await this.settings.get('brand.license').catch(() => null)) || '';
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const merged = mergeContract(String(dto.html), { ...SAMPLE_MERGE, 'contract.date': today, 'company.name': brand.companyName || 'Origami Design + Build', 'company.address': brand.address || '', 'company.license': lic });
+    const type = typeOf(String(dto.type || 'owner'));
+    const parties = [
+      { key: 'p1', role: 'signer', label: type.counterpartyLabel, name: SAMPLE_MERGE['party.name'], email: SAMPLE_MERGE['party.email'] },
+      { key: 'p2', role: 'signer', label: brand.companyName || 'Origami', name: actor.name || 'Origami', email: to, internal: true },
+    ] as ContractParty[];
+    const name = String(dto.name || type.label).slice(0, 120);
+    const body = renderSigned(merged, parties, { title: SAMPLE_MERGE['contract.number'] });
+    const html = buildLetterHtml({ brand, title: name, date: today, body });
+    const pdf = await this.google.htmlToPdf(html, safeFilename(`${name} preview`), { footer: 'PREVIEW  ·  sample details, not a contract' });
+    await this.google.sendMail({
+      to,
+      subject: `Preview: ${name}`,
+      html: `<p style="font:13px Helvetica,Arial,sans-serif;color:#555;">This is “${name.replace(/</g, '&lt;')}” as a client would read it, filled in with sample details. The PDF attached is what’s filed once it’s signed.</p><hr/>${body}`,
+      attachments: [{ filename: `${safeFilename(`${name} (preview)`)}.pdf`, mimeType: 'application/pdf', content: pdf }],
+    });
+    return { to };
   }
 
   /** The contract as a PDF: as it stands (draft or part-signed), or signed. */
