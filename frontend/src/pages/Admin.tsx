@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import { useTheme } from '../theme';
+import { UnlinkedLogins } from '../components/UnlinkedLogins';
 import { AccessBoard } from '../components/AccessBoard';
 import {
   MODULES, TIERS, TIER_STYLE, STATUS_STYLE, FIN_ACTIONS,
@@ -50,6 +51,7 @@ export function Admin() {
       <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: 'var(--ink)', marginBottom: 4 }}>User Access &amp; Roles</div>
       <div style={{ fontSize: 13, color: 'var(--c-5c6b65)', marginBottom: 20 }}>Manage accounts (Internal, Client, Consultant) and the roles that control what each can see. New users are emailed a link to set their own password — until they use it, or sign in with Google, the account stays <strong>Pending</strong>.</div>
       {readOnly && <div style={{ fontSize: 12, color: 'var(--c-8a6d12)', background: 'var(--amber-light)', borderRadius: 8, padding: '8px 12px', marginBottom: 16, display: 'inline-block' }}>Your role has view-only access to this page.</div>}
+      <UnlinkedLogins canFix={!readOnly} />
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 28, alignItems: 'flex-start' }}>
         {nav}
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto' }}>

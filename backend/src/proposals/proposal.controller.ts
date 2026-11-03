@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Response } from 'express';
 import { ProposalService } from './proposal.service';
 import { Tiers } from '../auth/guards/roles.decorator';
@@ -8,7 +8,11 @@ import { SettingsService } from '../settings/settings.service';
 import { BRAND_KEYS, brandingFrom, buildLetterHtml, safeFilename } from '../documents/letterhead';
 import type { AuthedRequest } from '../auth/guards/session.guard';
 import { assertFilled } from '../email-templates/placeholders';
+import { Perm } from '../auth/guards/perm.guard';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
+@Perm('pipeline', 'crm_holding', 'changeorders')
+@UseInterceptors(ProjectScope)
 @Controller('proposals')
 export class ProposalController {
   constructor(

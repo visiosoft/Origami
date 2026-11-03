@@ -13,7 +13,9 @@ import { CreateFolderDto, UpdateFileDto, EmailFileDto, MoveFileDto, FileIdsDto, 
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
 import { MarkupsService } from './markups.service';
+import { Perm } from '../auth/guards/perm.guard';
 
+@Perm('planroom', 'allfiles', 'projects', 'pm', 'design')
 @Controller('file-room')
 export class FileRoomController {
   constructor(
@@ -124,7 +126,7 @@ export class FileRoomController {
 
   /** Which projects this account may see files of. */
   private async seeProject(claims?: SessionClaims | null) {
-    if (this.access.isStaff(claims ?? null)) return () => true;
+    // Staff on "Assigned projects" are narrowed too (Oct 30 sync), not only outside accounts.
     const allowed = await this.access.allowedIds(claims ?? null);
     return (id: unknown) => allowed === 'all' || allowed.has(Number(id));
   }
@@ -158,10 +160,10 @@ export class FileRoomController {
     const scoped = Number.isFinite(pid) && pid > 0 ? pid : undefined;
     if (scoped) await this.access.assert(claims ?? null, scoped);
     const all = await this.service.list(scoped);
-    if (this.access.isStaff(claims ?? null)) return all;
-    // Outside accounts see only the projects they're linked to.
+    // Outside accounts, and staff on "Assigned projects", see only their projects.
     const allowed = await this.access.allowedIds(claims ?? null);
-    const ok = (id: unknown) => allowed === 'all' || allowed.has(Number(id));
+    if (allowed === 'all') return all;
+    const ok = (id: unknown) => allowed.has(Number(id));
     return { ...all, projects: all.projects.filter((p: any) => ok(p.id)), files: all.files.filter((f: any) => ok(f.projectId)), folders: all.folders.filter((f: any) => ok(f.projectId)) };
   }
 

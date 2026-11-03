@@ -199,6 +199,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // restart showed a superintendent every page in the menu.
       if (!authUser) return false;
       if (authUser.roleKey === 'admin') return true;
+      // Your own access (role plus your personal changes), as the server checks it (Oct 30 sync); the role alone if that hasn't come yet.
+      if (authUser.rolePermissions) return !!authUser.rolePermissions[moduleKey]?.[action];
       if (!currentRole) return false;
       return canFor(currentRole, moduleKey, action);
     },

@@ -2,7 +2,7 @@ import { ForbiddenException, Global, Injectable, Module, Optional, UnauthorizedE
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PersonEntity, ProjectEntity, RoleEntity, UserEntity } from '../database/entities';
-import { effectivePermissions, extentOf } from '../users/access-levels';
+import { effectivePermissions, extentOf, type PermMap } from '../users/access-levels';
 import type { SessionClaims } from './crypto.util';
 import { PORTAL_ROLE } from './guards/roles.decorator';
 
@@ -24,18 +24,45 @@ export class ProjectAccessService {
     @Optional() @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
   ) {}
 
-  // Role / user lookups are asked for on most project reads: kept a few seconds.
-  private cache = new Map<string, { at: number; assigned: boolean }>();
+  // Role / user lookups are asked for on most reads: kept a few seconds.
+  private cache = new Map<string, { at: number; perms: PermMap }>();
+  /** The caller's role permissions with their own overrides on top (what the menu shows them). */
+  async permissions(claims: SessionClaims): Promise<PermMap> {
+    if (!this.roles || !this.users) return {};
+    const key = claims.sub + '|' + claims.roleKey;
+    const hit = this.cache.get(key);
+    if (hit && Date.now() - hit.at < 15_000) return hit.perms;
+    const [role, user] = await Promise.all([this.roles.findOneBy({ key: claims.roleKey }), this.users.findOneBy({ id: claims.sub })]);
+    const perms = effectivePermissions(role?.permissions as any, user?.permissionOverrides as any);
+    this.cache.set(key, { at: Date.now(), perms });
+    return perms;
+  }
+  /**
+   * May the caller view any of these modules (Oct 30 sync: the server now
+   * applies the role's settings, not only the menu)? Administrators always;
+   * clients, consultants and guests are scoped elsewhere, by project.
+   */
+  async canView(claims: SessionClaims | null, ...modules: string[]): Promise<boolean> {
+    if (!claims) return false;
+    if (claims.roleKey === 'admin' || !this.isStaff(claims)) return true;
+    const perms = await this.permissions(claims);
+    return modules.some((m) => !!perms[m]?.view);
+  }
+  /** Throws unless the caller may view one of these modules. */
+  async assertView(claims: SessionClaims | null, what: string, ...modules: string[]) {
+    if (!(await this.canView(claims, ...modules))) throw new ForbiddenException(`Your role doesn’t include ${what}.`);
+  }
   /** Staff whose access says "Assigned projects" (role overall, or their own change): only their projects. */
   private async assignedOnly(claims: SessionClaims): Promise<boolean> {
     if (claims.roleKey === 'admin' || !this.roles || !this.users) return false;
-    const key = claims.sub + '|' + claims.roleKey;
-    const hit = this.cache.get(key);
-    if (hit && Date.now() - hit.at < 15_000) return hit.assigned;
-    const [role, user] = await Promise.all([this.roles.findOneBy({ key: claims.roleKey }), this.users.findOneBy({ id: claims.sub })]);
-    const assigned = extentOf(effectivePermissions(role?.permissions as any, user?.permissionOverrides as any)) === 'assigned';
-    this.cache.set(key, { at: Date.now(), assigned });
-    return assigned;
+    return extentOf(await this.permissions(claims)) === 'assigned';
+  }
+
+  /** 'all', or the names of the projects the caller may read -- for records kept by project name (the Special Actions Log, people). */
+  async allowedNames(claims: SessionClaims | null): Promise<'all' | Set<string>> {
+    const ids = await this.allowedIds(claims);
+    if (ids === 'all') return 'all';
+    return new Set((await this.projects.find()).filter((p) => ids.has(p.id)).map((p) => p.name));
   }
 
   /** True for staff (and administrators, whatever their tier). */

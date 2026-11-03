@@ -8,6 +8,7 @@ import { GoogleService } from '../google/google.service';
 import { PersonEntity, ProjectEntity } from '../database/entities';
 import { PeopleService } from './people.service';
 import { IMPORT_COLUMNS, planImport } from './people-import';
+import { Perm } from '../auth/guards/perm.guard';
 
 export class ImportPeopleDto {
   @IsArray() rows: Record<string, unknown>[];
@@ -24,6 +25,7 @@ export class ImportPeopleDto {
  * becomes a contractor and staff become employees exactly as if added by hand.
  */
 @Tiers('internal')
+@Perm('people')
 @Controller('people/import')
 export class PeopleImportController {
   constructor(

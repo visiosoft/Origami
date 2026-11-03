@@ -2,8 +2,10 @@ import { Controller, Get, Post, Put, Delete, Param, Query, Body } from '@nestjs/
 import { Tiers } from '../auth/guards/roles.decorator';
 import { WorkflowItemsService } from './workflow-items.service';
 import { CreateWorkflowItemDto } from './dto/create-workflow-item.dto';
+import { Perm } from '../auth/guards/perm.guard';
 
 @Tiers('internal')
+@Perm('design', 'pm', 'projects')
 @Controller('workflow-items')
 export class WorkflowItemsController {
   constructor(private readonly service: WorkflowItemsService) {}

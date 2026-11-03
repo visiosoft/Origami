@@ -2,8 +2,10 @@ import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common'
 import { Tiers } from '../auth/guards/roles.decorator';
 import { ConsultantsService } from './consultants.service';
 import { ConsultantEntity } from '../database/entities';
+import { Perm } from '../auth/guards/perm.guard';
 
 @Tiers('internal')
+@Perm('prequal', 'sub_prequal', 'gc_prequal', 'people')
 @Controller('consultants')
 export class ConsultantsController {
   constructor(private readonly service: ConsultantsService) {}

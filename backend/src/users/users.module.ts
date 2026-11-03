@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserEntity, RoleEntity, ProjectTaskEntity, TaskEntity, AppSettingEntity } from '../database/entities';
+import { UserEntity, RoleEntity, ProjectTaskEntity, TaskEntity, AppSettingEntity, PersonEntity } from '../database/entities';
 import { AuthModule } from '../auth/auth.module';
 import { UsersController } from './users.controller';
 import { RolesController } from './roles.controller';
@@ -9,7 +9,7 @@ import { RolesService } from './roles.service';
 import { AccessImportService } from './access-import.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEntity, RoleEntity, ProjectTaskEntity, TaskEntity, AppSettingEntity]), AuthModule],
+  imports: [TypeOrmModule.forFeature([UserEntity, RoleEntity, ProjectTaskEntity, TaskEntity, AppSettingEntity, PersonEntity]), AuthModule],
   controllers: [UsersController, RolesController],
   providers: [UsersService, RolesService, AccessImportService],
 })

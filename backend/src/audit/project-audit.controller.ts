@@ -1,6 +1,7 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { AuditService } from './audit.service';
+import { Perm } from '../auth/guards/perm.guard';
 
 /**
  * A project's audit trail, under its Overview (Oct 27 sync: "restore the audit
@@ -8,6 +9,7 @@ import { AuditService } from './audit.service';
  * since money details are for finance roles.
  */
 @Tiers('internal')
+@Perm('projects')
 @Controller('audit-project')
 export class ProjectAuditController {
   constructor(private readonly audit: AuditService) {}

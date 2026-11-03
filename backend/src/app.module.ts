@@ -39,6 +39,7 @@ import { ViewsModule } from './views/views.module';
 import { SpecialActionsModule } from './special-actions/special-actions.module';
 import { SessionGuard } from './auth/guards/session.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
+import { PermGuard } from './auth/guards/perm.guard';
 
 // SQL is the single source of truth — TypeORM is always on (no in-memory
 // fallback). The app requires a reachable SQL database to run.
@@ -109,6 +110,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
   providers: [
     { provide: APP_GUARD, useClass: SessionGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    // After the role/tier check: the module a route belongs to, against the caller's access settings.
+    { provide: APP_GUARD, useClass: PermGuard },
   ],
 })
 export class AppModule { }

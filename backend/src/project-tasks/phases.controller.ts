@@ -5,8 +5,10 @@ import { Claims } from '../auth/guards/claims.decorator';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { ProjectAccessService } from '../auth/project-access.service';
 import type { SessionClaims } from '../auth/crypto.util';
+import { Perm } from '../auth/guards/perm.guard';
 
 
+@Perm('projects', 'tasks', 'design', 'pm')
 @Controller('project-phases')
 export class PhasesController {
   constructor(private readonly service: PhasesService, private readonly access: ProjectAccessService) {}

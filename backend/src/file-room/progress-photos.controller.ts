@@ -7,7 +7,9 @@ import type { SessionClaims } from '../auth/crypto.util';
 import { AuthService } from '../auth/auth.service';
 import { MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from './file-room.service';
 import { ProgressPhotosService } from './progress-photos.service';
+import { Perm } from '../auth/guards/perm.guard';
 
+@Perm('progress_photos', 'projects', 'pm')
 @Controller('progress-photos')
 export class ProgressPhotosController {
   constructor(

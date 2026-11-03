@@ -5,10 +5,12 @@ import { AuthService } from '../auth/auth.service';
 import { Tiers } from '../auth/guards/roles.decorator';
 import type { AuthedRequest } from '../auth/guards/session.guard';
 import { cleanTeam, parseTeam, SITE_VISIT_TEAM_KEY, type Guest, type TeamMember } from './site-visit-team';
+import { Perm } from '../auth/guards/perm.guard';
 
 export interface ConfiguredCalendar { name: string; email: string }
 
 @Tiers('internal')
+@Perm('schedule', 'pipeline', 'projects')
 @Controller('scheduling')
 export class SchedulingController {
   constructor(

@@ -14,7 +14,9 @@ import { Claims } from '../auth/guards/claims.decorator';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { ProjectAccessService } from '../auth/project-access.service';
 import type { SessionClaims } from '../auth/crypto.util';
+import { Perm } from '../auth/guards/perm.guard';
 
+@Perm('projects', 'tasks', 'design', 'pm')
 @Controller('project-tasks')
 export class ProjectTasksController {
   constructor(
@@ -29,8 +31,9 @@ export class ProjectTasksController {
    * projects they're linked to that are assigned to them; staff, anything.
    */
   private async mayTouch(id: string, claims: SessionClaims | null) {
-    if (this.access.isStaff(claims)) return;
     const task = await this.service.get(id);
+    // Staff: any task on a project they may see (all of them, unless their access is "Assigned projects").
+    if (this.access.isStaff(claims)) { if (task.projectId) await this.access.assert(claims, task.projectId); return; }
     await this.access.assert(claims, task.projectId);
     if (!claims || !assignedTo(task as any, claims)) throw new ForbiddenException('That task isn’t assigned to you.');
   }

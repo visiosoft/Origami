@@ -9,8 +9,10 @@ import { SectionsService } from './sections.service';
 import { ProjectTasksService } from './project-tasks.service';
 import { CreateSectionDto } from './dto/create-section.dto';
 import { COLUMN_EDITORS } from './board-columns';
+import { Perm } from '../auth/guards/perm.guard';
 
 @Tiers('internal')
+@Perm('projects', 'tasks', 'design', 'pm')
 @Controller('project-sections')
 export class SectionsController {
   constructor(

@@ -18,6 +18,7 @@ import { FinanceHubService } from './finance-hub.service';
 import { CostsService } from './costs.service';
 import { ProjectSubsService } from './project-subs.service';
 import { ReportsService } from './reports.service';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
 const kindOf = (k: string) => {
   if (k !== 'phase' && k !== 'task' && k !== 'project') throw new BadRequestException('Unknown item.');
@@ -30,6 +31,7 @@ const kindOf = (k: string) => {
  * partial updates of a few fields.
  */
 @Tiers('internal')
+@UseInterceptors(ProjectScope)
 @Controller('finance')
 export class FinanceController {
   constructor(

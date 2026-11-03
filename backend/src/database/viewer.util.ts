@@ -47,3 +47,17 @@ export function scopeTasks<T extends Record<string, any>>(tasks: T[], claims: Se
   // Internal or Financial items stay with our own team even when assigned out.
   return tasks.filter((t) => assignedTo(t, claims) && !internalOnly(t.tags));
 }
+
+/**
+ * Staff on "Assigned projects" (Oct 30 sync): a Special Actions entry is
+ * theirs to see when it's on one of their projects, or when it's on none and
+ * it's assigned to them, shared with them or raised by them.
+ */
+export function onMyProjects<T extends Record<string, any>>(rows: T[], allowed: 'all' | Set<string>, claims: SessionClaims): T[] {
+  if (allowed === 'all') return rows;
+  return rows.filter((t) => {
+    const project = String(t.project || '').trim();
+    if (project) return allowed.has(project);
+    return assignedTo(t, claims) || t.createdById === claims.sub;
+  });
+}

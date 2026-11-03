@@ -1,7 +1,7 @@
-import { Injectable, OnApplicationBootstrap, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import { Optional, Injectable, OnApplicationBootstrap, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserEntity, ProjectTaskEntity, TaskEntity } from '../database/entities';
+import { UserEntity, ProjectTaskEntity, TaskEntity, PersonEntity } from '../database/entities';
 import { DEFAULT_USERS } from '../seed-data/users';
 import { AuthService, publicUser } from '../auth/auth.service';
 
@@ -14,7 +14,64 @@ export class UsersService implements OnApplicationBootstrap {
     @InjectRepository(ProjectTaskEntity) private readonly projectTasks: Repository<ProjectTaskEntity>,
     @InjectRepository(TaskEntity) private readonly tasks: Repository<TaskEntity>,
     private readonly auth: AuthService,
+    @Optional() @InjectRepository(PersonEntity) private readonly people?: Repository<PersonEntity>,
   ) {}
+
+  // ---------------------------------------------------------------- logins and People (Oct 30 sync)
+  // Projects are given to a person through their People record, so a login
+  // without one can't be given any project. Each login is tied to one.
+
+  /** The People record for a login: the one given from it (userId), else the one with its email. */
+  private async personFor(user: Pick<UserEntity, 'id' | 'email'>, all?: PersonEntity[]) {
+    const rows = all || (await this.people!.find());
+    const email = String(user.email || '').trim().toLowerCase();
+    return rows.find((p) => p.userId === user.id) || (email ? rows.find((p) => String(p.email || '').trim().toLowerCase() === email) : undefined);
+  }
+
+  /** Tie a login to People: link the matching record, or add one (Staff for the team, Client / Consultant otherwise). */
+  async linkPerson(user: Pick<UserEntity, 'id' | 'email' | 'name' | 'tier'>, all?: PersonEntity[]) {
+    if (!this.people || String(user.id).startsWith('GUEST-')) return null;
+    const found = await this.personFor(user, all);
+    if (found) {
+      if (!found.userId) { found.userId = user.id; await this.people.save(found); }
+      return found;
+    }
+    const rows = all || (await this.people.find());
+    const id = rows.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1;
+    const tier = user.tier === 'client' ? 'Client' : user.tier === 'consultant' ? 'Consultant' : 'Internal';
+    const made = this.people.create({
+      id, name: user.name || user.email, email: String(user.email || '').trim(), userId: user.id, tier,
+      kind: tier === 'Internal' ? 'Staff' : tier, role: '', company: '', phone: '',
+      projects: [], openTasks: 0, since: new Date().toISOString().slice(0, 10), comply: null, last: 'Login created',
+    } as Partial<PersonEntity>);
+    const saved = await this.people.save(made);
+    rows.push(saved);
+    return saved;
+  }
+
+  /** Logins with no People record (so no projects can be given to them). */
+  async unlinked() {
+    if (!this.people) return [];
+    const [users, people] = await Promise.all([this.repo.find(), this.people.find()]);
+    const out = [];
+    for (const u of users) if (!String(u.id).startsWith('GUEST-') && !(await this.personFor(u, people))) out.push({ id: u.id, name: u.name, email: u.email, tier: u.tier, roleKey: u.roleKey });
+    return out;
+  }
+
+  /** Add every unlinked login to People (an admin presses this; nothing runs on its own). */
+  async linkAllPeople() {
+    if (!this.people) return { linked: 0 };
+    const [users, people] = await Promise.all([this.repo.find(), this.people.find()]);
+    let linked = 0;
+    for (const u of users) {
+      if (String(u.id).startsWith('GUEST-')) continue;
+      const had = await this.personFor(u, people);
+      if (had && had.userId === u.id) continue;
+      await this.linkPerson(u, people);
+      linked++;
+    }
+    return { linked };
+  }
 
   async onApplicationBootstrap() {
     try {
@@ -74,6 +131,8 @@ export class UsersService implements OnApplicationBootstrap {
       email: String(dto.email || '').trim(),
     } as Partial<UserEntity>);
     const saved = await this.repo.save(user);
+    // Every new login gets its People record, so it can be given projects straight away.
+    await this.linkPerson(saved).catch((err: Error) => this.log.warn(`Could not add ${saved.email} to People: ${err.message}`));
 
     let invite: { sent: boolean; url?: string; error?: string } = { sent: false };
     try {

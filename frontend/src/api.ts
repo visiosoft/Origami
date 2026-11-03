@@ -642,6 +642,9 @@ export const api = {
     /** Names and roles of the team, for people pickers -- open to all staff (the full list is admin-only). */
     directory: () => request('/users/directory'),
     create: (data: unknown) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
+    /** Logins with no People record (they can't be given projects), and adding them all to People. */
+    unlinked: () => request<{ id: string; name: string; email: string; tier: string; roleKey: string }[]>('/users/unlinked', { cache: 'no-store' } as any),
+    linkPeople: () => request<{ linked: number }>('/users/link-people', { method: 'POST' }),
     update: (id: string, data: unknown) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/users/${id}`, { method: 'DELETE' }),
     resendInvite: (id: string) => request<{ invite: { sent: boolean; url?: string; error?: string } }>(`/users/${id}/resend-invite`, { method: 'POST' }),

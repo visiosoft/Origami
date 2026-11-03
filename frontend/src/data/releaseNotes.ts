@@ -16,6 +16,25 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03b',
+    date: '2026-11-03',
+    title: 'Access settings are enforced everywhere',
+    items: [
+      { area: 'Access', kind: 'fixed', text: 'What a role may see is now checked by the server, not only hidden from the menu. A module that isn’t ticked for a role (or for the person) can’t be opened or read some other way — for example the dashboard’s money figures, CRM & Leads, People, Meetings, contracts and proposals.', where: 'Settings → User Access & Roles' },
+      { area: 'Access', kind: 'fixed', text: '“Assigned projects” now holds everywhere: the Special Actions Log, Meetings, People, the File Room, project tasks, finance, RFIs and contracts only show that person’s projects (the ones on their People record).' },
+      { area: 'Access', kind: 'improved', text: 'A person’s own access changes now also decide their menu (before, only their role did).' },
+    ],
+  },
+  {
+    id: '2026-11-03a',
+    date: '2026-11-03',
+    title: 'Every login is in People',
+    items: [
+      { area: 'Access', kind: 'fixed', text: 'A login invited from Access now gets its People record straight away (linked to an existing one with the same email, or added), so it can be given projects. Before, a login made in Access couldn’t be assigned to a project.', where: 'Settings → User Access & Roles → + Invite person' },
+      { area: 'Access', kind: 'new', text: 'Logins made before this that aren’t in People are listed at the top of User Access & Roles, with “Add them to People” to fix them in one go.' },
+    ],
+  },
+  {
     id: '2026-10-31h',
     date: '2026-10-31',
     title: 'A cleaner Project Program PDF',
