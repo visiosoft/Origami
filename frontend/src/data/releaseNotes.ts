@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03f',
+    date: '2026-11-03',
+    title: 'Choose who sees each markup layer',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Each layer on a drawing has “Who sees it” (👁): everyone who can open the drawing, our team only, or our team plus picked people or companies — e.g. just the electrical sub. Restricted layers show a 🔒 or 👥 badge, and downloads follow the same rule.', where: 'File Room → Mark up → Layers' },
+      { area: 'Drawings', kind: 'improved', text: 'Anyone with markups on a layer, and admins and principals, can change who sees it; admins and principals always see every layer.' },
+    ],
+  },
+  {
     id: '2026-11-03e',
     date: '2026-11-03',
     title: 'One shared list of tags',

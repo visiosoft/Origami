@@ -3,10 +3,10 @@ import { SettingsService } from '../settings/settings.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { FileRoomFileEntity, MarkupSymbolEntity, PdfMarkupEntity } from '../database/entities';
+import { FileRoomFileEntity, MarkupLayerEntity, MarkupSymbolEntity, PdfMarkupEntity, PersonEntity } from '../database/entities';
 import type { SessionClaims } from '../auth/crypto.util';
 import { FileRoomService } from './file-room.service';
-import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, cleanSymbolImage, cleanSymbolName, isMarkable, isPhotoName, leadsMarkups, photoToPdf, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
+import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, cleanSymbolImage, cleanSymbolName, isMarkable, isPhotoName, leadsMarkups, photoToPdf, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, cleanLayerRule, visibleWithLayers, type LayerAudience, type LayerRule, type LayerViewer, type MarkupData } from './markups';
 
 /** Where photos pinned to a drawing are kept in the project's File Room. */
 export const PIN_PHOTO_FOLDER = ['Markup photos'];
@@ -20,7 +20,52 @@ export class MarkupsService {
     private readonly fileRoom: FileRoomService,
     @Optional() private readonly settings?: SettingsService,
     @Optional() @InjectRepository(MarkupSymbolEntity) private readonly symbolRepo?: Repository<MarkupSymbolEntity>,
+    @Optional() @InjectRepository(MarkupLayerEntity) private readonly layerRepo?: Repository<MarkupLayerEntity>,
+    @Optional() @InjectRepository(PersonEntity) private readonly people?: Repository<PersonEntity>,
   ) {}
+
+  // ---------------------------------------------------------------- layer access (Oct 30 sync)
+  private async rulesFor(fileId: string): Promise<LayerRule[]> {
+    const rows = (await this.layerRepo?.find({ where: { fileId } })) || [];
+    return rows.map((r) => ({ layerKey: r.layerKey, audience: r.audience as LayerAudience, people: r.people }));
+  }
+  private async viewer(claims: SessionClaims | null): Promise<LayerViewer> {
+    const internal = !!claims && (claims.roleKey === 'admin' || claims.tier === 'internal');
+    let company: string | null = null;
+    if (claims && !internal && this.people) {
+      const email = String(claims.email || '').trim().toLowerCase();
+      const p = (await this.people.find()).find((x) => (x.userId && x.userId === claims.sub) || (!!email && String(x.email || '').trim().toLowerCase() === email));
+      company = p?.company || null;
+    }
+    return { userId: claims?.sub, roleKey: claims?.roleKey, internal, company };
+  }
+  /** The markups this person may see on a drawing: private drafts and layer access applied. */
+  private async visible<T extends PdfMarkupEntity>(fileId: string, rows: T[], claims: SessionClaims | null): Promise<T[]> {
+    return visibleWithLayers(rows, await this.rulesFor(fileId), await this.viewer(claims));
+  }
+
+  /** Each layer's audience on a drawing (only the ones that aren't Everyone). */
+  async layerAccess(fileId: string) {
+    return (await this.rulesFor(fileId)).filter((r) => r.audience !== 'everyone');
+  }
+
+  /**
+   * Choose who sees a layer: Everyone, Internal only, or picked people and
+   * companies. Its authors, admins and principals may change it.
+   */
+  async setLayerAccess(fileId: string, key: string, raw: unknown, claims: SessionClaims | null) {
+    this.assertCanDraw(claims);
+    if (!this.layerRepo) throw new BadRequestException('Layer access isn’t available.');
+    const rows = (await this.list(fileId, claims)).filter((m) => layerKey(m) === key);
+    if (!rows.length) throw new NotFoundException('That layer has no markups.');
+    if (!leadsMarkups(claims!.roleKey) && !rows.some((m) => m.authorId === claims!.sub)) throw new ForbiddenException('Only someone with markups on this layer (or an admin or principal) can change who sees it.');
+    let rule;
+    try { rule = cleanLayerRule(raw); } catch (e) { throw new BadRequestException((e as Error).message); }
+    const id = `${fileId}|${key}`;
+    if (rule.audience === 'everyone') { await this.layerRepo.delete({ id }); return { layerKey: key, audience: 'everyone', people: [] }; }
+    await this.layerRepo.save(this.layerRepo.create({ id, fileId, layerKey: key, audience: rule.audience, people: rule.people, updatedBy: claims!.name, updatedAt: new Date().toISOString() }));
+    return { layerKey: key, ...rule };
+  }
 
   // ---------------------------------------------------------------- symbols (Oct 31)
   /** The shared symbol library, in order. */
@@ -82,7 +127,7 @@ export class MarkupsService {
 
   async list(fileId: string, claims: SessionClaims | null) {
     const rows = await this.repo.find({ where: { fileId } });
-    return visibleTo(rows, claims?.sub, claims?.roleKey).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return (await this.visible(fileId, rows, claims)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   async create(fileId: string, raw: unknown, claims: SessionClaims | null) {
@@ -155,6 +200,13 @@ export class MarkupsService {
     if (!rows.length) throw new NotFoundException('That layer has no markups.');
     const now = new Date().toISOString();
     for (const m of rows) { m.layer = to; m.updatedAt = now; await this.repo.save(m); }
+    // Who sees it goes with the layer.
+    const rule = await this.layerRepo?.findOneBy({ id: `${fileId}|${key}` });
+    if (rule && this.layerRepo) {
+      const nk = layerKey({ layer: to });
+      await this.layerRepo.delete({ id: rule.id });
+      await this.layerRepo.save({ ...rule, id: `${fileId}|${nk}`, layerKey: nk });
+    }
     return { layer: to, updated: rows.length };
   }
 
@@ -163,7 +215,7 @@ export class MarkupsService {
     this.assertCanDraw(claims);
     const m = await this.repo.findOneBy({ id: mid });
     if (!m) throw new NotFoundException('Markup not found');
-    if (!visibleTo([m], claims!.sub, claims!.roleKey).length) throw new NotFoundException('Markup not found');
+    if (!(await this.visible(m.fileId, [m], claims)).length) throw new NotFoundException('Markup not found');
     if (m.kind !== 'pin') throw new BadRequestException('Photos go on a pin.');
     const images = (incoming || []).filter((f) => /^image\//i.test(f.mimetype || ''));
     if (!images.length) throw new BadRequestException('Pick a photo.');
@@ -183,7 +235,7 @@ export class MarkupsService {
     this.assertCanDraw(claims);
     const m = await this.repo.findOneBy({ id: mid });
     if (!m) throw new NotFoundException('Markup not found');
-    if (!visibleTo([m], claims!.sub, claims!.roleKey).length) throw new NotFoundException('Markup not found');
+    if (!(await this.visible(m.fileId, [m], claims)).length) throw new NotFoundException('Markup not found');
     const data = m.data as unknown as MarkupData;
     m.data = { ...data, photos: (data.photos || []).filter((p) => p.fileId !== fileId) } as any;
     m.updatedAt = new Date().toISOString();

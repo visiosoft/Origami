@@ -1,7 +1,7 @@
 import { TrackingModule } from '../tracking/tracking.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { FileRoomFileEntity, FileRoomFolderEntity, FileRoomShareEntity, MarkupSymbolEntity, PdfMarkupEntity, ProgressPhotoEntity, ProgressNoteEntity, ProjectEntity } from '../database/entities';
+import { FileRoomFileEntity, FileRoomFolderEntity, FileRoomShareEntity, MarkupLayerEntity, MarkupSymbolEntity, PdfMarkupEntity, PersonEntity, ProgressPhotoEntity, ProgressNoteEntity, ProjectEntity } from '../database/entities';
 import { MarkupsService } from './markups.service';
 import { ProgressPhotosController } from './progress-photos.controller';
 import { ProgressPhotosService } from './progress-photos.service';
@@ -12,7 +12,7 @@ import { FileRoomService } from './file-room.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([FileRoomFileEntity, FileRoomFolderEntity, FileRoomShareEntity, MarkupSymbolEntity, PdfMarkupEntity, ProjectEntity, ProgressPhotoEntity, ProgressNoteEntity]),
+    TypeOrmModule.forFeature([FileRoomFileEntity, FileRoomFolderEntity, FileRoomShareEntity, MarkupSymbolEntity, MarkupLayerEntity, PersonEntity, PdfMarkupEntity, ProjectEntity, ProgressPhotoEntity, ProgressNoteEntity]),
     GoogleModule,
     AuthModule,
     TrackingModule,

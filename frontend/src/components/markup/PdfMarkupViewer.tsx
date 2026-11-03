@@ -1,7 +1,8 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
+import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
   FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
@@ -333,6 +334,22 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
 
   // ---------------------------------------------------------------- helpers
   const layers = useMemo(() => layersOf(marks, me), [marks, me]);
+  // Who sees each layer (Oct 30 sync): only the restricted ones come back.
+  const [layerRules, setLayerRules] = useState<Record<string, LayerRule>>({});
+  const [accessFor, setAccessFor] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    api.fileRoom.layerAccess(file.id).then((r) => { if (live) setLayerRules(Object.fromEntries((r || []).map((x) => [x.layerKey, x]))); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [file.id]);
+  const canSetAccess = (key: string) => canDraw && (isAdmin || marks.some((m) => layerKey(m) === key && m.authorId === me));
+  const saveAccess = async (key: string, r: { audience: LayerAudience; people: LayerPerson[] }) => {
+    try {
+      const saved = await api.fileRoom.setLayerAccess(file.id, key, r);
+      setLayerRules((prev) => { const n = { ...prev }; if (saved.audience === 'everyone') delete n[key]; else n[key] = saved; return n; });
+      toast(saved.audience === 'everyone' ? 'Everyone can see this layer' : saved.audience === 'internal' ? 'Only our team sees this layer' : 'Only our team and the people you picked see this layer');
+    } catch (e) { toast('⚠ ' + (e as Error).message); throw e; }
+  };
   const namedLayers = layers.filter((l) => l.named).map((l) => l.name);
   const shownMarks = marks.filter((m) => !hidden.has(layerKey(m)));
   const onPage = shownMarks.filter((m) => m.page === pageNo);
@@ -1079,14 +1096,19 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
               )}
               {!layers.length && <p className="mk-muted">No markups yet{canDraw ? ' — pick a tool and draw.' : '.'}</p>}
               {layers.map((l) => (
-                <div key={l.key} className="mk-layer">
+                <Fragment key={l.key}>
+                <div className="mk-layer">
                   <label>
                     <input type="checkbox" checked={!hidden.has(l.key)} onChange={() => { const n = new Set(hidden); if (n.has(l.key)) n.delete(l.key); else n.add(l.key); setHidden(n); }} />
                     <span>{l.named ? l.name : <>{l.name} <em>own layer</em></>}</span>
                   </label>
+                  {layerBadge(layerRules[l.key]) && <span className="mk-layer-badge" title="Who sees this layer">{layerBadge(layerRules[l.key])}</span>}
                   <small>{l.count}</small>
                   {canRename(l) && <button type="button" className="mk-layer-edit" onClick={() => void renameLayer(l)} aria-label={`Rename ${l.name}`} title={l.named ? 'Rename for everyone' : 'Name this layer'}>✎</button>}
+                  {canSetAccess(l.key) && <button type="button" className="mk-layer-edit" onClick={() => setAccessFor(accessFor === l.key ? null : l.key)} aria-label={`Who sees ${l.name}`} title="Who sees this layer">👁</button>}
                 </div>
+                {accessFor === l.key && <LayerAccessEditor name={l.name} rule={layerRules[l.key]} onSave={(r) => saveAccess(l.key, r)} onClose={() => setAccessFor(null)} />}
+                </Fragment>
               ))}
             </section>
 

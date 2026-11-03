@@ -919,6 +919,9 @@ export const api = {
     /** A drawing's sheet names by page ("1": "A100"); saving merges page by page unless `replace`. */
     sheets: (id: string) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { cache: 'no-store' } as any),
     setSheets: (id: string, names: Record<string, string>, replace = false) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { method: 'PUT', body: JSON.stringify({ names, replace }) }),
+    /** Who sees each layer on a drawing (only restricted ones), and changing one (Oct 30 sync). */
+    layerAccess: (id: string) => request<{ layerKey: string; audience: 'everyone' | 'internal' | 'people'; people?: { type: 'user' | 'company'; id: string; name: string }[] }[]>(`/file-room/files/${encodeURIComponent(id)}/layer-access`, { cache: 'no-store' } as any),
+    setLayerAccess: (id: string, layerKey: string, r: { audience: string; people: unknown[] }) => request<{ layerKey: string; audience: 'everyone' | 'internal' | 'people'; people?: { type: 'user' | 'company'; id: string; name: string }[] }>(`/file-room/files/${encodeURIComponent(id)}/layer-access`, { method: 'PUT', body: JSON.stringify({ layerKey, ...r }) }),
     renameLayer: (id: string, from: string | null, to: string, authorId?: string | null) => request<{ layer: string; updated: number }>(`/file-room/files/${encodeURIComponent(id)}/layers`, { method: 'PUT', body: JSON.stringify({ from, to, authorId }) }),
     addPinPhotos: (mid: string, files: File[] | FileList) => requestForm<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos`, filesForm(files)),
     removePinPhoto: (mid: string, fileId: string) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos/${encodeURIComponent(fileId)}`, { method: 'DELETE' }),

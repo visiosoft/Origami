@@ -58,6 +58,20 @@ export class FileRoomController {
     return this.markups.renameLayer(id, body, claims);
   }
 
+  /** Who sees each layer on this drawing (only the restricted ones). */
+  @Get('files/:id/layer-access')
+  async layerAccess(@Param('id') id: string, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.layerAccess(id);
+  }
+
+  /** Who sees one layer: { audience: everyone | internal | people, people?: [{ type, id, name }] }. */
+  @Put('files/:id/layer-access')
+  async setLayerAccess(@Param('id') id: string, @Body() body: any, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.setLayerAccess(id, String(body?.layerKey || ''), body, claims);
+  }
+
   /** The shared drawing-symbol library (admins add, rename and delete). */
   @Get('symbols')
   symbols() { return this.markups.symbols(); }

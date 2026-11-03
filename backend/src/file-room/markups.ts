@@ -166,6 +166,42 @@ export function visibleTo<T extends { private?: boolean | null; authorId?: strin
   return rows.filter((m) => !m.private || (!!userId && m.authorId === userId));
 }
 
+// ---------------------------------------------------------------- layer access (Oct 30 sync)
+export type LayerAudience = 'everyone' | 'internal' | 'people';
+export interface LayerPerson { type: 'user' | 'company'; id: string; name: string }
+export interface LayerRule { layerKey: string; audience: LayerAudience; people?: LayerPerson[] | null }
+/** Who's looking: our team or not, and the company on their People record. */
+export interface LayerViewer { userId?: string; roleKey?: string | null; internal: boolean; company?: string | null }
+
+/** A layer's audience, cleaned; anything unknown is everyone. */
+export function cleanLayerRule(raw: any): { audience: LayerAudience; people: LayerPerson[] } {
+  const audience: LayerAudience = raw?.audience === 'internal' || raw?.audience === 'people' ? raw.audience : 'everyone';
+  const people = audience === 'people'
+    ? (Array.isArray(raw?.people) ? raw.people : [])
+      .filter((p: any) => (p?.type === 'user' || p?.type === 'company') && String(p?.id || '').trim())
+      .slice(0, 50)
+      .map((p: any) => ({ type: p.type, id: String(p.id).trim().slice(0, 120), name: String(p.name || p.id).trim().slice(0, 120) }))
+    : [];
+  if (audience === 'people' && !people.length) throw new Error('Pick at least one person or company.');
+  return { audience, people };
+}
+
+const sameCompany = (a?: string | null, b?: string | null) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** May this viewer see markups on this layer? Our team always sees an Internal or picked layer. */
+export function layerAllows(rule: LayerRule | undefined, v: LayerViewer): boolean {
+  if (!rule || rule.audience === 'everyone') return true;
+  if (v.internal || leadsMarkups(v.roleKey)) return true;
+  if (rule.audience === 'internal') return false;
+  return (rule.people || []).some((p) => (p.type === 'user' && p.id === v.userId) || (p.type === 'company' && sameCompany(p.id, v.company)));
+}
+
+/** visibleTo plus layer access: a markup's author always sees their own. */
+export function visibleWithLayers<T extends { private?: boolean | null; authorId?: string | null; layer?: string | null; authorName?: string | null }>(rows: T[], rules: LayerRule[], v: LayerViewer): T[] {
+  const byKey = new Map(rules.map((r) => [r.layerKey, r]));
+  return visibleTo(rows, v.userId, v.roleKey).filter((m) => (!!v.userId && m.authorId === v.userId) || layerAllows(byKey.get(layerKey(m)), v));
+}
+
 export const canEditMarkup = (m: { authorId?: string | null }, who: { id?: string; isAdmin?: boolean }) => !!who.isAdmin || (!!who.id && m.authorId === who.id);
 
 /**

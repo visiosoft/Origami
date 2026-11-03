@@ -1044,6 +1044,23 @@ export class MarkupSymbolEntity {
   @Column() createdAt!: string;
 }
 
+/**
+ * Who sees a markup layer on one drawing (Oct 30 sync). No row = everyone who
+ * can open the drawing. `internal` = our team only; `people` = our team plus
+ * the listed people and companies (e.g. one sub).
+ */
+@Entity('markup_layers')
+export class MarkupLayerEntity {
+  /** `${fileId}|${layerKey}` */
+  @PrimaryColumn({ type: 'nvarchar', length: 200 }) id!: string;
+  @Column({ type: 'nvarchar', length: 80 }) fileId!: string;
+  @Column({ type: 'nvarchar', length: 120 }) layerKey!: string;
+  @Column({ type: 'nvarchar', length: 20 }) audience!: string;
+  @Column({ type: 'simple-json', nullable: true }) people!: { type: 'user' | 'company'; id: string; name: string }[] | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) updatedBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+}
+
 @Entity('pdf_markups')
 export class PdfMarkupEntity {
   @PrimaryColumn() id!: string;
