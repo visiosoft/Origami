@@ -333,6 +333,23 @@ export function FileRoom() {
 
   // ---- tree ---------------------------------------------------------------
 
+  // Two file areas (Oct 30 sync): All Files shows everything; a project's Plan & File Room
+  // shows its build set -- the folders marked ★ -- once it has one.
+  const isPlanRoom = window.location.pathname === '/planroom';
+  const buildSetOf = (pid: number) => treeData?.projects.find((x) => x.id === pid)?.buildSet || [];
+  const inBuildSet = (pid: number, name: string) => buildSetOf(pid).some((f) => f.toLowerCase() === name.toLowerCase());
+  // People who manage the File Room see every folder (★ marks the build set); everyone else sees the build set.
+  const buildSetOnly = (pid: number) => isPlanRoom && !canManage && buildSetOf(pid).length > 0;
+  const toggleBuildSet = async (pid: number, name: string) => {
+    const now = buildSetOf(pid);
+    const next = inBuildSet(pid, name) ? now.filter((f) => f.toLowerCase() !== name.toLowerCase()) : [...now, name];
+    try {
+      const r = await api.fileRoom.setBuildSet(pid, next);
+      setTreeData((t) => (t ? { ...t, projects: t.projects.map((x) => (x.id === pid ? { ...x, buildSet: r.buildSet } : x)) } : t));
+      toast(inBuildSet(pid, name) ? `${name} taken out of the build set` : `${name} is in the build set`);
+    } catch (e) { toast('⚠ ' + (e as Error).message); }
+  };
+
   const treeRow = (
     label: string, count: number | null, active: boolean, onClick: () => void,
     opts: { indent?: number; chevron?: 'open' | 'closed' | null; onChevron?: () => void } = {},
@@ -372,11 +389,19 @@ export function FileRoom() {
             })}
             {open && (
               <>
-                {subfoldersOf(data, p.id, []).map((name) =>
-                  <div key={name}>
-                    {treeRow(name, countUnder(p.id, [name]),
-                      projectId === p.id && pathKey(folder) === name,
-                      () => setPath([String(p.id), name]), { indent: 26 })}
+                {buildSetOnly(p.id) && <div style={{ marginLeft: 26, padding: '2px 9px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--forest)' }}>Build set</div>}
+                {subfoldersOf(data, p.id, []).filter((name) => !buildSetOnly(p.id) || inBuildSet(p.id, name)).map((name) =>
+                  <div key={name} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {treeRow(name, countUnder(p.id, [name]),
+                        projectId === p.id && pathKey(folder) === name,
+                        () => setPath([String(p.id), name]), { indent: 26 })}
+                    </div>
+                    {canManage && (
+                      <button type="button" onClick={() => void toggleBuildSet(p.id, name)} aria-pressed={inBuildSet(p.id, name)} aria-label={`${inBuildSet(p.id, name) ? 'Take' : 'Put'} ${name} ${inBuildSet(p.id, name) ? 'out of' : 'in'} the build set`}
+                        title={inBuildSet(p.id, name) ? 'In the build set — shown in this project’s Plan & File Room. Click to take it out.' : 'Put in the build set (drawings, selections, specs): the project’s Plan & File Room shows only these'}
+                        style={{ border: 0, background: 'transparent', cursor: 'pointer', fontSize: 13, color: inBuildSet(p.id, name) ? '#C08A00' : 'var(--c-9aa39d)', padding: '4px 6px' }}>{inBuildSet(p.id, name) ? '★' : '☆'}</button>
+                    )}
                   </div>)}
                 {canManage && (newFolderTreeFor === p.id ? (
                   <div style={{ display: 'flex', gap: 5, marginLeft: 26, marginTop: 4 }}>

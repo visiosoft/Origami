@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03i',
+    date: '2026-11-03',
+    title: 'Two file areas: All Files and the build set',
+    items: [
+      { area: 'Files', kind: 'new', text: 'Mark a project’s build-set folders with ☆ (drawing set, selections, specifications). Field staff opening the project’s Plan & File Room then see only those folders.', where: 'Construction → Plan & File Room' },
+      { area: 'Files', kind: 'improved', text: 'All Files still shows everything, for the back office.' },
+      { area: 'Files', kind: 'improved', text: 'Only people who manage the File Room can move, rename, delete, mark as latest, make or remove folders, or add files to the build set — checked by the server too. Everyone else views and marks up; field photos and daily report files still upload.' },
+    ],
+  },
+  {
     id: '2026-11-03h',
     date: '2026-11-03',
     title: 'The menu, regrouped',

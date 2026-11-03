@@ -35,6 +35,8 @@ export class ProjectEntity {
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
   @Column({ type: 'nvarchar', length: 1000, nullable: true }) siteAccess!: string; // lockbox / gate codes, how to get on site
   @Column({ nullable: true }) fileRoomSyncedAt!: string; // ISO time the File Room last pulled this project's Drive folder
+  /** Top-level File Room folders that make up the build set (drawings, selections, specs): the project's Plan & File Room under Construction shows these (Oct 30 sync). */
+  @Column({ type: 'simple-json', nullable: true }) buildSetFolders!: string[] | null;
   @Column({ nullable: true }) introLetterSentAt!: string; // ISO timestamp when the Introduction Letter was sent
   // The composed Introduction Letter, saved as a draft before it's sent --
   // separate from the plain-text template default, so an edit survives a

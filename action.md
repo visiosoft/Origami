@@ -172,4 +172,5 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | I10 | Layer access: choose who sees each layer (Internal only, a given sub) | ✅ (Everyone / Our team / picked people or companies; downloads follow it) |
 | I11 | iPad: tune markup tools for tablets | ✅ (44px+ tools, bigger swatches/grips, slide-over list in portrait, Pencil palm rejection) |
 | I6 | Navigation regroup | ✅ (Special Actions under Main; Pre-construction back office only; Construction regrouped with QA/QC & Safety and Plan & File Room; Resource Enterprise Management = Procurement + Equipment + Manpower) |
+| I5 | Two file areas: All Files vs per-project Plan & File Room (build set) | ✅ (☆ build-set folders per project; field roles see only those; file changes need File Room manage, enforced on the server) |
 | I9 | Emergency tasks alert the team at once | ✅ (assignee, collaborators, originator + every admin; text + email + bell, always on; sent once) |

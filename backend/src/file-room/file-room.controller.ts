@@ -1,4 +1,4 @@
-import {
+import { ForbiddenException,
   Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
 } from '@nestjs/common';
 import { Claims } from '../auth/guards/claims.decorator';
@@ -24,6 +24,16 @@ export class FileRoomController {
     private readonly access: ProjectAccessService,
     private readonly markups: MarkupsService,
   ) {}
+
+  /**
+   * Changing files is for people who manage the File Room (Oct 30 sync: field
+   * staff view and mark up the build set, but don't move, rename or delete).
+   */
+  private async assertManage(claims: SessionClaims | null) {
+    if (claims?.roleKey === 'admin') return;
+    const perms = claims ? await this.access.permissions(claims) : {} as any;
+    if (!perms?.planroom?.manage && !perms?.allfiles?.manage) throw new ForbiddenException('Only people who manage the File Room can change or delete files.');
+  }
 
   // ---------------------------------------------------------------- PDF markup
 
@@ -193,6 +203,9 @@ export class FileRoomController {
     // `path` arrives as JSON in the multipart body — it can't be a real array there.
     let folderPath: string[] = [];
     try { folderPath = path ? JSON.parse(path) : []; } catch { folderPath = []; }
+    // The build set (drawings, selections, specs) is changed by those who manage the File Room.
+    const top = Array.isArray(folderPath) ? String(folderPath[0] || '') : '';
+    if (top && (await this.service.buildSetOf(Number(projectId))).some((f) => f.toLowerCase() === top.toLowerCase())) await this.assertManage(await this.auth.verify(auth));
     return this.service.upload(
       Number(projectId),
       Array.isArray(folderPath) ? folderPath : [],
@@ -225,7 +238,8 @@ export class FileRoomController {
   /** Move several files into one folder. */
   @Tiers('internal')
   @Put('files/move')
-  moveMany(@Body() dto: MoveFilesDto) {
+  async moveMany(@Body() dto: MoveFilesDto, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
     return this.service.moveMany(dto.ids, dto.folderPath);
   }
 
@@ -276,21 +290,33 @@ export class FileRoomController {
   }
 
   /** Lay out the standard project folders (Settings -> File Room) for one project. */
+  /** Mark which top-level folders are the project's build set: { folders: string[] }. */
+  @Tiers('internal')
+  @Put('projects/:pid/build-set')
+  async setBuildSet(@Param('pid') pid: string, @Body() body: { folders?: string[] }, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
+    await this.access.assert(claims ?? null, Number(pid));
+    return this.service.setBuildSet(Number(pid), body?.folders);
+  }
+
   @Tiers('internal')
   @Post('template')
-  template(@Query('projectId') projectId: string) {
+  async template(@Query('projectId') projectId: string, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
     return this.service.applyTemplate(Number(projectId));
   }
 
   @Tiers('internal')
   @Put('files/:id/move')
-  move(@Param('id') id: string, @Body() dto: MoveFileDto) {
+  async move(@Param('id') id: string, @Body() dto: MoveFileDto, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
     return this.service.move(id, dto.folderPath);
   }
 
   @Tiers('internal')
   @Put('files/:id')
-  update(@Param('id') id: string, @Body() dto: UpdateFileDto) {
+  async update(@Param('id') id: string, @Body() dto: UpdateFileDto, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
     return this.service.update(id, dto);
   }
 
@@ -316,25 +342,29 @@ export class FileRoomController {
 
   @Tiers('internal')
   @Put('files/:id/latest')
-  markLatest(@Param('id') id: string) {
+  async markLatest(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
     return this.service.markLatest(id);
   }
 
   @Tiers('internal')
   @Delete('files/:id')
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
     return this.service.remove(id);
   }
 
   @Tiers('internal')
   @Post('folders')
-  createFolder(@Body() dto: CreateFolderDto) {
+  async createFolder(@Body() dto: CreateFolderDto, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
     return this.service.createFolder(Number(dto.projectId), dto.path ?? [], dto.name);
   }
 
   @Tiers('internal')
   @Delete('folders/:id')
-  removeFolder(@Param('id') id: string) {
+  async removeFolder(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
     return this.service.removeFolder(id);
   }
 }

@@ -857,8 +857,10 @@ export const api = {
   fileRoom: {
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
     /** The tree without the files: projects, folders, file counts per folder (counts[projectId][path joined by '>']) and totals. */
+    /** Which top-level folders are the project's build set (Oct 30 sync). */
+    setBuildSet: (projectId: number, folders: string[]) => request<{ projectId: number; buildSet: string[] }>(`/file-room/projects/${projectId}/build-set`, { method: 'PUT', body: JSON.stringify({ folders }) }),
     tree: () => request<{
-      projects: { id: number; name: string; syncedAt?: string | null }[]; categories: string[]; folders: any[];
+      projects: { id: number; name: string; syncedAt?: string | null; buildSet?: string[] }[]; categories: string[]; folders: any[];
       counts: Record<string, Record<string, number>>; totals: { total: number; recent: number; bytes: number };
     }>('/file-room/tree'),
     /** One page of files: a folder's (projectId + path) or every file's; q, latest, dir. */

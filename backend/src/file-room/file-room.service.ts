@@ -148,11 +148,24 @@ export class FileRoomService {
    * each folder holds directly (counts[projectId][folder path joined by '>']),
    * and the totals. The files themselves come a page at a time (filesPage).
    */
+  /** The build set: which top-level folders the project's Plan & File Room shows (Oct 30 sync). */
+  async setBuildSet(projectId: number, folders: unknown) {
+    const p = await this.projects.findOneBy({ id: projectId });
+    if (!p) throw new NotFoundException('Project not found');
+    const list = [...new Set((Array.isArray(folders) ? folders : []).map((f) => String(f).trim()).filter(Boolean))].slice(0, 50);
+    await this.projects.update({ id: projectId }, { buildSetFolders: list.length ? list : null } as any);
+    return { projectId, buildSet: list };
+  }
+  async buildSetOf(projectId: number): Promise<string[]> {
+    const p = await this.projects.findOne({ where: { id: projectId }, select: { id: true, buildSetFolders: true } as any });
+    return Array.isArray(p?.buildSetFolders) ? p!.buildSetFolders : [];
+  }
+
   async tree(ok: (projectId: unknown) => boolean = () => true) {
     const [rows, rawFolders, projects] = await Promise.all([
       this.files.find({ select: { id: true, projectId: true, folderPath: true, size: true, updatedAt: true } }),
       this.folders.find(),
-      this.projects.find({ select: { id: true, name: true, fileRoomSyncedAt: true } }),
+      this.projects.find({ select: { id: true, name: true, fileRoomSyncedAt: true, buildSetFolders: true } }),
     ]);
     const counts: Record<string, Record<string, number>> = {};
     const week = Date.now() - 7 * 864e5;
@@ -167,7 +180,7 @@ export class FileRoomService {
       if (Date.parse(f.updatedAt || '') > week) recent++;
     }
     return {
-      projects: projects.filter((p) => ok(p.id)).map((p) => ({ id: p.id, name: p.name, syncedAt: p.fileRoomSyncedAt || null })),
+      projects: projects.filter((p) => ok(p.id)).map((p) => ({ id: p.id, name: p.name, syncedAt: p.fileRoomSyncedAt || null, buildSet: Array.isArray(p.buildSetFolders) ? p.buildSetFolders : [] })),
       categories: DEFAULT_CATEGORIES,
       folders: rawFolders.filter((f) => ok(f.projectId)).map((f) => ({ ...f, path: Array.isArray(f.path) ? f.path : [] })),
       counts,
