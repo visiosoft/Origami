@@ -1,6 +1,12 @@
 import { pageArgs, pageOf, sortRows } from '../common/paging';
 import { ACTION_TAGS } from '../database/task.types';
 
+/** A standard tag (by key) or a custom one (any case). */
+export const hasTag = (t: { tags?: unknown; labels?: unknown }, tag: string) => {
+  const k = String(tag).trim().toLowerCase();
+  return (Array.isArray(t.tags) && t.tags.includes(k)) || (Array.isArray(t.labels) && t.labels.some((l) => String(l).toLowerCase() === k));
+};
+
 /**
  * The Special Actions Log's filters, worked out on the server so the browser
  * gets one page at a time. Mirrors the rules the page used on the full list
@@ -82,7 +88,7 @@ export function queryLog(all: T[], viewer: Person, o: LogQuery) {
   const tab = (TABS as readonly string[]).includes(o.tab || '') ? o.tab! : 'internal';
   const tabs = Object.fromEntries(TABS.map((t) => [t, scoped(byProject(live.filter((x) => x.tab === t))).length]));
   const inTab = byProject(live.filter((x) => x.tab === tab));
-  const filtered = scoped(inTab).filter((t) => matchesQuery(t, o.q || '') && (!o.tag || (Array.isArray(t.tags) && t.tags.includes(o.tag))));
+  const filtered = scoped(inTab).filter((t) => matchesQuery(t, o.q || '') && (!o.tag || hasTag(t, o.tag)));
   const sorted = sortRows(filtered, o.sort ? SORTS[o.sort] : undefined, o.dir);
 
   // The project picker lists projects first, then leads, in the order they first appear.

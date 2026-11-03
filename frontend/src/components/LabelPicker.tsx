@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { labelStyle } from '../data/projectTasks';
+import { loadTagBank, tagSuggestions, useTagBank } from '../data/tagBank';
 
 /** Small coloured tag. Colour is derived from the label text, so it's stable. */
 export function LabelChip({ label, onRemove }: { label: string; onRemove?: () => void }) {
@@ -14,7 +15,11 @@ export function LabelChip({ label, onRemove }: { label: string; onRemove?: () =>
   );
 }
 
-/** Free-form tags on a task — type to create, click × to remove. */
+/**
+ * Custom tags on a task — type to create, click × to remove. Every tag anyone
+ * has used is in the shared bank (Oct 30 sync), offered as you type; a new one
+ * joins the bank when the task is saved.
+ */
 export function LabelPicker({
   labels,
   canManage,
@@ -28,18 +33,22 @@ export function LabelPicker({
 }) {
   const [draft, setDraft] = useState('');
 
+  const bank = useTagBank();
   const add = (value: string) => {
-    const tag = value.trim();
+    const tag = value.trim().replace(/^#+/, '').replace(/\s+/g, ' ');
     if (!tag || labels.some((l) => l.toLowerCase() === tag.toLowerCase())) { setDraft(''); return; }
-    onChange([...labels, tag]);
+    // A tag already in the bank keeps its spelling ("kitchen" -> "Kitchen").
+    const known = bank.find((b) => !b.standard && b.name.toLowerCase() === tag.toLowerCase());
+    onChange([...labels, known ? known.name : tag]);
     setDraft('');
+    if (!known) setTimeout(() => { void loadTagBank(true); }, 1500);
   };
 
-  const unused = suggestions.filter((s) => !labels.some((l) => l.toLowerCase() === s.toLowerCase())).slice(0, 6);
+  const unused = tagSuggestions([...bank.filter((b) => !b.standard).map((b) => b.name), ...suggestions], labels, draft);
 
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)', marginBottom: 7 }}>Labels</div>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)', marginBottom: 7 }}>Tags</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: canManage ? 8 : 0 }}>
         {labels.map((l) => (
           <LabelChip key={l} label={l} onRemove={canManage ? () => onChange(labels.filter((x) => x !== l)) : undefined} />
@@ -53,7 +62,7 @@ export function LabelPicker({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(draft); } }}
-            placeholder="Add a label and press Enter"
+            placeholder="Add a tag and press Enter" aria-label="Add a tag"
             style={{ width: '100%', boxSizing: 'border-box', padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
           />
           {unused.length > 0 && (

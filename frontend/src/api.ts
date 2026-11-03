@@ -19,6 +19,7 @@ import type { BillingMonth } from './data/dashboardCharts';
 import type { AuditRow } from './data/audit';
 import type { Contract, ContractSigningView, ContractTemplate, ContractTypeInfo } from './data/contracts';
 import type { PriorityDef } from './data/priority';
+import type { TagInfo } from './data/tagBank';
 const API_BASE = '/api';
 
 /** Special actions that can be duplicated or converted: Special Actions Log entry, board task, meeting, RFI, change order. */
@@ -636,6 +637,13 @@ export const api = {
     run: () => request<{ sent: number; skipped: number; recipients: string[] }>('/reminders/send-all', { method: 'POST' }),
     /** Just mine, now -- whatever the schedule says. */
     mine: () => request<{ sent: boolean; reason?: string; overdue: number; today: number; soon: number }>('/reminders/mine', { method: 'POST' }),
+  },
+  /** The shared tag bank (Oct 30 sync): standard tags plus everyone's custom ones. */
+  tags: {
+    list: () => request<TagInfo[]>('/tags', { cache: 'no-store' } as any),
+    add: (name: string) => request<TagInfo>('/tags', { method: 'POST', body: JSON.stringify({ name }) }),
+    rename: (key: string, name: string) => request<{ changed: number }>(`/tags/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+    remove: (key: string) => request<{ changed: number }>(`/tags/${encodeURIComponent(key)}`, { method: 'DELETE' }),
   },
   users: {
     list: () => request('/users'),

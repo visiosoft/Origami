@@ -28,7 +28,7 @@ import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, logTaskTitle, taskHeadlin
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
 /** The fields edited in the drawer -- they autosave together; comments, files and delete act at once. */
-const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'project', 'leadId', 'holdReason', 'completionNote', 'originator'] as const;
+const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'tags', 'project', 'leadId', 'holdReason', 'completionNote', 'originator'] as const;
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 

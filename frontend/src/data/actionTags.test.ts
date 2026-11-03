@@ -8,4 +8,9 @@ describe('access tags', () => {
     expect(toggleTag(['design'], 'client')).toEqual(['client', 'design']);
     expect(toggleTag(['client', 'design'], 'design')).toEqual(['client']);
   });
+  it('tagging an Internal item Client or External shares it, unless it is Financial', () => {
+    expect(toggleTag(['internal', 'construction'], 'client')).toEqual(['client', 'construction']);
+    expect(toggleTag(['internal'], 'external')).toEqual(['external']);
+    expect(toggleTag(['internal', 'financial'], 'client')).toEqual(['internal', 'client', 'financial']);
+  });
 });

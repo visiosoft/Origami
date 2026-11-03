@@ -30,6 +30,7 @@ export class CreateProjectTaskDto {
   @IsBoolean() @IsOptional() completed?: boolean;
   @IsString() @IsOptional() parentId?: string | null;
   @IsArray() @IsOptional() labels?: string[];
+  @IsArray() @IsOptional() @IsString({ each: true }) tags?: string[];
   @IsArray() @IsOptional() collaborators?: Collaborator[];
   @IsArray() @IsOptional() checklist?: ChecklistItem[];
   @IsArray() @IsOptional() attachments?: TaskAttachment[];

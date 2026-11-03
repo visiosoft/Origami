@@ -4,7 +4,7 @@ import { ACTION_TAGS, toggleTag } from '../data/actionTags';
 export function TagPicker({ tags, onChange, disabled, compact }: { tags: string[]; onChange: (t: string[]) => void; disabled?: boolean; compact?: boolean }) {
   return (
     <div>
-      {!compact && <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)', marginBottom: 6 }}>Access tags</div>}
+      {!compact && <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)', marginBottom: 6 }}>Standard tags · who sees it</div>}
       <div role="group" aria-label="Access tags" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
         {ACTION_TAGS.map(([k, l]) => {
           const on = tags.includes(k);

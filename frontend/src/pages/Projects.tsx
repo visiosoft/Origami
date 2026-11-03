@@ -29,6 +29,7 @@ import { Attachments, filesFromClipboard, nameClipboardFile } from '../component
 import { ActivityFeed } from '../components/ActivityFeed';
 import { Checklist } from '../components/Checklist';
 import { LabelPicker } from '../components/LabelPicker';
+import { TagPicker } from '../components/TagPicker';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { PRIORITY_ORDER, TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, createdByOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
 import { linkPriorityDue, PRIORITY_HINT, priorityOption } from '../data/priority';
@@ -63,7 +64,7 @@ const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWo
 /** The fields the project form edits; they autosave together. */
 const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'pricing', 'labor', 'code', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved'] as (keyof Project)[];
 /** The fields the phase-task panel edits; they autosave together. */
-const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels', 'holdReason'];
+const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels', 'tags', 'holdReason'];
 
 export function Projects() {
   const { can, toast, currentUser } = useApp();
@@ -1417,6 +1418,7 @@ export function Projects() {
 
                   <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                     <LabelPicker labels={d.labels ?? []} canManage={canManage} suggestions={allLabels} onChange={(labels: string[]) => set({ labels })} />
+                    <div style={{ marginTop: 12 }}><TagPicker tags={d.tags ?? []} disabled={!canManage} onChange={(tags: string[]) => set({ tags })} /></div>
                   </div>
 
                   <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>

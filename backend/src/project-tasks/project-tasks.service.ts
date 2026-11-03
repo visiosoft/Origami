@@ -5,6 +5,8 @@ import { In, IsNull, Not, Repository } from 'typeorm';
 import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '../database/slim-tasks';
 import { ListCache } from '../database/list-cache';
 import { NotifyHub } from '../notifications/notify-hub.service';
+import { TagsService } from '../tags/tags.service';
+import { cleanTags } from '../database/task.types';
 import { mentionedIds } from '../tasks/mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from '../tasks/task-rules';
 import { ChecklistTemplateEntity, LeadEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
@@ -41,6 +43,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     @Optional() private readonly hub?: NotifyHub,
     @Optional() @InjectRepository(TaskEntity) private readonly logTasks?: Repository<TaskEntity>,
     @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
+    @Optional() private readonly tagBank?: TagsService,
   ) {}
 
   /**
@@ -129,6 +132,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       activity: normalizeList<ActivityEvent>(task.activity),
       checklist: normalizeList(task.checklist),
       labels: normalizeList<string>(task.labels),
+      tags: Array.isArray(task.tags) ? task.tags : [],
       dependsOn: normalizeList<string>(task.dependsOn),
       status: task.status || (task.completed ? 'Done' : 'Not started'),
     } as ProjectTaskEntity;
@@ -331,6 +335,12 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     }
     const assignee = await resolveAssignee(this.users, { id: dto.assigneeId, name: dto.assignee });
     if (dto.leadId !== undefined) dto = { ...dto, ...(await resolveLead(this.leads, dto.leadId)) };
+    // Tags (Oct 30 sync) on board tasks: Internal by default, where it was made; custom ones join the shared list.
+    // Phase Board tasks are the project's programme, so they keep only what was picked.
+    if (this.tagBank && !dto.phaseId) {
+      const t = await this.tagBank.newItemTags({ tags: dto.tags, labels: normalizeList<string>(dto.labels), actor, assigneeId: assignee.id, leadId: dto.leadId || null, projectId: dto.projectId == null ? null : Number(dto.projectId) });
+      dto = { ...dto, tags: t.tags, labels: t.labels };
+    } else dto = { ...dto, tags: cleanTags(dto.tags) };
     // Checklist templates marked "add automatically to" tasks (not subtasks).
     const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
     const checklist = withAutoChecklists(templates, { kind: 'task', labels: normalizeList<string>(dto.labels) }, normalizeList(dto.checklist));
@@ -420,6 +430,12 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       const src = await resolveAssignee(this.users, { id: patch.requestedById, name: patch.requestedBy });
       patch.requestedBy = src.name;
       patch.requestedById = src.id ?? null;
+    }
+    if ('tags' in patch) patch.tags = cleanTags(patch.tags, task.tags);
+    if ('labels' in patch && this.tagBank) {
+      const t = await this.tagBank.editedTags({ tags: 'tags' in patch ? patch.tags : task.tags, labelsBefore: task.labels, labels: normalizeList<string>(patch.labels), actor });
+      patch.labels = t.labels;
+      patch.tags = cleanTags(t.tags, task.tags);
     }
     const note = cleanCompletionNote(patch.completionNote); delete patch.completionNote;
     if ('status' in patch) patch.status = normalizeTaskStatus(patch.status);

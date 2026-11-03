@@ -1,3 +1,4 @@
+import { TagFilter } from '../components/TagFilter';
 import { useEffect, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
 import { createdByText } from '../data/projectTasks';
@@ -15,7 +16,6 @@ import { TT_COLORS, logTaskTitle, type Task, type TaskTab } from '../data/tasks'
 import { SavedViews } from '../components/SavedViews';
 import { SortHeader, sortFromString, sortToString, type SortState } from '../components/SortHeader';
 import { leadLabel, useLinkTargets } from '../data/linkTargets';
-import { ACTION_TAGS } from '../data/actionTags';
 
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 
@@ -224,11 +224,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
         />
         <PersonFilter person={person} setPerson={setPerson} users={allUsers} scope={scope} visible={!restricted && (scope === 'assigned' || scope === 'from')} />
         <TaskSearch value={query} onChange={setQuery} placeholder="Search requests…" />
-        <select aria-label="Access tag" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}
-          style={{ padding: '9px 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: tagFilter ? 'var(--ink)' : 'var(--surface)', color: tagFilter ? '#fff' : 'var(--body)', fontFamily: 'inherit' }}>
-          <option value="">Any tag</option>
-          {ACTION_TAGS.map(([k, l]) => <option key={k} value={k}>{l}{logPage?.facets.tags ? ` · ${logPage.facets.tags[k] ?? 0}` : ''}</option>)}
-        </select>
+        <TagFilter value={tagFilter} onChange={setTagFilter} counts={logPage?.facets.tags} size="large" />
         {(archivedCount > 0 || showArchived) && (
           <div onClick={() => setShowArchived((v) => !v)} title="Confirmed entries move here 7 days after they're confirmed"
             style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: showArchived ? 'var(--ink)' : 'var(--surface)', color: showArchived ? '#FDFCF9' : 'var(--muted)', whiteSpace: 'nowrap' }}>

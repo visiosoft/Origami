@@ -31,6 +31,8 @@ import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker, LabelChip } from './LabelPicker';
+import { TagPicker } from './TagPicker';
+import { TagFilter, matchesTag } from './TagFilter';
 import { LeadSelect } from './LeadSelect';
 import { leadLabel } from '../data/linkTargets';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine, type TaskScope as TaskScopeKind } from './TaskScope';
@@ -63,7 +65,7 @@ function PriorityPill({ p }: { p?: Priority }) {
  * since the drawer resolves its task out of `tasks`.
  */
 /** The fields the task panel edits; they autosave together. */
-const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy'];
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels', 'tags', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy'];
 
 /** "Q3 PRD draft" -> "QP": the card's tile. */
 const initialsOf = (title: string) => {
@@ -130,6 +132,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const { can, toast, users, authUser } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
   const [query, setQuery] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
   const canManage = can('tasks', 'manage');
   // New cards belong to one project's board, not the all-projects view.
   const canAdd = canManage && !all;
@@ -228,7 +231,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const inDoneCol = (id: string) => /^(done|complete|completed|confirmed)$/i.test(sections.find((s) => s.id === id)?.name.trim() || '');
   const placed = (t: ProjectTask): ProjectTask => (doneColId && !t.parentId && isFinished(t) && !inDoneCol(t.sectionId) ? { ...t, sectionId: doneColId } : t);
   // Search also finds the task's full number (NARV-T-2026-0007).
-  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query) || (!!query.trim() && numberOf(t).toLowerCase().includes(query.trim().toLowerCase()))).map(placed);
+  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query) || (!!query.trim() && numberOf(t).toLowerCase().includes(query.trim().toLowerCase()))).filter((t) => matchesTag(t, tagFilter)).map(placed);
   const phaseTaskCount = tasks.filter((t) => t.phaseId && !t.parentId).length;
   // Counts are absolute, not relative to the active scope.
   const mineCount = inScopeOfBoard.filter((t) => !t.parentId && isMine(t, currentUser)).length;
@@ -1015,6 +1018,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
         />
         <PersonFilter person={person} setPerson={setPerson} users={allUsers} scope={scope} visible={!restricted && (scope === 'assigned' || scope === 'from')} />
         <TaskSearch value={query} onChange={setQuery} />
+        <TagFilter value={tagFilter} onChange={setTagFilter} />
         {/* Always here, so the row doesn't shift between views; the dashboard ignores it. */}
         <TaskSort sort={listSort} onChange={setListSort} />
       </div>
@@ -1226,6 +1230,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 suggestions={allLabels}
                 onChange={(labels) => set({ labels })}
               />
+              <div style={{ marginTop: 12 }}>
+                <TagPicker tags={d.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
+              </div>
             </div>
 
             {/* Attachments — paste a screenshot, drop files, or add a link */}

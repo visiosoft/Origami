@@ -800,6 +800,8 @@ export class ProjectTaskEntity {
   @Column({ nullable: true }) status!: string;         // Not started (To Do) | Assigned | In progress | On hold | Done (Complete) | Confirmed
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
+  /** Standard (access) tags: internal, client, external, financial, crm, design, construction (Oct 30 sync). */
+  @Column({ type: 'simple-json', nullable: true }) tags!: string[] | null;
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
   @Column({ nullable: true }) updatedAt!: string;
   // --- Phase Board ---
@@ -2613,4 +2615,20 @@ export class LeadFilesEntity {
   @Column({ nullable: true }) welcomeSentTo!: string;
   @Column({ nullable: true }) welcomeSentBy!: string;
   @Column({ nullable: true }) welcomeSentById!: string;
+}
+
+/**
+ * The shared bank of custom tags (Oct 30 sync): a tag anyone types on a task
+ * joins it, so it's offered everywhere and can be filtered on. The seven
+ * standard tags (task.types ACTION_TAGS) aren't stored here. Admins rename,
+ * merge or delete custom tags in Settings -> Tags.
+ */
+@Entity('tag_bank')
+export class TagEntity {
+  /** The tag in lower case, for matching ("astrid private"). */
+  @PrimaryColumn({ type: 'nvarchar', length: 80 }) key!: string;
+  /** As first typed ("Astrid private"). */
+  @Column({ type: 'nvarchar', length: 80 }) name!: string;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) createdBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) createdAt!: string | null;
 }

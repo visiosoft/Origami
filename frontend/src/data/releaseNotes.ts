@@ -16,6 +16,19 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03e',
+    date: '2026-11-03',
+    title: 'One shared list of tags',
+    items: [
+      { area: 'Tags', kind: 'new', text: 'A tag anyone types on a task joins one shared list, so it’s suggested as you type everywhere and can be filtered on. Board tasks now have the standard tags too.', where: 'Any task → Tags' },
+      { area: 'Tags', kind: 'new', text: 'New special actions tag themselves: Internal unless made by or assigned to a client or consultant; CRM, Design or Construction from where they were made; Financial when they carry a change order; and a personal tag (“Astrid private”) keeps an item Internal. Untag anything by hand.' },
+      { area: 'Tags', kind: 'improved', text: 'Ticking Client or External on an Internal item shares it (Internal comes off), unless it’s Financial.' },
+      { area: 'Tags', kind: 'new', text: 'Filter the board and the Special Actions Log by any tag, standard or custom.', where: 'Special Actions → Task' },
+      { area: 'Tags', kind: 'new', text: 'Admins rename, merge or delete custom tags across every task.', where: 'Settings → Workspace → Tags' },
+      { area: 'Tags', kind: 'fixed', text: 'Changing the standard tags on a Special Actions Log entry now saves.' },
+    ],
+  },
+  {
     id: '2026-11-03d',
     date: '2026-11-03',
     title: 'Emergency tasks alert the team at once',
