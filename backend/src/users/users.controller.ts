@@ -26,6 +26,18 @@ export class UsersController {
     return this.usersService.directory();
   }
 
+  /** Logins that aren't in People yet -- they can't be given projects until they are. */
+  @Get('unlinked')
+  unlinked() {
+    return this.usersService.unlinked();
+  }
+
+  /** Add every such login to People (linking a matching email, or adding a record). */
+  @Post('link-people')
+  linkPeople() {
+    return this.usersService.linkAllPeople();
+  }
+
   @Post()
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03a',
+    date: '2026-11-03',
+    title: 'Every login is in People',
+    items: [
+      { area: 'Access', kind: 'fixed', text: 'A login invited from Access now gets its People record straight away (linked to an existing one with the same email, or added), so it can be given projects. Before, a login made in Access couldn’t be assigned to a project.', where: 'Settings → User Access & Roles → + Invite person' },
+      { area: 'Access', kind: 'new', text: 'Logins made before this that aren’t in People are listed at the top of User Access & Roles, with “Add them to People” to fix them in one go.' },
+    ],
+  },
+  {
     id: '2026-10-31h',
     date: '2026-10-31',
     title: 'A cleaner Project Program PDF',
