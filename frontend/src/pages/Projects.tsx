@@ -31,7 +31,7 @@ import { Checklist } from '../components/Checklist';
 import { LabelPicker } from '../components/LabelPicker';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { PRIORITY_ORDER, TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, createdByOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
-import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
+import { linkPriorityDue, PRIORITY_HINT, priorityOption } from '../data/priority';
 import { api, persist } from '../api';
 import { OriginatorLine } from '../components/ActionTools';
 import { askHoldReason } from '../components/CompletionNote';
@@ -1208,7 +1208,7 @@ export function Projects() {
                       <select disabled={!canManage} value={d.priority || ''} title={d.priority ? PRIORITY_HINT[d.priority as Priority] : 'Picking a priority fills in the due date'}
                         onChange={(e) => { const k = live?.id || ''; const r = linkPriorityDue({ priority: d.priority, dueDate: d.dueDate, auto: ptAutoPD.current[k] }, { priority: e.target.value as Priority | '' }); ptAutoPD.current[k] = r.auto; set({ priority: r.priority, dueDate: r.dueDate }); }} style={inputStyle}>
                         <option value="">None</option>
-                        {TASK_PRIORITIES.map((pr) => <option key={pr} value={pr}>{pr} — {PRIORITY_HINT[pr].replace('Due ', '')}</option>)}
+                        {TASK_PRIORITIES.map((pr) => <option key={pr} value={pr}>{priorityOption(pr)}</option>)}
                       </select>
                       {ptAutoPD.current[live?.id || ''] === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
                       <PriorityHelp value={d.priority} />

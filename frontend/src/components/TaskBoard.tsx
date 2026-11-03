@@ -34,7 +34,7 @@ import { LabelPicker, LabelChip } from './LabelPicker';
 import { LeadSelect } from './LeadSelect';
 import { leadLabel } from '../data/linkTargets';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine, type TaskScope as TaskScopeKind } from './TaskScope';
-import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
+import { linkPriorityDue, PRIORITY_HINT, priorityOption } from '../data/priority';
 import { filesFromClipboard, nameClipboardFile } from './Attachments';
 import { Skeleton } from './Skeleton';
 
@@ -1154,7 +1154,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 <select disabled={!canManage} value={d.priority || ''} title={d.priority ? PRIORITY_HINT[d.priority as Priority] : 'Picking a priority fills in the due date'}
                   onChange={(e) => { const r = linkPriorityDue({ priority: d.priority, dueDate: d.dueDate, auto: autoPD.current[selected.id] }, { priority: e.target.value as Priority | '' }); autoPD.current[selected.id] = r.auto; set({ priority: (r.priority || undefined) as Priority, dueDate: r.dueDate }); }}
                   style={{ ...inputStyle, width: '100%' }}>
-                  <option value="">None</option>{PRIORITY_ORDER.map((p) => <option key={p} value={p}>{p} — {PRIORITY_HINT[p as Priority].replace('Due ', '')}</option>)}
+                  <option value="">None</option>{PRIORITY_ORDER.map((p) => <option key={p} value={p}>{priorityOption(p as Priority)}</option>)}
                 </select>
                 {autoPD.current[selected.id] === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
                 <PriorityHelp value={d.priority} />

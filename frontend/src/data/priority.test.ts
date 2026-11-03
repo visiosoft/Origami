@@ -37,3 +37,11 @@ describe('priority and due date', () => {
     expect(d).toEqual({ priority: 'High', dueDate: '2026-10-20', auto: 'priority' });
   });
 });
+
+describe('priorityOption', () => {
+  it('says Emergency alerts the team; the others just their window', async () => {
+    const { priorityOption } = await import('./priority');
+    expect(priorityOption('Emergency')).toBe('Emergency — within 1 to 3 hours · alerts the team now');
+    expect(priorityOption('High')).toBe('High — within 5 business days');
+  });
+});

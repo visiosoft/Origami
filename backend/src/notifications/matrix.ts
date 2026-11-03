@@ -15,6 +15,8 @@ export interface NotifyEvent {
   /** The menu item someone needs to see to hear about it (company-wide events). */
   module?: string;
   defaults: Channel[];
+  /** Always sent this way, whatever the person chose (Emergency tasks). */
+  fixed?: boolean;
 }
 
 export const NOTIFY_EVENTS: NotifyEvent[] = [
@@ -27,6 +29,7 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
   { key: 'task_assigned', label: 'Newly assigned tasks', group: 'Tasks', hint: 'You’re given a task, or added as a collaborator.', defaults: ['email_now'] },
   { key: 'task_comment', label: 'Comments on my tasks', group: 'Tasks', hint: 'Someone comments on a task you’re on.', defaults: ['email_now'] },
   { key: 'mention', label: '@mentions', group: 'Tasks', hint: 'Someone mentions you in a comment.', defaults: ['email_now'] },
+  { key: 'emergency', label: 'Emergency tasks', group: 'Tasks', hint: 'A task you’re on is set to Emergency (admins hear about every one). Always sent by text and email, straight away.', defaults: ['text_now', 'email_now'], fixed: true },
   { key: 'due_tomorrow', label: 'Coming due in 1 day', group: 'Tasks', hint: 'A task assigned to you is due tomorrow.', defaults: ['email_now'] },
   { key: 'past_due', label: 'Past due tasks', group: 'Tasks', hint: 'A task assigned to you is past its due date (each day until it’s done).', defaults: ['email_daily'] },
   { key: 'three_week', label: 'Three-week look-ahead', group: 'Tasks', hint: 'Every Monday: your tasks due in the next three weeks.', defaults: ['email_weekly'] },
@@ -51,6 +54,8 @@ export function cleanMatrix(raw: unknown): Matrix {
  * that still holds for the task emails until they choose here.
  */
 export function channelsFor(user: { notificationMatrix?: Matrix | Record<string, string[]> | null; notifyOnAssignment?: boolean | null }, event: string): Channel[] {
+  const fixed = eventOf(event);
+  if (fixed?.fixed) return [...fixed.defaults];
   const chosen = user.notificationMatrix ? cleanMatrix(user.notificationMatrix)[event] : undefined;
   if (chosen) return chosen;
   const defaults = eventOf(event)?.defaults || [];
@@ -63,9 +68,11 @@ export const isDigest = (c: Channel) => c.endsWith('_daily') || c.endsWith('_wee
 
 /** What's missing for the channels someone chose: a phone number for texts, an email for emails. */
 export function channelWarnings(matrix: Matrix | null | undefined, has: { phone: boolean; email: boolean; smsReady: boolean }) {
-  const all = EVENT_KEYS.flatMap((k) => channelsFor({ notificationMatrix: matrix ?? null }, k));
+  // Events that are always sent (Emergency) aren't a choice -- they get their own line.
+  const all = NOTIFY_EVENTS.filter((e) => !e.fixed).flatMap((e) => channelsFor({ notificationMatrix: matrix ?? null }, e.key));
   const out: string[] = [];
-  if (all.some(isText) && !has.phone) out.push('You chose text messages but there’s no phone number to text — add yours below.');
+  if (!has.phone) out.push('Emergency tasks are always sent by text — add your mobile number below so they reach you.');
+  if (all.some(isText) && !has.phone) out.unshift('You chose text messages but there’s no phone number to text — add yours below.');
   if (all.some(isText) && has.phone && !has.smsReady) out.push('Text messages aren’t set up for the workspace yet (Settings → SMS), so texts won’t go out.');
   if (all.some((c) => !isText(c)) && !has.email) out.push('You chose emails but your account has no email address.');
   return out;

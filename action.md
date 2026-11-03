@@ -168,4 +168,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 |---|---|---|
 | I1 | Access: roles enforced on every module; "Assigned projects" holds everywhere; every login linked to People | ✅ (on Prod) |
 | I8 | Contracts: a pasted contract keeps its formatting; owner name and other fields fill in; email yourself a preview | ✅ (paste cleanup for Word / Google Docs, ⤓ Word import of .docx, fields grouped under + Insert field, "Email me a preview" with the PDF) |
-| I9 | Emergency tasks alert the team at once | In progress |
+| I9 | Emergency tasks alert the team at once | ✅ (assignee, collaborators, originator + every admin; text + email + bell, always on; sent once) |

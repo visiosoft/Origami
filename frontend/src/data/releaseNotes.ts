@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03d',
+    date: '2026-11-03',
+    title: 'Emergency tasks alert the team at once',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Setting a task (or a Special Actions Log entry) to Emergency — or creating one as Emergency — immediately sends a text and an email, and adds it to the bell, for its assignee, collaborators and originator plus every admin. It’s sent once; later saves don’t repeat it.', where: 'Any task → Priority → Emergency' },
+      { area: 'Notifications', kind: 'new', text: '“Emergency tasks” is always on, by text and email, and can’t be turned off. Add your mobile number so the text reaches you.', where: 'Settings → My account → Notifications' },
+    ],
+  },
+  {
     id: '2026-11-03c',
     date: '2026-11-03',
     title: 'Contracts keep their formatting',

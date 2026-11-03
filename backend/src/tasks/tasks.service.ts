@@ -401,7 +401,20 @@ export class TasksService implements OnApplicationBootstrap {
     if (defer) task.pendingNotices = holdNotices(null, notices);
     const saved = await this.repo.save(task);
     if (!defer) this.sendNotices(saved, notices);
+    if (saved.priority === 'Emergency') this.alertEmergency(saved, actor);
     return this.hydrate(saved);
+  }
+
+  /** Set to Emergency (Oct 30 sync): the people on it and every admin hear at once. Never blocks the save. */
+  private alertEmergency(t: TaskEntity, actor: UploadActor) {
+    if (!this.hub) return;
+    const due = t.dueDate ? `Due ${t.dueDate}. ` : '';
+    void (async () => this.hub!.emergency(await this.involved(t), {
+      title: `🚨 EMERGENCY: ${taskTitle(t)}${t.project ? ' — ' + t.project : ''}`,
+      body: `${due}${t.description || ''}`.trim() || undefined,
+      path: `/tasks?task=${encodeURIComponent(t.id)}&type=log`,
+      actorId: actor.id,
+    }))().catch(() => undefined);
   }
 
   /** The task card an email carries. */
@@ -490,6 +503,7 @@ export class TasksService implements OnApplicationBootstrap {
       ...(finished ? [{ kind: 'done' as const, ids: [], actor: who, at }] : []),
       ...(moved ? [{ kind: 'status' as const, ids: [], actor: who, at, status: patch.status }] : []),
     ];
+    const nowEmergency = patch.priority === 'Emergency' && task.priority !== 'Emergency';
     Object.assign(task, patch, { id });
     task.activity = [...normalizeList<ActivityEvent>(task.activity), ...events];
     task.daysOpen = this.daysOpen(task);
@@ -498,6 +512,7 @@ export class TasksService implements OnApplicationBootstrap {
 
     const saved = await this.repo.save(task);
     if (!defer) this.sendNotices(saved, notices);
+    if (nowEmergency) this.alertEmergency(saved, actor);
     if (moved || finished) {
       void this.hub?.highVizTask({ labels: normalizeList<string>(saved.labels), projectName: saved.project || null },
         { title: `${taskTitle(saved)} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}&type=log`, actorId: actor.id }).catch(() => undefined);

@@ -374,7 +374,23 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if (defer) (task as any).pendingNotices = holdNotices(null, notices);
     const saved = await this.repo.save(this.repo.create(task as Partial<ProjectTaskEntity>));
     if (!defer) this.sendNotices(saved, notices);
+    if (saved.priority === 'Emergency') this.alertEmergency(saved, actor);
     return this.hydrate(saved);
+  }
+
+  /** Set to Emergency (Oct 30 sync): the people on it and every admin hear at once. Never blocks the save. */
+  private alertEmergency(t: ProjectTaskEntity, actor: UploadActor) {
+    if (!this.hub) return;
+    const due = t.dueDate ? `Due ${t.dueDate}. ` : '';
+    void (async () => {
+      const project = t.projectId != null && this.projects ? (await this.projects.findOneBy({ id: t.projectId }))?.name : null;
+      await this.hub!.emergency(this.involved(t), {
+        title: `🚨 EMERGENCY: ${t.title}${project ? ' — ' + project : ''}`,
+        body: `${due}${t.description || ''}`.trim() || undefined,
+        path: `/tasks?task=${encodeURIComponent(t.id)}${t.projectId != null ? `&project=${t.projectId}` : ''}`,
+        actorId: actor.id,
+      });
+    })().catch(() => undefined);
   }
 
   /** The task card an email carries. */
@@ -462,6 +478,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       ...(finished ? [{ kind: 'done' as const, ids: [], actor: who, at }] : []),
       ...(moved ? [{ kind: 'status' as const, ids: [], actor: who, at, status: patch.status }] : []),
     ];
+    const nowEmergency = patch.priority === 'Emergency' && task.priority !== 'Emergency';
     Object.assign(task, patch, { id });
     task.activity = [...normalizeList<ActivityEvent>(task.activity), ...events];
     task.updatedAt = new Date().toISOString();
@@ -470,6 +487,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     // Its subtasks (all finished -- checked above) go into the archive with it.
     if (closing) for (const s of await this.repo.findBy({ parentId: id })) if (!s.archivedAt) await this.repo.update({ id: s.id }, { archivedAt: saved.archivedAt } as any);
     if (!defer) this.sendNotices(saved, notices);
+    if (nowEmergency) this.alertEmergency(saved, actor);
     // High Viz work: everyone who follows High Viz hears when it moves.
     if (moved || finished) {
       void this.hub?.highVizTask({ labels: normalizeList<string>(saved.labels), projectId: saved.projectId },

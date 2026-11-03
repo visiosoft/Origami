@@ -63,6 +63,16 @@ export class NotifyHub implements OnApplicationBootstrap, OnModuleDestroy {
     if (labelled || p?.highViz) await this.broadcast('high_viz', item, p ? { projectName: p.name } : {});
   }
 
+  /**
+   * Emergency (Oct 30 sync): a task set to Emergency tells the people on it
+   * and every admin at once -- a text, an email and the in-app list -- whatever
+   * their notification settings. Never the person who set it.
+   */
+  async emergency(involvedIds: string[], item: NotifyItem) {
+    const admins = (await this.users.find()).filter((u) => u.roleKey === 'admin' && u.status !== 'suspended' && u.status !== 'pending').map((u) => u.id);
+    await this.deliver([...involvedIds, ...admins], 'emergency', item);
+  }
+
   onApplicationBootstrap() {
     this.timer = setInterval(() => { void this.tick(); }, HOUR);
     this.timer.unref?.();
@@ -81,7 +91,7 @@ export class NotifyHub implements OnApplicationBootstrap, OnModuleDestroy {
     const phone = await this.phoneOf(user);
     const smsReady = !!(this.sms && (await this.sms.status().catch(() => null))?.configured);
     return {
-      events: NOTIFY_EVENTS.map(({ key, label, group, hint }) => ({ key, label, group, hint })),
+      events: NOTIFY_EVENTS.map(({ key, label, group, hint, fixed }) => ({ key, label, group, hint, fixed: !!fixed })),
       matrix, custom: !!user.notificationMatrix,
       phone: user.phone || '', phoneFromPeople: !user.phone ? phone : '',
       warnings: channelWarnings(matrix as Matrix, { phone: !!phone, email: !!user.email, smsReady }),
@@ -163,7 +173,7 @@ export class NotifyHub implements OnApplicationBootstrap, OnModuleDestroy {
       const phone = await this.phoneOf(user);
       if (phone && this.sms) {
         const label = eventOf(event)?.label || 'Update';
-        await this.sms.send({ to: phone, body: `${label}: ${item.title}${url ? ' — ' + url : ''}`.slice(0, 320) })
+        await this.sms.send({ to: phone, body: `${eventOf(event)?.fixed ? '' : label + ': '}${item.title}${url ? ' — ' + url : ''}`.slice(0, 320) })
           .catch((e) => this.log.warn(`Text to ${user.id} not sent: ${(e as Error).message}`));
       }
     }

@@ -12,7 +12,7 @@ export const CHANNELS = [
 ] as const;
 export type ChannelKey = (typeof CHANNELS)[number]['key'];
 
-export interface NotifyEventInfo { key: string; label: string; group: string; hint: string }
+export interface NotifyEventInfo { key: string; label: string; group: string; hint: string; /** Always sent; can’t be turned off (Emergency). */ fixed?: boolean }
 export interface NotifyPrefs {
   events: NotifyEventInfo[];
   matrix: Record<string, ChannelKey[]>;
