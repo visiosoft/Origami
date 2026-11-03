@@ -72,6 +72,14 @@ const extOf = (name: string) => {
   return dot > -1 ? name.slice(dot + 1).toUpperCase() : '';
 };
 
+/** Where finished documents are kept, REV-numbered, in each project's Drive folder. */
+export const BACKUP_FOLDER = 'Backups of record';
+/** The next REV number for a document, from the names already in the folder ("Program REV2.pdf" -> 3). */
+export function nextRev(names: string[], base: string): number {
+  const re = new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' REV(\\d+)\\.pdf$', 'i');
+  return names.reduce((max, n) => { const m = re.exec(n); return m ? Math.max(max, Number(m[1])) : max; }, 0) + 1;
+}
+
 @Injectable()
 export class FileRoomService {
   private readonly log = new Logger('FileRoomService');
@@ -238,6 +246,21 @@ export class FileRoomService {
    * revision rather than a duplicate: the two share a version group and the new
    * one becomes latest.
    */
+  /**
+   * Drive as the backup of record (Oct 30 sync): a finished document -- a
+   * signed contract, the Project Program as sent -- filed as a PDF in the
+   * project's "Backups of record" folder, numbered REV1, REV2... by name.
+   */
+  async saveBackupOfRecord(projectId: number, docName: string, pdf: Buffer, actor: UploadActor) {
+    const base = String(docName || 'Document').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 150);
+    const inFolder = (await this.files.find({ where: { projectId } as any, select: { id: true, name: true, folderPath: true } as any }))
+      .filter((f) => Array.isArray(f.folderPath) && f.folderPath.length === 1 && f.folderPath[0] === BACKUP_FOLDER);
+    const rev = nextRev(inFolder.map((f) => f.name), base);
+    const name = `${base} REV${rev}.pdf`;
+    const [saved] = await this.upload(projectId, [BACKUP_FOLDER], [{ originalname: name, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], actor);
+    return { id: (saved as any)?.id as string | undefined, name, rev };
+  }
+
   async upload(
     projectId: number,
     folderPath: string[],

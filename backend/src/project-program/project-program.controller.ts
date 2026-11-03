@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
+import { Optional, Body, Controller, ForbiddenException, Get, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ProjectProgramService, type ProgramActor } from './project-program.service';
 import { Tiers } from '../auth/guards/roles.decorator';
@@ -7,6 +7,7 @@ import { SettingsService } from '../settings/settings.service';
 import { BRAND_KEYS, brandingFrom, safeFilename } from '../documents/letterhead';
 import type { DocStep } from '../documents/program-document';
 import { buildProgramPdf } from '../documents/program-pdf';
+import { FileRoomService } from '../file-room/file-room.service';
 import type { AuthedRequest } from '../auth/guards/session.guard';
 import { assertFilled } from '../email-templates/placeholders';
 import { Perm } from '../auth/guards/perm.guard';
@@ -31,6 +32,7 @@ export class ProjectProgramController {
     private readonly service: ProjectProgramService,
     private readonly google: GoogleService,
     private readonly settings: SettingsService,
+    @Optional() private readonly fileRoom?: FileRoomService,
   ) {}
 
   @Get()
@@ -133,6 +135,12 @@ export class ProjectProgramController {
       html: body.html,
       attachments,
     });
+    // The program as sent is kept in the project's Drive, REV-numbered (Oct 30 sync: Drive is the backup of record).
+    const sent = attachments.find((a) => a.filename === filename);
+    if (sent && !body.leadId && Number(body.projectId) > 0 && this.fileRoom) {
+      const who = actorFrom(req);
+      void this.fileRoom.saveBackupOfRecord(Number(body.projectId), filename.replace(/\.pdf$/i, ''), sent.content, { id: who?.id || '', name: who?.name || 'Origami' } as any).catch(() => undefined);
+    }
     if (body.leadId) await this.service.markSentLead(body.leadId, body.to, actorFrom(req));
     else await this.service.markSent(Number(body.projectId), body.to, actorFrom(req));
     return { ok: true, filename, to: body.to, attachmentCount: attachments.length };

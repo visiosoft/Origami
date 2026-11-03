@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03j',
+    date: '2026-11-03',
+    title: 'Drive keeps the record',
+    items: [
+      { area: 'Files', kind: 'new', text: 'Each fully signed contract, and each Project Program as it’s sent, is also saved as a PDF in the project’s “Backups of record” folder (in the File Room and its Google Drive), numbered REV1, REV2… when it changes.', where: 'File Room → project → Backups of record' },
+    ],
+  },
+  {
     id: '2026-11-03i',
     date: '2026-11-03',
     title: 'Two file areas: All Files and the build set',

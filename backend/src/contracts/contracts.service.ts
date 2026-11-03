@@ -352,6 +352,9 @@ export class ContractsService implements OnApplicationBootstrap {
         const { pdf, filename } = await this.pdf(row);
         const [saved] = await this.fileRoom.upload(row.projectId, ['Contracts'], [{ originalname: filename, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], { id: actor.id || '', name: actor.name || 'Origami' } as any);
         if (saved?.id) { row.signedFileId = saved.id; await this.contracts.save(row); }
+        // And a numbered copy in the project's "Backups of record" (Oct 30 sync: Drive is the backup of record).
+        await this.fileRoom.saveBackupOfRecord(row.projectId, `${row.number} ${row.title || ''}`.trim(), pdf, { id: actor.id || '', name: actor.name || 'Origami' } as any)
+          .catch((e) => this.log.warn(`Backup of ${row.number} not saved: ${(e as Error).message}`));
       }
     } catch (e) {
       this.log.warn(`Signed ${row.number} not filed: ${(e as Error).message}`);
