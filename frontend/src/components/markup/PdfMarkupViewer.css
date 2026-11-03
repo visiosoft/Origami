@@ -143,3 +143,25 @@
 .mk-access-hits button:hover { background: rgba(var(--rgb-shade), 0.08); }
 .mk-access-pick { display: grid; gap: 6px; }
 .mk-access-actions { display: flex; gap: 8px; }
+
+/* iPad and other touch screens (Oct 30 sync): fingertip-sized targets. */
+@media (pointer: coarse) {
+  .mk-tool { width: 46px; height: 46px; font-size: 20px; border-radius: 11px; }
+  .mk-btn { min-width: 44px; height: 44px; font-size: 15px; }
+  .mk-btn.is-text { font-size: 13.5px; padding: 0 14px; }
+  .mk-swatch { width: 36px; height: 36px; }
+  .mk-tools { gap: 6px; padding: 10px 8px; }
+  .mk-tools select { width: 64px; height: 40px; font-size: 13px; }
+  .mk-layer { padding: 6px 0; font-size: 14px; }
+  .mk-layer input[type="checkbox"] { width: 22px; height: 22px; }
+  .mk-layer-edit { min-width: 40px; height: 40px; font-size: 16px; }
+  .mk-nudge button { min-width: 40px; height: 40px; font-size: 15px; }
+  .mk-sheet { height: 40px; font-size: 14px; }
+  .mk-access label { min-height: 40px; }
+  .mk-access-hits button { padding: 11px 10px; }
+}
+/* iPad portrait: the list slides over the drawing instead of squeezing it. */
+@media (pointer: coarse) and (min-width: 721px) and (max-width: 1100px) {
+  .mk-side-close { display: block; }
+  .mk-side { position: fixed; top: 0; right: 0; bottom: 0; z-index: 5; width: min(340px, 70vw); box-shadow: -10px 0 30px rgba(var(--rgb-ink), 0.18); }
+}

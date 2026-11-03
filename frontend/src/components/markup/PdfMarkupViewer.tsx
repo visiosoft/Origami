@@ -162,6 +162,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   /** Fingers on the drawing (touch), for two-finger pinch-zoom and pan (Oct 31). */
   const touches = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ d0: number; s0: number; cx: number; cy: number } | null>(null);
+  /** A touch screen (iPad): bigger grips; once a pen is used, fingers pan instead of draw. */
+  const coarse = useMemo(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches, []);
+  const penSeen = useRef(false);
   /** Dragging a text box's edge to resize it. */
   const resizing = useRef<{ id: string; x0: number; orig: number } | null>(null);
   // Searching the drawing's own text (and the markups' notes).
@@ -172,7 +175,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const extraFilesList = () => extraFiles.current;
   const [listAll, setListAll] = useState(false);
   // The list starts open on a desk, closed on a phone (it would cover the drawing).
-  const [panel, setPanel] = useState(() => window.innerWidth > 720);
+  // Open beside the drawing on a wide screen; on a phone or an iPad in portrait it slides over, so it starts closed.
+  const [panel, setPanel] = useState(() => window.innerWidth > (window.matchMedia?.('(pointer: coarse)').matches ? 1100 : 720));
   const undo = useRef<{ type: 'add' | 'remove' | 'edit'; before?: Markup; after?: Markup }[]>([]);
   const redo = useRef<typeof undo.current>([]);
 
@@ -535,10 +539,17 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   };
 
   const onDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'pen') penSeen.current = true;
     if (e.pointerType === 'touch') {
       touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (touches.current.size === 2) { startPinch(); return; }
       if (touches.current.size > 2 || pinch.current) return;
+      // Drawing with an Apple Pencil: a resting palm or finger moves the sheet instead of drawing on it.
+      if (penSeen.current && tool !== 'select' && tool !== 'pan') {
+        const sc = scroller.current!;
+        pan.current = { x: e.clientX, y: e.clientY, sl: sc.scrollLeft, st: sc.scrollTop };
+        return;
+      }
     }
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     const p = at(e);
@@ -552,7 +563,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       // The text box's right edge, when it's selected: drag it to resize.
       if (selected?.kind === 'text' && selected.data.boxW && mine(selected) && selected.page === pageNo && size) {
         const b = boxOf(selected);
-        if (Math.abs(p[0] - b.x1) < 8 / (size.w * scale) && p[1] >= b.y0 && p[1] <= b.y1) {
+        if (Math.abs(p[0] - b.x1) < (coarse ? 22 : 8) / (size.w * scale) && p[1] >= b.y0 && p[1] <= b.y1) {
           resizing.current = { id: selected.id, x0: b.x0, orig: selected.data.boxW };
           (e.target as Element).setPointerCapture?.(e.pointerId);
           return;
@@ -1074,7 +1085,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 {draftShape}
                 {search?.hits[search.at]?.page === pageNo && (() => { const b = search.hits[search.at].box; return <rect className="mk-hit" x={b.x0 * size.w - 2} y={b.y0 * size.h - 2} width={(b.x1 - b.x0) * size.w + 4} height={(b.y1 - b.y0) * size.h + 4} />; })()}
                 {selBox && <rect x={selBox.x0 * size.w - 4} y={selBox.y0 * size.h - 4} width={(selBox.x1 - selBox.x0) * size.w + 8} height={(selBox.y1 - selBox.y0) * size.h + 8} fill="none" stroke="#2563EB" strokeWidth={1} strokeDasharray="4 3" />}
-                {resizeHandle && <rect className="mk-resize" x={selBox.x1 * size.w - 4 / scale} y={((selBox.y0 + selBox.y1) / 2) * size.h - 10 / scale} width={8 / scale} height={20 / scale} rx={2 / scale}><title>Drag to make the text box wider or narrower</title></rect>}
+                {resizeHandle && <rect className="mk-resize" x={selBox.x1 * size.w - (coarse ? 9 : 4) / scale} y={((selBox.y0 + selBox.y1) / 2) * size.h - (coarse ? 20 : 10) / scale} width={(coarse ? 18 : 8) / scale} height={(coarse ? 40 : 20) / scale} rx={(coarse ? 5 : 2) / scale}><title>Drag to make the text box wider or narrower</title></rect>}
               </svg>
             )}
           </div>

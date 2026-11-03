@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-03g',
+    date: '2026-11-03',
+    title: 'Drawings on the iPad',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'On an iPad (or any touch screen) the markup tools, colours, buttons and layer controls are fingertip-sized, and the text box’s resize grip is bigger.', where: 'File Room → Mark up' },
+      { area: 'Drawings', kind: 'improved', text: 'In portrait the drawing gets the whole screen; the list slides over it from ☰.' },
+      { area: 'Drawings', kind: 'new', text: 'With an Apple Pencil, a palm or finger resting on the screen moves the sheet instead of drawing on it.' },
+    ],
+  },
+  {
     id: '2026-11-03f',
     date: '2026-11-03',
     title: 'Choose who sees each markup layer',
