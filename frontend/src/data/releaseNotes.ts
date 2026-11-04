@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04k',
+    date: '2026-11-04',
+    title: 'A tidier menu',
+    items: [
+      { area: 'Menu', kind: 'fixed', text: 'Special Actions under Main no longer sit pushed to the right: every item lines up with the rest.' },
+      { area: 'Menu', kind: 'improved', text: 'Menu groups start closed, except Main and the group of the page you’re on, so the menu stays short. Open or close any group with its heading — your choice is remembered on this computer. Searching the menu still shows every match.' },
+    ],
+  },
+  {
     id: '2026-11-04j',
     date: '2026-11-04',
     title: 'Drawings on iPhone and iPad',

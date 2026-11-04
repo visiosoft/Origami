@@ -545,8 +545,10 @@
 .nav-item.is-first:not(.active) { background: rgba(245, 196, 67, 0.18); }
 
 /* A group nested under another (Oct 30 sync: Special Actions under Main). */
-.nav-group.is-sub { margin-top: -6px; margin-left: 12px; padding-left: 8px; border-left: 1px solid rgba(var(--rgb-shade), 0.10); }
-.nav-group.is-sub .nav-group-label { font-size: 10px; }
+/* Nested under Main: a small heading, items lined up with the rest (no indent pushing them right). */
+.nav-group.is-sub { margin-top: -8px; }
+.nav-group.is-sub .nav-group-header { padding-top: 6px; }
+.nav-group.is-sub .nav-group-label { font-size: 9px; opacity: 0.85; }
 
 /* Back to the project you came from (Nov 3 sync). */
 .back-to-project { margin-left: 10px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(var(--rgb-shade), 0.14); background: var(--surface); color: var(--forest); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }

@@ -30,7 +30,12 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const { viewMode, setViewMode, toastMsg, can, loadingAccess, currentUser, currentRole, tier, signOut, authUser } = useApp();
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // Which menu groups are open: what the person chose (kept in this browser), else just Main and the
+  // group holding the page they're on -- so the menu doesn't grow with every group open (Nov 4).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('origami.nav.open') || '{}') || {}; } catch { return {}; }
+  });
+  useEffect(() => { try { localStorage.setItem('origami.nav.open', JSON.stringify(openGroups)); } catch { /* private mode */ } }, [openGroups]);
 
   const slug = location.pathname.slice(1) || 'dashboard';
 
@@ -82,10 +87,10 @@ export function AppShell() {
   const firstMatch = nq ? shownGroups[0]?.items[0] : undefined;
   const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
-  const toggleGroup = (key: string) =>
-    setOpenGroups((prev) => ({ ...prev, [key]: prev[key] === false ? true : false }));
-
-  const isOpen = (key: string) => openGroups[key] !== false;
+  const activeGroup = NAV_GROUPS.find((g) => g.items.some((it) => it.route === slug))?.key;
+  const openByDefault = (key: string) => key === 'main' || key === activeGroup;
+  const isOpen = (key: string) => (key in openGroups ? openGroups[key] : openByDefault(key));
+  const toggleGroup = (key: string) => setOpenGroups((prev) => ({ ...prev, [key]: !(key in prev ? prev[key] : openByDefault(key)) }));
 
   // "New" on Help & Support until the latest release notes have been seen.
   const [seenRelease, setSeenRelease] = useState(releaseSeen());
