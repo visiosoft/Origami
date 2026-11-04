@@ -27,11 +27,11 @@ export function SourcePicker({ mode, excludeId, onPick, onClose }: {
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { api.finance.estimateTemplates().then((r: any) => setTemplates(r.rows)).catch(() => setTemplates([])); }, []);
-  useEffect(() => { if (tab === 'estimates' && !estimates) api.finance.estimatesAll().then((r: any) => setEstimates(r.rows)).catch(() => setEstimates([])); }, [tab, estimates]);
+  useEffect(() => { api.finance.estimateTemplates().then((r: any) => setTemplates(r?.rows || [])).catch(() => setTemplates([])); }, []);
+  useEffect(() => { if (tab === 'estimates' && !estimates) api.finance.estimatesAll().then((r: any) => setEstimates(r?.rows || [])).catch(() => setEstimates([])); }, [tab, estimates]);
   useEffect(() => {
     if (mode !== 'scopes' || !chosen) { setScopes(null); return; }
-    api.finance.estimateSource(chosen).then((r: any) => { setScopes(r.scopes); setPicked(new Set(r.scopes.map((s: SourceScope) => s.id))); }).catch(() => setScopes([]));
+    api.finance.estimateSource(chosen).then((r: any) => { setScopes(r?.scopes || []); setPicked(new Set((r?.scopes || []).map((s: SourceScope) => s.id))); }).catch(() => setScopes([]));
   }, [mode, chosen]);
 
   const est = useMemo(() => (estimates || []).filter((e) => e.id !== excludeId && (!q || `${e.projectName} ${e.number} ${e.title || ''}`.toLowerCase().includes(q.toLowerCase()))), [estimates, q, excludeId]);

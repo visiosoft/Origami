@@ -20,6 +20,7 @@ import { ProjectSubsService } from './project-subs.service';
 import { ReportsService } from './reports.service';
 import { ProjectScope } from '../auth/project-scope.interceptor';
 import { EstimatesService } from './estimates.service';
+import { EstimateStatementsService } from './estimate-statements.service';
 import { ProjectAccessService } from '../auth/project-access.service';
 
 const kindOf = (k: string) => {
@@ -49,6 +50,7 @@ export class FinanceController {
     private readonly subs: ProjectSubsService,
     private readonly events: ChangeEventsService,
     private readonly estimates: EstimatesService,
+    private readonly statements: EstimateStatementsService,
     private readonly projectAccess: ProjectAccessService,
     private readonly authService: AuthService,
   ) {}
@@ -93,6 +95,11 @@ export class FinanceController {
   @Post('projects/:id/estimates/:eid/copy-scopes') async estimateCopyScopes(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.copyScopes(Number(id), eid, dto || {}, await this.actor(a), await this.canSee(a)); }
   @Get('estimates-all') async estimatesAll(@Headers('authorization') a?: string) { return this.estimates.allEstimates(await this.actor(a)); }
   @Get('estimate-source/:eid') async estimateSource(@Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.sourceSheet(eid, await this.actor(a), await this.canSee(a)); }
+  @Get('estimate-statements') async statementList(@Query('csiCodeId') csi?: string, @Headers('authorization') a?: string) { return this.statements.list(await this.actor(a), csi === undefined ? undefined : csi || null); }
+  @Get('estimate-statements/suggestions') async statementSuggestions(@Query('csiCodeId') csi?: string, @Query('kind') kind?: string, @Headers('authorization') a?: string) { return this.statements.suggestions(await this.actor(a), csi || null, kind || ''); }
+  @Post('estimate-statements') async statementNew(@Body() dto: any, @Headers('authorization') a?: string) { return this.statements.create(dto || {}, await this.actor(a)); }
+  @Put('estimate-statements/:sid') async statementSave(@Param('sid') sid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.statements.update(sid, dto || {}, await this.actor(a)); }
+  @Delete('estimate-statements/:sid') async statementDelete(@Param('sid') sid: string, @Headers('authorization') a?: string) { return this.statements.remove(sid, await this.actor(a)); }
   @Get('estimate-templates') async templates(@Headers('authorization') a?: string) { return this.estimates.templates(await this.actor(a)); }
   @Post('estimate-templates') async templateNew(@Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.createTemplate(dto || {}, await this.actor(a), await this.canSee(a)); }
   @Get('estimate-templates/:eid') async template(@Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.get(0, eid, await this.actor(a)); }

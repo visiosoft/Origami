@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { EstimateGrid, type EstimateHeader } from '../components/estimate/EstimateGrid';
 import { SourcePicker } from '../components/estimate/SourcePicker';
+import { StatementLibrary } from '../components/estimate/StatementLibrary';
 import { money } from '../data/estimateCalc';
 
 interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number }
@@ -36,10 +37,10 @@ export function Estimating() {
   useEffect(() => { (api.projects.list() as Promise<any>).then((l) => setProjects(Array.isArray(l) ? l : l?.rows || [])).catch(() => setProjects([])); }, []);
   const load = useCallback(() => {
     if (!projectId) { setRows(null); return; }
-    api.finance.estimates(projectId).then((r: any) => { setRows(r.rows); setRights(r.rights); }).catch((e: any) => { setRows([]); toast(e?.message || 'Could not load estimates.'); });
+    api.finance.estimates(projectId).then((r: any) => { setRows(r?.rows || []); setRights(r?.rights || { view: false, edit: false }); }).catch((e: any) => { setRows([]); toast(e?.message || 'Could not load estimates.'); });
   }, [projectId, toast]);
   useEffect(load, [load]);
-  const loadTemplates = useCallback(() => { api.finance.estimateTemplates().then((r: any) => { setTemplates(r.rows); setRights(r.rights); }).catch(() => setTemplates([])); }, []);
+  const loadTemplates = useCallback(() => { api.finance.estimateTemplates().then((r: any) => { setTemplates(r?.rows || []); setRights(r?.rights || { view: false, edit: false }); }).catch(() => setTemplates([])); }, []);
   useEffect(() => { if (!projectId) loadTemplates(); }, [projectId, templateId, loadTemplates]);
 
   const go = (p: Record<string, string | null>) => {
@@ -96,6 +97,7 @@ export function Estimating() {
             </button>
           ))}
         </div>
+        <StatementLibrary />
       </div>
     );
   }

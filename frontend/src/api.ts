@@ -1059,6 +1059,12 @@ export const api = {
     /** Every estimate you can see, across projects -- to start from one. */
     estimatesAll: () => request<any>('/finance/estimates-all'),
     estimateSource: (id: string) => request<any>(`/finance/estimate-source/${encodeURIComponent(id)}`),
+    /** Standard statements for scope notes (all, or one CSI code's plus the general ones). */
+    estimateStatements: (csiCodeId?: string | null) => request<any>(`/finance/estimate-statements${csiCodeId === undefined ? '' : `?csiCodeId=${encodeURIComponent(csiCodeId || '')}`}`),
+    estimateStatementSuggestions: (csiCodeId: string, kind: string) => request<any>(`/finance/estimate-statements/suggestions?csiCodeId=${encodeURIComponent(csiCodeId)}&kind=${encodeURIComponent(kind)}`),
+    createEstimateStatement: (d: { kind: string; text: string; csiCodeId?: string | null }) => request<any>('/finance/estimate-statements', { method: 'POST', body: JSON.stringify(d) }),
+    saveEstimateStatement: (id: string, d: unknown) => request<any>(`/finance/estimate-statements/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    deleteEstimateStatement: (id: string) => request<any>(`/finance/estimate-statements/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     estimateTemplates: () => request<any>('/finance/estimate-templates'),
     createEstimateTemplate: (d: { title: string; fromId?: string }) => request<any>('/finance/estimate-templates', { method: 'POST', body: JSON.stringify(d) }),
     estimateTemplate: (id: string) => request<any>(`/finance/estimate-templates/${encodeURIComponent(id)}`),

@@ -2810,3 +2810,25 @@ export class EstimateGrLineEntity {
   @Column({ ...TEXT, nullable: true }) notes!: string | null;
   @Column({ type: 'simple-json', nullable: true }) custom!: Record<string, unknown> | null;
 }
+
+/**
+ * Standard statements for estimate scopes (financial tab): canned Details,
+ * Inclusions, Exclusions and Assumptions & Clarifications, kept per CSI code
+ * (or for every scope when no code is set) and picked into a scope's note rows.
+ */
+@Entity('estimate_statements')
+@Index('IX_estimate_statements_csi', ['csiCodeId'])
+export class EstimateStatementEntity {
+  @PrimaryColumn() id!: string;
+  /** Null: offered on every scope. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) csiCodeId!: string | null;
+  /** details | inclusion | exclusion | assumption */
+  @Column({ type: 'nvarchar', length: 20 }) kind!: string;
+  @Column({ ...TEXT }) text!: string;
+  @Column({ type: 'int', default: 0 }) sortOrder!: number;
+  @Column({ default: true }) active!: boolean;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) createdBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) updatedBy!: string | null;
+}

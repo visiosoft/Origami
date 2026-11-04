@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04o',
+    date: '2026-11-04',
+    title: 'Estimates: standard statements',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'Editing a Details, Inclusions, Exclusions or A&C row (Enter or double-click) lists the standard statements for the scope’s CSI code, plus wording used on earlier estimates with the same code — click one to use it.' },
+      { area: 'Estimating', kind: 'new', text: '“Save this text as a standard statement” keeps what you typed for that CSI code (or for every scope if the scope has no code).' },
+      { area: 'Estimating', kind: 'new', text: 'The standard statements library — add, edit or delete, filtered by CSI code.', where: 'Preconstruction → Estimating → Standard statements' },
+    ],
+  },
+  {
     id: '2026-11-04n',
     date: '2026-11-04',
     title: 'Estimates: your own columns and formulas',

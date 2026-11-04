@@ -9,6 +9,7 @@ import {
   type Band, type ColumnDef, type EstGr, type EstLine, type EstScope, type GridCol, type Sheet,
 } from '../../data/estimateGrid';
 import { SourcePicker } from './SourcePicker';
+import { StatementPicker } from './StatementPicker';
 import './EstimateGrid.css';
 
 export interface EstimateHeader {
@@ -176,6 +177,13 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     return () => { controlRef.current = null; };
   }, [controlRef, saveSheetNow]);
 
+  // An open edit box (with its statement list) is scrolled into view inside the sheet.
+  useEffect(() => {
+    if (!editing) return;
+    const t = window.setTimeout(() => wrapRef.current?.querySelector('.eg-editor')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }), 250);
+    return () => window.clearTimeout(t);
+  }, [editing?.sel.lineId, editing?.sel.col]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /** "+ Scopes from…": save what's pending, then copy the chosen scopes on the server and show the result. */
   const copyScopesFrom = async (fromId: string, scopeIds: string[]) => {
     if (timer.current) await saveSheetNow(); else await queue.current;
@@ -287,6 +295,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     const r = setCell(line, col, raw);
     if ('error' in r) { toast(r.error); return; }
     let next = r.line;
+    if (col.key === 'description' && line.kind !== 'item' && next.description !== line.description) next = { ...next, statementId: null };
     if (col.key === 'subName') {
       const hit = contractors.find((c) => c.companyName?.toLowerCase() === raw.trim().toLowerCase());
       next = { ...next, contractorId: hit ? hit.id : null };
@@ -447,7 +456,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     else if (c.kind === 'number') { text = (l as any)[c.key] ?? ''; cls += ' is-num'; }
     else text = cellText(l, c);
     if (!isNote && l.pricing === 'nis' && c.key === 'description') cls += ' is-dim';
-    if (isNote && c.key === 'description' && !l.description) { text = 'Type, or leave for a standard statement'; cls += ' is-placeholder'; }
+    if (isNote && c.key === 'description' && !l.description) { text = 'Type, or press Enter to pick a standard statement'; cls += ' is-placeholder'; }
     const isSel = sel?.lineId === l.id && sel.col === ci;
     const sticky = ci === 0 ? ' eg-sticky eg-desc' : '';
     return (
@@ -499,6 +508,16 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
       </div>;
     } else if (col.kind === 'longtext') {
       input = <textarea autoFocus value={editing.value} onChange={(e) => set(e.target.value)} onKeyDown={keyDown} onBlur={() => finishEdit(true)} onFocus={(e) => { const v = e.currentTarget.value; e.currentTarget.setSelectionRange(v.length, v.length); }} />;
+      const line = sheetRef.current.lines.find((l) => l.id === editing.sel.lineId);
+      if (line && line.kind !== 'item' && col.key === 'description') {
+        const scope = sheetRef.current.scopes.find((x) => x.id === line.scopeId);
+        input = <>{input}<StatementPicker csiCodeId={scope?.csiCodeId || null} kind={line.kind} text={editing.value} canSave={canEdit}
+          onPick={(st) => {
+            updateLines((ls) => ls.map((l) => (l.id === line.id ? { ...l, description: st.text, statementId: st.statementId } : l)));
+            setEditing(null);
+            window.setTimeout(() => wrapRef.current?.focus(), 0);
+          }} /></>;
+      }
     } else {
       input = <input autoFocus type={col.kind === 'date' ? 'date' : 'text'} inputMode={col.kind === 'money' || col.kind === 'pct' || col.kind === 'number' ? 'decimal' : undefined}
         list={col.key === 'subName' ? 'eg-contractors' : undefined} value={editing.value} onChange={(e) => set(e.target.value)} onKeyDown={keyDown} onBlur={() => finishEdit(true)} />;
