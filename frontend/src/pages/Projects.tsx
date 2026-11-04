@@ -1,3 +1,4 @@
+import { forgetProjectPlace, rememberProjectPlace } from '../data/returnToProject';
 import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
 import { tint, useTheme } from '../theme';
@@ -437,15 +438,34 @@ export function Projects() {
   const openProject = (id: number) => { setSelectedId(id); setTab('overview'); loadBoard(id); };
   // A link like /projects?open=8&tab=financial (e.g. from the Finance guide) opens that project on that tab.
   const [searchParams, setSearchParams] = useSearchParams();
+  // The open project and tab live in the URL (Nov 3 sync), so Back and links from other pages return to them.
+  const TABS = ['overview', 'phases', 'program', 'tasks', 'rfis', 'subs', 'files', 'financial', 'guests', 'crm', 'precon', 'build'] as const;
   useEffect(() => {
     const id = Number(searchParams.get('open'));
-    if (!id || !projects.some((p) => p.id === id)) return;
+    if (!id || id === selectedId || !projects.some((p) => p.id === id)) return;
     openProject(id);
     const t = searchParams.get('tab');
     if (t === 'rfis') openWork('rfis');
-    else if (t === 'phases' || t === 'financial' || t === 'tasks') setTab(t);
-    setSearchParams({}, { replace: true });
+    else if (t === 'tasks') openWork((searchParams.get('view') as ActionView) || 'tasks');
+    else if (t && (TABS as readonly string[]).includes(t)) setTab(t as typeof tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects, searchParams]);
+  const placeSeen = useRef(false);
+  useEffect(() => {
+    if (selectedId) {
+      const p = projects.find((x) => x.id === selectedId);
+      const want = new URLSearchParams({ open: String(selectedId), tab });
+      if (tab === 'tasks') want.set('view', workView);
+      if (searchParams.toString() !== want.toString()) setSearchParams(want, { replace: true });
+      if (p) rememberProjectPlace(selectedId, p.name, tab, workView);
+      placeSeen.current = true;
+    } else if (placeSeen.current) {
+      // Closed by hand: nothing to go back to.
+      if (searchParams.get('open')) setSearchParams({}, { replace: true });
+      forgetProjectPlace();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, tab, workView, projects]);
   // The project form saves itself: created once it has a name, then only the
   // changed fields, 3 seconds after typing stops (Save saves at once; Done
   // saves anything pending and closes).
@@ -692,7 +712,7 @@ export function Projects() {
       {/* Project detail drawer */}
       {sel && (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'files' || tab === 'phases' || tab === 'program' || tab === 'crm' || tab === 'precon' || tab === 'build' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'files' || tab === 'phases' || tab === 'program' || tab === 'crm' || tab === 'precon' || tab === 'build' ? 'min(1100px, 96vw)' : 'min(760px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
             {/* Header — compact bar (stage color) with title, location & amount inline */}
             <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${tint(sel.imgColor, 'cc')})`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>

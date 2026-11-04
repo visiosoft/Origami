@@ -8,6 +8,7 @@ import { Notifications } from './Notifications';
 import { ThemeToggle } from './ThemeToggle';
 import { GlobalSearch, openGlobalSearch } from './GlobalSearch';
 import { useApp, type ViewMode } from '../AppContext';
+import { projectPlace } from '../data/returnToProject';
 import { ANY_OF_BY_ROUTE, NAV_GROUPS, PERSONAL_ROUTES, PERM_BY_ROUTE, permOf } from '../data/nav';
 import { AutosaveIndicator, AutosaveProvider } from '../autosave';
 import { ServerStatusBanner } from './ServerStatusBanner';
@@ -68,6 +69,8 @@ export function AppShell() {
   })();
 
   const pageTitle = activeItem?.label ?? 'Module';
+  // Came here from a project's drawer? Offer the way back to it (Nov 3 sync).
+  const backToProject = useMemo(() => projectPlace(), [location.pathname, location.search]); // eslint-disable-line react-hooks/exhaustive-deps
   const pageBadge = activeItem?.badge;
 
   // The sidebar search narrows the menu as you type; Enter opens the first match.
@@ -188,6 +191,9 @@ export function AppShell() {
             )}
             <h1 className="page-title">{pageTitle}</h1>
             {pageBadge && <span className="page-badge">{pageBadge}</span>}
+            {backToProject && slug !== 'projects' && (
+              <button type="button" className="back-to-project" onClick={() => { navigate(backToProject.path); }} title="Back to the project you came from">← Back to {backToProject.label}</button>
+            )}
           </div>
 
           {tier === 'internal' && currentUser?.roleKey !== 'site_super' && (

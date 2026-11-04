@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04e',
+    date: '2026-11-04',
+    title: 'Stay in the project',
+    items: [
+      { area: 'Projects', kind: 'improved', text: 'The open project and its tab are kept in the address, so the browser’s Back button returns to it instead of a closed list.' },
+      { area: 'Projects', kind: 'new', text: 'Open the CRM lead, daily reports, the files, a task or a meeting from a project and the page shows “← Back to <project>” — one click returns to the same project and tab.' },
+      { area: 'Projects', kind: 'improved', text: 'The project overview panel is wider.' },
+    ],
+  },
+  {
     id: '2026-11-04d',
     date: '2026-11-04',
     title: 'Photos no longer hide each other',
