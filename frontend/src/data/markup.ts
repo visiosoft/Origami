@@ -38,7 +38,12 @@ export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId
 
 /** What a link box says: "→ A501" (the sheet, when named), "→ p. 5", or "→ Inspection card 3.pdf, p. 2" (same as the server draws). */
 export const linkLabel = (t?: LinkTarget | null, sheet?: (page: number) => string | undefined) =>
-  !t ? 'Link' : t.type === 'page' ? `→ ${sheet?.(t.page) || `p. ${t.page}`}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
+  !t ? 'Link' : t.type === 'page' ? `→ ${sheetNumberOf(sheet?.(t.page)) || `p. ${t.page}`}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
+
+/** A sheet name is "A-201 — FLOOR PLAN" (Nov 3 sync); links and tags show just the number. */
+export const SHEET_SEP = ' — ';
+export const sheetNumberOf = (name?: string | null) => (name ? name.split(SHEET_SEP)[0] : name || undefined);
+export const sheetLabel = (num: string, title?: string | null) => (title ? `${num}${SHEET_SEP}${title}` : num).slice(0, 80);
 
 /** Photos can be marked up too (Oct 31). */
 export const isPhotoFile = (f: { name?: string; mimeType?: string | null }) => /\.(jpe?g|png|webp|gif)$/i.test(f.name || '') || /^image\/(jpeg|png|webp|gif)$/.test(f.mimeType || '');
@@ -55,8 +60,36 @@ const SHEET_RE = /^[A-Z]{1,3}[-.]?\s?\d{1,4}(?:\.\d{1,3})?[A-Z]?$/;
  */
 export function sheetNameFrom(runs: { str: string; x0: number; y0: number; x1: number; y1: number }[]): string | null {
   const hits = runs.map((r) => ({ ...r, s: r.str.trim() })).filter((r) => SHEET_RE.test(r.s));
-  const pick = (list: typeof hits) => list.sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0))[0]?.s || null;
-  return pick(hits.filter((r) => r.x0 > 0.55 && r.y0 > 0.55)) || pick(hits.filter((r) => r.x0 > 0.8));
+  const pick = (list: typeof hits) => list.sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0))[0] || null;
+  const num = pick(hits.filter((r) => r.x0 > 0.55 && r.y0 > 0.55)) || pick(hits.filter((r) => r.x0 > 0.8));
+  if (!num) return null;
+  // Its title (Nov 3 sync): the biggest words in the same title block, that aren't a label, scale, date or company line.
+  const block = runs.map((r) => ({ ...r, s: r.str.replace(/\s+/g, ' ').trim() }))
+    .filter((r) => r !== (num as any) && r.s !== num.s && isTitleText(r.s) && (num.x0 > 0.8 && num.y0 < 0.55 ? r.x0 > 0.8 : r.x0 > 0.55 && r.y0 > 0.5));
+  const title = block.sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0) || Math.abs(a.y0 - num.y0) - Math.abs(b.y0 - num.y0))[0]?.s;
+  return sheetLabel(num.s, title || null);
+}
+
+/** Words that could be a sheet title: letters, not a title-block label, scale, date, phone or address line. */
+const LABELS = /^(sheet|sheet (no|number|title)|scale|date|drawn( by)?|checked( by)?|project( no| number)?|title|revision|rev|issue|issued for|no\.?|job|client|owner|architect|engineer|seal|stamp|description|north)[.:]?$/i;
+export function isTitleText(s: string): boolean {
+  if (s.length < 3 || s.length > 60) return false;
+  if (SHEET_RE.test(s) || LABELS.test(s)) return false;
+  if (/["'=:]|\d+\/\d+|\d{4}|@|www\.|\.com|\(\d{3}\)|\d{3}[-. ]\d{4}/i.test(s)) return false;
+  const letters = s.replace(/[^A-Za-z]/g, '').length;
+  return letters >= 3 && letters / s.replace(/\s/g, '').length > 0.7 && !/(inc|llc|corp|design|build|architects?|engineering|residence|street|ave|blvd|road)\b/i.test(s);
+}
+
+/** From OCR'd title-block text (a scanned sheet): its sheet number and title, or null. */
+export function sheetNameFromLines(text: string): string | null {
+  const lines = text.split(/\r?\n/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const nums = lines.map((l) => l.replace(/^sheet( no\.?| number)?[:\s]*/i, ''));
+  const at = nums.findIndex((l) => SHEET_RE.test(l));
+  if (at < 0) return null;
+  // The title usually comes just above the number in the block; else the longest title-like line.
+  const before = lines.slice(0, at).reverse().find(isTitleText);
+  const title = before || lines.filter(isTitleText).sort((a, b) => b.length - a.length)[0];
+  return sheetLabel(nums[at], title || null);
 }
 export interface Markup {
   id: string;

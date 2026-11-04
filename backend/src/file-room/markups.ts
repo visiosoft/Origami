@@ -78,7 +78,7 @@ export function cleanSheetNames(raw: unknown): Record<string, string> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     const page = Math.floor(Number(k));
-    const name = String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 30);
+    const name = String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 80); // "A-201 — FLOOR PLAN" (Nov 3 sync)
     if (page >= 1 && page <= 10000 && name) out[String(page)] = name;
   }
   return out;
@@ -411,7 +411,8 @@ export async function flattenPdf(
     const page = pages[m.page - 1];
     if (!page) continue;
     if (m.kind === 'symbol') { await drawSymbol(doc, page, font, m.data, opts.symbols, embedded); continue; }
-    drawMarkup(page, font, m.kind, m.data, (n) => opts.sheetNames?.[String(n)]);
+    // Links and tags show the sheet number only (the name may carry its title).
+    drawMarkup(page, font, m.kind, m.data, (n) => opts.sheetNames?.[String(n)]?.split(' — ')[0]);
     if (m.kind === 'link' && m.data.target) addLinkAnnotation(doc, page, pages, m.data, opts.fileUrl);
   }
   return doc.save();

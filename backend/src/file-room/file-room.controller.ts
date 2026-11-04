@@ -1,4 +1,4 @@
-import { ForbiddenException,
+import { BadRequestException, ForbiddenException,
   Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
 } from '@nestjs/common';
 import { Claims } from '../auth/guards/claims.decorator';
@@ -80,6 +80,20 @@ export class FileRoomController {
   async setLayerAccess(@Param('id') id: string, @Body() body: any, @Claims() claims: SessionClaims | null) {
     await this.seeFile(id, claims);
     return this.markups.setLayerAccess(id, String(body?.layerKey || ''), body, claims);
+  }
+
+  /**
+   * Read a scanned sheet's title block (Nov 3 sync): the browser sends the
+   * corner of the page as a PNG; Google Drive's OCR reads it (no AI, no cost).
+   */
+  @Tiers('internal')
+  @Post('title-ocr')
+  async titleOcr(@Body() body: { image?: string }) {
+    const m = /^data:(image\/(?:png|jpeg));base64,(.+)$/.exec(String(body?.image || ''));
+    if (!m) throw new BadRequestException('Send the title block as a PNG or JPEG.');
+    const buf = Buffer.from(m[2], 'base64');
+    if (buf.length > 4 * 1024 * 1024) throw new BadRequestException('That image is too big.');
+    return { text: await this.markups.readTitleBlock(buf, m[1]) };
   }
 
   /** The shared drawing-symbol library (admins add, rename and delete). */

@@ -5,7 +5,7 @@ import { useApp } from '../../AppContext';
 import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
+  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
@@ -215,25 +215,53 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id, focusMarkupId]);
 
-  // A drawing without sheet names yet: read them from each page's title block, once, and keep them.
+  // Sheet names and titles from each page's title block (Oct 31; titles Nov 3): read once when the drawing has
+  // none, or again with ↻. Pages with no text (scans) go through Google Drive's OCR -- no AI.
+  const [readingTitles, setReadingTitles] = useState<string | null>(null);
+  const titleOf = async (n: number): Promise<string | null> => {
+    const runs = await runsOf(n).catch(() => [] as TextRun[]);
+    if (runs.length) return sheetNameFrom(runs);
+    // A scan: the bottom-right corner, as a picture, read by OCR.
+    const page = await doc!.getPage(n);
+    const base = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: Math.min(3, 2400 / Math.max(base.width, base.height)) });
+    const full = document.createElement('canvas');
+    full.width = Math.ceil(vp.width); full.height = Math.ceil(vp.height);
+    await page.render({ canvasContext: full.getContext('2d')!, viewport: vp } as any).promise;
+    const crop = document.createElement('canvas');
+    const cx = Math.floor(full.width * 0.6), cy = Math.floor(full.height * 0.6);
+    crop.width = full.width - cx; crop.height = full.height - cy;
+    crop.getContext('2d')!.drawImage(full, cx, cy, crop.width, crop.height, 0, 0, crop.width, crop.height);
+    const { text } = await api.fileRoom.titleOcr(crop.toDataURL('image/png'));
+    return sheetNameFromLines(text || '');
+  };
+  const readTitles = async (announce = false) => {
+    if (!doc) return;
+    const found: Record<string, string> = {};
+    let scanned = 0, failed = '';
+    for (let n = 1; n <= doc.numPages; n++) {
+      setReadingTitles(`Reading sheet titles… ${n} / ${doc.numPages}`);
+      try {
+        if (!(await runsOf(n).catch(() => [])).length) scanned++;
+        const name = await titleOf(n);
+        if (name) found[String(n)] = name;
+      } catch (e) { failed = (e as Error).message; if (/Connect Google/i.test(failed)) break; }
+    }
+    setReadingTitles(null);
+    if (Object.keys(found).length) {
+      const merged = { ...sheets, ...found };
+      setSheets(merged);
+      api.fileRoom.setSheets(file.id, merged, true).catch(() => undefined);
+    }
+    if (announce) toast(Object.keys(found).length ? `Named ${Object.keys(found).length} of ${doc.numPages} sheets${scanned ? ` (${scanned} read from scans)` : ''} — fix any with ✎` : failed ? '⚠ ' + failed : 'No sheet numbers found in the title blocks');
+  };
   useEffect(() => {
     if (!doc || !sheetsLoaded || Object.keys(sheets).length || !canDraw) return;
-    let live = true;
-    (async () => {
-      const found: Record<string, string> = {};
-      for (let n = 1; n <= doc.numPages && live; n++) {
-        const name = sheetNameFrom(await runsOf(n).catch(() => []));
-        if (name) found[String(n)] = name;
-      }
-      if (!live || !Object.keys(found).length) return;
-      setSheets(found);
-      api.fileRoom.setSheets(file.id, found, true).catch(() => undefined);
-    })();
-    return () => { live = false; };
+    void readTitles(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc, sheetsLoaded]);
   const renameSheet = async (n: number) => {
-    const to = window.prompt(`Name page ${n} (its sheet number, e.g. A100) — leave empty for “p. ${n}”`, sheet(n) || '');
+    const to = window.prompt(`Name page ${n} — its sheet number and title, e.g. “A100 — FLOOR PLAN” (empty for “p. ${n}”)`, sheet(n) || '');
     if (to === null) return;
     try { setSheets(await api.fileRoom.setSheets(file.id, { [String(n)]: to.trim() })); }
     catch (e) { toast('⚠ ' + ((e as Error).message || 'Not saved')); }
@@ -955,6 +983,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             </select>
           ) : <span>Page <input aria-label="Page" value={pageNo} onChange={(e) => { const n = Number(e.target.value); if (n >= 1 && n <= pages) setPageNo(n); }} /> of {pages || '…'}</span>}
           {canDraw && pages > 0 && <button type="button" className="mk-btn" onClick={() => void renameSheet(pageNo)} aria-label="Name this sheet" title="Name this page by its sheet number (A100, E103…)">✎</button>}
+          {canDraw && pages > 0 && <button type="button" className="mk-btn" disabled={!!readingTitles} onClick={() => void readTitles(true)} aria-label="Read sheet titles" title="Read every page’s sheet number and title from its title block (scans by OCR)">↻</button>}
+          {readingTitles && <span className="mk-muted" role="status">{readingTitles}</span>}
           <button type="button" className="mk-btn" disabled={pageNo >= pages} onClick={() => setPageNo(pageNo + 1)} aria-label="Next page">›</button>
         </div>
         <div className="mk-zoom">

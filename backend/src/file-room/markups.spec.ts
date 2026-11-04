@@ -223,7 +223,7 @@ describe('MarkupsService', () => {
   });
 
   it('keeps sheet names by page (Oct 31): merged, cleared, cleaned; links show them', async () => {
-    expect(cleanSheetNames({ 1: ' A100 ', 2: '', x: 'E1', 0: 'Z', 3: 'A-201 Floor plan level two extra long name' })).toEqual({ 1: 'A100', 3: 'A-201 Floor plan level two ext' });
+    expect(cleanSheetNames({ 1: ' A100 ', 2: '', x: 'E1', 0: 'Z', 3: 'A-201 Floor plan level two extra long name' })).toEqual({ 1: 'A100', 3: 'A-201 Floor plan level two extra long name' });
     expect(linkLabel({ type: 'page', page: 2 }, (n) => (n === 2 ? 'A501' : undefined))).toBe('→ A501');
     expect(linkLabel({ type: 'page', page: 3 }, () => undefined)).toBe('→ p. 3');
     const { svc } = setup();

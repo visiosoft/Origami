@@ -184,3 +184,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 |---|---|---|
 | J1 | Superintendent (George) sees too much: projects, leads, address book; resource management changes only by Astrid / accounting | ✅ field roles default to Assigned projects; leads follow Assigned projects; outside contacts only on your projects; writes in Manpower, leads and People need manage |
 | J2 | Markup notes typed in the side panel appear on the drawing; email markups; iPhone scrolling conflicts | ✅ notes stay in the panel (not drawn), up to 1,000 chars; Email button (saves a copy, emails its link); safe-area padding and touch handling on iPhone |
+| J3 | Automate drawing titles (OCR, no AI) | ✅ number + title from the title-block text; scans via Drive OCR; ↻ to re-read; ✎ to fix |

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FILLABLE, sheetNameFrom, dedupePoints, pathLengthPts, trianglePts, wrapLines } from './markup';
+import { FILLABLE, sheetNameFrom, sheetNameFromLines, sheetNumberOf, dedupePoints, pathLengthPts, trianglePts, wrapLines } from './markup';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
 import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, pasteCopy, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
@@ -148,6 +148,16 @@ describe('sheetNameFrom', () => {
     expect(sheetNameFrom([run('A100', 0.1, 0.1, 0.03), run('A-201', 0.9, 0.92, 0.03), run('A201', 0.85, 0.8, 0.01), run('SHEET', 0.9, 0.88)])).toBe('A-201');
     expect(sheetNameFrom([run('E103', 0.92, 0.2, 0.02)])).toBe('E103');
     expect(sheetNameFrom([run('S2.1', 0.7, 0.7)])).toBe('S2.1');
+  });
+  it('adds the sheet title from the same title block (Nov 3 sync)', () => {
+    const block = [run('ORIGAMI DESIGN + BUILD', 0.8, 0.8, 0.011), run('COLE VALLEY RESIDENCE', 0.8, 0.82, 0.011), run('FLOOR PLAN', 0.8, 0.86, 0.018), run('SCALE', 0.8, 0.9), run('1/4" = 1\'-0"', 0.85, 0.9), run('A-201', 0.8, 0.93, 0.035), run('NOTES', 0.1, 0.1, 0.03)];
+    expect(sheetNameFrom(block)).toBe('A-201 — FLOOR PLAN');
+    expect(sheetNumberOf('A-201 — FLOOR PLAN')).toBe('A-201');
+    expect(linkLabel({ type: 'page', page: 2 }, () => 'A-201 — FLOOR PLAN')).toBe('→ A-201');
+  });
+  it('reads a scanned title block (OCR text)', () => {
+    expect(sheetNameFromLines('ORIGAMI DESIGN + BUILD\nPROJECT: COLE VALLEY\nROOF PLAN\nSCALE: 1/8" = 1\'-0"\nDATE 10/12/2026\nSHEET\nA-501\n')).toBe('A-501 — ROOF PLAN');
+    expect(sheetNameFromLines('nothing useful here')).toBeNull();
   });
   it('finds nothing in a page without one', () => {
     expect(sheetNameFrom([run('FLOOR PLAN', 0.8, 0.9), run('1/4" = 1\'-0"', 0.8, 0.95), run('2026', 0.9, 0.9)])).toBeNull();

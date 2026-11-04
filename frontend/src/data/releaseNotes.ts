@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04c',
+    date: '2026-11-04',
+    title: 'Sheet titles read from the title block',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Opening a drawing set names every page by its title block — sheet number and title, e.g. “A-201 — FLOOR PLAN” — so a 100-page set doesn’t need typing. Scanned sheets are read by Google Drive’s OCR (no AI). Fix any page with ✎; ↻ reads the whole set again.', where: 'File Room → Mark up → page picker' },
+    ],
+  },
+  {
     id: '2026-11-04b',
     date: '2026-11-04',
     title: 'Drawings: notes stay in the list, Email, iPhone',

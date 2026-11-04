@@ -1,3 +1,4 @@
+import { GoogleService } from '../google/google.service';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { SettingsService } from '../settings/settings.service';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -22,6 +23,7 @@ export class MarkupsService {
     @Optional() @InjectRepository(MarkupSymbolEntity) private readonly symbolRepo?: Repository<MarkupSymbolEntity>,
     @Optional() @InjectRepository(MarkupLayerEntity) private readonly layerRepo?: Repository<MarkupLayerEntity>,
     @Optional() @InjectRepository(PersonEntity) private readonly people?: Repository<PersonEntity>,
+    @Optional() private readonly google?: GoogleService,
   ) {}
 
   // ---------------------------------------------------------------- layer access (Oct 30 sync)
@@ -267,6 +269,12 @@ export class MarkupsService {
   }
 
   /** A drawing's sheet names by page (Oct 31): read from its title blocks by the viewer, correctable by the team. */
+  /** OCR a title block image through Google Drive (needs the workspace Google connection). */
+  async readTitleBlock(image: Buffer, mimeType: string): Promise<string> {
+    if (!this.google || !(await this.google.isConnected())) throw new BadRequestException('Connect Google Workspace to read scanned sheets.');
+    return this.google.imageToText(image, mimeType, 'title-block');
+  }
+
   async sheetNames(fileId: string) {
     return cleanSheetNames((await this.file(fileId)).sheetNames);
   }

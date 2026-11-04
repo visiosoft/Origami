@@ -926,6 +926,8 @@ export const api = {
     removeSymbol: (id: string) => request(`/file-room/symbols/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     /** A drawing's sheet names by page ("1": "A100"); saving merges page by page unless `replace`. */
     sheets: (id: string) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { cache: 'no-store' } as any),
+    /** OCR a scanned sheet's title block (a PNG data URL of the corner) through Google Drive (Nov 3 sync). */
+    titleOcr: (image: string) => request<{ text: string }>('/file-room/title-ocr', { method: 'POST', body: JSON.stringify({ image }) }),
     setSheets: (id: string, names: Record<string, string>, replace = false) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { method: 'PUT', body: JSON.stringify({ names, replace }) }),
     /** Who sees each layer on a drawing (only restricted ones), and changing one (Oct 30 sync). */
     layerAccess: (id: string) => request<{ layerKey: string; audience: 'everyone' | 'internal' | 'people'; people?: { type: 'user' | 'company'; id: string; name: string }[] }[]>(`/file-room/files/${encodeURIComponent(id)}/layer-access`, { cache: 'no-store' } as any),
