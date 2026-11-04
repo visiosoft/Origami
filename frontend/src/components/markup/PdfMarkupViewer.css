@@ -165,3 +165,12 @@
   .mk-side-close { display: block; }
   .mk-side { position: fixed; top: 0; right: 0; bottom: 0; z-index: 5; width: min(340px, 70vw); box-shadow: -10px 0 30px rgba(var(--rgb-ink), 0.18); }
 }
+
+/* iPhone (Nov 3 sync): keep clear of the home indicator, and let one finger draw anywhere while a drawing tool is on. */
+.mk-shell { padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); box-sizing: border-box; }
+.mk-stage { overscroll-behavior: contain; }
+.mk-stage.is-drawing { touch-action: none; }
+.mk-selected textarea { box-sizing: border-box; width: 100%; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--ink); font: inherit; font-size: 12.5px; resize: vertical; }
+@media (max-width: 720px) {
+  .mk-side { bottom: calc(64px + env(safe-area-inset-bottom)); }
+}

@@ -762,6 +762,22 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     finally { setBusy(false); }
   };
 
+  // Email the markups (Nov 3 sync): a marked-up copy is saved beside the drawing and its link emailed.
+  const canEmail = authUser?.roleKey === 'admin' || (authUser?.tier || currentUser?.tier) === 'internal';
+  const [emailing, setEmailing] = useState<{ to: string; note: string } | null>(null);
+  const sendEmail = async () => {
+    if (!emailing?.to.trim()) return;
+    setBusy(true);
+    try {
+      const f = await api.fileRoom.saveMarkedUpCopy(file.id, hidden.size ? visibleLayers : undefined);
+      await api.fileRoom.email(f.id, emailing.to.trim(), emailing.note.trim());
+      toast(`Emailed “${f.name}” to ${emailing.to.trim()}`);
+      setEmailing(null);
+      onSavedCopy?.();
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not sent')); }
+    finally { setBusy(false); }
+  };
+
   // ---------------------------------------------------------------- links
   const otherFiles = [...(projectFiles || []), ...extraFilesList()].filter((f, i, all) => f.id !== file.id && all.findIndex((x) => x.id === f.id) === i).sort((a, b) => a.name.localeCompare(b.name));
   /** Pages visited by following links on this drawing, for "← Back to p. 2". */
@@ -963,6 +979,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         )}
         <span className="mk-spacer" />
         <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={download} title="The PDF with the layers you’re showing drawn in">Download marked-up PDF</button>
+        {canEmail && <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={() => setEmailing({ to: '', note: '' })} title="Saves a marked-up copy and emails a link to it">Email</button>}
         {canDraw && <button type="button" className="mk-btn is-text is-dark" disabled={busy || !marks.length} onClick={saveCopy} title="Saves a separate PDF with the markups drawn in, beside the drawing. The original drawing is never changed, and the markups stay editable here.">Save marked-up copy</button>}
         <button type="button" className="mk-btn" onClick={() => setPanel(!panel)} aria-label="Markup list" aria-pressed={panel}>☰</button>
       </header>
@@ -1024,7 +1041,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           {pageScale && <span className="mk-scale" title="This page’s scale">⇔ set</span>}
         </nav>
 
-        <div className="mk-stage" ref={scroller}
+        <div className={'mk-stage' + (canDraw && tool !== 'select' && tool !== 'pan' ? ' is-drawing' : '')} ref={scroller}
           onWheel={(e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); setZoom(Math.min(8, Math.max(0.1, scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1)))); } }}>
           {search && (
             <div className="mk-search" role="search">
@@ -1140,11 +1157,10 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 {selected.data.label && <p className="mk-quote">{selected.data.label}</p>}
                 {mine(selected) ? (
                   <label className="mk-move">Note
-                    <input key={selected.id} defaultValue={selected.data.note || ''} maxLength={120} placeholder="A short label, e.g. Patch drywall" aria-label="Note on this markup"
-                      onBlur={(e) => { const v = e.target.value.trim(); if (v !== (selected.data.note || '')) { const data: MarkupData = { ...selected.data, note: v }; if (!v) delete data.note; void editMarkup(selected, { data }); } }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
+                    <textarea key={selected.id} defaultValue={selected.data.note || ''} maxLength={1000} rows={3} placeholder="Notes about this markup — kept here, not written on the drawing" aria-label="Note on this markup"
+                      onBlur={(e) => { const v = e.target.value.trim(); if (v !== (selected.data.note || '')) { const data: MarkupData = { ...selected.data, note: v }; if (!v) delete data.note; void editMarkup(selected, { data }); } }} />
                   </label>
-                ) : selected.data.note ? <p className="mk-quote">{selected.data.note}</p> : null}
+                ) : selected.data.note ? <p className="mk-quote" style={{ whiteSpace: 'pre-wrap' }}>{selected.data.note}</p> : null}
                 {mine(selected) && !['link', 'scale', 'pin'].includes(selected.kind) && (
                   <div className="mk-recolor" role="group" aria-label="Change its colour">
                     {MARKUP_COLORS.map((c) => <button key={c} type="button" className={'mk-swatch' + (selected.data.color.toUpperCase() === c ? ' is-on' : '') + (c === '#FFFFFF' ? ' is-white' : '')} style={{ background: c }} aria-label={`Make it ${c === '#FFFFFF' ? 'white' : c}`}
@@ -1211,6 +1227,20 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         </div>
       )}
 
+      {emailing && (
+        <div className="mk-ask-bg" onClick={() => setEmailing(null)}>
+          <form className="mk-ask" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); void sendEmail(); }}>
+            <h4>Email the markups</h4>
+            <p className="mk-muted">A marked-up copy (the layers you’re showing) is saved beside the drawing, and a link to it is emailed.</p>
+            <input autoFocus type="text" inputMode="email" aria-label="Email to" placeholder="name@example.com, another@example.com" value={emailing.to} onChange={(e) => setEmailing({ ...emailing, to: e.target.value })} />
+            <textarea rows={3} aria-label="Message" placeholder="A note (optional)" value={emailing.note} onChange={(e) => setEmailing({ ...emailing, note: e.target.value })} />
+            <div className="mk-ask-row">
+              <button type="button" className="mk-btn is-text" onClick={() => setEmailing(null)}>Cancel</button>
+              <button type="submit" className="mk-btn is-text is-dark" disabled={busy || !emailing.to.trim()}>{busy ? 'Sending…' : 'Send'}</button>
+            </div>
+          </form>
+        </div>
+      )}
       {ask && (
         <div className="mk-ask-bg" onClick={() => setAsk(null)}>
           <form className="mk-ask" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); void answer(); }}>
@@ -1351,13 +1381,8 @@ function textWidth(fs: number) {
 
 /** How one markup looks, in page points (size = the page as shown, in points). */
 function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false, sheets?: Record<string, string>, symbol?: MarkupSymbol) {
-  const shape = bareShape(m, size, scale, ghost, sheets, symbol);
-  if (!m.data.note) return shape;
-  // A note sits just above the markup's top-left corner, the same size on screen at any zoom.
-  const xs = m.data.points.map((p) => p[0] * size.w), ys = m.data.points.map((p) => p[1] * size.h);
-  const x = Math.min(...xs), y = Math.min(...ys) - (m.kind === 'pin' ? 30 / scale : 5 / scale);
-  const ink = m.data.color.toUpperCase() === '#FFFFFF' ? '#111827' : m.data.color;
-  return <g>{shape}<text x={x} y={y} fontSize={11 / scale} fontWeight={700} fill={ink} stroke="#fff" strokeWidth={3 / scale} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif">{m.data.note}</text></g>;
+  // A markup's note is kept in the side panel and the list, never written on the sheet (Nov 3 sync).
+  return bareShape(m, size, scale, ghost, sheets, symbol);
 }
 
 function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false, sheets?: Record<string, string>, symbol?: MarkupSymbol) {

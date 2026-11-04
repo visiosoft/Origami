@@ -135,7 +135,8 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
   if (typeof d.label === 'string') data.label = d.label.slice(0, 60);
   if (FILLABLE.includes(kind) && d.fill === true) data.fill = true;
   if (kind === 'text' && Number(d.boxW) > 0) data.boxW = Math.min(1, Math.max(0.02, Number(d.boxW)));
-  if (typeof d.note === 'string' && d.note.trim()) data.note = d.note.replace(/\s+/g, ' ').trim().slice(0, 120);
+  // Notes stay in the side panel and list (Nov 3 sync), so they can be longer; line breaks are kept.
+  if (typeof d.note === 'string' && d.note.trim()) data.note = String(d.note).split(/\r?\n/).map((l: string) => l.replace(/\s+/g, ' ').trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1000);
   if (kind === 'scale') {
     const real = Number(d.real);
     if (!(real > 0)) throw new Error('Type the real length of the line.');
@@ -296,15 +297,8 @@ export function toPage(p: Pt, w: number, h: number, rotation: number): Pt {
 
 /** Draw one markup onto a pdf-lib page. */
 function drawMarkup(page: PDFPage, font: PDFFont, kind: string, d: MarkupData, sheet?: (page: number) => string | undefined) {
+  // A markup's note stays in the list, not on the sheet (Nov 3 sync); only the shape (and a text box's own text) is drawn.
   drawShape(page, font, kind, d, sheet);
-  if (d.note) {
-    // The note sits just above the markup's top-left corner.
-    const { width: w, height: h } = page.getSize();
-    const rot = page.getRotation().angle;
-    const xs = d.points.map((p) => p[0]), ys = d.points.map((p) => p[1]);
-    const at = toPage([Math.min(...xs), Math.min(...ys)], w, h, rot);
-    page.drawText(latin1(d.note), { x: at[0], y: h - at[1] + 4, size: 9, font, color: colorOf(d.color === '#FFFFFF' ? '#111827' : d.color), rotate: degrees(rot) });
-  }
 }
 
 function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData, sheet?: (page: number) => string | undefined) {

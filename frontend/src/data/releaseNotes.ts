@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04b',
+    date: '2026-11-04',
+    title: 'Drawings: notes stay in the list, Email, iPhone',
+    items: [
+      { area: 'Drawings', kind: 'fixed', text: 'A markup’s note is kept in the side panel and the list — it’s no longer written on the drawing or the download. Notes can now be longer (up to 1,000 characters, with line breaks). Use the Text tool to put words on the sheet.', where: 'File Room → Mark up → select a markup → Note' },
+      { area: 'Drawings', kind: 'new', text: '“Email” in the drawing: saves a marked-up copy (the layers you’re showing) and emails a link to it.' },
+      { area: 'Drawings', kind: 'fixed', text: 'iPhone: the tools sit clear of the home bar, and with a drawing tool on, one finger draws anywhere on the sheet instead of scrolling it.' },
+    ],
+  },
+  {
     id: '2026-11-04a',
     date: '2026-11-04',
     title: 'Superintendents see only their own work',

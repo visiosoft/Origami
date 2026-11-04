@@ -194,9 +194,10 @@ describe('MarkupsService', () => {
     expect(dicts[1].get(PDFName.of('A')).get(PDFName.of('URI')).decodeText()).toBe('https://app.example/planroom?file=F5');
   });
 
-  it('keeps a short note on any markup, tidied', () => {
+  it('keeps a note on any markup, tidied, line breaks kept (it stays in the list, not on the sheet)', () => {
     const m = cleanMarkup({ kind: 'cloud', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], color: '#FFFFFF', note: '  Patch   drywall \n here ' } });
-    expect(m.data.note).toBe('Patch drywall here');
+    expect(m.data.note).toBe('Patch drywall\nhere');
+    expect(cleanMarkup({ kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], note: 'x'.repeat(1500) } }).data.note).toHaveLength(1000);
     expect(m.data.color).toBe('#FFFFFF');
     expect(cleanMarkup({ kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], note: '   ' } }).data.note).toBeUndefined();
   });
