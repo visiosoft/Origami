@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, Repository, type EntityManager } from 'typeorm';
 import {
   EstimateEntity, EstimateGrLineEntity, EstimateLineEntity, EstimateScopeEntity, ProjectEntity,
   type EstimateColumn, type EstimatePayment,
@@ -164,10 +164,126 @@ export class EstimatesService {
     return { scopes, lines, gr };
   }
 
+  private async nextNumber(projectId: number) {
+    const numbers = (await this.estimates.find({ where: { projectId, isTemplate: false }, select: { number: true } })).map((e) => Number(String(e.number).replace(/\D/g, '')) || 0);
+    return `EST-${String(Math.max(0, ...numbers) + 1).padStart(3, '0')}`;
+  }
+
+  /** An estimate or template the caller may read (for copying from). */
+  private async source(id: string, canSee: (projectId: number) => boolean) {
+    const e = await this.estimates.findOne({ where: { id } });
+    if (!e || (!e.isTemplate && !canSee(e.projectId))) throw new NotFoundException('That estimate or template was not found.');
+    return e;
+  }
+
+  /** Copy rows into an estimate with new ids; scopes go after the ones it has. */
+  private async cloneRows(m: EntityManager, sheet: EstimateSheet, target: { id: string; projectId: number }, startOrder = 0, withGr = true) {
+    const scopeMap = new Map(sheet.scopes.map((s) => [s.id, newId('esc')]));
+    if (sheet.scopes.length) await m.save(sheet.scopes.map((s, i) => this.scopes.create({ ...s, id: scopeMap.get(s.id)!, estimateId: target.id, projectId: target.projectId, scopeOrder: startOrder + i })));
+    const lines = sheet.lines.filter((l) => scopeMap.has(l.scopeId));
+    for (let i = 0; i < lines.length; i += 200) await m.save(lines.slice(i, i + 200).map((l) => this.lines.create({ ...l, id: newId('eln'), estimateId: target.id, projectId: target.projectId, scopeId: scopeMap.get(l.scopeId)! })));
+    if (withGr && sheet.gr.length) await m.save(sheet.gr.map((g) => this.grLines.create({ ...g, id: newId('egr'), estimateId: target.id, projectId: target.projectId })));
+  }
+
+  /** The estimate's settings, without its identity and history. */
+  private settingsOf(src: EstimateEntity) {
+    const { id: _i, version: _v, status: _s, sentAt: _sa, frozenAt: _f, acceptedAt: _a, acceptedBy: _ab, revisionOf: _r, projectId: _p, number: _n, rev: _rv, isTemplate: _t, createdAt: _c, createdBy: _cb, updatedAt: _u, updatedBy: _ub, ...rest } = src;
+    void _i; void _v; void _s; void _sa; void _f; void _a; void _ab; void _r; void _p; void _n; void _rv; void _t; void _c; void _cb; void _u; void _ub;
+    return rest;
+  }
+
+  private async copyNew(projectId: number, fromId: string, title: string | null, actor: Actor, canSee: (projectId: number) => boolean, projectName?: string) {
+    const src = await this.source(fromId, canSee);
+    const sheet = await this.sheetOf(src.id);
+    const e = this.estimates.create({
+      ...this.settingsOf(src), id: newId('est'), projectId, number: await this.nextNumber(projectId), rev: 1, isTemplate: false, status: 'draft', revisionOf: null,
+      title: title || (src.isTemplate ? `${projectName || 'Estimate'} — ${src.title || 'from template'}` : src.title), estimateDate: todayISO(), preparedById: actor.id || null,
+      sentAt: null, frozenAt: null, acceptedAt: null, acceptedBy: null, createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
+    });
+    await this.db.transaction(async (m) => {
+      await m.save(e);
+      await this.cloneRows(m, sheet, e);
+      await this.fin.log(m, { projectId, entityType: 'estimate', entityId: e.id, action: 'created', reason: `${e.number} from ${src.isTemplate ? `template “${src.title}”` : `${src.number} Rev ${src.rev}`}` }, actor);
+    });
+    return this.get(projectId, e.id, actor);
+  }
+
+  // ------------------------------------------------------------------ templates (projectId 0)
+  async templates(actor: Actor) {
+    await this.need(actor, 'view');
+    const rows = await this.estimates.find({ where: { isTemplate: true }, order: { title: 'ASC' } });
+    const out = [];
+    for (const t of rows) {
+      const sheet = await this.sheetOf(t.id);
+      out.push({ id: t.id, title: t.title, updatedAt: t.updatedAt, updatedBy: t.updatedBy, scopes: sheet.scopes.length, lines: sheet.lines.filter((l) => l.kind === 'item').length, totalProject: fromCents(resultOf(t, sheet).totals.totalProject) });
+    }
+    return { rights: await this.rights(actor), rows: out };
+  }
+
+  /** A blank template, or "Save as template" from an estimate (an exact copy). */
+  async createTemplate(dto: any, actor: Actor, canSee: (projectId: number) => boolean) {
+    await this.need(actor, 'edit');
+    const title = str(dto?.title, 200);
+    if (!title) throw new BadRequestException('Give the template a name.');
+    const src = dto?.fromId ? await this.source(String(dto.fromId), canSee) : null;
+    const t = this.estimates.create({
+      ...(src ? this.settingsOf(src) : { grPct: 17, profitPct: 12, contingencyPct: 5, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null, columns: [], payments: [], areas: null }),
+      id: newId('est'), projectId: 0, number: 'TPL', rev: 1, isTemplate: true, status: 'draft', title, revisionOf: null, estimateDate: null,
+      sentAt: null, frozenAt: null, acceptedAt: null, acceptedBy: null, createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
+    });
+    await this.db.transaction(async (m) => {
+      await m.save(t);
+      if (src) await this.cloneRows(m, await this.sheetOf(src.id), t);
+      else await m.save(DEFAULT_GR.map((g, i) => this.grLines.create({ id: newId('egr'), estimateId: t.id, projectId: 0, lineOrder: i, title: g.title, unit: g.unit, qty: g.qty, base: 0, included: true })));
+    });
+    return this.get(0, t.id, actor);
+  }
+
+  /** Every estimate the caller can see, across projects (to start from one). Narrowed to their projects by ProjectScope. */
+  async allEstimates(actor: Actor) {
+    await this.need(actor, 'view');
+    const rows = await this.estimates.find({ where: { isTemplate: false }, order: { updatedAt: 'DESC' } });
+    const names = new Map((await this.projects.find({ select: { id: true, name: true } })).map((p) => [p.id, p.name]));
+    return { rows: rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: names.get(e.projectId) || `Project ${e.projectId}`, number: e.number, rev: e.rev, title: e.title, status: e.status, updatedAt: e.updatedAt })) };
+  }
+
+  /** Read a template or an estimate to pick scopes from. */
+  async sourceSheet(id: string, actor: Actor, canSee: (projectId: number) => boolean) {
+    await this.need(actor, 'view');
+    const e = await this.source(id, canSee);
+    const sheet = await this.sheetOf(id);
+    const r = resultOf(e, sheet);
+    const totals = new Map(r.scopes.map((s) => [s.id, s.total]));
+    return {
+      id: e.id, title: e.title, isTemplate: e.isTemplate, number: e.number, rev: e.rev,
+      scopes: sheet.scopes.map((s) => ({ id: s.id, title: s.title, csiCodeId: s.csiCodeId, lines: sheet.lines.filter((l) => l.scopeId === s.id).length, total: fromCents(totals.get(s.id) || 0) })),
+    };
+  }
+
+  /** "+ Scope from…": copy chosen scopes (lines and notes included) onto the end of this estimate. */
+  async copyScopes(projectId: number, id: string, dto: any, actor: Actor, canSee: (projectId: number) => boolean) {
+    await this.need(actor, 'edit');
+    const e = await this.one(projectId, id);
+    this.editable(e);
+    this.checkVersion(e, dto?.version);
+    const src = await this.source(String(dto?.fromId || ''), canSee);
+    const pick = new Set((Array.isArray(dto?.scopeIds) ? dto.scopeIds : []).map(String));
+    const all = await this.sheetOf(src.id);
+    const scopes = all.scopes.filter((s) => pick.has(s.id));
+    if (!scopes.length) throw new BadRequestException('Pick at least one scope to copy.');
+    const existing = await this.scopes.count({ where: { estimateId: id } });
+    await this.db.transaction(async (m) => {
+      await this.cloneRows(m, { scopes, lines: all.lines, gr: [] }, e, existing, false);
+      e.updatedAt = now(); e.updatedBy = actor.name;
+      await m.save(e);
+    });
+    return this.get(projectId, id, actor);
+  }
+
   async list(projectId: number, actor: Actor) {
     await this.need(actor, 'view');
     await this.project(projectId);
-    const rows = await this.estimates.find({ where: { projectId }, order: { number: 'ASC', rev: 'DESC' } });
+    const rows = await this.estimates.find({ where: { projectId, isTemplate: false }, order: { number: 'ASC', rev: 'DESC' } });
     const out = [];
     for (const e of rows) {
       const t = resultOf(e, await this.sheetOf(e.id)).totals;
@@ -183,15 +299,20 @@ export class EstimatesService {
     return { estimate: e, ...sheet, result: resultOf(e, sheet), formulas: FORMULAS, rights: await this.rights(actor), locked: LOCKED.includes(e.status) };
   }
 
-  async create(projectId: number, dto: any, actor: Actor) {
+  /**
+   * A new estimate: blank (the standard GR lines), or an exact copy of a
+   * template or of another estimate (`fromId`; `canSee` says whether the
+   * caller may read that estimate's project).
+   */
+  async create(projectId: number, dto: any, actor: Actor, canSee: (projectId: number) => boolean = () => true) {
     await this.need(actor, 'edit');
     const p = await this.project(projectId);
-    const numbers = (await this.estimates.find({ where: { projectId }, select: { number: true } })).map((e) => Number(String(e.number).replace(/\D/g, '')) || 0);
-    const number = `EST-${String(Math.max(0, ...numbers) + 1).padStart(3, '0')}`;
+    if (dto?.fromId) return this.copyNew(projectId, String(dto.fromId), str(dto?.title, 200), actor, canSee, p.name);
+    const number = await this.nextNumber(projectId);
     const e = this.estimates.create({
       id: newId('est'), projectId, number, rev: 1, title: str(dto?.title, 200) || p.name || 'Estimate', status: 'draft',
       estimateDate: todayISO(), preparedById: actor.id || null, columns: [], payments: [], areas: null,
-      grPct: 17, profitPct: 12, contingencyPct: 5, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null,
+      isTemplate: false, grPct: 17, profitPct: 12, contingencyPct: 5, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null,
       createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
     });
     await this.db.transaction(async (m) => {
@@ -318,6 +439,7 @@ export class EstimatesService {
   async markSent(projectId: number, id: string, actor: Actor) {
     await this.need(actor, 'edit');
     const e = await this.one(projectId, id);
+    if (e.isTemplate) throw new BadRequestException('A template isn’t sent -- start an estimate from it.');
     if (e.status !== 'draft') throw new ConflictException(`${e.number} Rev ${e.rev} is already ${e.status}.`);
     await this.db.transaction(async (m) => {
       // Older revisions of the same estimate are now out of date.
@@ -334,20 +456,16 @@ export class EstimatesService {
   async revise(projectId: number, id: string, actor: Actor) {
     await this.need(actor, 'edit');
     const src = await this.one(projectId, id);
+    if (src.isTemplate) throw new BadRequestException('Templates have no revisions -- edit the template.');
     const same = await this.estimates.find({ where: { projectId, number: src.number } });
     if (same.some((x) => x.status === 'draft')) throw new ConflictException(`${src.number} already has a draft revision -- edit that one.`);
     if (same.some((x) => x.status === 'accepted')) throw new ConflictException(`${src.number} was accepted; changes now go through change orders.`);
     const sheet = await this.sheetOf(id);
     const rev = Math.max(...same.map((x) => x.rev)) + 1;
-    const { id: _i, version: _v, status: _s, sentAt: _sa, frozenAt: _f, acceptedAt: _a, acceptedBy: _ab, ...rest } = src;
-    void _i; void _v; void _s; void _sa; void _f; void _a; void _ab;
-    const copy = this.estimates.create({ ...rest, id: newId('est'), rev, status: 'draft', revisionOf: src.id, sentAt: null, frozenAt: null, acceptedAt: null, acceptedBy: null, estimateDate: todayISO(), createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name });
-    const scopeMap = new Map(sheet.scopes.map((s) => [s.id, newId('esc')]));
+    const copy = this.estimates.create({ ...this.settingsOf(src), id: newId('est'), projectId, number: src.number, isTemplate: false, rev, status: 'draft', revisionOf: src.id, sentAt: null, frozenAt: null, acceptedAt: null, acceptedBy: null, estimateDate: todayISO(), createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name });
     await this.db.transaction(async (m) => {
       await m.save(copy);
-      await m.save(sheet.scopes.map((s) => this.scopes.create({ ...s, id: scopeMap.get(s.id)!, estimateId: copy.id })));
-      for (let i = 0; i < sheet.lines.length; i += 200) await m.save(sheet.lines.slice(i, i + 200).map((l) => this.lines.create({ ...l, id: newId('eln'), estimateId: copy.id, scopeId: scopeMap.get(l.scopeId)! })));
-      await m.save(sheet.gr.map((g) => this.grLines.create({ ...g, id: newId('egr'), estimateId: copy.id })));
+      await this.cloneRows(m, sheet, copy);
       await this.fin.log(m, { projectId, entityType: 'estimate', entityId: copy.id, action: 'revised', reason: `${src.number} Rev ${rev} from Rev ${src.rev}` }, actor);
     });
     return this.get(projectId, copy.id, actor);

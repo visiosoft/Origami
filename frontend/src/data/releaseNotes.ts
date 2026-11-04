@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04m',
+    date: '2026-11-04',
+    title: 'Reuse estimates: templates, copies and scopes',
+    items: [
+      { area: 'Estimating', kind: 'new', text: '“Save as template” on any estimate keeps it as a named company template (e.g. “Bathroom remodel”). Templates are listed on the Estimating page, where they can be opened, edited or deleted.', where: 'Preconstruction → Estimating → Templates' },
+      { area: 'Estimating', kind: 'new', text: '“+ New estimate” can start blank, from a template, or from any estimate on a project you can see — everything is copied: scopes, lines, notes, subs, amounts, General Requirements, percentages and payments.' },
+      { area: 'Estimating', kind: 'new', text: '“+ Scopes from a template or estimate…” copies the scopes you tick, with their lines and notes, onto the end of the estimate you’re in.' },
+    ],
+  },
+  {
     id: '2026-11-04l',
     date: '2026-11-04',
     title: 'Estimates, built like the team’s spreadsheet',

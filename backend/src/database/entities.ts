@@ -2693,6 +2693,11 @@ export interface EstimateAreas { demolish?: number; footprint?: number; built?: 
 export class EstimateEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
   @Column('int') projectId!: number;
+  /**
+   * A named company template ("Bathroom remodel"): projectId 0, never sent.
+   * A new estimate can start from a template or from any other estimate.
+   */
+  @Column({ default: false }) isTemplate!: boolean;
   /** EST-001; revisions keep the number and count up `rev`. */
   @Column() number!: string;
   @Column({ type: 'int', default: 1 }) rev!: number;

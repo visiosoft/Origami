@@ -7,6 +7,7 @@ import {
   BANDS, cellText, History, LINE_COLS, lineNumbers, moveLine, newGr, newLine, newScope, parseTsv, pasteBlock, setCell, toTsv,
   type Band, type EstGr, type EstLine, type EstScope, type GridCol, type Sheet,
 } from '../../data/estimateGrid';
+import { SourcePicker } from './SourcePicker';
 import './EstimateGrid.css';
 
 export interface EstimateHeader {
@@ -59,6 +60,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
   const [menu, setMenu] = useState<{ lineId?: string; scopeId?: string; x: number; y: number } | null>(null);
   const [tip, setTip] = useState<Tip>(null);
   const [contractors, setContractors] = useState<{ id: string; companyName: string }[]>([]);
+  const [picking, setPicking] = useState(false);
 
   const history = useRef(new History<Sheet>());
   const sheetRef = useRef(sheet);
@@ -68,6 +70,17 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
   const dirty = useRef(0);
   const wrapRef = useRef<HTMLDivElement>(null);
   const editable = canEdit && !locked;
+  /** projectId 0 is a company template: same grid, template endpoints. */
+  const isTemplate = projectId === 0;
+  const remote = useMemo(() => (isTemplate ? {
+    load: () => api.finance.estimateTemplate(estimateId),
+    sheet: (d: unknown) => api.finance.saveEstimateTemplateSheet(estimateId, d),
+    settings: (d: unknown) => api.finance.saveEstimateTemplate(estimateId, d),
+  } : {
+    load: () => api.finance.estimate(projectId, estimateId),
+    sheet: (d: unknown) => api.finance.saveEstimateSheet(projectId, estimateId, d),
+    settings: (d: unknown) => api.finance.saveEstimate(projectId, estimateId, d),
+  }), [isTemplate, projectId, estimateId]);
   const [viewW, setViewW] = useState(0);
   useEffect(() => {
     const el = wrapRef.current;
@@ -87,7 +100,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
   }, [onChanged]);
   useEffect(() => {
     let live = true;
-    api.finance.estimate(projectId, estimateId).then((r: any) => {
+    remote.load().then((r: any) => {
       if (!live) return;
       take(r);
       const s = { scopes: r.scopes, lines: r.lines, gr: r.gr };
@@ -96,7 +109,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     }).catch((e: any) => toast(e?.message || 'Could not open the estimate.'));
     (api.contractors.list() as Promise<any>).then((l) => live && setContractors(Array.isArray(l) ? l : [])).catch(() => undefined);
     return () => { live = false; };
-  }, [projectId, estimateId, take, toast]);
+  }, [remote, take, toast]);
 
   // ------------------------------------------------------------------ saving (one at a time, on the latest version)
   const enqueue = useCallback(<T,>(job: () => Promise<T>) => {
@@ -111,7 +124,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     return enqueue(async () => {
       const s = sheetRef.current;
       try {
-        const r = await api.finance.saveEstimateSheet(projectId, estimateId, { version: versionRef.current, ...s });
+        const r = await remote.sheet({ version: versionRef.current, ...s });
         take(r);
         setSaveError('');
         setSaveState(dirty.current === mark ? 'saved' : 'pending');
@@ -120,7 +133,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
         setSaveError(e?.message || 'Not saved.');
       }
     });
-  }, [enqueue, estimateId, projectId, take]);
+  }, [enqueue, remote, take]);
   const commit = useCallback((next: Sheet, opts: { history?: boolean } = {}) => {
     if (opts.history !== false) history.current.push(sheetRef.current);
     sheetRef.current = next;
@@ -143,18 +156,32 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     setSaveState('saving');
     void enqueue(async () => {
       try {
-        const r = await api.finance.saveEstimate(projectId, estimateId, { version: versionRef.current, ...patch });
+        const r = await remote.settings({ version: versionRef.current, ...patch });
         take(r);
         setSaveState(timer.current ? 'pending' : 'saved');
       } catch (e: any) { setSaveState('error'); setSaveError(e?.message || 'Not saved.'); }
     });
-  }, [editable, enqueue, estimateId, projectId, take]);
+  }, [editable, enqueue, remote, take]);
 
   useEffect(() => {
     if (!controlRef) return;
     controlRef.current = { flush: () => (timer.current ? saveSheetNow() : queue.current) };
     return () => { controlRef.current = null; };
   }, [controlRef, saveSheetNow]);
+
+  /** "+ Scopes from…": save what's pending, then copy the chosen scopes on the server and show the result. */
+  const copyScopesFrom = async (fromId: string, scopeIds: string[]) => {
+    if (timer.current) await saveSheetNow(); else await queue.current;
+    try {
+      const r = await enqueue(() => api.finance.copyEstimateScopes(projectId, estimateId, { version: versionRef.current, fromId, scopeIds }));
+      history.current.push(sheetRef.current);
+      take(r);
+      const s = { scopes: r.scopes, lines: r.lines, gr: r.gr };
+      sheetRef.current = s; setSheetState(s);
+      setPicking(false);
+      toast(`Copied ${scopeIds.length} scope${scopeIds.length === 1 ? '' : 's'}.`);
+    } catch (e: any) { toast(e?.message || 'Could not copy the scopes.'); }
+  };
 
   const undo = () => { const p = history.current.undo(sheetRef.current); if (p) commit(p, { history: false }); };
   const redo = () => { const p = history.current.redo(sheetRef.current); if (p) commit(p, { history: false }); };
@@ -496,7 +523,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
               ];
             })}
             {editable && (
-              <tr className="eg-add"><td colSpan={cols.length + 1}><div className="eg-add-row"><button type="button" onClick={addScope}>+ New scope</button><span style={{ fontSize: 11.5, color: 'var(--muted)', alignSelf: 'center' }}>Tip: copy rows in Excel and paste them on a cell here.</span></div></td></tr>
+              <tr className="eg-add"><td colSpan={cols.length + 1}><div className="eg-add-row"><button type="button" onClick={addScope}>+ New scope</button><button type="button" onClick={() => setPicking(true)}>+ Scopes from a template or estimate…</button><span style={{ fontSize: 11.5, color: 'var(--muted)', alignSelf: 'center' }}>Tip: copy rows in Excel and paste them on a cell here.</span></div></td></tr>
             )}
             <tr className="eg-subtotal">
               <td className="eg-sticky eg-num" />
@@ -542,6 +569,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
           </>}
         </div>
       )}
+      {picking && <SourcePicker mode="scopes" excludeId={estimateId} onClose={() => setPicking(false)} onPick={(fromId, o) => copyScopesFrom(fromId, o.scopeIds || [])} />}
       {tip && <div className="eg-tip" style={{ left: Math.max(8, tip.x), top: Math.min(tip.y, window.innerHeight - 120) }}>{tip.text}</div>}
     </div>
   );

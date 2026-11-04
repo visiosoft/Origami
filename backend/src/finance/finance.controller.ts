@@ -20,6 +20,7 @@ import { ProjectSubsService } from './project-subs.service';
 import { ReportsService } from './reports.service';
 import { ProjectScope } from '../auth/project-scope.interceptor';
 import { EstimatesService } from './estimates.service';
+import { ProjectAccessService } from '../auth/project-access.service';
 
 const kindOf = (k: string) => {
   if (k !== 'phase' && k !== 'task' && k !== 'project') throw new BadRequestException('Unknown item.');
@@ -48,7 +49,15 @@ export class FinanceController {
     private readonly subs: ProjectSubsService,
     private readonly events: ChangeEventsService,
     private readonly estimates: EstimatesService,
+    private readonly projectAccess: ProjectAccessService,
+    private readonly authService: AuthService,
   ) {}
+
+  /** Which projects the caller may read, for copying an estimate from another project. */
+  private async canSee(a?: string) {
+    const allowed = await this.projectAccess.allowedIds(await this.authService.verify(a));
+    return (projectId: number) => allowed === 'all' || allowed.has(projectId);
+  }
 
   private actor(a?: string) { return this.access.actor(a); }
 
@@ -75,12 +84,21 @@ export class FinanceController {
   @Post('projects/:id/milestones') async milestone(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.fin.addMilestone(Number(id), dto, await this.actor(a)); }
   // --- estimates (the prime contract built like the team's sheet)
   @Get('projects/:id/estimates') async estimateList(@Param('id') id: string, @Headers('authorization') a?: string) { return this.estimates.list(Number(id), await this.actor(a)); }
-  @Post('projects/:id/estimates') async estimateNew(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.create(Number(id), dto || {}, await this.actor(a)); }
+  @Post('projects/:id/estimates') async estimateNew(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.create(Number(id), dto || {}, await this.actor(a), await this.canSee(a)); }
   @Get('projects/:id/estimates/:eid') async estimate(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.get(Number(id), eid, await this.actor(a)); }
   @Put('projects/:id/estimates/:eid') async estimateSettings(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.saveSettings(Number(id), eid, dto || {}, await this.actor(a)); }
   @Put('projects/:id/estimates/:eid/sheet') async estimateSheet(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.saveSheet(Number(id), eid, dto || {}, await this.actor(a)); }
   @Post('projects/:id/estimates/:eid/sent') async estimateSent(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.markSent(Number(id), eid, await this.actor(a)); }
   @Post('projects/:id/estimates/:eid/revise') async estimateRevise(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.revise(Number(id), eid, await this.actor(a)); }
+  @Post('projects/:id/estimates/:eid/copy-scopes') async estimateCopyScopes(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.copyScopes(Number(id), eid, dto || {}, await this.actor(a), await this.canSee(a)); }
+  @Get('estimates-all') async estimatesAll(@Headers('authorization') a?: string) { return this.estimates.allEstimates(await this.actor(a)); }
+  @Get('estimate-source/:eid') async estimateSource(@Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.sourceSheet(eid, await this.actor(a), await this.canSee(a)); }
+  @Get('estimate-templates') async templates(@Headers('authorization') a?: string) { return this.estimates.templates(await this.actor(a)); }
+  @Post('estimate-templates') async templateNew(@Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.createTemplate(dto || {}, await this.actor(a), await this.canSee(a)); }
+  @Get('estimate-templates/:eid') async template(@Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.get(0, eid, await this.actor(a)); }
+  @Put('estimate-templates/:eid') async templateSettings(@Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.saveSettings(0, eid, dto || {}, await this.actor(a)); }
+  @Put('estimate-templates/:eid/sheet') async templateSheet(@Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.saveSheet(0, eid, dto || {}, await this.actor(a)); }
+  @Delete('estimate-templates/:eid') async templateDelete(@Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.remove(0, eid, await this.actor(a)); }
   @Delete('projects/:id/estimates/:eid') async estimateDelete(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.remove(Number(id), eid, await this.actor(a)); }
   @Get('projects/:id/activity') async activity(@Param('id') id: string, @Headers('authorization') a?: string) { return this.fin.activity(Number(id), await this.actor(a)); }
   @Get('projects/:id/invoices') async invoiceList(@Param('id') id: string, @Headers('authorization') a?: string) { return this.invoices.list(Number(id), await this.actor(a)); }

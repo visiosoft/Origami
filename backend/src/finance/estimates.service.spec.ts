@@ -15,6 +15,7 @@ function store() {
       if (key) rows = rows.sort((a, b) => (a[key] > b[key] ? 1 : -1) * (dir === 'DESC' ? -1 : 1));
       return rows.map((r) => Object.assign(new E(), r));
     },
+    count: async (o: any = {}) => t(E).filter((r) => matches(r, o.where)).length,
     findOne: async (o: any) => { const r = t(E).find((x) => matches(x, o.where)); return r ? Object.assign(new E(), r) : null; },
     save: async (x: Row | Row[]) => {
       for (const r of Array.isArray(x) ? x : [x]) {
@@ -37,7 +38,7 @@ function store() {
 
 function setup(perms: any = 'all') {
   const s = store();
-  const projects = { findOne: async () => ({ id: 7, name: 'Catherine bathrooms' }) };
+  const projects = { findOne: async (o: any) => ({ id: o.where.id, name: o.where.id === 7 ? 'Catherine bathrooms' : 'Smith kitchen' }), find: async () => [{ id: 7, name: 'Catherine bathrooms' }, { id: 8, name: 'Smith kitchen' }] };
   const log: string[] = [];
   const fin: any = { log: async (_m: any, e: any) => { log.push(e.action); } };
   const access: any = { permissionsOf: async () => perms };
@@ -146,5 +147,48 @@ describe('estimates', () => {
     expect(cols[1]).toMatchObject({ formula: '=[cost]*1.1', showClient: false, showSub: false, table: 'lines' });
     expect(() => cleanColumns([{ key: 'a', type: 'text' }, { key: 'a', type: 'text' }])).toThrow(/unique/);
     expect(() => cleanColumns([{ key: 'a', type: 'script' }])).toThrow(/Unknown column type/);
+  });
+
+  it('save as template, then start another project from it: an exact copy with new ids', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    await expect(svc.createTemplate({ fromId: e.estimate.id }, actor, () => true)).rejects.toThrow(/name/);
+    const t = await svc.createTemplate({ title: 'Bathroom remodel', fromId: e.estimate.id }, actor, () => true);
+    expect(t.estimate).toMatchObject({ isTemplate: true, projectId: 0, title: 'Bathroom remodel' });
+    expect(t.lines.map((l: any) => l.description)).toEqual(['Demolish', 'Relocate drain', 'Includes all labor']);
+    expect(t.lines.some((l: any) => l.id === 'line-1')).toBe(false);
+    expect((await svc.templates(actor)).rows).toMatchObject([{ title: 'Bathroom remodel', scopes: 1, lines: 2 }]);
+    // templates aren't listed with a project's estimates, and can't be sent or revised
+    expect((await svc.list(7, actor)).rows).toHaveLength(1);
+    await expect(svc.markSent(0, t.estimate.id, actor)).rejects.toThrow(/template/);
+    const n = await svc.create(8, { fromId: t.estimate.id }, actor, () => true);
+    expect(n.estimate).toMatchObject({ projectId: 8, number: 'EST-001', status: 'draft', isTemplate: false, title: 'Smith kitchen — Bathroom remodel' });
+    expect(n.lines.map((l: any) => [l.description, l.cost, l.subName ?? null])).toEqual([['Demolish', 2000, 'Ricardo kitchen and bath'], ['Relocate drain', 1040, null], ['Includes all labor', 0, null]]);
+    expect(n.result.totals.totalBuild).toBe(589157);
+  });
+
+  it('start from another project’s estimate only when the caller can see that project', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    await expect(svc.create(8, { fromId: e.estimate.id }, actor, (p) => p === 8)).rejects.toThrow(/not found/);
+    const n = await svc.create(8, { fromId: e.estimate.id }, actor, () => true);
+    expect(n.lines).toHaveLength(3);
+    expect((await svc.allEstimates(actor)).rows.map((r: any) => r.projectName).sort()).toEqual(['Catherine bathrooms', 'Smith kitchen']);
+  });
+
+  it('copies chosen scopes, with their lines and notes, onto the end', async () => {
+    const { svc } = setup();
+    const a = await svc.create(7, {}, actor);
+    await svc.saveSheet(7, a.estimate.id, sheet(a.estimate.version), actor);
+    const b = await svc.create(8, {}, actor);
+    const src = await svc.sourceSheet(a.estimate.id, actor, () => true);
+    expect(src.scopes).toMatchObject([{ title: 'Primary bathroom', lines: 3, total: 2640 }]);
+    await expect(svc.copyScopes(8, b.estimate.id, { version: b.estimate.version, fromId: a.estimate.id, scopeIds: [] }, actor, () => true)).rejects.toThrow(/at least one/);
+    const out = await svc.copyScopes(8, b.estimate.id, { version: b.estimate.version, fromId: a.estimate.id, scopeIds: ['scope-a'] }, actor, () => true);
+    expect(out.scopes.map((s: any) => s.title)).toEqual(['Primary bathroom']);
+    expect(out.lines).toHaveLength(3);
+    expect(out.gr).toHaveLength(14);
   });
 });
