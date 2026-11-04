@@ -94,6 +94,8 @@ export function FileRoom() {
   const [search, setSearch] = useState('');
   const [latestOnly, setLatestOnly] = useState(false);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  // Sort by name or by date changed (Nov 3 sync: photo folders had no way to find the newest).
+  const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({});
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderTreeFor, setNewFolderTreeFor] = useState<number | null>(null);
@@ -186,14 +188,14 @@ export function FileRoom() {
   const [visibleFiles, setVisibleFiles] = useState<FileRoomFile[]>([]);
   const [searchQ, setSearchQ] = useState('');
   useEffect(() => { const t = window.setTimeout(() => setSearchQ(search.trim()), 300); return () => window.clearTimeout(t); }, [search]);
-  const filesKey = [pathKey(path), searchQ, latestOnly, sortDir, filesSize].join('|');
+  const filesKey = [pathKey(path), searchQ, latestOnly, sortDir, sortBy, filesSize].join('|');
   const lastFilesKey = useRef(filesKey);
   useEffect(() => {
     const changed = lastFilesKey.current !== filesKey;
     lastFilesKey.current = filesKey;
     if (changed && filesPg !== 1) { setFilesPg(1); return; }
     let live = true;
-    api.fileRoom.filesPage({ projectId: atRoot ? undefined : (projectId as number), path: atRoot ? undefined : folder, q: searchQ, latest: latestOnly, dir: sortDir, page: filesPg, size: filesSize })
+    api.fileRoom.filesPage({ projectId: atRoot ? undefined : (projectId as number), path: atRoot ? undefined : folder, q: searchQ, latest: latestOnly, dir: sortDir, sort: sortBy, page: filesPg, size: filesSize })
       .then((r) => { if (!live) return; setVisibleFiles(r.rows); setPageData(r); remember(r.rows); })
       .catch(() => { if (live) { setVisibleFiles([]); setPageData(null); } });
     return () => { live = false; };
@@ -583,6 +585,13 @@ export function FileRoom() {
                      style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: view === v ? 'var(--seg-on)' : 'transparent', color: view === v ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v}</div>
               ))}
             </div>
+            <select aria-label="Sort files" value={`${sortBy}:${sortDir}`} onChange={(e) => { const [b, d] = e.target.value.split(':'); setSortBy(b as 'name' | 'date'); setSortDir(d as 'asc' | 'desc'); }}
+              style={{ ...inputStyle, width: 'auto', padding: '6px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700 }}>
+              <option value="name:asc">Name A–Z</option>
+              <option value="name:desc">Name Z–A</option>
+              <option value="date:desc">Newest first</option>
+              <option value="date:asc">Oldest first</option>
+            </select>
             {pill('Latest files only', latestOnly, () => setLatestOnly((v) => !v))}
             {canManage && !atRoot && pill('+ New Folder', false, () => setNewFolderOpen((v) => !v))}
             {canManage && !atRoot && pill('Sent history', historyOpen, () => setHistoryOpen((v) => !v))}

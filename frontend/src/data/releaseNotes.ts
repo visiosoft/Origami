@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04d',
+    date: '2026-11-04',
+    title: 'Photos no longer hide each other',
+    items: [
+      { area: 'Files', kind: 'fixed', text: 'Phones name every photo “image.jpg”, so a new photo used to be filed as a new *version* of the last one and the older photo was hidden. Photos are now never versions: a same-name photo is saved as “image (2).jpg”. Drawings and documents still keep versions as before.' },
+      { area: 'Files', kind: 'new', text: 'Sort files by name or by date (newest or oldest first), in the grid and the list.', where: 'File Room → Sort' },
+    ],
+  },
+  {
     id: '2026-11-04c',
     date: '2026-11-04',
     title: 'Sheet titles read from the title block',

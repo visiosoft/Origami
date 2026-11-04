@@ -870,13 +870,14 @@ export const api = {
       counts: Record<string, Record<string, number>>; totals: { total: number; recent: number; bytes: number };
     }>('/file-room/tree'),
     /** One page of files: a folder's (projectId + path) or every file's; q, latest, dir. */
-    filesPage: (o: { projectId?: number; path?: string[]; q?: string; latest?: boolean; dir?: string; page?: number; size?: number }) => {
+    filesPage: (o: { projectId?: number; path?: string[]; q?: string; latest?: boolean; dir?: string; sort?: 'name' | 'date'; page?: number; size?: number }) => {
       const params = new URLSearchParams();
       if (o.projectId) params.set('projectId', String(o.projectId));
       if (o.path) params.set('path', o.path.join('>'));
       if (o.q) params.set('q', o.q);
       if (o.latest) params.set('latest', '1');
       if (o.dir) params.set('dir', o.dir);
+      if (o.sort === 'date') params.set('sort', 'date');
       params.set('page', String(o.page || 1));
       params.set('size', String(o.size || 50));
       return request<{ rows: import('./data/fileRoom').FileRoomFile[]; total: number; page: number; size: number; pages: number }>(`/file-room/files/page?${params}`);

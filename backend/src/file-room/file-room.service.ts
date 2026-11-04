@@ -72,6 +72,17 @@ const extOf = (name: string) => {
   return dot > -1 ? name.slice(dot + 1).toUpperCase() : '';
 };
 
+/** A photo upload (by type or extension). */
+export const isImageUpload = (f: { originalname?: string; mimetype?: string }) => /^image\//i.test(f.mimetype || '') || /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(f.originalname || '');
+/** "image.jpg" if free in the folder, else "image (2).jpg", "image (3).jpg"… */
+export function freeName(name: string, taken: string[]): string {
+  const have = new Set(taken.map((t) => t.toLowerCase()));
+  if (!have.has(name.toLowerCase())) return name;
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '';
+  for (let n = 2; ; n++) { const next = `${stem} (${n})${ext}`; if (!have.has(next.toLowerCase())) return next; }
+}
+
 /** Where finished documents are kept, REV-numbered, in each project's Drive folder. */
 export const BACKUP_FOLDER = 'Backups of record';
 /** The next REV number for a document, from the names already in the folder ("Program REV2.pdf" -> 3). */
@@ -211,7 +222,11 @@ export class FileRoomService {
       .filter((f) => folder === null || (f.folderPath || []).join('>') === folder)
       .filter((f) => q.latest !== '1' || f.isLatest !== false)
       .filter((f) => !text || f.name.toLowerCase().includes(text))
-      .sort((a, b) => (q.dir === 'desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)));
+      // By name (A-Z / Z-A) or, with sort=date, by when it last changed (newest first with dir=desc) (Nov 3 sync).
+      .sort((a, b) => {
+        const by = q.sort === 'date' ? String(a.updatedAt || '').localeCompare(String(b.updatedAt || '')) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name, undefined, { numeric: true });
+        return q.dir === 'desc' ? -by : by;
+      });
     return pageOf(list, pageArgs(q.page, q.size));
   }
 
@@ -288,17 +303,21 @@ export class FileRoomService {
         throw new BadRequestException(`${file.originalname} is larger than ${MAX_FILE_BYTES / 1024 / 1024} MB.`);
       }
 
+      // Photos are never revisions of each other (Nov 3 sync: phones name every photo "image.jpg", so the
+      // older ones were hidden as old versions). A same-name photo gets "image (2).jpg" instead.
+      const inFolder = existing.filter((f) => (f.folderPath ?? []).join('>') === folderPath.join('>'));
+      const photo = isImageUpload(file);
+      const fileName = photo ? freeName(file.originalname, inFolder.map((f) => f.name)) : file.originalname;
+
       const drive = await this.google.uploadDriveFile({
-        name: file.originalname,
+        name: fileName,
         mimeType: file.mimetype,
         buffer: file.buffer,
         parentId,
       });
 
       // Same name, same folder → a new revision of that document.
-      const sibling = existing.find(
-        (f) => f.name === file.originalname && (f.folderPath ?? []).join('>') === folderPath.join('>'),
-      );
+      const sibling = photo ? undefined : inFolder.find((f) => f.name === file.originalname);
       const groupId = sibling ? sibling.groupId || subId('grp') : null;
       if (sibling && groupId) {
         await this.files.update({ groupId }, { isLatest: false });
@@ -309,8 +328,8 @@ export class FileRoomService {
         id: subId('fr'),
         projectId,
         folderPath,
-        name: file.originalname,
-        ext: extOf(file.originalname),
+        name: fileName,
+        ext: extOf(fileName),
         size: drive.size ? Number(drive.size) : file.size,
         mimeType: drive.mimeType || file.mimetype,
         driveId: drive.id,
@@ -321,7 +340,8 @@ export class FileRoomService {
         isLatest: true,
       } as Partial<FileRoomFileEntity>);
       saved.push(await this.files.save(row));
-      this.log.log(`Stored ${file.originalname} in ${[name, ...folderPath].join('/')}`);
+      existing.push(row);
+      this.log.log(`Stored ${fileName} in ${[name, ...folderPath].join('/')}`);
     }
     return saved.map((f) => this.hydrate(f));
   }
