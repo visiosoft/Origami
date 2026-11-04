@@ -841,7 +841,7 @@ export function Projects() {
                 <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Pre-construction for {sel.name}: the schedule, estimating and selections.</div>
                 {[
                   { title: 'Schedule', body: 'Every phase of this project on the timeline, with its dates.', action: 'Open the schedule', to: `/schedule?project=${sel.id}`, ready: true },
-                  { title: 'Estimating', body: 'Estimating tools for design and build work. Not built in ODIN yet — the page says what it will hold.', action: 'Open Estimating', to: '/estimating', ready: false },
+                  { title: 'Estimating', body: 'This project’s estimates, built like the team’s spreadsheet: scopes, sub and markup columns, General Requirements, profit and contingency.', action: 'Open Estimating', to: `/estimating?project=${sel.id}`, ready: true },
                   { title: 'Selections & Specifications', body: 'The library, selections, orders and tracking. Not built in ODIN yet.', action: 'Open Selections', to: '/selections', ready: false },
                 ].map((c) => (
                   <div key={c.title} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)' }}>

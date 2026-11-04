@@ -35,6 +35,7 @@ const DailyReports = page(() => import('./pages/DailyReports'), 'DailyReports');
 const SpecialActions = page(() => import('./pages/SpecialActions'), 'SpecialActions');
 const BusinessFinance = page(() => import('./pages/BusinessFinance'), 'BusinessFinance');
 const Schedule = page(() => import('./pages/Schedule'), 'Schedule');
+const Estimating = page(() => import('./pages/Estimating'), 'Estimating');
 const Meetings = page(() => import('./pages/Meetings'), 'Meetings');
 const FinanceHome = page(() => import('./pages/FinanceHome'), 'FinanceHome');
 const FinanceGuide = page(() => import('./pages/FinanceGuide'), 'FinanceGuide');
@@ -148,6 +149,7 @@ export default function App() {
         <Route path="/reimbursement" element={<FinanceHome initial="reimbursables" />} />
         <Route path="/rfis" element={<RfisPage />} />
         <Route path="/fin_business" element={<BusinessFinance />} />
+        <Route path="/estimating" element={<Estimating />} />
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/schedule_con" element={<Schedule />} />
         <Route path="/meetings" element={<Meetings />} />

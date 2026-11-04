@@ -200,7 +200,7 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | K1 | Estimate maths F1–F19 (line price, NIS = $0, GR, total build = (subtotal + GR) ÷ (1 − profit% − contingency%), discount, design cost, cost split, payments) with formula descriptions; tested on the Catherine example | ✅ |
 | K2 | Estimate tables: estimates (revisions), scopes, lines (items + Details/Inclusions/Exclusions/A&C rows, sub columns, markup), GR lines, custom columns | ✅ |
 | K3 | Estimate API: list, create (EST-001 + standard GR lines), open with live totals, save whole sheet (version-checked), settings, mark sent (frozen), revise (Rev 2), delete draft | ✅ (accept comes with K9) |
-| K4 | Spreadsheet-style editor in Precon → Estimating (rows, columns, tables, paste from Excel, undo, ⓘ formulas) | ⏳ |
+| K4 | Spreadsheet-style editor in Precon → Estimating (rows, columns, tables, paste from Excel, undo, ⓘ formulas) | ✅ /estimating?project=; band show/hide; row menu; GR, totals, payments; freeze on send. Custom columns are K5 |
 | K5 | Custom columns with formulas; company estimate template | ⏳ |
 | K6 | Canned statements per CSI code + suggestions from past estimates | ⏳ |
 | K7 | Who sees what (money data types × role, book type per project), enforced on the server | ⏳ |

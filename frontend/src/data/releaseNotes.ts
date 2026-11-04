@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04l',
+    date: '2026-11-04',
+    title: 'Estimates, built like the team’s spreadsheet',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'A project’s estimate is now built in ODIN: scopes by CSI code, each with its lines and its Details, Inclusions, Exclusions and Assumptions rows, numbered 1.01, 1.02… as in the sheet.', where: 'Projects → Precon → Estimating, or Preconstruction → Estimating' },
+      { area: 'Estimating', kind: 'new', text: 'Works like Excel: arrow keys, Tab and Enter, type to edit, Ctrl+C / Ctrl+V to and from Excel (rows past the end become new lines), Ctrl+D fills down, Ctrl+Z / Ctrl+Y undo and redo, Alt+↑/↓ moves a line. Saves as you go.' },
+      { area: 'Estimating', kind: 'new', text: 'Precon range (factor × line = higher end), Subcontractor (strategy, sub, duration, start, sub cost) and Markup ($ or %) columns can each be shown or hidden.' },
+      { area: 'Estimating', kind: 'new', text: 'Below the line: General Requirements (base × qty, Included or Excluded), suggested GR max and balance, profit, contingency, discounts, design cost, total project cost and the payment schedule. Every total has an ⓘ that shows its formula with the numbers.' },
+      { area: 'Estimating', kind: 'new', text: 'Not In Scope lines stay on the estimate but count $0. “Mark as sent” freezes an estimate; “New revision” makes Rev 2 to keep working.' },
+    ],
+  },
+  {
     id: '2026-11-04k',
     date: '2026-11-04',
     title: 'A tidier menu',
