@@ -359,9 +359,11 @@ export const MAX_RENDER_PIXELS = 16_000_000;
 const MAX_SIDE = 16_000;
 
 /** The pdf.js render scale for a w x h (points) page at `scale`, sharp for the screen but within the canvas limits. */
-export function capRenderScale(w: number, h: number, scale: number, dpr: number): number {
+/** Phones have less memory for a page picture: half the desktop limit keeps deep zoom from going blank (Nov 4). */
+export const PHONE_RENDER_PIXELS = 8_000_000;
+export function capRenderScale(w: number, h: number, scale: number, dpr: number, maxPixels = MAX_RENDER_PIXELS): number {
   const want = scale * dpr;
-  const byArea = Math.sqrt(MAX_RENDER_PIXELS / (w * h));
+  const byArea = Math.sqrt(maxPixels / (w * h));
   const bySide = MAX_SIDE / Math.max(w, h);
   return Math.min(want, byArea, bySide);
 }
@@ -415,3 +417,21 @@ export const markupLink = (type?: string | null, id?: string | null) => {
   const l = type ? MARKUP_LINKS[type as MarkupLinkType] : undefined;
   return l && id ? { label: l.label, href: l.href(id) } : null;
 };
+
+// ------------------------------------------------------------------ phones and tablets (Nov 4)
+
+/** The tools in groups, for the phone's short tool bar: Select and Pan on their own, the rest one tap away. */
+export const TOOL_GROUPS: { key: string; label: string; icon: string; tools: string[] }[] = [
+  { key: 'select', label: 'Select', icon: '↖', tools: ['select'] },
+  { key: 'pan', label: 'Move the sheet', icon: '✋', tools: ['pan'] },
+  { key: 'draw', label: 'Draw', icon: '✎', tools: ['pen', 'highlight', 'line', 'arrow', 'polyline', 'cloud'] },
+  { key: 'shapes', label: 'Shapes', icon: '▭', tools: ['rect', 'ellipse', 'triangle', 'polygon', 'symbol', 'stamp'] },
+  { key: 'notes', label: 'Text, pins and links', icon: 'T', tools: ['text', 'pin', 'link'] },
+  { key: 'measure', label: 'Measure', icon: '📏', tools: ['scale', 'measure_len', 'measure_path', 'measure_area'] },
+];
+export const groupOfTool = (tool: string) => TOOL_GROUPS.find((g) => g.tools.includes(tool))?.key || 'select';
+
+/** A second tap close in time and place: finishes a polyline, or zooms (phones have no double-click). */
+export function isDoubleTap(prev: { t: number; x: number; y: number } | null, next: { t: number; x: number; y: number }, ms = 320, px = 28): boolean {
+  return !!prev && next.t - prev.t <= ms && Math.hypot(next.x - prev.x, next.y - prev.y) <= px;
+}

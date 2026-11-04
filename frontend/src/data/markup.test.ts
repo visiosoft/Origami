@@ -164,3 +164,24 @@ describe('sheetNameFrom', () => {
     expect(sheetNameFrom([])).toBeNull();
   });
 });
+
+describe('phones and tablets (Nov 4)', async () => {
+  const { TOOL_GROUPS, groupOfTool, isDoubleTap, capRenderScale, PHONE_RENDER_PIXELS } = await import('./markup');
+  const ALL = ['select', 'pan', 'pen', 'highlight', 'text', 'pin', 'link', 'line', 'polyline', 'arrow', 'rect', 'ellipse', 'triangle', 'polygon', 'cloud', 'symbol', 'stamp', 'scale', 'measure_len', 'measure_path', 'measure_area'];
+  it('puts every tool in exactly one group', () => {
+    const listed = TOOL_GROUPS.flatMap((g) => g.tools);
+    expect([...listed].sort()).toEqual([...ALL].sort());
+    expect(new Set(listed).size).toBe(listed.length);
+    expect(groupOfTool('measure_area')).toBe('measure');
+  });
+  it('knows a double tap', () => {
+    expect(isDoubleTap({ t: 1000, x: 100, y: 100 }, { t: 1250, x: 110, y: 105 })).toBe(true);
+    expect(isDoubleTap({ t: 1000, x: 100, y: 100 }, { t: 1500, x: 100, y: 100 })).toBe(false);
+    expect(isDoubleTap({ t: 1000, x: 100, y: 100 }, { t: 1100, x: 200, y: 100 })).toBe(false);
+    expect(isDoubleTap(null, { t: 1, x: 0, y: 0 })).toBe(false);
+  });
+  it('keeps a phone’s page picture smaller', () => {
+    const s = capRenderScale(3456, 2592, 8, 3, PHONE_RENDER_PIXELS);
+    expect(3456 * s * 2592 * s).toBeLessThanOrEqual(PHONE_RENDER_PIXELS + 1);
+  });
+});

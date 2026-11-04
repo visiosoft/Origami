@@ -16,6 +16,19 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04j',
+    date: '2026-11-04',
+    title: 'Drawings on iPhone and iPad',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'iPhone: one slim bar on top (close, the sheet, the list, ⋯ More) instead of five rows of buttons; Download, Email, Save copy, Search, Fit, sheet names and Private drafts are under ⋯ More.', where: 'File Room → Mark up, on a phone' },
+      { area: 'Drawings', kind: 'improved', text: 'iPhone: the tools sit in six groups along the bottom — Select, Move, Draw, Shapes, Text & pins, Measure — each a tap away, plus colour and undo / redo. On its side, the tools run down the left edge.' },
+      { area: 'Drawings', kind: 'new', text: 'Polylines, shapes, paths and areas finish with “✓ Done” (or a double-tap) — no double-click needed. “↶ Point” takes back the last corner.' },
+      { area: 'Drawings', kind: 'new', text: 'Hold a finger on a markup to select it, whatever tool is on; a bar at the bottom offers Details, colour and Delete.' },
+      { area: 'Drawings', kind: 'improved', text: 'Touch: double-tap to zoom in and back out, drag empty paper with Select to move the sheet, no text-selection pop-ups, and typing in a box no longer zooms the page. The list and dialogs slide up from the bottom on a phone.' },
+      { area: 'App', kind: 'new', text: 'Added to the iPhone or iPad home screen, Origami now opens full screen like an app, with its own icon.' },
+    ],
+  },
+  {
     id: '2026-11-04i',
     date: '2026-11-04',
     title: 'Duplicate roles',

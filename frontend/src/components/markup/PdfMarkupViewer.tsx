@@ -6,7 +6,7 @@ import { CsiSelect } from '../CsiSelect';
 import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
+  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, isDoubleTap, PHONE_RENDER_PIXELS, TOOL_GROUPS, groupOfTool, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
@@ -166,6 +166,35 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   /** A touch screen (iPad): bigger grips; once a pen is used, fingers pan instead of draw. */
   const coarse = useMemo(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches, []);
   const penSeen = useRef(false);
+  // Phone layout (Nov 4): a touch screen that's narrow, or a phone on its side.
+  const phoneNow = () => coarse && (window.innerWidth <= 760 || window.innerHeight <= 500);
+  const [phone, setPhone] = useState(phoneNow);
+  const [landscape, setLandscape] = useState(() => coarse && window.innerHeight <= 500 && window.innerWidth > window.innerHeight);
+  useEffect(() => {
+    const on = () => {
+      setPhone(phoneNow());
+      setLandscape(coarse && window.innerHeight <= 500 && window.innerWidth > window.innerHeight);
+    };
+    const turned = () => { on(); setZoom('fit'); };
+    window.addEventListener('resize', on);
+    window.addEventListener('orientationchange', turned);
+    return () => { window.removeEventListener('resize', on); window.removeEventListener('orientationchange', turned); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // The page underneath doesn't scroll or bounce while a drawing is open.
+  useEffect(() => {
+    const b = document.body.style, before = { overflow: b.overflow, overscroll: b.overscrollBehavior };
+    b.overflow = 'hidden'; b.overscrollBehavior = 'none';
+    return () => { b.overflow = before.overflow; b.overscrollBehavior = before.overscroll; };
+  }, []);
+  // Touch gestures: the last tap (double-tap), a long press in progress, and a tap that opens Text / Pin on release.
+  const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
+  const longPress = useRef<{ timer: number; x: number; y: number; fired: boolean } | null>(null);
+  const tapAsk = useRef<{ p: Pt; x: number; y: number } | null>(null);
+  // Phone bottom sheets (More, colour, a tool group) and each group's last-used tool.
+  const [bs, setBs] = useState<null | 'more' | 'colour' | { group: string }>(null);
+  const [lastInGroup, setLastInGroup] = useState<Record<string, string>>({});
+  const cancelLongPress = () => { if (longPress.current) { window.clearTimeout(longPress.current.timer); longPress.current = null; } };
   /** Dragging a text box's edge to resize it. */
   const resizing = useRef<{ id: string; x0: number; orig: number } | null>(null);
   // Searching the drawing's own text (and the markups' notes).
@@ -307,7 +336,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       const fit = box ? Math.max(0.1, Math.min((box.width - 32) / base.width, (box.height - 32) / base.height)) : 1;
       setFitScale(fit);
       const s = zoom === 'fit' ? fit : zoom;
-      const rs = capRenderScale(base.width, base.height, s, Math.min(window.devicePixelRatio || 1, 2));
+      const rs = capRenderScale(base.width, base.height, s, Math.min(window.devicePixelRatio || 1, 2), phone ? PHONE_RENDER_PIXELS : undefined);
       const c = canvas.current;
       if (!c) return;
       const key = `${file.id}:${pageNo}@${rs.toFixed(4)}`;
@@ -329,7 +358,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         const ok = await task!.promise.then(() => true, () => false);
         if (!ok || cancelled) return null;
         rendered.current.set(k, off);
-        while (rendered.current.size > 6) rendered.current.delete(rendered.current.keys().next().value!);
+        while (rendered.current.size > (phone ? 2 : 6)) rendered.current.delete(rendered.current.keys().next().value!);
         return off;
       };
       const vp = page.getViewport({ scale: rs });
@@ -580,6 +609,42 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         return;
       }
     }
+    if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+      const tap = { t: Date.now(), x: e.clientX, y: e.clientY };
+      const twice = isDoubleTap(lastTap.current, tap);
+      lastTap.current = twice ? null : tap;
+      // A double tap finishes a polyline / polyshape / path / area (there's no double-click on a phone).
+      if (twice && MULTI_POINT.includes(tool as MarkupKind) && draft?.length) { finishMulti(); return; }
+      // …and with Select or Pan it zooms in there, or back to the whole sheet.
+      if (twice && (tool === 'select' || tool === 'pan')) {
+        const st = scroller.current, box = st?.getBoundingClientRect();
+        if (zoom !== 'fit' && scale > fitScale * 1.5) { setZoom('fit'); return; }
+        const next = Math.min(8, fitScale * 2.5);
+        if (st && box) {
+          const cx = (st.scrollLeft + e.clientX - box.left) / scale, cy = (st.scrollTop + e.clientY - box.top) / scale;
+          setZoom(next);
+          requestAnimationFrame(() => { st.scrollLeft = cx * next - (e.clientX - box.left); st.scrollTop = cy * next - (e.clientY - box.top); });
+        } else setZoom(next);
+        return;
+      }
+      // Hold a finger on a markup to select it, whatever tool is on.
+      if (tool !== 'select' && tool !== 'pan') {
+        cancelLongPress();
+        const p0 = at(e);
+        const lp = { x: e.clientX, y: e.clientY, fired: false, timer: 0 };
+        lp.timer = window.setTimeout(() => {
+          const m = hit(p0);
+          if (!m) return;
+          lp.fired = true;
+          setDraft(null); setHoverPt(null); tapAsk.current = null;
+          setSelectedId(m.id);
+          navigator.vibrate?.(15);
+        }, 500);
+        longPress.current = lp;
+      }
+      // Text and Pin open their box when the finger lifts, so a long press can still select instead.
+      if (tool === 'text' || tool === 'pin') { tapAsk.current = { p: at(e), x: e.clientX, y: e.clientY }; return; }
+    }
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     const p = at(e);
     if (tool === 'pan' || spaceDown) {
@@ -603,6 +668,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       if (m?.kind === 'link' && !mine(m)) { follow(m); return; }
       setSelectedId(m?.id || null);
       if (m && mine(m)) { drag.current = { id: m.id, from: p, orig: m.data.points }; (e.target as Element).setPointerCapture?.(e.pointerId); }
+      // On a touch screen, dragging empty paper with Select moves the sheet.
+      else if (!m && e.pointerType !== 'mouse') { const sc = scroller.current!; pan.current = { x: e.clientX, y: e.clientY, sl: sc.scrollLeft, st: sc.scrollTop }; }
       return;
     }
     if (!canDraw) return;
@@ -618,6 +685,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   };
 
   const onMove = (e: React.PointerEvent) => {
+    if (longPress.current && Math.hypot(e.clientX - longPress.current.x, e.clientY - longPress.current.y) > 10) { cancelLongPress(); }
+    if (tapAsk.current && Math.hypot(e.clientX - tapAsk.current.x, e.clientY - tapAsk.current.y) > 10) tapAsk.current = null;
     if (e.pointerType === 'touch' && touches.current.has(e.pointerId)) {
       touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pinch.current) { movePinch(); return; }
@@ -650,9 +719,18 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   };
 
   const onUp = (e?: React.PointerEvent) => {
+    const pressed = longPress.current?.fired;
+    cancelLongPress();
     if (e?.pointerType === 'touch') {
       touches.current.delete(e.pointerId);
-      if (pinch.current) { if (touches.current.size < 2) pinch.current = null; return; }
+      if (pinch.current) { if (touches.current.size < 2) pinch.current = null; tapAsk.current = null; return; }
+    }
+    if (pressed) { setDraft(null); tapAsk.current = null; return; }
+    if (tapAsk.current) {
+      const p = tapAsk.current.p;
+      tapAsk.current = null;
+      if (canDraw) setAsk(tool === 'pin' ? { kind: 'pin', at: p, value: '' } : { kind: 'text', at: p, value: '' });
+      return;
     }
     if (pan.current) { pan.current = null; return; }
     if (resizing.current) {
@@ -973,31 +1051,114 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const pages = doc?.numPages || 0;
   const listed = (listAll ? shownMarks : onPage).slice().sort((a, b) => a.page - b.page || a.createdAt.localeCompare(b.createdAt));
 
+  // ---------------------------------------------------------------- phones (Nov 4)
+  // The tool each group last used: tapping the group again picks it straight away.
+  const toolInfo = (k: string) => TOOLS.find((t) => t.key === k);
+  const pickTool = (k: string) => { setTool(k as Tool); setDraft(null); setLastInGroup((g) => ({ ...g, [groupOfTool(k)]: k })); setBs(null); };
+  const groups = TOOL_GROUPS.filter((g) => canDraw || g.key === 'select' || g.key === 'pan');
+  const phoneBar = (
+    <>
+      {groups.map((g) => {
+        const on = g.tools.includes(tool);
+        const shown = on ? tool : lastInGroup[g.key];
+        const icon = shown ? toolInfo(shown)?.icon || g.icon : g.icon;
+        return (
+          <button key={g.key} type="button" className={'mk-tool mk-group' + (on ? ' is-on' : '')} aria-label={g.label} title={g.label} aria-pressed={on}
+            onClick={() => { if (g.tools.length === 1) pickTool(g.tools[0]); else if (!on && shown) pickTool(shown); else setBs({ group: g.key }); }}>
+            {icon}{g.tools.length > 1 && <small aria-hidden>▾</small>}
+          </button>
+        );
+      })}
+      {canDraw && <>
+        <i className="mk-sep" />
+        <button type="button" className="mk-tool" aria-label="Colour and thickness" title="Colour and thickness" onClick={() => setBs('colour')}><span className="mk-dot" style={{ background: color }} /></button>
+        <button type="button" className="mk-tool" title="Undo" aria-label="Undo" onClick={() => void step(true)}>↶</button>
+        <button type="button" className="mk-tool" title="Redo" aria-label="Redo" onClick={() => void step(false)}>↷</button>
+      </>}
+    </>
+  );
+  const sheetRow = (label: string, onClick: () => void, disabled = false, hint?: string) => (
+    <button type="button" className="mk-bs-row" disabled={disabled} onClick={() => { setBs(null); onClick(); }}>{label}{hint && <small>{hint}</small>}</button>
+  );
+  const bottomSheet = bs && (
+    <div className="mk-bs-bg" onClick={() => setBs(null)}>
+      <div className="mk-bs" role="dialog" aria-label={bs === 'more' ? 'More' : bs === 'colour' ? 'Colour' : 'Tools'} onClick={(e) => e.stopPropagation()}>
+        <span className="mk-bs-grip" aria-hidden />
+        {bs === 'more' && <>
+          {phone && sheetRow('Search the drawing', () => openSearch())}
+          {phone && sheetRow(zoom === 'fit' ? `Zoom ${Math.round(scale * 100)}% — fits the screen` : 'Fit the whole sheet', () => setZoom('fit'), zoom === 'fit', 'Pinch to zoom, or double-tap with Select')}
+          {sheetRow('Download marked-up PDF', () => void download(), busy || !marks.length)}
+          {canEmail && sheetRow('Email the markups', () => setEmailing({ to: '', note: '' }), busy || !marks.length)}
+          {canDraw && sheetRow('Save marked-up copy', () => void saveCopy(), busy || !marks.length, 'Beside the drawing; the drawing isn’t changed')}
+          {otherRevisions.length > 0 && sheetRow(compare ? 'Stop comparing' : 'Compare with another revision', () => { if (compare) setCompare(null); else if (otherRevisions.length === 1) startCompare(otherRevisions[0]); else setComparePick(true); })}
+          {canDraw && pages > 0 && sheetRow('Name this sheet', () => void renameSheet(pageNo))}
+          {canDraw && pages > 0 && sheetRow('Read sheet titles again', () => void readTitles(true), !!readingTitles)}
+          {canDraw && <label className="mk-bs-row"><input type="checkbox" checked={privateDraft} onChange={(e) => setPrivateDraft(e.target.checked)} /> Private drafts <small>Only you see what you draw while this is on</small></label>}
+        </>}
+        {bs === 'colour' && <>
+          <div className="mk-bs-swatches">
+            {MARKUP_COLORS.map((c) => <button key={c} type="button" className={'mk-swatch' + (color === c ? ' is-on' : '') + (c === '#FFFFFF' ? ' is-white' : '')} style={{ background: c }} aria-label={c === '#FFFFFF' ? 'White' : c}
+              onClick={() => { setColor(c); if (selected && mine(selected) && !['link', 'scale', 'pin'].includes(selected.kind) && selected.data.color.toUpperCase() !== c) void editMarkup(selected, { data: { ...selected.data, color: c } }); }} />)}
+          </div>
+          <div className="mk-bs-widths" role="group" aria-label="Thickness">
+            {[1, 2, 3, 5, 8].map((w) => <button key={w} type="button" className={'mk-btn' + (width === w ? ' is-on' : '')} onClick={() => setWidth(w)} aria-label={`${w} point${w === 1 ? '' : 's'}`}><span style={{ display: 'block', height: Math.max(1, w), width: 26, background: 'currentColor', borderRadius: 4 }} /></button>)}
+          </div>
+        </>}
+        {typeof bs === 'object' && (
+          <div className="mk-bs-tools">
+            {(TOOL_GROUPS.find((g) => g.key === bs.group)?.tools || []).map((k) => {
+              const t = toolInfo(k);
+              return t && <button key={k} type="button" className={'mk-bs-tool' + (tool === k ? ' is-on' : '')} onClick={() => pickTool(k)}><span>{t.icon}</span>{t.label.split(' — ')[0].split(' (')[0]}</button>;
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+  // While a click-by-click shape is being drawn: finish it, take back a point, or drop it (no double-click on a phone).
+  const multiPill = canDraw && MULTI_POINT.includes(tool as MarkupKind) && !!draft?.length && (
+    <div className="mk-pill" role="toolbar" aria-label="Finish the shape">
+      <button type="button" className="mk-btn is-text is-dark" onClick={finishMulti}>✓ Done</button>
+      <button type="button" className="mk-btn is-text" onClick={() => setDraft((d) => (d && d.length > 1 ? d.slice(0, -1) : null))}>↶ Point</button>
+      <button type="button" className="mk-btn is-text" onClick={() => { setDraft(null); setHoverPt(null); }}>✕ Cancel</button>
+    </div>
+  );
+  // A selected markup on a phone or iPad (list closed): the everyday actions, without opening the list.
+  const actionBar = coarse && selected && !draft && !panel && (
+    <div className="mk-actionbar" role="toolbar" aria-label="Selected markup">
+      <span className="mk-actionbar-name">{selected.data.note || KIND_LABEL[selected.kind]}</span>
+      <button type="button" className="mk-btn is-text" onClick={() => setPanel(true)}>Details</button>
+      {mine(selected) && !['link', 'scale', 'pin'].includes(selected.kind) && <button type="button" className="mk-btn" aria-label="Colour" onClick={() => setBs('colour')}><span className="mk-dot" style={{ background: selected.data.color }} /></button>}
+      {mine(selected) && <button type="button" className="mk-btn is-text is-danger" onClick={() => void removeMarkup(selected)}>Delete</button>}
+      <button type="button" className="mk-btn" aria-label="Deselect" onClick={() => setSelectedId(null)}>✕</button>
+    </div>
+  );
+
   return createPortal(
-    <div className="mk-shell" role="dialog" aria-label={`Mark up ${file.name}`}>
+    <div className={'mk-shell' + (coarse ? ' is-touch' : '') + (phone ? ' is-phone' : '') + (landscape ? ' is-landscape' : '')} role="dialog" aria-label={`Mark up ${file.name}`}>
       <header className="mk-top">
         <button type="button" className="mk-btn is-text mk-close" onClick={close} aria-label="Close drawing" title="Close the drawing (your markups are already saved)">✕<span> Close drawing</span></button>
         <div className="mk-title" title={file.name}>{file.name}{file.isLatest === false && <span className="mk-old">older revision — these markups belong to it</span>}</div>
         {canDraw && marks.length > 0 && <span className="mk-saved" title="Each markup is saved as soon as it’s drawn">✓ Saved</span>}
         <div className="mk-pages">
-          <button type="button" className="mk-btn" disabled={pageNo <= 1} onClick={() => setPageNo(pageNo - 1)} aria-label="Previous page">‹</button>
+          {!phone && <button type="button" className="mk-btn" disabled={pageNo <= 1} onClick={() => setPageNo(pageNo - 1)} aria-label="Previous page">‹</button>}
           {Object.keys(sheets).length > 0 && pages > 0 ? (
             <select className="mk-sheet" aria-label="Sheet" value={pageNo} onChange={(e) => setPageNo(Number(e.target.value))}>
               {Array.from({ length: pages }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{sheet(n) ? `${sheet(n)} · p. ${n}` : `p. ${n}`}</option>)}
             </select>
           ) : <span>Page <input aria-label="Page" value={pageNo} onChange={(e) => { const n = Number(e.target.value); if (n >= 1 && n <= pages) setPageNo(n); }} /> of {pages || '…'}</span>}
-          {canDraw && pages > 0 && <button type="button" className="mk-btn" onClick={() => void renameSheet(pageNo)} aria-label="Name this sheet" title="Name this page by its sheet number (A100, E103…)">✎</button>}
-          {canDraw && pages > 0 && <button type="button" className="mk-btn" disabled={!!readingTitles} onClick={() => void readTitles(true)} aria-label="Read sheet titles" title="Read every page’s sheet number and title from its title block (scans by OCR)">↻</button>}
+          {canDraw && pages > 0 && !coarse && <button type="button" className="mk-btn" onClick={() => void renameSheet(pageNo)} aria-label="Name this sheet" title="Name this page by its sheet number (A100, E103…)">✎</button>}
+          {canDraw && pages > 0 && !coarse && <button type="button" className="mk-btn" disabled={!!readingTitles} onClick={() => void readTitles(true)} aria-label="Read sheet titles" title="Read every page’s sheet number and title from its title block (scans by OCR)">↻</button>}
           {readingTitles && <span className="mk-muted" role="status">{readingTitles}</span>}
-          <button type="button" className="mk-btn" disabled={pageNo >= pages} onClick={() => setPageNo(pageNo + 1)} aria-label="Next page">›</button>
+          {!phone && <button type="button" className="mk-btn" disabled={pageNo >= pages} onClick={() => setPageNo(pageNo + 1)} aria-label="Next page">›</button>}
         </div>
-        <div className="mk-zoom">
-          <button type="button" className="mk-btn" onClick={() => setZoom(Math.max(0.1, scale / 1.25))} aria-label="Zoom out">−</button>
+        {!phone && <div className="mk-zoom">
+          {!phone && <button type="button" className="mk-btn" onClick={() => setZoom(Math.max(0.1, scale / 1.25))} aria-label="Zoom out">−</button>}
           <button type="button" className="mk-btn is-text" onClick={() => setZoom('fit')}>{zoom === 'fit' ? 'Fit' : `${Math.round(scale * 100)}%`}</button>
-          <button type="button" className="mk-btn" onClick={() => setZoom(Math.min(8, scale * 1.25))} aria-label="Zoom in">+</button>
-        </div>
-        <button type="button" className={'mk-btn' + (search ? ' is-on' : '')} onClick={() => (search ? setSearch(null) : openSearch())} aria-label="Search the drawing" title="Search the drawing’s text and markup notes (Ctrl+F)" aria-pressed={!!search}>🔍</button>
-        {otherRevisions.length > 0 && (
+          {!phone && <button type="button" className="mk-btn" onClick={() => setZoom(Math.min(8, scale * 1.25))} aria-label="Zoom in">+</button>}
+        </div>}
+        {!phone && <button type="button" className={'mk-btn' + (search ? ' is-on' : '')} onClick={() => (search ? setSearch(null) : openSearch())} aria-label="Search the drawing" title="Search the drawing’s text and markup notes (Ctrl+F)" aria-pressed={!!search}>🔍</button>}
+        {otherRevisions.length > 0 && !coarse && (
           <span className="mk-compare-wrap">
             <button type="button" className={'mk-btn is-text' + (compare ? ' is-on' : '')} aria-pressed={!!compare} title="Compare with another revision: removed in red, added in blue"
               onClick={() => { if (compare) setCompare(null); else if (otherRevisions.length === 1) startCompare(otherRevisions[0]); else setComparePick(!comparePick); }}>⇄ {compare ? 'Stop comparing' : 'Compare'}</button>
@@ -1012,14 +1173,16 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           </span>
         )}
         <span className="mk-spacer" />
-        <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={download} title="The PDF with the layers you’re showing drawn in">Download marked-up PDF</button>
-        {canEmail && <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={() => setEmailing({ to: '', note: '' })} title="Saves a marked-up copy and emails a link to it">Email</button>}
-        {canDraw && <button type="button" className="mk-btn is-text is-dark" disabled={busy || !marks.length} onClick={saveCopy} title="Saves a separate PDF with the markups drawn in, beside the drawing. The original drawing is never changed, and the markups stay editable here.">Save marked-up copy</button>}
+        {!coarse && <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={download} title="The PDF with the layers you’re showing drawn in">Download marked-up PDF</button>}
+        {canEmail && !coarse && <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={() => setEmailing({ to: '', note: '' })} title="Saves a marked-up copy and emails a link to it">Email</button>}
+        {canDraw && !coarse && <button type="button" className="mk-btn is-text is-dark" disabled={busy || !marks.length} onClick={saveCopy} title="Saves a separate PDF with the markups drawn in, beside the drawing. The original drawing is never changed, and the markups stay editable here.">Save marked-up copy</button>}
         <button type="button" className="mk-btn" onClick={() => setPanel(!panel)} aria-label="Markup list" aria-pressed={panel}>☰</button>
+        {coarse && <button type="button" className="mk-btn" onClick={() => setBs('more')} aria-label="More" title="Download, email, save a copy, compare, sheet names">⋯</button>}
       </header>
 
       <div className="mk-body">
         <nav className="mk-tools" aria-label="Markup tools">
+          {phone ? phoneBar : <>
           {TOOLS.filter((t) => canDraw || t.group === 'nav').map((t, i, arr) => (
             <span key={t.key} style={{ display: 'contents' }}>
               {i > 0 && arr[i - 1].group !== t.group && <i className="mk-sep" />}
@@ -1027,7 +1190,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 onClick={() => { setTool(t.key); setDraft(null); }}>{t.icon}</button>
             </span>
           ))}
-          {canDraw && <>
+          </>}
+          {canDraw && !phone && <>
             <i className="mk-sep" />
             {MARKUP_COLORS.map((c) => <button key={c} type="button" className={'mk-swatch' + (color === c ? ' is-on' : '') + (c === '#FFFFFF' ? ' is-white' : '')} style={{ background: c }} aria-label={c === '#FFFFFF' ? 'White (covers lines)' : `Colour ${c}`} title={c === '#FFFFFF' ? 'White — draw over lines to cover them' : undefined} onClick={() => setColor(c)} />)}
             <i className="mk-sep" />
@@ -1266,6 +1430,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         </div>
       )}
 
+      {multiPill}
+      {actionBar}
+      {bottomSheet}
       {emailing && (
         <div className="mk-ask-bg" onClick={() => setEmailing(null)}>
           <form className="mk-ask" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); void sendEmail(); }}>

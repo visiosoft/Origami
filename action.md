@@ -191,3 +191,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | J7 | Meeting transcripts and notes integrated, tasks created and assigned from them | ✅ hourly pull of “Notes by Gemini” from Drive into the meeting; Import from Google (link or search); parser reads Gemini headings, decisions and next steps for review → tasks / FOR RECORD |
 | J8 | CSI codes on drawing markups, tracked through change orders to the base contract | ✅ CSI code on markups, RFIs and Log entries; carried from a markup onto its CO line / RFI / task; CSI filters on RFIs and the Log |
 | J9 | Remove duplicate user roles | ✅ built; waiting on an admin to press “Merge duplicates” on staging after checking who moves |
+| J10 | Markup mobile-friendly on iPhone and iPad | ✅ one-row header + ⋯ More; tool groups; Done pill + double-tap; long-press select + action bar; bottom sheets; touch gestures; landscape rail; phone canvas cap; home-screen app |
