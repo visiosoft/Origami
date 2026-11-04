@@ -26,7 +26,7 @@ export function MeetingNotesImport({ meeting, text, onClose, onAdded }: {
   const people = useMemo(() => users.filter((u) => u.status !== 'suspended'), [users]);
   const parsed = useMemo(() => parseMeetingNotes(text, meeting.date), [text, meeting.date]);
   const [rows, setRows] = useState<Row[]>(() => [
-    ...parsed.records.map((r, i): Row => ({ key: 'r' + i, on: true, kind: 'Observation', subject: r.title, description: r.description, assigneeId: '', others: [], dueDate: '', priority: '', tags: [] })),
+    ...parsed.records.map((r, i): Row => ({ key: 'r' + i, on: true, kind: r.kind || 'Observation', subject: r.title, description: r.description, assigneeId: '', others: [], dueDate: '', priority: '', tags: [] })),
     ...parsed.tasks.map((t, i): Row => {
       const { matched, unmatched } = matchPeople(t.names, people);
       return {

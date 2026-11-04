@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04g',
+    date: '2026-11-04',
+    title: 'Meeting notes arrive from Google',
+    items: [
+      { area: 'Meetings', kind: 'new', text: 'After a meeting, its “Notes by Gemini” are fetched from Google Drive by themselves (checked every hour for three days): the notes go into Notes / minutes, the transcript into Transcript, and the meeting says how many items are waiting to review.', where: 'Meetings → a meeting → Review notes & transcript' },
+      { area: 'Meetings', kind: 'new', text: '“Import from Google” fetches them now — paste the Doc’s link, or leave it empty to find it by the meeting’s title and date.' },
+      { area: 'Meetings', kind: 'improved', text: 'Turning notes into items reads Gemini’s layout: each point under a heading becomes FOR RECORD, each decision a Decision, each next step a task with its owner and due date — once, even though Gemini lists them twice. Nothing is added until you tick it.' },
+      { area: 'Meetings', kind: 'improved', text: 'For the notes to arrive, the meeting must be shared with the connected Google account — the simplest way is to invite that account to the meeting.' },
+    ],
+  },
+  {
     id: '2026-11-04f',
     date: '2026-11-04',
     title: 'Field report for admins',

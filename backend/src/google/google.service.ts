@@ -822,6 +822,31 @@ export class GoogleService {
     if (!res.ok) throw new BadRequestException(body?.error?.message || 'Drive request failed.');
     return (body.files ?? []) as DriveFile[];
   }
+
+  /** Google Docs matching a raw Drive query (Nov 3 sync: finding a meeting's "Notes by Gemini"). */
+  async findDocs(query: string, pageSize = 10): Promise<DriveFile[]> {
+    const token = await this.workspaceToken();
+    const params = new URLSearchParams({
+      pageSize: String(pageSize), orderBy: 'modifiedTime desc', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true',
+      fields: 'files(id,name,mimeType,modifiedTime,webViewLink)',
+      q: `${query} and mimeType = 'application/vnd.google-apps.document' and trashed = false`,
+    });
+    const res = await fetch(`${DRIVE_FILES_URL}?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+    const body: any = await res.json().catch(() => ({}));
+    if (!res.ok) throw new BadRequestException(body?.error?.message || 'Drive search failed.');
+    return (body.files ?? []) as DriveFile[];
+  }
+
+  /** A Google Doc as plain text (the connected account must be able to open it). */
+  async exportDocText(id: string): Promise<{ name: string; text: string; link: string }> {
+    const token = await this.workspaceToken();
+    const meta = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?fields=id,name,webViewLink,mimeType&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });
+    const m: any = await meta.json().catch(() => ({}));
+    if (!meta.ok) throw new BadRequestException(meta.status === 404 ? 'That Doc isn’t shared with the connected Google account.' : m?.error?.message || 'Could not open the Doc.');
+    const res = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}/export?mimeType=text/plain`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new BadRequestException('Could not read the Doc’s text.');
+    return { name: m.name || '', link: m.webViewLink || `https://docs.google.com/document/d/${id}`, text: (await res.text()).replace(/^\uFEFF/, '') };
+  }
 }
 
 /** MIME line ending. Built from char codes so no editor can normalise it away. */

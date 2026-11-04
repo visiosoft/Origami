@@ -325,6 +325,11 @@ export class MeetingEntity {
   @Column({ type: 'nvarchar', length: 1000, nullable: true }) transcriptUrl!: string;
   @Column({ ...TEXT, nullable: true }) transcript!: string;
   /** Who went through the notes / transcript and pulled out the special actions, and when. */
+  /** Notes pulled from Google (Nov 3 sync): the "Notes by Gemini" Doc, and when it was read. */
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) notesDocId!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) notesImportedAt!: string | null;
+  /** Its Google Calendar event, when put on a calendar from Origami. */
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) calendarEventId!: string | null;
   @Column({ nullable: true }) reviewedBy!: string;
   @Column({ nullable: true }) reviewedAt!: string;
   @Column({ nullable: true }) createdBy!: string;

@@ -20,12 +20,14 @@ export interface Meeting extends ActionTrailFields {
   attendees?: Attendee[] | null; agenda?: string; minutes?: string; status: MeetingStatus; rfiIds?: string[] | null;
   changeOrderIds?: string[] | null;
   recordingUrl?: string; transcriptUrl?: string; transcript?: string;
+  /** Notes pulled from Google (Nov 3 sync), and the meeting's Google Calendar event. */
+  notesDocId?: string | null; notesImportedAt?: string | null; calendarEventId?: string | null;
   reviewedBy?: string; reviewedAt?: string;
   createdBy?: string; createdAt?: string; updatedAt?: string;
 }
 /** Outside = someone else's invite (the city on Teams, a consultant's Zoom). */
 export const MEETING_TYPES = ['Internal', 'Client', 'Consultant', 'Subcontractor', 'Site', 'Outside'];
-export const MEETING_FIELDS: (keyof Meeting)[] = ['title', 'type', 'projectId', 'project', 'date', 'time', 'location', 'locationType', 'organizer', 'organizerOrg', 'platform', 'invite', 'attendees', 'agenda', 'minutes', 'status', 'rfiIds', 'changeOrderIds', 'recordingUrl', 'transcriptUrl', 'transcript'];
+export const MEETING_FIELDS: (keyof Meeting)[] = ['title', 'type', 'projectId', 'project', 'date', 'time', 'location', 'locationType', 'organizer', 'organizerOrg', 'platform', 'invite', 'attendees', 'agenda', 'minutes', 'status', 'rfiIds', 'changeOrderIds', 'recordingUrl', 'transcriptUrl', 'transcript', 'calendarEventId'];
 
 type Tone = 'yellow' | 'soft' | 'outline' | 'dark' | 'green' | 'warn';
 /** Label, pill tone and what it means -- in the order they're offered. */

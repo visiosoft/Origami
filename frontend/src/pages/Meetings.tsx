@@ -18,6 +18,7 @@ import { SortSelect, sortFromString, sortToString, useSort } from '../components
 import './Meetings.css';
 import { Skeleton } from '../components/Skeleton';
 import { MeetingNotesImport } from '../components/MeetingNotesImport';
+import { parseMeetingNotes } from '../data/meetingNotes';
 import { TagPicker } from '../components/TagPicker';
 import { OutsideMeeting } from '../components/OutsideMeeting';
 
@@ -319,7 +320,7 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
       description: [draft.project && `Project: ${draft.project}`, draft.agenda && `Agenda:\n${draft.agenda}`].filter(Boolean).join('\n\n') || undefined,
       attendees: attendees.map((a) => a.email || users.find((u) => u.id === a.id)?.email).filter(Boolean) as string[],
       video: draft.locationType === 'virtual' || /meet|zoom|teams|video|http/i.test(draft.location || ''),
-    }).then((ev) => toast(ev?.htmlLink ? 'Added to your Google Calendar — invites sent' : 'Added to your Google Calendar'))
+    }).then((ev) => { if (ev?.id) set({ calendarEventId: ev.id }); toast(ev?.htmlLink ? 'Added to your Google Calendar — invites sent' : 'Added to your Google Calendar'); })
       .catch((e: Error) => toast('⚠ ' + (e.message || 'Connect your Google Calendar in Settings → My account')));
   };
   const remove = () => {
@@ -573,7 +574,27 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
   const [sel, setSel] = useState('');
   const [seed, setSeed] = useState<{ text: string; n: number }>({ text: '', n: 0 });
   const [importing, setImporting] = useState(false);
+  const { toast } = useApp();
   const st = meetingStatus(draft.status);
+  // Notes from Google (Nov 3 sync): they arrive by themselves after the meeting, or on demand here.
+  const [docLink, setDocLink] = useState('');
+  const [fetching, setFetching] = useState(false);
+  const fetchGoogle = async () => {
+    setFetching(true);
+    try {
+      const m = await api.meetings.importGoogle(draft.id, docLink.trim() || undefined);
+      ctx.applyServer(m);
+      set({ minutes: m.minutes || '', transcript: m.transcript || '', transcriptUrl: m.transcriptUrl || '', notesDocId: m.notesDocId, notesImportedAt: m.notesImportedAt });
+      setSrc('minutes'); setDocLink('');
+      toast('Notes imported from Google — review the suggested items');
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not imported')); }
+    finally { setFetching(false); }
+  };
+  const suggested = useMemo(() => {
+    if (!draft.notesImportedAt || !draft.minutes) return 0;
+    const p = parseMeetingNotes(draft.minutes, draft.date);
+    return p.records.length + p.tasks.length;
+  }, [draft.notesImportedAt, draft.minutes, draft.date]);
   const pickSel = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     const el = e.currentTarget;
     setSel(el.value.slice(el.selectionStart, el.selectionEnd).trim());
@@ -606,10 +627,22 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
               <span className="mt-muted">{sel ? `${sel.length} characters selected` : 'Select a passage to raise it as an item.'}</span>
               <button type="button" className="ak-btn is-dark" disabled={!sel} onClick={() => setSeed((s) => ({ text: sel, n: s.n + 1 }))}>Use selection →</button>
             </div>
+            {src === 'minutes' && draft.notesImportedAt && suggested > 0 && (
+              <div className="mt-notice" role="status">
+                <span><b>Notes imported from Google</b> {new Date(draft.notesImportedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} — {suggested} suggested item{suggested === 1 ? '' : 's'} to review.</span>
+                <button type="button" className="ak-btn is-dark" onClick={() => setImporting(true)}>Review items</button>
+              </div>
+            )}
             {src === 'minutes' && (
               <div className="mt-row" style={{ alignItems: 'center' }}>
-                <span className="mt-muted">Pasted Google Meet notes? Each summary bullet becomes a FOR RECORD item and each next step a task — you check them first.</span>
+                <span className="mt-muted">Google Meet notes? Each summary point becomes a FOR RECORD item, each decision a Decision and each next step a task — you check them first.</span>
                 <button type="button" className="ak-btn" disabled={!text.trim()} onClick={() => setImporting(true)}>Turn notes into items</button>
+              </div>
+            )}
+            {src === 'minutes' && (
+              <div className="mt-row" style={{ alignItems: 'center' }}>
+                <input value={docLink} onChange={(e) => setDocLink(e.target.value)} placeholder="Notes by Gemini — paste the Doc link, or leave empty to find it" aria-label="Google Doc link" style={{ flex: 1, minWidth: 200 }} />
+                <button type="button" className="ak-btn" disabled={fetching} onClick={() => void fetchGoogle()} title="Fetch the meeting's “Notes by Gemini” from Google Drive (it must be shared with the connected Google account)">{fetching ? 'Fetching…' : 'Import from Google'}</button>
               </div>
             )}
           </section>
