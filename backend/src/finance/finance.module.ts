@@ -18,6 +18,7 @@ import { GoogleModule } from '../google/google.module';
 import { SettingsModule } from '../settings/settings.module';
 import { ManpowerAccess } from '../manpower/manpower-access.service';
 import { FinancialsService } from './financials.service';
+import { EstimatesService } from './estimates.service';
 import { InvoicesService } from './invoices.service';
 import { ChangeOrdersService } from './change-orders.service';
 import { ChangeEventsService } from './change-events.service';
@@ -57,7 +58,7 @@ import {
   ],
   controllers: [ChangeOrderPublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService],
   exports: [ChangeOrdersService, FinancialsService],
 })
 export class FinanceModule {}
