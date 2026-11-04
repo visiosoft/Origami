@@ -512,7 +512,7 @@ export const api = {
     },
     get: (id: string) => request(`/tasks/${id}`),
     /** One page of the Special Actions Log -- filtered, searched and sorted on the server. */
-    page: (o: { tab?: string; pf?: string; archived?: boolean; q?: string; tag?: string; scope?: string; person?: string; parts?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
+    page: (o: { tab?: string; pf?: string; archived?: boolean; q?: string; tag?: string; csi?: string; scope?: string; person?: string; parts?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
       const params = new URLSearchParams();
       for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '' && v !== false) params.set(k, v === true ? '1' : String(v));
       return request<{
@@ -613,7 +613,7 @@ export const api = {
     access: () => request<{ view: boolean; manage: boolean }>('/rfis/access'),
     list: (projectId?: number) => request<any[]>(`/rfis${projectId ? `?projectId=${projectId}` : ''}`),
     /** One page of the RFI log, filtered and sorted on the server, with its counts and stat cards. */
-    page: (o: { projectId?: number; status?: string; q?: string; sort?: string; dir?: string; page?: number; size?: number; today?: string }) => {
+    page: (o: { projectId?: number; status?: string; q?: string; csi?: string; sort?: string; dir?: string; page?: number; size?: number; today?: string }) => {
       const params = new URLSearchParams();
       for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '') params.set(k, String(v));
       return request<{ rows: any[]; total: number; page: number; size: number; pages: number; any: boolean;

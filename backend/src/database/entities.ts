@@ -260,6 +260,8 @@ export class TaskEntity {
   @Column({ type: 'simple-json', nullable: true }) comments!: TaskComment[];
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
+  /** Its CSI code (Nov 3 sync). */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) csiCodeId!: string | null;
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
   /** Access tags (internal, client, external, financial, crm, design, construction); see task.types cleanTags. */
   @Column({ type: 'simple-json', nullable: true }) tags!: string[] | null;
@@ -2579,6 +2581,8 @@ export class RfiEntity {
   @Column() number!: string;
   @Column() subject!: string;
   /** draft | open | answered | closed | void */
+  /** Its CSI code (Nov 3 sync: track an issue from the drawing through change orders to the contract). */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) csiCodeId!: string | null;
   @Column() status!: string;
   @Column({ nullable: true }) priority!: string;
   @Column({ ...TEXT, nullable: true }) question!: string;

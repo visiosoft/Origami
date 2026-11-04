@@ -22,13 +22,14 @@ import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
 import { TagPicker } from './TagPicker';
+import { CsiSelect } from './CsiSelect';
 import type { Attachment as TaskAttachment, ChecklistItem } from '../data/projectTasks';
 import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, logTaskTitle, taskHeadline, type Task } from '../data/tasks';
 
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
 /** The fields edited in the drawer -- they autosave together; comments, files and delete act at once. */
-const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'tags', 'project', 'leadId', 'holdReason', 'completionNote', 'originator'] as const;
+const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'tags', 'csiCodeId', 'project', 'leadId', 'holdReason', 'completionNote', 'originator'] as const;
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
@@ -305,6 +306,10 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
 
           <div style={{ marginTop: 18 }}>
             <TagPicker tags={t.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)' }}>CSI code</span>
+              <CsiSelect value={t.csiCodeId} disabled={!canManage} onChange={(csiCodeId) => set({ csiCodeId: csiCodeId || null })} style={{ ...inputStyle, width: 'auto', minWidth: 220 }} />
+            </div>
           </div>
 
           <div style={{ marginTop: 18 }}>

@@ -1,3 +1,4 @@
+import { CsiSelect } from '../CsiSelect';
 import { CloseButton } from '../CloseButton';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PriorityHelp } from '../PriorityHelp';
@@ -24,7 +25,7 @@ export interface RfiContact { name: string; email?: string; company?: string; pe
 export interface Rfi extends ActionTrailFields {
   id: string; projectId: number; projectName?: string; number: string; subject: string;
   status: 'draft' | 'open' | 'answered' | 'closed' | 'void';
-  priority?: string; question?: string; suggestion?: string; discipline?: string; specSection?: string; drawingRef?: string;
+  priority?: string; question?: string; suggestion?: string; discipline?: string; specSection?: string; drawingRef?: string; csiCodeId?: string | null;
   drawings?: { fileId: string; name: string; markupId?: string; page?: number }[] | null; to?: RfiContact | null; cc?: RfiContact[] | null;
   ownerId?: string; ownerName?: string; dateSent?: string; dateDue?: string; dateAnswered?: string; dateClosed?: string;
   answer?: string; answeredBy?: string; costImpact?: string; costAmount?: number | null; scheduleImpact?: string; scheduleDays?: number | null;
@@ -44,7 +45,7 @@ export const RFI_STATUS: Record<Rfi['status'], { label: string; bg: string; c: s
   void: { label: 'Void', bg: '#F2DFD4', c: '#8E2E0A' },
 };
 const DISCIPLINES = ['Architectural', 'Structural', 'Civil', 'Mechanical', 'Electrical', 'Plumbing', 'Fire Protection', 'Landscape', 'Interior', 'Owner / Client', 'Other'];
-const FIELDS = ['subject', 'question', 'suggestion', 'discipline', 'specSection', 'drawingRef', 'drawings', 'to', 'cc', 'ownerId', 'dateDue', 'priority',
+const FIELDS = ['subject', 'question', 'suggestion', 'discipline', 'specSection', 'drawingRef', 'csiCodeId', 'drawings', 'to', 'cc', 'ownerId', 'dateDue', 'priority',
   'costImpact', 'costAmount', 'scheduleImpact', 'scheduleDays', 'answer', 'answeredBy', 'dateAnswered'] as const;
 
 const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: INK, outline: 'none' };
@@ -97,6 +98,7 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [status, setStatus] = useState<'active' | 'all' | Rfi['status']>('active');
+  const [csiFilter, setCsiFilter] = useState('');
   const [q, setQ] = useState('');
   const [openRfi, setOpenRfi] = useState<string | null>(openId || null);
   const [creating, setCreating] = useState(false);
@@ -107,7 +109,7 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
   // Typing searches after a short pause; a changed filter goes back to page 1.
   const [qd, setQd] = useState('');
   useEffect(() => { const t = window.setTimeout(() => setQd(q), 300); return () => window.clearTimeout(t); }, [q]);
-  const filterKey = [projectId, status, qd, sort?.key, sort?.dir, size].join('|');
+  const filterKey = [projectId, status, qd, csiFilter, sort?.key, sort?.dir, size].join('|');
   const lastKey = useRef(filterKey);
   const [tick, setTick] = useState(0);
   const load = () => setTick((n) => n + 1);
@@ -116,7 +118,7 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
     lastKey.current = filterKey;
     if (changed && page !== 1) { setPage(1); return; }
     let live = true;
-    api.rfis.page({ projectId, status, q: qd, sort: sort?.key, dir: sort?.dir, page, size, today: todayIso() })
+    api.rfis.page({ projectId, status, q: qd, csi: csiFilter || undefined, sort: sort?.key, dir: sort?.dir, page, size, today: todayIso() })
       .then((r) => { if (live) { setData(r); setError(''); } })
       .catch((e: Error) => { if (live) setError(e.message); })
       .finally(() => { if (live) setLoading(false); });
@@ -178,6 +180,7 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
           </div>
         )}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search RFIs…" style={{ ...input, width: 200, borderRadius: 999, padding: '7px 12px' }} />
+        <CsiSelect filter value={csiFilter} onChange={setCsiFilter} style={{ ...input, width: "auto", maxWidth: 220, borderRadius: 999, padding: "7px 12px" }} />
         <select value={status} onChange={(e) => setStatus(e.target.value as any)} style={{ ...input, width: 160, padding: '7px 10px' }}>
           <option value="active">Not closed</option>
           <option value="all">All</option>
@@ -476,6 +479,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
               </select></div>
             <div><div style={lbl}>Sheet / detail</div><input readOnly={ro} value={draft.drawingRef || ''} onChange={(e) => set({ drawingRef: e.target.value })} placeholder="A-201, detail 5" style={input} /></div>
             <div><div style={lbl}>Spec section</div><input readOnly={ro} value={draft.specSection || ''} onChange={(e) => set({ specSection: e.target.value })} placeholder="06 10 00" style={input} /></div>
+            <div><div style={lbl}>CSI code</div><CsiSelect value={draft.csiCodeId} disabled={ro} onChange={(v) => set({ csiCodeId: v || null })} style={input} /></div>
           </div>
           <div style={{ ...lbl, marginTop: 12 }}>Drawings in the File Room</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>

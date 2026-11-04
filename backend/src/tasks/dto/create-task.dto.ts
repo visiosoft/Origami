@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import { MaxLength, IsString, IsOptional, IsArray, IsBoolean } from 'class-validator';
 import type { Collaborator } from '../../database/task.types';
 
 // Matches the Request-Log task record (frontend data/tasks.ts Task).
@@ -31,6 +31,7 @@ export class CreateTaskDto {
   @IsString() @IsOptional() dateClosed?: string;
   @IsArray() @IsOptional() labels?: string[];
   @IsArray() @IsOptional() @IsString({ each: true }) tags?: string[];
+  @IsString() @IsOptional() @MaxLength(40) csiCodeId?: string | null;
   /** Cleaned by normalizeCollaborators; without this line the picker's choice was stripped. */
   @IsArray() @IsOptional() collaborators?: Collaborator[];
   @IsArray() @IsOptional() checklist?: { id: string; item: string; done: boolean }[];

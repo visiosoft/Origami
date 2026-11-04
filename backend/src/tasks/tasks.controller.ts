@@ -58,7 +58,7 @@ export class TasksController {
     const person = q.person ? await this.tasksService.person(q.person) : undefined;
     const partList = (q.parts || 'assigned,collab,originated').split(',');
     return queryLog(rows, viewer, {
-      tab: q.tab, pf: q.pf, archived: q.archived === '1', q: q.q, tag: q.tag || undefined,
+      tab: q.tab, pf: q.pf, archived: q.archived === '1', q: q.q, tag: q.tag || undefined, csi: q.csi || undefined,
       scope: (q.scope as Scope) || 'all', person: person ?? undefined,
       parts: { assigned: partList.includes('assigned'), collab: partList.includes('collab'), originated: partList.includes('originated') },
       restricted: !!claims && isRestrictedViewer(claims),

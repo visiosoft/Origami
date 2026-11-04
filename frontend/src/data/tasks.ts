@@ -55,6 +55,8 @@ export interface Task extends ActionTrailFields {
   activity?: ActivityEvent[];
   checklist?: ChecklistItem[];
   labels?: string[];
+  /** Its CSI code (Nov 3 sync). */
+  csiCodeId?: string | null;
   /** Access tags (data/actionTags.ts). */
   tags?: string[] | null;
   updatedAt?: string;

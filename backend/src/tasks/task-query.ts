@@ -62,7 +62,7 @@ const SORTS: Record<string, (t: T) => string | number | null | undefined> = {
 };
 
 export interface LogQuery {
-  tab?: string; pf?: string; archived?: boolean; q?: string; tag?: string;
+  tab?: string; pf?: string; archived?: boolean; q?: string; tag?: string; csi?: string;
   scope?: Scope; person?: Person; parts?: MineParts; restricted?: boolean;
   sort?: string; dir?: 'asc' | 'desc'; page?: unknown; size?: unknown;
 }
@@ -88,7 +88,7 @@ export function queryLog(all: T[], viewer: Person, o: LogQuery) {
   const tab = (TABS as readonly string[]).includes(o.tab || '') ? o.tab! : 'internal';
   const tabs = Object.fromEntries(TABS.map((t) => [t, scoped(byProject(live.filter((x) => x.tab === t))).length]));
   const inTab = byProject(live.filter((x) => x.tab === tab));
-  const filtered = scoped(inTab).filter((t) => matchesQuery(t, o.q || '') && (!o.tag || hasTag(t, o.tag)));
+  const filtered = scoped(inTab).filter((t) => matchesQuery(t, o.q || '') && (!o.tag || hasTag(t, o.tag)) && (!o.csi || t.csiCodeId === o.csi));
   const sorted = sortRows(filtered, o.sort ? SORTS[o.sort] : undefined, o.dir);
 
   // The project picker lists projects first, then leads, in the order they first appear.

@@ -11,6 +11,8 @@ export interface MarkupData {
   points: Pt[];
   color: string;
   width: number;
+  /** Its CSI code (Nov 3 sync). */
+  csiCodeId?: string;
   text?: string;
   size?: number;
   label?: string;

@@ -2,6 +2,7 @@ import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from 'react-dom';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
+import { CsiSelect } from '../CsiSelect';
 import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
@@ -740,12 +741,14 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             projectId, subject, question: m.data.text || '',
             drawingRef: `${file.name}, p. ${m.page}`,
             drawings: [{ fileId: file.id, name: file.name, markupId: m.id, page: m.page }],
+            ...(m.data.csiCodeId ? { csiCodeId: m.data.csiCodeId } : {}),
           });
           replace(await api.fileRoom.editMarkup(m.id, { linkType: 'rfi', linkId: rfi.id }));
           toast(`RFI ${rfi.number ? '#' + rfi.number + ' ' : ''}drafted — open it from the markup’s panel when you’re ready`);
         } else if (ask.kind === 'co') {
           if (!projectId) throw new Error('This file isn’t in a project.');
-          const co: any = await api.finance.createChangeOrder(projectId, { title: subject, reason: 'unforeseen', description: from });
+          // Its CSI code goes on the change order's first line, so the change is tracked to the contract (Nov 3 sync).
+          const co: any = await api.finance.createChangeOrder(projectId, { title: subject, reason: 'unforeseen', description: from, ...(m.data.csiCodeId ? { items: [{ description: subject, csiCodeId: m.data.csiCodeId }] } : {}) });
           replace(await api.fileRoom.editMarkup(m.id, { linkType: 'co', linkId: co.id }));
           toast(`Change order ${co.number || ''} drafted — open it from the markup’s panel when you’re ready`);
         } else {
@@ -753,6 +756,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           const t: any = await api.tasks.create({
             subject, project: projectName || '', description: from,
             ...(record ? { topicType: ask.topic || 'Observation' } : {}),
+            ...(m.data.csiCodeId ? { csiCodeId: m.data.csiCodeId } : {}),
           });
           replace(await api.fileRoom.editMarkup(m.id, { linkType: record ? 'record' : 'task', linkId: t.id }));
           toast(record ? `${ask.topic || 'Observation'} added to FOR RECORD` : 'Task created');
@@ -1185,6 +1189,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                   </label>
                 )}
                 {selected.data.label && <p className="mk-quote">{selected.data.label}</p>}
+                {(mine(selected) || selected.data.csiCodeId) && (
+                  <label className="mk-move">CSI code
+                    <CsiSelect value={selected.data.csiCodeId} disabled={!mine(selected)} onChange={(v) => { const data: MarkupData = { ...selected.data, csiCodeId: v }; if (!v) delete data.csiCodeId; void editMarkup(selected, { data }); }} />
+                  </label>
+                )}
                 {mine(selected) ? (
                   <label className="mk-move">Note
                     <textarea key={selected.id} defaultValue={selected.data.note || ''} maxLength={1000} rows={3} placeholder="Notes about this markup — kept here, not written on the drawing" aria-label="Note on this markup"

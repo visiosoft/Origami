@@ -17,6 +17,8 @@ export interface MarkupData {
   points: Pt[];
   color: string;
   width: number;
+  /** Its CSI code (Nov 3 sync). */
+  csiCodeId?: string;
   text?: string;
   size?: number;
   /** measure_len / measure_area: the value as shown ("12'-6\""); scale: the real length typed in. */
@@ -133,6 +135,7 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
   if (kind === 'text' && !data.text?.trim()) throw new Error('Type some text.');
   if (d.size !== undefined) data.size = Math.min(72, Math.max(6, Number(d.size) || 12));
   if (typeof d.label === 'string') data.label = d.label.slice(0, 60);
+  if (typeof d.csiCodeId === 'string' && d.csiCodeId.trim()) data.csiCodeId = d.csiCodeId.trim().slice(0, 40);
   if (FILLABLE.includes(kind) && d.fill === true) data.fill = true;
   if (kind === 'text' && Number(d.boxW) > 0) data.boxW = Math.min(1, Math.max(0.02, Number(d.boxW)));
   // Notes stay in the side panel and list (Nov 3 sync), so they can be longer; line breaks are kept.

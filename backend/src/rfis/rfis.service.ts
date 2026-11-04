@@ -25,7 +25,7 @@ export function addWorkingDays(from: string, n: number) {
 }
 
 /** Text fields a person edits directly; everything else moves through the actions below. */
-const EDITABLE = ['subject', 'question', 'suggestion', 'discipline', 'specSection', 'drawingRef', 'priority', 'dateDue',
+const EDITABLE = ['subject', 'question', 'suggestion', 'discipline', 'specSection', 'drawingRef', 'csiCodeId', 'priority', 'dateDue',
   'costImpact', 'costAmount', 'scheduleImpact', 'scheduleDays', 'answer', 'answeredBy', 'dateAnswered'] as const;
 
 const cleanText = (v: unknown, max = 20000) => String(v ?? '').replace(/\r\n/g, '\n').trim().slice(0, max);
@@ -142,6 +142,7 @@ export class RfisService {
         question: cleanText(dto.question), suggestion: cleanText(dto.suggestion),
         discipline: RFI_DISCIPLINES.includes(dto.discipline) ? dto.discipline : undefined,
         specSection: cleanText(dto.specSection, 100) || undefined, drawingRef: cleanText(dto.drawingRef, 300) || undefined,
+        csiCodeId: cleanText(dto.csiCodeId, 40) || undefined,
         drawings: cleanDrawings(dto.drawings), to: cleanContact(dto.to), cc: (Array.isArray(dto.cc) ? dto.cc : []).map(cleanContact).filter(Boolean) as RfiContact[],
         ownerId: owner?.id, ownerName: owner?.name || actor.name, priority: cleanPriority(dto.priority),
         dateDue: ISO.test(dto.dateDue || '') ? dto.dateDue : undefined,
@@ -162,6 +163,7 @@ export class RfisService {
       if (k === 'subject') { const s = cleanText(v, 300); if (!s) throw new BadRequestException('The subject can’t be empty.'); r.subject = s; }
       else if (k === 'discipline') r.discipline = RFI_DISCIPLINES.includes(v) ? v : '';
       else if (k === 'priority') r.priority = cleanPriority(v);
+      else if (k === 'csiCodeId') r.csiCodeId = cleanText(v, 40) || null;
       else if (k === 'dateDue' || k === 'dateAnswered') (r as any)[k] = ISO.test(v || '') ? v : '';
       else if (k === 'costImpact' || k === 'scheduleImpact') (r as any)[k] = ['none', 'yes', 'tbd'].includes(v) ? v : '';
       else if (k === 'costAmount') r.costAmount = v === '' || v == null || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 100) / 100;

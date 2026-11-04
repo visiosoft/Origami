@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04h',
+    date: '2026-11-04',
+    title: 'CSI codes from the drawing to the contract',
+    items: [
+      { area: 'CSI codes', kind: 'new', text: 'Give a markup, an RFI or a Special Actions Log entry its CSI code. A change order made from a markup takes the code onto its line, and an RFI or task made from it keeps it — so an issue can be followed from the drawing to the contract.', where: 'Mark up → select a markup → CSI code; RFI → CSI code; Log entry → CSI code' },
+      { area: 'CSI codes', kind: 'new', text: 'Filter RFIs and the Special Actions Log by CSI code.' },
+    ],
+  },
+  {
     id: '2026-11-04g',
     date: '2026-11-04',
     title: 'Meeting notes arrive from Google',

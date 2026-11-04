@@ -1,4 +1,5 @@
 import { TagFilter } from '../components/TagFilter';
+import { CsiSelect } from '../components/CsiSelect';
 import { useEffect, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
 import { createdByText } from '../data/projectTasks';
@@ -55,6 +56,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const [showArchived, setShowArchived] = useState(false);
   // Access tag filter (Oct 26 review notes).
   const [tagFilter, setTagFilter] = useState('');
+  const [csiFilter, setCsiFilter] = useState('');
   // The log comes a page at a time: filtered, searched and sorted on the server.
   const [logPage, setLogPage] = useState<LogPage | null>(null);
   const [logLoading, setLogLoading] = useState(false);
@@ -102,7 +104,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const [q, setQ] = useState('');
   useEffect(() => { const t = window.setTimeout(() => setQ(query), 300); return () => window.clearTimeout(t); }, [query]);
   // A different filter starts again from page 1.
-  const filterKey = [tab, pf, showArchived, q, tagFilter, scope, person, JSON.stringify(mineParts), sort?.key, sort?.dir, size].join('|');
+  const filterKey = [tab, pf, showArchived, q, tagFilter, csiFilter, scope, person, JSON.stringify(mineParts), sort?.key, sort?.dir, size].join('|');
   const lastFilter = useRef(filterKey);
   useEffect(() => {
     if (mode !== 'log') return;
@@ -112,7 +114,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
     let live = true;
     setLogLoading(true);
     const parts = (Object.keys(mineParts) as (keyof typeof mineParts)[]).filter((k) => mineParts[k]).join(',');
-    api.tasks.page({ tab, pf, archived: showArchived, q, tag: tagFilter, scope, person, parts, sort: sort?.key, dir: sort?.dir, page, size })
+    api.tasks.page({ tab, pf, archived: showArchived, q, tag: tagFilter, csi: csiFilter || undefined, scope, person, parts, sort: sort?.key, dir: sort?.dir, page, size })
       .then((r) => { if (live) setLogPage(r); })
       .catch(() => { })
       .finally(() => { if (live) setLogLoading(false); });
@@ -225,6 +227,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
         <PersonFilter person={person} setPerson={setPerson} users={allUsers} scope={scope} visible={!restricted && (scope === 'assigned' || scope === 'from')} />
         <TaskSearch value={query} onChange={setQuery} placeholder="Search requests…" />
         <TagFilter value={tagFilter} onChange={setTagFilter} counts={logPage?.facets.tags} size="large" />
+        <CsiSelect filter value={csiFilter} onChange={setCsiFilter} style={{ padding: '9px 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: csiFilter ? 'var(--ink)' : 'var(--surface)', color: csiFilter ? '#fff' : 'var(--body)', fontFamily: 'inherit', maxWidth: 220 }} />
         {(archivedCount > 0 || showArchived) && (
           <div onClick={() => setShowArchived((v) => !v)} title="Confirmed entries move here 7 days after they're confirmed"
             style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: showArchived ? 'var(--ink)' : 'var(--surface)', color: showArchived ? '#FDFCF9' : 'var(--muted)', whiteSpace: 'nowrap' }}>
