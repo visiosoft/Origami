@@ -8,6 +8,7 @@ import {
   ProjectSectionEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, RoleEntity, TaskFinancialEntity,
   CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity, TimesheetEntity, TimesheetLineEntity,
   DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity, PersonEntity, SubcontractorTradeEntity, RfiEntity, ChangeEventEntity, ChangeOrderRequestEntity, CommitmentChangeOrderEntity,
+  EstimateEntity, EstimateScopeEntity, EstimateLineEntity, EstimateGrLineEntity,
 } from '../database/entities';
 import { ProjectSubsService } from './project-subs.service';
 import { DailyReportSummaryService } from './daily-report-summary.service';
@@ -47,6 +48,7 @@ import {
       CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity,
       TimesheetEntity, TimesheetLineEntity, DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity,
       PersonEntity, SubcontractorTradeEntity, RfiEntity,
+      EstimateEntity, EstimateScopeEntity, EstimateLineEntity, EstimateGrLineEntity,
     ]),
     AuthModule,
     GoogleModule,

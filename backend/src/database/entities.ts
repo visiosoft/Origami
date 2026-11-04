@@ -2662,3 +2662,142 @@ export class TagEntity {
   @Column({ type: 'nvarchar', length: 120, nullable: true }) createdBy!: string | null;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) createdAt!: string | null;
 }
+
+// ================================================================== estimates (financial tab, Nov 4)
+// The prime contract estimate, built like the team's spreadsheet: scopes (one CSI
+// code each) with lines, the subcontractor and markup columns beside them, and
+// General Requirements, profit and contingency below the line. The maths is in
+// finance/estimate.calc.ts. A sent estimate is frozen as a revision; one is accepted.
+
+/** One custom column someone added (or a built-in one hidden or moved). */
+export interface EstimateColumn {
+  key: string;
+  label: string;
+  /** text | number | money | pct | date | choice | checkbox | formula */
+  type: string;
+  table: 'lines' | 'gr';
+  formula?: string;
+  choices?: string[];
+  width?: number;
+  hidden?: boolean;
+  /** Custom columns are internal-only unless switched on. */
+  showClient?: boolean;
+  showSub?: boolean;
+  builtIn?: boolean;
+}
+export interface EstimatePayment { id: string; label: string; mode: 'pct' | 'amt'; value: number; trigger?: string }
+export interface EstimateAreas { demolish?: number; footprint?: number; built?: number; conditioned?: number; roof?: number; hardscape?: number; landscape?: number }
+
+@Entity('estimates')
+@Index('IX_estimates_project', ['projectId'])
+export class EstimateEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** EST-001; revisions keep the number and count up `rev`. */
+  @Column() number!: string;
+  @Column({ type: 'int', default: 1 }) rev!: number;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) title!: string | null;
+  /** draft | sent | accepted | superseded */
+  @Column({ default: 'draft' }) status!: string;
+  /** The revision this one was copied from. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) revisionOf!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) frozenAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) sentAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) acceptedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) acceptedBy!: string | null;
+  @Column({ ...PCT, default: 17 }) grPct!: number;
+  @Column({ ...PCT, default: 12 }) profitPct!: number;
+  @Column({ ...PCT, default: 5 }) contingencyPct!: number;
+  /** "Show detail costs in prime?": GR lines on the client's copy, or only the GR total. */
+  @Column({ default: true }) showGrDetail!: boolean;
+  @Column({ ...MONEY, nullable: true }) discount!: number | null;
+  @Column({ default: false }) showDiscount!: boolean;
+  @Column({ ...MONEY, nullable: true }) designCost!: number | null;
+  @Column({ default: false }) showDesignCost!: boolean;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) estimateDate!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) preparedById!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) reviewedById!: string | null;
+  @Column({ ...TEXT, nullable: true }) intro!: string | null;
+  @Column({ ...TEXT, nullable: true }) descriptionOfWork!: string | null;
+  @Column({ ...TEXT, nullable: true }) terms!: string | null;
+  @Column({ ...TEXT, nullable: true }) closing!: string | null;
+  @Column({ ...TEXT, nullable: true }) additionalNotes!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) areas!: EstimateAreas | null;
+  @Column({ type: 'simple-json', nullable: true }) columns!: EstimateColumn[] | null;
+  @Column({ type: 'simple-json', nullable: true }) payments!: EstimatePayment[] | null;
+}
+
+@Entity('estimate_scopes')
+@Index('IX_estimate_scopes_estimate', ['estimateId'])
+export class EstimateScopeEntity {
+  @PrimaryColumn() id!: string;
+  @Column() estimateId!: string;
+  @Column('int') projectId!: number;
+  @Column('int') scopeOrder!: number;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) csiCodeId!: string | null;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) title!: string | null;
+  /** Precon range multiplier (1.15 = 15% higher end). */
+  @Column({ type: 'decimal', precision: 9, scale: 4, nullable: true, transformer: numberFrom }) factor!: number | null;
+  @Column({ ...TEXT, nullable: true }) privateNotes!: string | null;
+  @Column({ default: false }) collapsed!: boolean;
+  @Column({ type: 'simple-json', nullable: true }) custom!: Record<string, unknown> | null;
+}
+
+@Entity('estimate_lines')
+@Index('IX_estimate_lines_estimate', ['estimateId'])
+export class EstimateLineEntity {
+  @PrimaryColumn() id!: string;
+  @Column() estimateId!: string;
+  @Column('int') projectId!: number;
+  @Column() scopeId!: string;
+  @Column('int') lineOrder!: number;
+  @Column({ type: 'int', default: 0 }) indent!: number;
+  /**
+   * item (a priced line) | details | inclusion | exclusion | assumption. The notes
+   * are rows in the same table and numbering as the items (2.07 << Details,
+   * 2.08 << Inclusions ...); there can be several of each, and a row can be
+   * typed or a canned statement for the scope's CSI code. Notes carry no money.
+   */
+  @Column({ type: 'nvarchar', length: 20, default: 'item' }) kind!: string;
+  /** For notes: the canned statement it came from, if any. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) statementId!: string | null;
+  @Column({ ...TEXT, nullable: true }) description!: string | null;
+  /** Rough Labor, Rough Materials, Finish Labor, Finish Materials, Equipment. */
+  @Column({ type: 'simple-json', nullable: true }) costTypes!: string[] | null;
+  /** fc | tm | nte | allowance | ofci | nis */
+  @Column({ default: 'fc' }) pricing!: string;
+  /** The sub's own pricing type (the subcontractor columns' FC / T&M / ... boxes); null = same as the prime line. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) subPricing!: string | null;
+  /** subcontract | self_perform | owner | contract_required | other | not_in_scope */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) strategy!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) contractorId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) subName!: string | null;
+  @Column({ type: 'int', nullable: true }) durationDays!: number | null;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) startDate!: string | null;
+  @Column({ ...MONEY, default: 0 }) cost!: number;
+  /** amt (markup typed in dollars) | pct */
+  @Column({ default: 'amt' }) markupMode!: string;
+  @Column({ ...MONEY, default: 0 }) markupAmt!: number;
+  @Column({ ...PCT, nullable: true }) markupPct!: number | null;
+  /** The sub's wording for the line; it fills the prime description until someone edits that. */
+  @Column({ ...TEXT, nullable: true }) subNotes!: string | null;
+  @Column({ ...TEXT, nullable: true }) privateNotes!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) custom!: Record<string, unknown> | null;
+}
+
+@Entity('estimate_gr_lines')
+@Index('IX_estimate_gr_lines_estimate', ['estimateId'])
+export class EstimateGrLineEntity {
+  @PrimaryColumn() id!: string;
+  @Column() estimateId!: string;
+  @Column('int') projectId!: number;
+  @Column('int') lineOrder!: number;
+  @Column({ type: 'nvarchar', length: 300 }) title!: string;
+  @Column({ default: true }) included!: boolean;
+  @Column({ ...MONEY, default: 0 }) base!: number;
+  /** LS | Monthly | Weekly | Each | ... */
+  @Column({ type: 'nvarchar', length: 40, default: 'LS' }) unit!: string;
+  @Column({ type: 'decimal', precision: 12, scale: 4, default: 1, transformer: numberFrom }) qty!: number;
+  @Column({ ...TEXT, nullable: true }) notes!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) custom!: Record<string, unknown> | null;
+}

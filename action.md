@@ -192,3 +192,18 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | J8 | CSI codes on drawing markups, tracked through change orders to the base contract | ✅ CSI code on markups, RFIs and Log entries; carried from a markup onto its CO line / RFI / task; CSI filters on RFIs and the Log |
 | J9 | Remove duplicate user roles | ✅ built; waiting on an admin to press “Merge duplicates” on staging after checking who moves |
 | J10 | Markup mobile-friendly on iPhone and iPad | ✅ one-row header + ⋯ More; tool groups; Done pill + double-tap; long-press select + action bar; bottom sheets; touch gestures; landscape rail; phone canvas cap; home-screen app |
+
+## K. Financial tab: Estimate / Prime contract (from the Development Task Tracker, Nov 4)
+
+| # | Item | Status |
+|---|---|---|
+| K1 | Estimate maths F1–F19 (line price, NIS = $0, GR, total build = (subtotal + GR) ÷ (1 − profit% − contingency%), discount, design cost, cost split, payments) with formula descriptions; tested on the Catherine example | ✅ |
+| K2 | Estimate tables: estimates (revisions), scopes, lines (items + Details/Inclusions/Exclusions/A&C rows, sub columns, markup), GR lines, custom columns | ✅ tables only |
+| K3 | Estimate API (create, edit, revisions, accept) | ⏳ |
+| K4 | Spreadsheet-style editor in Precon → Estimating (rows, columns, tables, paste from Excel, undo, ⓘ formulas) | ⏳ |
+| K5 | Custom columns with formulas; company estimate template | ⏳ |
+| K6 | Canned statements per CSI code + suggestions from past estimates | ⏳ |
+| K7 | Who sees what (money data types × role, book type per project), enforced on the server | ⏳ |
+| K8 | Estimate letter PDF, email, e-sign; .xlsx export | ⏳ |
+| K9 | On acceptance: SOV, budget per CSI, draft subcontracts, contract value, billing schedule | ⏳ |
+| K10 | Sub bid packages (without our amounts) | ⏳ |
