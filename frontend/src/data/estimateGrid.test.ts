@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { History, LINE_COLS, lineNumbers, matchChoice, moveLine, newLine, parseDate, parseMoney, parsePct, parseTsv, pasteBlock, PRICING_OPTIONS, setCell, toTsv, type EstLine } from './estimateGrid';
+import { cellText, columnDefs, effectiveColumns, History, LINE_COLS, lineNumbers, matchChoice, moveLine, newLine, parseDate, parseMoney, parsePct, parseTsv, pasteBlock, PRICING_OPTIONS, setCell, toTsv, type EstLine } from './estimateGrid';
 
 const col = (k: string) => LINE_COLS.find((c) => c.key === k)!;
 const L = (id: string, scopeId: string, kind = 'item'): EstLine => ({ ...newLine(scopeId, kind), id });
@@ -65,5 +65,39 @@ describe('estimate grid', () => {
     expect(h.undo(3)).toBe(2);
     expect(h.redo(2)).toBe(3);
     expect(h.canUndo).toBe(true);
+  });
+
+  it('saved columns: built-ins keep name, width and place; added columns sit where they were put', () => {
+    const cols = effectiveColumns([
+      { key: 'cost', label: 'Sub cost (bid)', type: 'text', table: 'lines', builtIn: true, width: 130 },
+      { key: 'c_w', label: 'Waste %', type: 'pct', table: 'lines', band: 'sub', showClient: true },
+      { key: 'description', label: 'Line item', type: 'text', table: 'lines', builtIn: true, hidden: false },
+    ]);
+    const at = (k: string) => cols.findIndex((c) => c.key === k);
+    expect(at('cost')).toBe(0);
+    expect(at('cost') < at('c_w') && at('c_w') < at('description')).toBe(true);
+    expect(cols[0].label).toBe('Sub cost (bid)');
+    expect(cols).toHaveLength(LINE_COLS.length + 1);
+    expect(cols.find((c) => c.key === 'c_w')).toMatchObject({ custom: true, kind: 'pct', band: 'sub', showClient: true });
+    const back = columnDefs(cols);
+    expect(back.find((d) => d.key === 'c_w')).toMatchObject({ type: 'pct', band: 'sub', showClient: true });
+    expect(back.find((d) => d.key === 'cost')).toMatchObject({ builtIn: true, label: 'Sub cost (bid)', width: 130 });
+    expect(effectiveColumns(null).map((c) => c.key)).toEqual(LINE_COLS.map((c) => c.key));
+  });
+
+  it('values in added columns live in line.custom and paste like any other', () => {
+    const [money, check, choice] = effectiveColumns([
+      { key: 'c_m', label: 'Allowance', type: 'money', table: 'lines' },
+      { key: 'c_k', label: 'Bid in', type: 'checkbox', table: 'lines' },
+      { key: 'c_s', label: 'Status', type: 'choice', table: 'lines', choices: ['Bid', 'Awarded'] },
+    ]);
+    let l = L('1', 'a');
+    l = (setCell(l, money, '$1,200') as any).line;
+    l = (setCell(l, check, 'yes') as any).line;
+    l = (setCell(l, choice, 'awarded') as any).line;
+    expect(l.custom).toEqual({ c_m: 1200, c_k: true, c_s: 'Awarded' });
+    expect([cellText(l, money), cellText(l, check), cellText(l, choice)]).toEqual(['1200', 'Yes', 'Awarded']);
+    expect(setCell(l, choice, 'Lost')).toEqual({ error: '“Lost” isn’t one of: Bid, Awarded' });
+    expect((setCell(l, money, '') as any).line.custom).toEqual({ c_k: true, c_s: 'Awarded' });
   });
 });

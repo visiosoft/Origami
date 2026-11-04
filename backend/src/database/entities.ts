@@ -2684,6 +2684,8 @@ export interface EstimateColumn {
   showClient?: boolean;
   showSub?: boolean;
   builtIn?: boolean;
+  /** The column group it sits under (prime | precon | sub | markup | notes). */
+  band?: string;
 }
 export interface EstimatePayment { id: string; label: string; mode: 'pct' | 'amt'; value: number; trigger?: string }
 export interface EstimateAreas { demolish?: number; footprint?: number; built?: number; conditioned?: number; roof?: number; hardscape?: number; landscape?: number }
@@ -2698,6 +2700,8 @@ export class EstimateEntity extends FinanceStamped {
    * A new estimate can start from a template or from any other estimate.
    */
   @Column({ default: false }) isTemplate!: boolean;
+  /** The company default: a blank estimate starts with its columns, GR lines, percentages, payments and letter text. */
+  @Column({ default: false }) isDefaultTemplate!: boolean;
   /** EST-001; revisions keep the number and count up `rev`. */
   @Column() number!: string;
   @Column({ type: 'int', default: 1 }) rev!: number;

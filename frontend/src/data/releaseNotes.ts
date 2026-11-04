@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04n',
+    date: '2026-11-04',
+    title: 'Estimates: your own columns and formulas',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'Add your own columns — text, number, amount, percent, date, choice list, checkbox or formula — from “Columns ▾” or by clicking any column header (“Insert column to the right…”). Values copy and paste like any other cell.' },
+      { area: 'Estimating', kind: 'new', text: 'Formulas work like Excel and name columns in brackets: =[Sub cost]*1.1, =IF([Performing strategy]="Owner",0,[Line item total]). SUM, MIN, MAX, AVERAGE, ROUND, ABS, IF, AND, OR, NOT. Mistakes are shown as you type; a loop shows “Circular reference”. Renaming a column updates the formulas that use it.' },
+      { area: 'Estimating', kind: 'new', text: 'Click a column header to rename, move, widen, narrow or hide it. Columns you add are internal (🔒) unless set to show to clients or subs. They never change the totals.' },
+      { area: 'Estimating', kind: 'new', text: 'A template can be the “Company default”: blank estimates then start with its columns, General Requirements, percentages and payments.', where: 'Estimating → Templates → open one' },
+    ],
+  },
+  {
     id: '2026-11-04m',
     date: '2026-11-04',
     title: 'Reuse estimates: templates, copies and scopes',

@@ -15,9 +15,63 @@ export interface EstLine {
 export interface EstGr { id: string; title: string; included: boolean; base: number; unit: string; qty: number; notes?: string | null; custom?: Record<string, unknown> | null }
 export interface Sheet { scopes: EstScope[]; lines: EstLine[]; gr: EstGr[] }
 
-export type ColKind = 'text' | 'longtext' | 'money' | 'pct' | 'number' | 'date' | 'choice' | 'tags' | 'calc';
+export type ColKind = 'text' | 'longtext' | 'money' | 'pct' | 'number' | 'date' | 'choice' | 'tags' | 'calc' | 'check';
 export type Band = 'prime' | 'precon' | 'sub' | 'markup' | 'notes';
-export interface GridCol { key: string; label: string; band: Band; kind: ColKind; width: number; options?: [string, string][]; /** Shown on note rows too. */ notes?: boolean; hint?: string }
+export interface GridCol {
+  key: string; label: string; band: Band; kind: ColKind; width: number; options?: [string, string][]; /** Shown on note rows too. */ notes?: boolean; hint?: string;
+  /** A column someone added: its value lives in line.custom[key]. */
+  custom?: boolean; formula?: string; showClient?: boolean; showSub?: boolean; type?: string;
+}
+
+/** A column as saved on the estimate (built-in ones only record name, width, place and hidden). */
+export interface ColumnDef {
+  key: string; label: string; type: string; table: 'lines' | 'gr'; formula?: string; choices?: string[]; width?: number;
+  hidden?: boolean; showClient?: boolean; showSub?: boolean; builtIn?: boolean; band?: string;
+}
+export const COLUMN_TYPES: [string, string][] = [['text', 'Text'], ['number', 'Number'], ['money', 'Amount ($)'], ['pct', 'Percent (%)'], ['date', 'Date'], ['choice', 'Choice list'], ['checkbox', 'Checkbox'], ['formula', 'Formula']];
+const KIND_OF: Record<string, ColKind> = { text: 'text', number: 'number', money: 'money', pct: 'pct', date: 'date', choice: 'choice', checkbox: 'check', formula: 'calc' };
+const BAND_KEYS = new Set<string>(['prime', 'precon', 'sub', 'markup', 'notes']);
+
+/**
+ * The line columns in their saved order: built-in columns take their saved
+ * name, width and place; columns people added come in where they were put.
+ * Built-in columns the saved list doesn't know (added in a later release)
+ * go at the end of their group.
+ */
+export function effectiveColumns(defs: ColumnDef[] | null | undefined): (GridCol & { hidden?: boolean })[] {
+  const saved = (defs || []).filter((d) => d.table !== 'gr');
+  const builtIn = new Map(LINE_COLS.map((c) => [c.key, c]));
+  const out: (GridCol & { hidden?: boolean })[] = [];
+  for (const d of saved) {
+    const b = builtIn.get(d.key);
+    if (b) { out.push({ ...b, label: d.label || b.label, width: d.width || b.width, hidden: !!d.hidden }); builtIn.delete(d.key); continue; }
+    if (d.builtIn) continue;
+    const kind = KIND_OF[d.type] || 'text';
+    out.push({
+      key: d.key, label: d.label, band: (BAND_KEYS.has(String(d.band)) ? d.band : 'notes') as Band, kind, width: d.width || (kind === 'text' ? 160 : 110),
+      custom: true, type: d.type, formula: d.formula, showClient: d.showClient, showSub: d.showSub, hidden: !!d.hidden,
+      options: d.type === 'choice' ? (d.choices || []).map((c) => [c, c] as [string, string]) : undefined,
+      hint: d.type === 'formula' ? `Formula: ${d.formula || ''}` : undefined,
+    });
+  }
+  for (const b of builtIn.values()) {
+    let at = out.length;
+    for (let i = out.length - 1; i >= 0; i--) if (out[i].band === b.band) { at = i + 1; break; }
+    out.splice(at, 0, { ...b });
+  }
+  return out;
+}
+/** Back to what's saved on the estimate. */
+export function columnDefs(cols: (GridCol & { hidden?: boolean })[]): ColumnDef[] {
+  const builtIn = new Map(LINE_COLS.map((c) => [c.key, c]));
+  return cols.map((c) => (builtIn.has(c.key)
+    ? { key: c.key, label: c.label, type: 'text', table: 'lines', builtIn: true, hidden: !!c.hidden, width: c.width }
+    : {
+      key: c.key, label: c.label, type: c.type || 'text', table: 'lines', formula: c.formula, choices: c.options?.map((o) => o[0]), width: c.width,
+      hidden: !!c.hidden, showClient: !!c.showClient, showSub: !!c.showSub, band: c.band,
+    }));
+}
+export const customKey = () => `c_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
 export const BANDS: { key: Band; label: string }[] = [
   { key: 'prime', label: 'Prime contract' },
@@ -145,6 +199,7 @@ export function parseDate(v: string): string | null | undefined {
 export function setCell(line: EstLine, col: GridCol, raw: string): { line: EstLine } | { error: string } {
   if (col.kind === 'calc') return { line };
   if (line.kind !== 'item' && !col.notes) return { line };
+  if (col.custom) return setCustom(line, col, raw);
   const l = { ...line };
   switch (col.kind) {
     case 'text': case 'longtext': (l as any)[col.key] = raw; break;
@@ -187,8 +242,27 @@ export function setCell(line: EstLine, col: GridCol, raw: string): { line: EstLi
   return { line: l };
 }
 
+function setCustom(line: EstLine, col: GridCol, raw: string): { line: EstLine } | { error: string } {
+  const s = raw.trim();
+  let v: unknown = raw;
+  if (col.kind === 'money') { const n = parseMoney(s); if (Number.isNaN(n)) return { error: `“${raw}” isn’t an amount.` }; v = n; }
+  else if (col.kind === 'pct') { const n = parsePct(s); if (Number.isNaN(n)) return { error: `“${raw}” isn’t a percentage.` }; v = n; }
+  else if (col.kind === 'number') { if (!s) v = null; else { const n = Number(s.replace(/,/g, '')); if (!Number.isFinite(n)) return { error: `“${raw}” isn’t a number.` }; v = n; } }
+  else if (col.kind === 'date') { const d = parseDate(s); if (d === undefined) return { error: `“${raw}” isn’t a date.` }; v = d; }
+  else if (col.kind === 'check') v = s ? /^(true|yes|y|x|1|✓)$/i.test(s) : null;
+  else if (col.kind === 'choice') { const c = matchChoice(s, col.options || []); if (c === undefined) return { error: `“${raw}” isn’t one of: ${(col.options || []).map((o) => o[1]).join(', ')}` }; v = c; }
+  const custom = { ...(line.custom || {}) };
+  if (v === null || v === '') delete custom[col.key]; else custom[col.key] = v;
+  return { line: { ...line, custom: Object.keys(custom).length ? custom : null } };
+}
+
 /** A line's value as text, for copying out and for the edit box. */
 export function cellText(line: EstLine, col: GridCol): string {
+  if (col.custom) {
+    const v = line.custom?.[col.key];
+    if (col.kind === 'check') return v === true ? 'Yes' : v === false ? 'No' : '';
+    return v == null ? '' : String(v);
+  }
   const v = (line as any)[col.key];
   if (col.kind === 'tags') return (line.costTypes || []).join(', ');
   if (col.kind === 'choice') return (col.options || []).find(([k]) => k === (v ?? ''))?.[1] ?? '';

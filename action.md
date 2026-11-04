@@ -202,7 +202,7 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | K3 | Estimate API: list, create (EST-001 + standard GR lines), open with live totals, save whole sheet (version-checked), settings, mark sent (frozen), revise (Rev 2), delete draft | ✅ (accept comes with K9) |
 | K4 | Spreadsheet-style editor in Precon → Estimating (rows, columns, tables, paste from Excel, undo, ⓘ formulas) | ✅ /estimating?project=; band show/hide; row menu; GR, totals, payments; freeze on send. Custom columns are K5 |
 | K5a | Reuse: named templates (Save as template, Estimating → Templates), new estimate from a template or any estimate you can see, “+ Scopes from…”; everything copied | ✅ |
-| K5 | Custom columns with formulas; company estimate template | ⏳ |
+| K5 | Custom columns (text, number, $, %, date, choice, checkbox, formula) with Excel-style formulas; rename/move/resize/hide; internal unless shown to clients/subs; company default template for blank estimates | ✅ (custom columns on the GR table: later if wanted) |
 | K6 | Canned statements per CSI code + suggestions from past estimates | ⏳ |
 | K7 | Who sees what (money data types × role, book type per project), enforced on the server | ⏳ |
 | K8 | Estimate letter PDF, email, e-sign; .xlsx export | ⏳ |

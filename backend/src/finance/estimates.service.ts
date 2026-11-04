@@ -81,6 +81,7 @@ export function cleanColumns(v: unknown): EstimateColumn[] {
       key, type, label: str(c?.label, 80) || key, table: c?.table === 'gr' ? 'gr' : 'lines',
       hidden: !!c?.hidden, showClient: !!c?.showClient, showSub: !!c?.showSub, builtIn: !!c?.builtIn,
     };
+    if (['prime', 'precon', 'sub', 'markup', 'notes'].includes(String(c?.band))) col.band = String(c.band);
     if (type === 'formula') col.formula = str(c?.formula, 500) || '';
     if (type === 'choice') col.choices = (Array.isArray(c?.choices) ? c.choices : []).slice(0, 50).map((x: unknown) => String(x).slice(0, 80));
     if (Number.isFinite(Number(c?.width)) && c?.width) col.width = Math.max(40, Math.min(800, Math.round(Number(c.width))));
@@ -187,8 +188,8 @@ export class EstimatesService {
 
   /** The estimate's settings, without its identity and history. */
   private settingsOf(src: EstimateEntity) {
-    const { id: _i, version: _v, status: _s, sentAt: _sa, frozenAt: _f, acceptedAt: _a, acceptedBy: _ab, revisionOf: _r, projectId: _p, number: _n, rev: _rv, isTemplate: _t, createdAt: _c, createdBy: _cb, updatedAt: _u, updatedBy: _ub, ...rest } = src;
-    void _i; void _v; void _s; void _sa; void _f; void _a; void _ab; void _r; void _p; void _n; void _rv; void _t; void _c; void _cb; void _u; void _ub;
+    const { id: _i, version: _v, status: _s, sentAt: _sa, frozenAt: _f, acceptedAt: _a, acceptedBy: _ab, revisionOf: _r, projectId: _p, number: _n, rev: _rv, isTemplate: _t, isDefaultTemplate: _dt, createdAt: _c, createdBy: _cb, updatedAt: _u, updatedBy: _ub, ...rest } = src;
+    void _i; void _v; void _s; void _sa; void _f; void _a; void _ab; void _r; void _p; void _n; void _rv; void _t; void _dt; void _c; void _cb; void _u; void _ub;
     return rest;
   }
 
@@ -215,7 +216,7 @@ export class EstimatesService {
     const out = [];
     for (const t of rows) {
       const sheet = await this.sheetOf(t.id);
-      out.push({ id: t.id, title: t.title, updatedAt: t.updatedAt, updatedBy: t.updatedBy, scopes: sheet.scopes.length, lines: sheet.lines.filter((l) => l.kind === 'item').length, totalProject: fromCents(resultOf(t, sheet).totals.totalProject) });
+      out.push({ id: t.id, title: t.title, isDefault: !!t.isDefaultTemplate, updatedAt: t.updatedAt, updatedBy: t.updatedBy, scopes: sheet.scopes.length, lines: sheet.lines.filter((l) => l.kind === 'item').length, totalProject: fromCents(resultOf(t, sheet).totals.totalProject) });
     }
     return { rights: await this.rights(actor), rows: out };
   }
@@ -309,16 +310,19 @@ export class EstimatesService {
     const p = await this.project(projectId);
     if (dto?.fromId) return this.copyNew(projectId, String(dto.fromId), str(dto?.title, 200), actor, canSee, p.name);
     const number = await this.nextNumber(projectId);
+    const def = await this.estimates.findOne({ where: { isTemplate: true, isDefaultTemplate: true } });
     const e = this.estimates.create({
+      ...(def ? this.settingsOf(def) : {}),
       id: newId('est'), projectId, number, rev: 1, title: str(dto?.title, 200) || p.name || 'Estimate', status: 'draft',
-      estimateDate: todayISO(), preparedById: actor.id || null, columns: [], payments: [], areas: null,
-      isTemplate: false, grPct: 17, profitPct: 12, contingencyPct: 5, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null,
+      estimateDate: todayISO(), preparedById: actor.id || null, isTemplate: false, isDefaultTemplate: false,
+      ...(def ? {} : { columns: [], payments: [], areas: null, grPct: 17, profitPct: 12, contingencyPct: 5, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null }),
       createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
     });
     await this.db.transaction(async (m) => {
       await m.save(e);
-      await m.save(DEFAULT_GR.map((g, i) => this.grLines.create({ id: newId('egr'), estimateId: e.id, projectId, lineOrder: i, title: g.title, unit: g.unit, qty: g.qty, base: 0, included: true })));
-      await this.fin.log(m, { projectId, entityType: 'estimate', entityId: e.id, action: 'created', reason: number }, actor);
+      if (def) await this.cloneRows(m, { scopes: [], lines: [], gr: (await this.sheetOf(def.id)).gr }, e);
+      else await m.save(DEFAULT_GR.map((g, i) => this.grLines.create({ id: newId('egr'), estimateId: e.id, projectId, lineOrder: i, title: g.title, unit: g.unit, qty: g.qty, base: 0, included: true })));
+      await this.fin.log(m, { projectId, entityType: 'estimate', entityId: e.id, action: 'created', reason: def ? `${number} from the company default “${def.title}”` : number }, actor);
     });
     return this.get(projectId, e.id, actor);
   }
@@ -351,6 +355,15 @@ export class EstimatesService {
     if (has('areas')) {
       const a = dto.areas || {};
       e.areas = Object.fromEntries(['demolish', 'footprint', 'built', 'conditioned', 'roof', 'hardscape', 'landscape'].filter((k) => a[k] != null && a[k] !== '').map((k) => [k, Math.max(0, Number(a[k]) || 0)]));
+    }
+    if (has('isDefaultTemplate')) {
+      if (!e.isTemplate) throw new BadRequestException('Only a template can be the company default.');
+      e.isDefaultTemplate = !!dto.isDefaultTemplate;
+      if (e.isDefaultTemplate) {
+        for (const o of await this.estimates.find({ where: { isTemplate: true, isDefaultTemplate: true } })) {
+          if (o.id !== e.id) { o.isDefaultTemplate = false; await this.estimates.save(o); }
+        }
+      }
     }
     e.updatedAt = now(); e.updatedBy = actor.name;
     await this.estimates.save(e);

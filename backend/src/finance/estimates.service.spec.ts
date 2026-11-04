@@ -191,4 +191,24 @@ describe('estimates', () => {
     expect(out.lines).toHaveLength(3);
     expect(out.gr).toHaveLength(14);
   });
+
+  it('the company default template: blank estimates take its columns, GR lines and percentages, not its scopes', async () => {
+    const { svc } = setup();
+    const a = await svc.create(7, {}, actor);
+    await svc.saveSheet(7, a.estimate.id, { ...sheet(a.estimate.version), gr: [{ id: 'gr-x', title: 'Permit runner', base: 400, qty: 2 }] }, actor);
+    const t = await svc.createTemplate({ title: 'Company standard', fromId: a.estimate.id }, actor, () => true);
+    const t2 = await svc.saveSettings(0, t.estimate.id, { version: t.estimate.version, profitPct: 15, columns: [{ key: 'c_waste', label: 'Waste %', type: 'pct', band: 'sub' }], isDefaultTemplate: true }, actor);
+    expect(t2.estimate.isDefaultTemplate).toBe(true);
+    expect(t2.estimate.columns![0]).toMatchObject({ key: 'c_waste', band: 'sub', showClient: false });
+    const b = await svc.create(8, {}, actor);
+    expect(b.estimate).toMatchObject({ profitPct: 15, isDefaultTemplate: false, isTemplate: false, projectId: 8 });
+    expect(b.estimate.columns!.map((c: any) => c.key)).toEqual(['c_waste']);
+    expect(b.scopes).toHaveLength(0);
+    expect(b.gr.map((g: any) => g.title)).toEqual(['Permit runner']);
+    // only one default; an estimate can't be one
+    const other = await svc.createTemplate({ title: 'Other' }, actor, () => true);
+    await svc.saveSettings(0, other.estimate.id, { version: other.estimate.version, isDefaultTemplate: true }, actor);
+    expect((await svc.templates(actor)).rows.filter((r: any) => r.isDefault).map((r: any) => r.title)).toEqual(['Other']);
+    await expect(svc.saveSettings(8, b.estimate.id, { version: b.estimate.version, isDefaultTemplate: true }, actor)).rejects.toThrow(/Only a template/);
+  });
 });

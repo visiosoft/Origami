@@ -61,7 +61,7 @@ export function SourcePicker({ mode, excludeId, onPick, onClose }: {
           <button type="button" className={`eg-btn${tab === 'estimates' ? ' is-on' : ''}`} onClick={() => { setTab('estimates'); setChosen(null); }}>From another estimate</button>
         </div>
         <div style={{ overflowY: 'auto', display: 'grid', gap: 6, minHeight: 80 }}>
-          {tab === 'blank' && <div style={{ fontSize: 13, color: 'var(--muted)' }}>An empty estimate with the standard General Requirements lines and 17% / 12% / 5%.</div>}
+          {tab === 'blank' && <div style={{ fontSize: 13, color: 'var(--muted)' }}>An empty estimate. If a template is marked “Company default”, it starts with that template’s columns, General Requirements, percentages and payments; otherwise with the standard General Requirements and 17% / 12% / 5%.</div>}
           {tab === 'templates' && (templates === null ? <div style={{ color: 'var(--muted)' }}>Loading…</div> : !templates.length ? <div style={{ fontSize: 13, color: 'var(--muted)' }}>No templates yet. Open any estimate and use “Save as template”.</div>
             : templates.map((t) => row(t.id, t.title, `${t.scopes} scope${t.scopes === 1 ? '' : 's'} · ${t.lines} line${t.lines === 1 ? '' : 's'} · ${money(Math.round(t.totalProject * 100))}`)))}
           {tab === 'estimates' && <>

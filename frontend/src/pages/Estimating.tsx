@@ -22,7 +22,7 @@ export function Estimating() {
   const projectId = Number(params.get('project')) || null;
   const estimateId = params.get('estimate');
   const templateId = params.get('template');
-  const [templates, setTemplates] = useState<{ id: string; title: string; scopes: number; lines: number; totalProject: number; updatedAt?: string; updatedBy?: string }[] | null>(null);
+  const [templates, setTemplates] = useState<{ id: string; title: string; isDefault?: boolean; scopes: number; lines: number; totalProject: number; updatedAt?: string; updatedBy?: string }[] | null>(null);
   const [starting, setStarting] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -91,7 +91,7 @@ export function Estimating() {
             <div style={{ color: 'var(--muted)', fontSize: 13 }}>No templates yet. Open any estimate and choose “Save as template”, or start one here.</div>
           ) : templates.map((t) => (
             <button key={t.id} type="button" onClick={() => go({ template: t.id })} style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)', font: 'inherit', cursor: 'pointer' }}>
-              <span style={{ flex: 1, minWidth: 0 }}><b style={{ color: 'var(--ink)', fontSize: 14 }}>{t.title}</b><span style={{ display: 'block', fontSize: 12, color: 'var(--muted)' }}>{t.scopes} scope{t.scopes === 1 ? '' : 's'} · {t.lines} line{t.lines === 1 ? '' : 's'}{t.updatedBy ? ` · last changed by ${t.updatedBy}` : ''}</span></span>
+              <span style={{ flex: 1, minWidth: 0 }}><b style={{ color: 'var(--ink)', fontSize: 14 }}>{t.title}</b>{t.isDefault && <span className="eg-chip is-sent" style={{ marginLeft: 8 }}>Company default</span>}<span style={{ display: 'block', fontSize: 12, color: 'var(--muted)' }}>{t.scopes} scope{t.scopes === 1 ? '' : 's'} · {t.lines} line{t.lines === 1 ? '' : 's'}{t.updatedBy ? ` · last changed by ${t.updatedBy}` : ''}</span></span>
               <b style={{ color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{money(Math.round(t.totalProject * 100))}</b>
             </button>
           ))}

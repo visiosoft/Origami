@@ -3,9 +3,10 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { useCsiCodes } from '../CsiSelect';
 import { computeEstimate, explainTotal, FORMULAS, money, NOTE_LABEL, type EstSettings, type FormulaId } from '../../data/estimateCalc';
+import { evaluateRow, formulaProblem, type Value } from '../../data/estimateFormula';
 import {
-  BANDS, cellText, History, LINE_COLS, lineNumbers, moveLine, newGr, newLine, newScope, parseTsv, pasteBlock, setCell, toTsv,
-  type Band, type EstGr, type EstLine, type EstScope, type GridCol, type Sheet,
+  BANDS, cellText, columnDefs, COLUMN_TYPES, customKey, effectiveColumns, History, LINE_COLS, lineNumbers, moveLine, newGr, newLine, newScope, parseTsv, pasteBlock, setCell, toTsv,
+  type Band, type ColumnDef, type EstGr, type EstLine, type EstScope, type GridCol, type Sheet,
 } from '../../data/estimateGrid';
 import { SourcePicker } from './SourcePicker';
 import './EstimateGrid.css';
@@ -15,6 +16,9 @@ export interface EstimateHeader {
   grPct: number; profitPct: number; contingencyPct: number; showGrDetail: boolean; discount?: number | null; showDiscount: boolean;
   designCost?: number | null; showDesignCost: boolean; estimateDate?: string | null; updatedBy?: string | null; sentAt?: string | null;
   payments?: { id: string; label: string; mode: 'pct' | 'amt'; value: number; trigger?: string }[] | null;
+  columns?: ColumnDef[] | null;
+  isTemplate?: boolean;
+  isDefaultTemplate?: boolean;
 }
 
 const BANDS_KEY = 'origami.estimate.hiddenBands';
@@ -61,6 +65,9 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
   const [tip, setTip] = useState<Tip>(null);
   const [contractors, setContractors] = useState<{ id: string; companyName: string }[]>([]);
   const [picking, setPicking] = useState(false);
+  const [colMenu, setColMenu] = useState<{ key: string; x: number; y: number } | null>(null);
+  const [colEdit, setColEdit] = useState<{ def: GridCol & { hidden?: boolean }; isNew: boolean; afterKey?: string } | null>(null);
+  const [showCols, setShowCols] = useState(false);
 
   const history = useRef(new History<Sheet>());
   const sheetRef = useRef(sheet);
@@ -199,10 +206,54 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
   const lineOut = useMemo(() => new Map(result.lines.map((l) => [l.id, l])), [result]);
   const scopeOut = useMemo(() => new Map(result.scopes.map((s) => [s.id, s])), [result]);
   const nums = useMemo(() => lineNumbers(sheet), [sheet]);
+
   const explain = (id: FormulaId) => explainTotal(id, result, settings);
 
   // ------------------------------------------------------------------ columns and the rows on screen
-  const cols = useMemo(() => LINE_COLS.filter((c) => !hidden.includes(c.band)), [hidden]);
+  const allCols = useMemo(() => effectiveColumns(head?.columns), [head?.columns]);
+  const cols = useMemo(() => allCols.filter((c) => !c.hidden && !hidden.includes(c.band)), [allCols, hidden]);
+  const saveCols = (next: (GridCol & { hidden?: boolean })[]) => saveHead({ columns: columnDefs(next) });
+  const moveCol = (key: string, dir: -1 | 1) => {
+    const vis = cols.map((c) => c.key); const i = vis.indexOf(key); const j = i + dir;
+    if (j < 0 || j >= vis.length) return;
+    const a = allCols.findIndex((c) => c.key === key); const b = allCols.findIndex((c) => c.key === vis[j]);
+    const next = [...allCols]; [next[a], next[b]] = [next[b], next[a]];
+    // a column takes the group of where it lands, so the group headers stay together
+    next[b] = { ...next[b], band: next[a].band === next[b].band ? next[b].band : (next[b].custom ? next[a].band : next[b].band) };
+    saveCols(next);
+  };
+  /** Formula columns, worked out per line in dependency order. */
+  const formulaCols = useMemo(() => allCols.filter((c) => c.custom && c.kind === 'calc' && c.formula).map((c) => ({ key: c.key, label: c.label, formula: c.formula! })), [allCols]);
+  const baseValue = useCallback((l: EstLine, name: string): Value | undefined => {
+    const k = name.trim().toLowerCase();
+    const col = allCols.find((c) => c.label.trim().toLowerCase() === k || c.key.toLowerCase() === k) || LINE_COLS.find((c) => c.label.toLowerCase() === k);
+    if (!col) return undefined;
+    const out = lineOut.get(l.id);
+    switch (col.key) {
+      case 'cost': return out ? out.cost / 100 : 0;
+      case 'markupAmt': return out ? out.markup / 100 : 0;
+      case 'markupPct': return out?.markupPct ?? 0;
+      case 'price': return out ? out.countedPrice / 100 : 0;
+      case 'high': return out ? out.high / 100 : 0;
+      case 'durationDays': return l.durationDays ?? 0;
+      default:
+        if (col.custom) { const v = l.custom?.[col.key]; return v == null ? (col.kind === 'text' || col.kind === 'choice' ? '' : 0) : (v as Value); }
+        return cellText(l, col);
+    }
+  }, [allCols, lineOut]);
+  const formulaValues = useMemo(() => {
+    const m = new Map<string, Record<string, { value: Value } | { error: string }>>();
+    if (!formulaCols.length) return m;
+    for (const l of sheet.lines) if (l.kind === 'item') m.set(l.id, evaluateRow(formulaCols, (name) => baseValue(l, name)));
+    return m;
+  }, [formulaCols, sheet.lines, baseValue]);
+  const fmtValue = (v: Value) => {
+    if (v === null || v === '') return '';
+    if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+    if (typeof v === 'number') return v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    return String(v);
+  };
+
   const visibleLines = useMemo(() => {
     const collapsed = new Set(sheet.scopes.filter((s) => s.collapsed).map((s) => s.id));
     const order = new Map(sheet.scopes.map((s, i) => [s.id, i]));
@@ -287,6 +338,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     const line = sheetRef.current.lines.find((l) => l.id === s.lineId);
     const col = cols[s.col];
     if (!line || !col || col.kind === 'calc' || (line.kind !== 'item' && !col.notes)) return;
+    if (col.kind === 'check') { writeCell(line.id, col, line.custom?.[col.key] === true ? '' : 'yes'); return; }
     setEditing({ sel: s, value: initial ?? cellText(line, col) });
   };
   const finishEdit = (save: boolean, then?: [number, number]) => {
@@ -303,6 +355,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
       if (c.key === 'high') return (lineOut.get(l.id)?.high ?? 0) / 100;
       if (c.key === 'markupPct') return lineOut.get(l.id)?.markupPct ?? '';
       if (c.key === 'markupAmt') return (lineOut.get(l.id)?.markup ?? 0) / 100;
+      if (c.custom && c.kind === 'calc') { const r = formulaValues.get(l.id)?.[c.key]; return r && 'value' in r ? (r.value as any) ?? '' : ''; }
       return cellText(l, c);
     })));
     if (e && 'clipboardData' in e && e.clipboardData) { e.clipboardData.setData('text/plain', tsv); e.preventDefault(); }
@@ -374,6 +427,18 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     let cls = 'eg-cell';
     if (isNote && c.key === 'costTypes') { text = <span className="eg-kind">« {NOTE_LABEL[l.kind as keyof typeof NOTE_LABEL] || l.kind}</span>; }
     else if (off) cls += ' is-off';
+    else if (c.custom) {
+      if (c.kind === 'calc') {
+        const r = formulaValues.get(l.id)?.[c.key];
+        cls += ' is-num is-calc';
+        if (r && 'error' in r) { text = <span style={{ color: 'var(--eg-err)' }} title={r.error}>#ERR</span>; }
+        else if (r) text = fmtValue(r.value);
+      } else if (c.kind === 'check') { text = l.custom?.[c.key] === true ? '✓' : ''; cls += ' is-num'; }
+      else if (c.kind === 'money') { const v = l.custom?.[c.key]; text = v == null ? '' : money(Math.round(Number(v) * 100)); cls += ' is-num'; }
+      else if (c.kind === 'pct') { const v = l.custom?.[c.key]; text = v == null ? '' : `${v}%`; cls += ' is-num'; }
+      else if (c.kind === 'number') { text = (l.custom?.[c.key] as any) ?? ''; cls += ' is-num'; }
+      else text = cellText(l, c);
+    }
     else if (c.key === 'price') { text = out ? money(out.counted ? out.price : 0) : ''; cls += ' is-num is-calc'; if (out && !out.counted) { text = <span title={`Not In Scope — ${money(out.price)} is not counted`}>$0.00</span>; } }
     else if (c.key === 'high') { text = out ? money(out.counted ? out.high : 0) : ''; cls += ' is-num is-calc'; }
     else if (c.key === 'markupAmt') { text = out ? money(out.markup) : ''; cls += ' is-num'; if (l.markupMode === 'pct') cls += ' is-placeholder'; }
@@ -409,7 +474,20 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     const set = (value: string) => setEditing((x) => (x ? { ...x, value } : x));
     let input: React.ReactNode;
     if (col.kind === 'choice') {
-      input = <select autoFocus value={(col.options || []).find(([, lbl]) => lbl === editing.value)?.[0] ?? (col.options || []).find(([k]) => k === editing.value)?.[0] ?? ''} onChange={(e) => { const lbl = (col.options || []).find(([k]) => k === e.target.value)?.[1] ?? ''; writeCell(editing.sel.lineId, col, lbl || e.target.value); setEditing(null); window.setTimeout(() => wrapRef.current?.focus(), 0); }} onKeyDown={keyDown} onBlur={() => finishEdit(false)}>
+      const opts = col.options || [];
+      const typed = editing.value.toLowerCase();
+      const current = opts.find(([k, lbl]) => lbl === editing.value || k === editing.value)?.[0]
+        ?? (typed.length === 1 ? opts.find(([, lbl]) => lbl.toLowerCase().startsWith(typed))?.[0] : undefined) ?? '';
+      const commitChoice = (key: string, then?: [number, number]) => {
+        const lbl = opts.find(([k]) => k === key)?.[1] ?? '';
+        writeCell(editing.sel.lineId, col, lbl || key);
+        setEditing(null);
+        if (then) move(then[0], then[1]);
+        window.setTimeout(() => wrapRef.current?.focus(), 0);
+      };
+      input = <select autoFocus defaultValue={current} onChange={(e) => commitChoice(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commitChoice(e.currentTarget.value, e.key === 'Enter' ? [1, 0] : [0, e.shiftKey ? -1 : 1]); } else keyDown(e); }}
+        onBlur={() => finishEdit(false)}>
         {col.key !== 'subPricing' && col.key !== 'pricing' && <option value="">—</option>}
         {(col.options || []).map(([k, lbl]) => <option key={k} value={k}>{lbl}</option>)}
       </select>;
@@ -430,20 +508,29 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
 
   if (!head) return <div style={{ padding: 20, color: 'var(--muted)' }}>Opening the estimate…</div>;
   const t = result.totals;
-  const bandSpans = BANDS.map((b) => ({ ...b, n: cols.filter((c) => c.band === b.key).length })).filter((b) => b.n);
+  const bandSpans: { key: Band; label: string; n: number; first: boolean }[] = [];
+  cols.forEach((c, i) => {
+    const last = bandSpans[bandSpans.length - 1];
+    if (last && last.key === c.band) last.n++;
+    else bandSpans.push({ key: c.band, label: BANDS.find((b) => b.key === c.band)?.label || '', n: 1, first: i === 0 });
+  });
   const menuLine = menu?.lineId ? sheet.lines.find((l) => l.id === menu.lineId) : null;
 
   return (
-    <div className="eg" onClick={() => menu && setMenu(null)}>
+    <div className="eg" onClick={() => { if (menu) setMenu(null); if (colMenu) setColMenu(null); if (showCols) setShowCols(false); }}>
       <div className="eg-bar">
         <input className="eg-title" aria-label="Estimate title" disabled={!editable} defaultValue={head.title || ''} key={head.id} onBlur={(e) => e.target.value !== (head.title || '') && saveHead({ title: e.target.value })} />
-        <span className={`eg-chip is-${head.status}`}>{head.number} · Rev {head.rev} · {head.status}</span>
+        {isTemplate ? <span className="eg-chip">Template</span> : <span className={`eg-chip is-${head.status}`}>{head.number} · Rev {head.rev} · {head.status}</span>}
         <span className={`eg-save${saveState === 'error' ? ' is-error' : ''}`} role="status">
           {saveState === 'saving' ? 'Saving…' : saveState === 'pending' ? 'Unsaved' : saveState === 'error' ? saveError : locked ? 'Frozen' : 'Saved'}
         </span>
         {saveState === 'error' && <button type="button" className="eg-btn" onClick={() => void saveSheetNow()}>Try again</button>}
         <button type="button" className="eg-btn" disabled={!editable || !history.current.canUndo} onClick={undo} title="Undo (Ctrl+Z)">↶ Undo</button>
         <button type="button" className="eg-btn" disabled={!editable || !history.current.canRedo} onClick={redo} title="Redo (Ctrl+Y)">↷ Redo</button>
+        {isTemplate && <label className="eg-btn" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }} title="A blank estimate starts with this template’s columns, General Requirements, percentages, payments and letter text (not its scopes)">
+          <input type="checkbox" disabled={!editable} checked={!!head.isDefaultTemplate} onChange={(e) => saveHead({ isDefaultTemplate: e.target.checked })} /> Company default for blank estimates
+        </label>}
+        <button type="button" className={`eg-btn${showCols ? ' is-on' : ''}`} onClick={(e) => { e.stopPropagation(); setShowCols((v) => !v); }}>Columns ▾</button>
         <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }} aria-label="Column groups">
           {BANDS.filter((b) => b.key !== 'prime').map((b) => (
             <button key={b.key} type="button" className={`eg-btn${hidden.includes(b.key) ? '' : ' is-on'}`} aria-pressed={!hidden.includes(b.key)} onClick={() => toggleBand(b.key)}>{b.label}</button>
@@ -464,13 +551,15 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
           <thead>
             <tr className="eg-bands">
               <th className="eg-sticky eg-num" />
-              {bandSpans.map((b) => <th key={b.key} colSpan={b.n} className={`eg-band-${b.key}${b.key === 'prime' ? ' eg-sticky eg-desc' : ''}`}>{b.label}</th>)}
+              {bandSpans.map((b, i) => <th key={`${b.key}-${i}`} colSpan={b.n} className={`eg-band-${b.key}${b.first ? ' eg-sticky eg-desc' : ''}`}>{b.label}</th>)}
             </tr>
             <tr className="eg-cols">
               <th className="eg-sticky eg-num">#</th>
               {cols.map((c, i) => (
-                <th key={c.key} className={`eg-band-${c.band}${i === 0 ? ' eg-sticky eg-desc' : ''}`} style={{ width: c.width, minWidth: c.width, maxWidth: c.width, textAlign: c.kind === 'money' || c.kind === 'calc' || c.kind === 'pct' || c.kind === 'number' ? 'right' : 'left' }}>
-                  {c.label}{c.hint && <Info text={c.hint} onTip={setTip} />}
+                <th key={c.key} className={`eg-band-${c.band}${i === 0 ? ' eg-sticky eg-desc' : ''}`} style={{ width: c.width, minWidth: c.width, maxWidth: c.width, textAlign: c.kind === 'money' || c.kind === 'calc' || c.kind === 'pct' || c.kind === 'number' ? 'right' : 'left', cursor: editable ? 'pointer' : undefined }}
+                  title={editable ? 'Column options' : undefined}
+                  onClick={(e) => { if (!editable) return; e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setColMenu({ key: c.key, x: Math.min(r.left, window.innerWidth - 230), y: r.bottom + 2 }); }}>
+                  {c.label}{c.custom && !c.showClient && <span title="Internal only" style={{ marginLeft: 4 }}>🔒</span>}{c.hint && <Info text={c.hint} onTip={setTip} />}
                 </th>
               ))}
             </tr>
@@ -569,6 +658,63 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
           </>}
         </div>
       )}
+      {colMenu && (() => {
+        const c = allCols.find((x) => x.key === colMenu.key);
+        if (!c) return null;
+        const close = () => setColMenu(null);
+        const idx = allCols.findIndex((x) => x.key === c.key);
+        return (
+          <div className="eg-menu" style={{ left: colMenu.x, top: colMenu.y }} onClick={(e) => e.stopPropagation()} role="menu">
+            <button type="button" onClick={() => { setColEdit({ def: c, isNew: false }); close(); }}>{c.custom ? 'Edit column…' : 'Rename…'}</button>
+            <button type="button" onClick={() => { setColEdit({ def: { key: customKey(), label: '', band: c.band, kind: 'text', width: 140, custom: true, type: 'text' }, isNew: true, afterKey: c.key }); close(); }}>Insert column to the right…</button>
+            <hr />
+            <button type="button" onClick={() => { moveCol(c.key, -1); close(); }}>Move left</button>
+            <button type="button" onClick={() => { moveCol(c.key, 1); close(); }}>Move right</button>
+            <button type="button" onClick={() => { saveCols(allCols.map((x, i) => (i === idx ? { ...x, width: Math.min(800, x.width + 40) } : x))); close(); }}>Wider</button>
+            <button type="button" onClick={() => { saveCols(allCols.map((x, i) => (i === idx ? { ...x, width: Math.max(60, x.width - 40) } : x))); close(); }}>Narrower</button>
+            {c.key !== 'description' && <button type="button" onClick={() => { saveCols(allCols.map((x, i) => (i === idx ? { ...x, hidden: true } : x))); close(); }}>Hide column</button>}
+            {c.custom && <><hr /><button type="button" style={{ color: 'var(--eg-err)' }} onClick={() => {
+              const used = sheet.lines.filter((l) => l.custom?.[c.key] != null).length;
+              if (used && !window.confirm(`Delete the column “${c.label}” and what’s typed in it on ${used} line${used === 1 ? '' : 's'}?`)) return;
+              saveCols(allCols.filter((x) => x.key !== c.key));
+              if (used) commit({ ...sheetRef.current, lines: sheetRef.current.lines.map((l) => { if (l.custom?.[c.key] == null) return l; const cu = { ...l.custom }; delete cu[c.key]; return { ...l, custom: Object.keys(cu).length ? cu : null }; }) });
+              close();
+            }}>Delete column</button></>}
+          </div>
+        );
+      })()}
+      {showCols && (
+        <div className="eg-menu" style={{ right: 24, top: (wrapRef.current?.getBoundingClientRect().top ?? 200) - 4, left: 'auto', maxHeight: '70vh', overflowY: 'auto', minWidth: 260 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', padding: '4px 10px' }}>Show columns</div>
+          {allCols.map((c, i) => (
+            <label key={c.key} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 10px', fontSize: 13, cursor: editable ? 'pointer' : 'default', opacity: hidden.includes(c.band) ? 0.5 : 1 }}>
+              <input type="checkbox" disabled={!editable || c.key === 'description'} checked={!c.hidden} onChange={(e) => saveCols(allCols.map((x, j) => (j === i ? { ...x, hidden: !e.target.checked } : x)))} />
+              <span style={{ flex: 1 }}>{c.label}{c.custom ? <span style={{ color: 'var(--muted)' }}> · {COLUMN_TYPES.find(([k]) => k === c.type)?.[1]}</span> : null}</span>
+            </label>
+          ))}
+          {editable && <><hr /><button type="button" onClick={() => { setColEdit({ def: { key: customKey(), label: '', band: 'notes', kind: 'text', width: 140, custom: true, type: 'text' }, isNew: true }); setShowCols(false); }}>+ Add a column…</button></>}
+        </div>
+      )}
+      {colEdit && <ColumnDialog edit={colEdit} known={allCols.filter((c) => c.key !== colEdit.def.key).map((c) => c.label).concat(LINE_COLS.map((c) => c.label))} onClose={() => setColEdit(null)} onSave={(def) => {
+        let next: (GridCol & { hidden?: boolean })[];
+        if (colEdit.isNew) {
+          const at = colEdit.afterKey ? allCols.findIndex((c) => c.key === colEdit.afterKey) + 1 : allCols.length;
+          next = [...allCols]; next.splice(at, 0, def);
+        } else {
+          const before = allCols.find((c) => c.key === def.key);
+          next = allCols.map((c) => (c.key === def.key ? def : c));
+          // A renamed column: formulas that named it follow the new name.
+          if (before && before.label !== def.label) {
+            const re = new RegExp(`\\[\\s*${before.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\]`, 'gi');
+            next = next.map((c) => {
+              const f = c.formula?.replace(re, `[${def.label}]`);
+              return f && f !== c.formula ? { ...c, formula: f, hint: `Formula: ${f}` } : c;
+            });
+          }
+        }
+        saveCols(next);
+        setColEdit(null);
+      }} />}
       {picking && <SourcePicker mode="scopes" excludeId={estimateId} onClose={() => setPicking(false)} onPick={(fromId, o) => copyScopesFrom(fromId, o.scopeIds || [])} />}
       {tip && <div className="eg-tip" style={{ left: Math.max(8, tip.x), top: Math.min(tip.y, window.innerHeight - 120) }}>{tip.text}</div>}
     </div>
@@ -609,8 +755,8 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
           </label>
         </h3>
         <div style={{ overflowX: 'auto' }}>
-          <table className="eg-gr" style={{ minWidth: 660 }}>
-            <thead><tr><th style={{ width: 40 }}>#</th><th style={{ minWidth: 170 }}>General requirement</th><th style={{ width: 104 }}>In / out</th><th style={{ width: 92, textAlign: 'right' }}>Base</th><th style={{ width: 84 }}>Unit</th><th style={{ width: 56, textAlign: 'right' }}>Qty</th><th style={{ width: 100, textAlign: 'right' }}>Cost<Info text={`${FORMULAS.F9.label} = ${FORMULAS.F9.text}`} onTip={onTip} /></th>{editable && <th style={{ width: 28 }} />}</tr></thead>
+          <table className="eg-gr" style={{ minWidth: 690 }}>
+            <thead><tr><th style={{ width: 40 }}>#</th><th style={{ minWidth: 170 }}>General requirement</th><th style={{ width: 104 }}>In / out</th><th style={{ width: 92, textAlign: 'right' }}>Base</th><th style={{ width: 84 }}>Unit</th><th style={{ width: 56, textAlign: 'right' }}>Qty</th><th style={{ width: 112, textAlign: 'right' }}>Cost<Info text={`${FORMULAS.F9.label} = ${FORMULAS.F9.text}`} onTip={onTip} /></th>{editable && <th style={{ width: 28 }} />}</tr></thead>
             <tbody>
               {sheet.gr.map((g, i) => (
                 <tr key={g.id} className={g.included ? '' : 'is-out'}>
@@ -679,6 +825,66 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
           ))}
         </div>
         {editable && <div className="eg-add-row" style={{ position: 'static', paddingLeft: 0 }}><button type="button" onClick={() => setPayments([...payments, { id: `p${Date.now().toString(36)}`, label: `Pmt ${payments.length + 1}`, mode: 'pct', value: 0 }])}>+ Payment</button></div>}
+      </div>
+    </div>
+  );
+}
+
+/** Add or change a column: name, type, formula (checked as you type), choices, who sees it. */
+function ColumnDialog({ edit, known, onClose, onSave }: {
+  edit: { def: GridCol & { hidden?: boolean }; isNew: boolean }; known: string[]; onClose: () => void; onSave: (def: GridCol & { hidden?: boolean }) => void;
+}) {
+  const d = edit.def;
+  const [label, setLabel] = useState(d.label);
+  const [type, setType] = useState(d.type || 'text');
+  const [formula, setFormula] = useState(d.formula || '=');
+  const [choices, setChoices] = useState((d.options || []).map((o) => o[0]).join(', '));
+  const [showClient, setShowClient] = useState(!!d.showClient);
+  const [showSub, setShowSub] = useState(!!d.showSub);
+  const problem = d.custom && type === 'formula' ? formulaProblem(formula, known) : null;
+  const clash = known.some((k) => k.trim().toLowerCase() === label.trim().toLowerCase());
+  const ok = label.trim() && !clash && !problem;
+  const save = () => {
+    if (!ok) return;
+    if (!d.custom) { onSave({ ...d, label: label.trim() }); return; }
+    const kind = ({ text: 'text', number: 'number', money: 'money', pct: 'pct', date: 'date', choice: 'choice', checkbox: 'check', formula: 'calc' } as const)[type as 'text'] || 'text';
+    onSave({
+      ...d, label: label.trim(), type, kind, formula: type === 'formula' ? formula : undefined, showClient, showSub,
+      options: type === 'choice' ? choices.split(',').map((x) => x.trim()).filter(Boolean).map((x) => [x, x] as [string, string]) : undefined,
+      hint: type === 'formula' ? `Formula: ${formula}` : undefined,
+    });
+  };
+  const field = { padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.15)', font: 'inherit', fontSize: 16, background: 'var(--surface)', color: 'var(--ink)', width: '100%', boxSizing: 'border-box' } as const;
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Column" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div className="eg-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(520px, 100%)', display: 'grid', gap: 10, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+        <h3 style={{ margin: 0 }}>{edit.isNew ? 'Add a column' : d.custom ? 'Edit column' : 'Rename column'}</h3>
+        <label style={{ display: 'grid', gap: 4, fontSize: 12.5, color: 'var(--muted)' }}>Name
+          <input autoFocus style={field} value={label} onChange={(e) => setLabel(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} placeholder="e.g. Waste %" />
+          {clash && <span style={{ color: 'var(--eg-err)' }}>Another column already has this name.</span>}
+        </label>
+        {d.custom && <>
+          <label style={{ display: 'grid', gap: 4, fontSize: 12.5, color: 'var(--muted)' }}>Type
+            <select style={field} value={type} onChange={(e) => setType(e.target.value)}>{COLUMN_TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+          </label>
+          {type === 'formula' && <label style={{ display: 'grid', gap: 4, fontSize: 12.5, color: 'var(--muted)' }}>Formula
+            <input style={{ ...field, fontFamily: 'ui-monospace, Menlo, monospace' }} value={formula} onChange={(e) => setFormula(e.target.value)} spellCheck={false} />
+            <span style={{ color: problem ? 'var(--eg-err)' : 'var(--muted)' }}>{problem || 'Name columns in [brackets]: =[Sub cost]*1.1 · =IF([Performing strategy]="Owner",0,[Line item total]) · SUM, MIN, MAX, AVERAGE, ROUND, ABS, IF, AND, OR, NOT'}</span>
+          </label>}
+          {type === 'choice' && <label style={{ display: 'grid', gap: 4, fontSize: 12.5, color: 'var(--muted)' }}>Choices, separated by commas
+            <input style={field} value={choices} onChange={(e) => setChoices(e.target.value)} placeholder="Ordered, Delivered, Installed" />
+          </label>}
+          <div style={{ display: 'grid', gap: 6, fontSize: 13 }}>
+            <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Who sees it — staff on the estimate always do</span>
+            <label style={{ display: 'flex', gap: 8 }}><input type="checkbox" checked={showClient} onChange={(e) => setShowClient(e.target.checked)} /> Show to clients</label>
+            <label style={{ display: 'flex', gap: 8 }}><input type="checkbox" checked={showSub} onChange={(e) => setShowSub(e.target.checked)} /> Show to subs (on their own lines)</label>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>Columns you add don’t change the estimate’s totals — sub cost, markup and the totals keep their own formulas.</div>
+        </>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="eg-btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="eg-btn is-primary" disabled={!ok} onClick={save}>{edit.isNew ? 'Add column' : 'Save'}</button>
+        </div>
       </div>
     </div>
   );
