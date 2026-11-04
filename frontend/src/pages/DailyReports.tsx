@@ -45,6 +45,18 @@ export function DailyReports() {
     api.csiCodes.list().then((r: any) => setCodes(Object.fromEntries((Array.isArray(r) ? r : []).map((c: any) => [c.id, `${c.code} — ${c.division}`])))).catch(() => { });
   }, []);
 
+  // ?project= (from a project) narrows the list; ?report= (from Approvals) opens that report (Nov 3 sync).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const pid = Number(q.get('project'));
+    if (pid) setProject(pid);
+    const rid = q.get('report');
+    if (!rid || !logs) return;
+    const l = logs.find((x) => x.id === rid);
+    if (l) { setProject(l.projectId); if (openId !== l.id) toggle(l); setTimeout(() => document.getElementById('dr-' + l.id)?.scrollIntoView({ block: 'center' }), 50); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logs]);
+
   const toggle = (l: LogRow) => {
     if (openId === l.id) { setOpenId(null); return; }
     setOpenId(l.id);
@@ -94,7 +106,7 @@ export function DailyReports() {
           const open = openId === l.id;
           const entries = days[l.id];
           return (
-            <Fragment key={l.id}>
+            <Fragment key={l.id}><span id={'dr-' + l.id} />
               <AkRow index={i} onClick={() => toggle(l)}
                 lead={<AkDate iso={l.date} />}
                 title={nameOf(l.projectId)}

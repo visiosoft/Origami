@@ -187,3 +187,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | J3 | Automate drawing titles (OCR, no AI) | ✅ number + title from the title-block text; scans via Drive OCR; ↻ to re-read; ✎ to fix |
 | J4 | Photos: thumbnails, date sort out of order, duplicates / missing sort buttons | ✅ Progress Photos already shows thumbnails and sorts by ISO date; fixed photos chaining as versions (same name) and added a Name / Newest / Oldest sort to the File Room grid and list |
 | J5 | Working in a project bounces you out of it | ✅ project + tab in the URL (Back works), “← Back to <project>” on pages opened from it, wider overview |
+| J6 | Add the field report to the approvals view (no switching logins) | ✅ field form in admins’ menu; Approvals opens the report; project links pre-filter |

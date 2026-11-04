@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04f',
+    date: '2026-11-04',
+    title: 'Field report for admins',
+    items: [
+      { area: 'Daily reports', kind: 'improved', text: 'Admins see “Daily Report (field)” in the menu, so they can fill in or try the superintendent’s form without signing in as one.', where: 'Construction → Daily Report (field)' },
+      { area: 'Daily reports', kind: 'improved', text: 'A daily report waiting in Approvals opens that report itself (crew, hours, notes), and links from a project open its reports.' },
+    ],
+  },
+  {
     id: '2026-11-04e',
     date: '2026-11-04',
     title: 'Stay in the project',

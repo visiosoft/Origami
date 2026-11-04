@@ -52,7 +52,7 @@ export function AppShell() {
   const backOffice = authUser?.roleKey === 'admin' || (!runsSite && currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant');
   const visibleGroups = NAV_GROUPS
     .filter((g) => !g.backOffice || backOffice)
-    .map((g) => ({ ...g, items: g.items.filter((it) => !it.hidden && (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : it.anyOf ? it.anyOf.some((m) => can(m, 'view')) : can(permOf(it), 'view'))) }))
+    .map((g) => ({ ...g, items: g.items.filter((it) => !it.hidden && (it.superintendent ? runsSite || authUser?.roleKey === 'admin' : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : it.anyOf ? it.anyOf.some((m) => can(m, 'view')) : can(permOf(it), 'view'))) }))
     .filter((g) => g.items.length > 0);
 
   const searchPages = useMemo(() => visibleGroups.flatMap((g) => g.items.map((it) => ({ label: it.label, route: it.route, icon: it.icon }))),
