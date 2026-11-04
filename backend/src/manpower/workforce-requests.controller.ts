@@ -1,3 +1,4 @@
+import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query } from '@nestjs/common';
 import { IsArray, IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Tiers } from '../auth/guards/roles.decorator';
@@ -63,11 +64,13 @@ export class WorkforceRequestsController {
     return this.service.submit(id);
   }
 
+  @ManageWrites('manpower_con')
   @Post(':id/approve')
   async approve(@Param('id') id: string, @Body() dto: DecisionDto, @Headers('authorization') auth?: string) {
     return this.service.approve(id, dto.note, await this.auth.actor(auth));
   }
 
+  @ManageWrites('manpower_con')
   @Post(':id/reject')
   async reject(@Param('id') id: string, @Body() dto: DecisionDto, @Headers('authorization') auth?: string) {
     return this.service.reject(id, dto.note, await this.auth.actor(auth));
@@ -78,11 +81,13 @@ export class WorkforceRequestsController {
     return this.service.cancel(id, await this.auth.actor(auth));
   }
 
+  @ManageWrites('manpower_con')
   @Post(':id/fulfill')
   async fulfill(@Param('id') id: string, @Headers('authorization') auth?: string) {
     return this.service.fulfill(id, await this.auth.actor(auth));
   }
 
+  @ManageWrites('manpower_con')
   @Post(':id/allocate')
   async allocate(@Param('id') id: string, @Body() dto: AllocateDto, @Headers('authorization') auth?: string) {
     return this.service.allocate(id, dto, await this.auth.actor(auth));

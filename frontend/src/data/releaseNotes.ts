@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04a',
+    date: '2026-11-04',
+    title: 'Superintendents see only their own work',
+    items: [
+      { area: 'Access', kind: 'fixed', text: 'Superintendents, foremen and labour roles see only the projects on their People record, unless their access says otherwise.' },
+      { area: 'Access', kind: 'fixed', text: '“Assigned projects” now holds in CRM & Leads too: only leads that became one of their projects, or that they’re assigned to.' },
+      { area: 'Access', kind: 'fixed', text: 'The address book shows our own team, but clients, subs, consultants, authorities and vendors only when they’re on one of your projects (unless your role sees all of People).' },
+      { area: 'Access', kind: 'fixed', text: 'Adding, changing or deleting in Manpower and resource management, leads and People needs “manage” on that module — viewing alone is no longer enough. Approving daily reports and workforce requests needs Manpower manage.' },
+    ],
+  },
+  {
     id: '2026-11-03k',
     date: '2026-11-03',
     title: 'A backup sheet for every project',

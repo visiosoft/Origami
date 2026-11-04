@@ -1,3 +1,4 @@
+import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { AuthService } from '../auth/auth.service';
@@ -85,11 +86,13 @@ export class DailyLogsController {
     return this.backup.send(id, to.length ? to : undefined);
   }
 
+  @ManageWrites('manpower_con')
   @Post(':id/approve')
   async approve(@Param('id') id: string, @Headers('authorization') auth?: string) {
     return this.service.approve(id, await this.auth.actor(auth));
   }
 
+  @ManageWrites('manpower_con')
   @Post(':id/reject')
   async reject(@Param('id') id: string, @Body() dto: RejectDailyLogDto, @Headers('authorization') auth?: string) {
     return this.service.reject(id, dto.note, await this.auth.actor(auth));

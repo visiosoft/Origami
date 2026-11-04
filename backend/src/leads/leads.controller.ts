@@ -1,19 +1,30 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Headers, Optional } from '@nestjs/common';
+import { ProjectAccessService } from '../auth/project-access.service';
+import { Claims } from '../auth/guards/claims.decorator';
+import type { SessionClaims } from '../auth/crypto.util';
+import { ForbiddenException, Controller, Get, Post, Put, Delete, Param, Body, Headers, Optional } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
-import { Perm } from '../auth/guards/perm.guard';
+import { Perm, ManageWrites } from '../auth/guards/perm.guard';
 
 @Tiers('internal')
 @Perm('pipeline', 'crm_holding')
+@ManageWrites('pipeline', 'crm_holding')
 @Controller('leads')
 export class LeadsController {
-    constructor(private readonly leadsService: LeadsService, @Optional() private readonly auth?: AuthService) { }
+    constructor(private readonly leadsService: LeadsService, @Optional() private readonly auth?: AuthService, @Optional() private readonly access?: ProjectAccessService) { }
+
+    /** "Assigned projects" holds for CRM too (Nov 3 sync). */
+    private async allowed(claims: SessionClaims | null) {
+        return this.access ? this.access.allowedLeadIds(claims) : 'all';
+    }
 
     @Get()
-    findAll() {
-        return this.leadsService.findAll();
+    async findAll(@Claims() claims?: SessionClaims | null) {
+        const rows = await this.leadsService.findAll();
+        const ok = await this.allowed(claims ?? null);
+        return ok === 'all' ? rows : rows.filter((r: any) => ok.has(String(r.id)));
     }
 
     @Get('options')
@@ -22,7 +33,9 @@ export class LeadsController {
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
+    async findOne(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+        const ok = await this.allowed(claims ?? null);
+        if (ok !== 'all' && !ok.has(String(id))) throw new ForbiddenException('That lead isn’t one of yours.');
         return this.leadsService.findOne(id);
     }
 

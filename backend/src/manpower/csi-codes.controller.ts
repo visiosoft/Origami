@@ -1,9 +1,11 @@
+import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { CsiCodesService } from './csi-codes.service';
 import { CreateCsiCodeDto } from './dto/csi-code.dto';
 
 @Tiers('internal')
+@ManageWrites('manpower_con', 'fin_resources')
 @Controller('csi-codes')
 export class CsiCodesController {
   constructor(private readonly service: CsiCodesService) {}

@@ -9,7 +9,7 @@ import { AddLinkDto } from '../tasks/dto/update-task.dto';
 import { LeadFilesService } from './lead-files.service';
 import { ClientWelcomeService } from './client-welcome.service';
 import { AllFilesService } from './all-files.service';
-import { Perm } from '../auth/guards/perm.guard';
+import { Perm, ManageWrites } from '../auth/guards/perm.guard';
 
 /**
  * A lead's files, on the routes the shared Attachments component uses
@@ -18,6 +18,7 @@ import { Perm } from '../auth/guards/perm.guard';
  */
 @Tiers('internal')
 @Perm('pipeline', 'crm_holding')
+@ManageWrites('pipeline', 'crm_holding')
 @Controller('lead-files')
 export class LeadFilesController {
   constructor(

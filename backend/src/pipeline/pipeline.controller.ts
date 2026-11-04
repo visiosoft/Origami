@@ -1,22 +1,33 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, Headers } from '@nestjs/common';
+import { ProjectAccessService } from '../auth/project-access.service';
+import { Claims } from '../auth/guards/claims.decorator';
+import type { SessionClaims } from '../auth/crypto.util';
+import { ForbiddenException, Controller, Get, Post, Put, Delete, Param, Body, Query, Headers } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { PipelineService, type FollowUpInput } from './pipeline.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateDealDto } from './dto/create-deal.dto';
-import { Perm } from '../auth/guards/perm.guard';
+import { Perm, ManageWrites } from '../auth/guards/perm.guard';
 
 @Tiers('internal')
 @Perm('pipeline', 'crm_holding')
+@ManageWrites('pipeline', 'crm_holding')
 @Controller('pipeline')
 export class PipelineController {
   constructor(
     private readonly pipelineService: PipelineService,
     private readonly auth: AuthService,
+    private readonly access: ProjectAccessService,
   ) {}
 
+  /** "Assigned projects" holds for CRM too (Nov 3 sync): only leads tied to the caller's projects or to them. */
+  private async scope<T extends { id: string }>(rows: T[], claims: SessionClaims | null): Promise<T[]> {
+    const allowed = await this.access.allowedLeadIds(claims, rows as any);
+    return allowed === 'all' ? rows : rows.filter((r) => allowed.has(String(r.id)));
+  }
+
   @Get()
-  findAll(@Query('archived') archived?: string) {
-    return this.pipelineService.findAll(archived === 'true');
+  async findAll(@Query('archived') archived?: string, @Claims() claims?: SessionClaims | null) {
+    return this.scope(await this.pipelineService.findAll(archived === 'true') as any[], claims ?? null);
   }
 
   @Get('stages')
@@ -25,8 +36,10 @@ export class PipelineController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.pipelineService.findOne(id);
+  async findOne(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    const deal: any = await this.pipelineService.findOne(id);
+    if (deal && !(await this.scope([deal], claims ?? null)).length) throw new ForbiddenException('That lead isn’t one of yours.');
+    return deal;
   }
 
   @Post()

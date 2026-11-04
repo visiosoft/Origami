@@ -15,6 +15,10 @@ import { PORTAL_ROLE } from './guards/roles.decorator';
  * client dashboards read. Portal accounts reach projects only through the
  * portal's own routes, never through these.
  */
+/** Roles that work on site: limited to their own projects unless set otherwise. */
+const FIELD_ROLE = /super|foreman|labou?r|site_/i;
+const OVERALL = '__overall';
+
 @Injectable()
 export class ProjectAccessService {
   constructor(
@@ -48,6 +52,14 @@ export class ProjectAccessService {
     const perms = await this.permissions(claims);
     return modules.some((m) => !!perms[m]?.view);
   }
+  /** May the caller change things in any of these modules (manage)? Administrators always; outside accounts never. */
+  async canManage(claims: SessionClaims | null, ...modules: string[]): Promise<boolean> {
+    if (!claims) return false;
+    if (claims.roleKey === 'admin') return true;
+    if (!this.isStaff(claims)) return false;
+    const perms = await this.permissions(claims);
+    return modules.some((m) => !!perms[m]?.manage);
+  }
   /** Throws unless the caller may view one of these modules. */
   async assertView(claims: SessionClaims | null, what: string, ...modules: string[]) {
     if (!(await this.canView(claims, ...modules))) throw new ForbiddenException(`Your role doesn’t include ${what}.`);
@@ -55,7 +67,24 @@ export class ProjectAccessService {
   /** Staff whose access says "Assigned projects" (role overall, or their own change): only their projects. */
   private async assignedOnly(claims: SessionClaims): Promise<boolean> {
     if (claims.roleKey === 'admin' || !this.roles || !this.users) return false;
-    return extentOf(await this.permissions(claims)) === 'assigned';
+    const perms = await this.permissions(claims);
+    // Field roles (superintendents, foremen, labour) with no overall setting see only their projects (Nov 3 sync).
+    if (!perms?.[OVERALL] && FIELD_ROLE.test(String(claims.roleKey || ''))) return true;
+    return extentOf(perms) === 'assigned';
+  }
+
+  /**
+   * 'all', or the leads the caller may see (Nov 3 sync: "Assigned projects"
+   * holds for CRM too): leads that became one of their projects, and leads
+   * they're the assignee of or hold a role on.
+   */
+  async allowedLeadIds(claims: SessionClaims | null, deals: { id: string; assignee?: string | null; roles?: Record<string, string> | null }[] = []): Promise<'all' | Set<string>> {
+    const ids = await this.allowedIds(claims);
+    if (ids === 'all') return 'all';
+    const out = new Set((await this.projects.find()).filter((p) => ids.has(p.id) && (p as any).leadId).map((p) => String((p as any).leadId)));
+    const me = (v: unknown) => !!v && (v === claims!.sub || String(v).trim().toLowerCase() === String(claims!.name || '').trim().toLowerCase());
+    for (const d of deals) if (me(d.assignee) || Object.values(d.roles || {}).some(me)) out.add(String(d.id));
+    return out;
   }
 
   /** 'all', or the names of the projects the caller may read -- for records kept by project name (the Special Actions Log, people). */

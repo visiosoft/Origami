@@ -177,3 +177,9 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | I4 | Per-project backup Google Sheet, refreshed on a schedule | ✅ (Tasks, RFIs, COs, FOR RECORD, Meetings tabs; nightly 2am once switched on; Refresh now) |
 | I2 | People without logins (name + rate) for daily reports and weekly pay | ✅ checked, no change needed: a People “Staff” entry without email gets its Manpower employee at once; the rate is set in Manpower → Employees; daily report crew, weekly timesheets and payroll use the employee, not an email (only self-service “My Timesheet” needs a login) |
 | I9 | Emergency tasks alert the team at once | ✅ (assignee, collaborators, originator + every admin; text + email + bell, always on; sent once) |
+
+## J. Nov 3 sync (Weekly Sync – Ehsan + Origami DB)
+
+| # | Request | Status |
+|---|---|---|
+| J1 | Superintendent (George) sees too much: projects, leads, address book; resource management changes only by Astrid / accounting | ✅ field roles default to Assigned projects; leads follow Assigned projects; outside contacts only on your projects; writes in Manpower, leads and People need manage |

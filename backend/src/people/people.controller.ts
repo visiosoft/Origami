@@ -12,11 +12,14 @@ import type { SessionClaims } from '../auth/crypto.util';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES } from '../google/attachments.service';
-import { Perm } from '../auth/guards/perm.guard';
+import { Perm, ManageWrites } from '../auth/guards/perm.guard';
 import { ProjectAccessService } from '../auth/project-access.service';
+
+const INTERNAL_KINDS = /^(staff|executive|super|foreman|labou?r|internal)$/i;
 
 @Tiers('internal')
 @Perm('people')
+@ManageWrites('people')
 @Controller('people')
 export class PeopleController {
   constructor(
@@ -36,7 +39,11 @@ export class PeopleController {
     const names = await this.access.allowedNames(claims ?? null);
     const wholeDirectory = names === 'all' && (await this.access.canView(claims ?? null, 'people'));
     if (wholeDirectory) return all;
-    return all.filter((p: any) => p.userId === claims?.sub || (p.projects || []).some((n: string) => names === 'all' || names.has(n)));
+    // Our own team stays visible to staff; outside contacts (clients, subs, consultants, authorities, vendors)
+    // only when they're on one of the caller's projects (Nov 3 sync: George saw the whole address book).
+    const onMine = (p: any) => (p.projects || []).some((n: string) => names !== 'all' && names.has(n));
+    const staffView = this.access.isStaff(claims ?? null);
+    return all.filter((p: any) => p.userId === claims?.sub || onMine(p) || (staffView && INTERNAL_KINDS.test(String(p.kind || ''))));
   }
 
   /**

@@ -1,9 +1,11 @@
+import { ManageWrites } from '../auth/guards/perm.guard';
 import { Controller, Delete, Get, Headers, Post } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { ManpowerAccess } from './manpower-access.service';
 import { SampleDataService } from './sample-data.service';
 
 @Tiers('internal')
+@ManageWrites('manpower_con', 'fin_resources')
 @Controller('manpower/sample-data')
 export class SampleDataController {
   constructor(private readonly service: SampleDataService, private readonly access: ManpowerAccess) {}
