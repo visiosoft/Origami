@@ -13,6 +13,18 @@ export class RolesController {
     return this.rolesService.findAll();
   }
 
+  /** Duplicate roles and who would move (read-only preview, Nov 3 sync). */
+  @Get('duplicates')
+  duplicates() {
+    return this.rolesService.duplicatePlan();
+  }
+
+  /** Merge the duplicates into the access-matrix roles: { confirm: true } to apply. */
+  @Post('duplicates/merge')
+  mergeDuplicates(@Body() body: { confirm?: boolean }) {
+    return this.rolesService.mergeDuplicates(body?.confirm === true);
+  }
+
   @Post()
   create(@Body() dto: CreateRoleDto) {
     return this.rolesService.create(dto);

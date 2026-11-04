@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04i',
+    date: '2026-11-04',
+    title: 'Duplicate roles',
+    items: [
+      { area: 'Access', kind: 'fixed', text: 'The roles list had doubles (two “Consultant”, two “Subcontractor”, and overlapping project manager, superintendent and authority roles). User Access & Roles now shows them with exactly who would move; “Merge duplicates” moves those people to the access-matrix role and removes the old one. Nothing changes until you press it.', where: 'User Access & Roles' },
+      { area: 'Access', kind: 'improved', text: 'The old roles no longer come back after a restart once their matrix role exists, and the “Internal Super” role gets the field Daily Report like Site Superintendent.' },
+    ],
+  },
+  {
     id: '2026-11-04h',
     date: '2026-11-04',
     title: 'CSI codes from the drawing to the contract',

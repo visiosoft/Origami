@@ -1,3 +1,4 @@
+import { ROLE_MERGE } from './role-merge';
 import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -25,7 +26,8 @@ export class RolesService implements OnApplicationBootstrap {
       // filled would otherwise never appear on an existing install. Only
       // missing keys are inserted, so edited permissions are left alone.
       const existing = new Set((await this.repo.find()).map((r) => r.key));
-      const missing = DEFAULT_ROLES.filter((r) => !existing.has(r.key));
+      // An old default whose access-matrix role is there isn't brought back (Nov 3 sync: no duplicates).
+      const missing = DEFAULT_ROLES.filter((r) => !existing.has(r.key) && !(ROLE_MERGE[r.key] && existing.has(ROLE_MERGE[r.key])));
       if (missing.length) {
         await this.repo.save(missing as unknown as RoleEntity[]);
         this.log.log(`Seeded ${missing.length} role(s)`);
@@ -52,6 +54,37 @@ export class RolesService implements OnApplicationBootstrap {
 
   findAll() {
     return this.repo.find({ order: { order: 'ASC' } });
+  }
+
+  /**
+   * The duplicate roles and who is on them (Nov 3 sync): each old default
+   * whose access-matrix role exists, the people who would move, and whether
+   * the old role then goes. Read-only.
+   */
+  async duplicatePlan() {
+    const [roles, users] = await Promise.all([this.repo.find(), this.users ? this.users.find() : Promise.resolve([] as UserEntity[])]);
+    const byKey = new Map(roles.map((r) => [r.key, r]));
+    return Object.entries(ROLE_MERGE)
+      .filter(([from, to]) => byKey.has(from) && byKey.has(to))
+      .map(([from, to]) => ({
+        from: { key: from, name: byKey.get(from)!.name },
+        to: { key: to, name: byKey.get(to)!.name },
+        users: users.filter((u) => u.roleKey === from).map((u) => ({ id: u.id, name: u.name, email: u.email })),
+      }));
+  }
+
+  /** Apply the plan: move each person to the matrix role, then remove the empty old role. Admin only, after review. */
+  async mergeDuplicates(confirm: boolean) {
+    const plan = await this.duplicatePlan();
+    if (!confirm) return { applied: false, plan };
+    let moved = 0;
+    for (const p of plan) {
+      for (const u of p.users) { await this.users!.update({ id: u.id } as any, { roleKey: p.to.key } as any); moved++; }
+      const left = this.users ? await this.users.count({ where: { roleKey: p.from.key } as any }) : 0;
+      if (!left) await this.repo.delete({ key: p.from.key } as any);
+    }
+    this.log.log(`Merged ${plan.length} duplicate role(s); moved ${moved} user(s)`);
+    return { applied: true, moved, removed: plan.map((p) => p.from.key) };
   }
 
   create(dto: any) {

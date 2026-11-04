@@ -1,3 +1,4 @@
+import { SUPER_ROLES } from '../users/role-merge';
 import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -43,7 +44,7 @@ export class AuthService {
    * Construction". Decides who gets the phone daily log.
    */
   private async isSuperintendent(user: UserEntity) {
-    if (user.roleKey === 'site_super') return true;
+    if (SUPER_ROLES.includes(user.roleKey)) return true;
     if (!this.employees) return false;
     const email = (user.email || '').trim().toLowerCase();
     const rows = await this.employees.find();

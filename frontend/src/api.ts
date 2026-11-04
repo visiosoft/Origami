@@ -669,6 +669,9 @@ export const api = {
     setAccess: (id: string, overrides: Record<string, { level?: string; extent?: string }>) => request<any>(`/users/${encodeURIComponent(id)}/access`, { method: 'PUT', body: JSON.stringify({ overrides }) }),
   },
   roles: {
+    /** Duplicate roles and who would move (Nov 3 sync); merging needs a confirm. */
+    duplicates: () => request<{ from: { key: string; name: string }; to: { key: string; name: string }; users: { id: string; name: string; email: string }[] }[]>('/roles/duplicates', { cache: 'no-store' } as any),
+    mergeDuplicates: () => request<{ applied: boolean; moved?: number; removed?: string[] }>('/roles/duplicates/merge', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     list: () => request('/roles'),
     create: (data: unknown) => request('/roles', { method: 'POST', body: JSON.stringify(data) }),
     update: (key: string, data: unknown) => request(`/roles/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
