@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { useCsiCodes } from '../CsiSelect';
@@ -653,6 +654,8 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
         addGr={() => commit({ ...sheetRef.current, gr: [...sheetRef.current.gr, newGr()] })}
         removeGr={(id) => commit({ ...sheetRef.current, gr: sheetRef.current.gr.filter((g) => g.id !== id) })} />
 
+      {createPortal(
+        <div className="eg-portal">
       {menu && (
         <div className="eg-menu" style={{ left: menu.x, top: menu.y }} onClick={(e) => e.stopPropagation()} role="menu">
           {menuLine && <>
@@ -736,6 +739,9 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
       }} />}
       {picking && <SourcePicker mode="scopes" excludeId={estimateId} onClose={() => setPicking(false)} onPick={(fromId, o) => copyScopesFrom(fromId, o.scopeIds || [])} />}
       {tip && <div className="eg-tip" style={{ left: Math.max(8, tip.x), top: Math.min(tip.y, window.innerHeight - 120) }}>{tip.text}</div>}
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -874,7 +880,8 @@ function ColumnDialog({ edit, known, onClose, onSave }: {
     });
   };
   const field = { padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.15)', font: 'inherit', fontSize: 16, background: 'var(--surface)', color: 'var(--ink)', width: '100%', boxSizing: 'border-box' } as const;
-  return (
+  return createPortal(
+    <div className="eg-portal">
     <div role="dialog" aria-modal="true" aria-label="Column" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div className="eg-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(520px, 100%)', display: 'grid', gap: 10, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
         <h3 style={{ margin: 0 }}>{edit.isNew ? 'Add a column' : d.custom ? 'Edit column' : 'Rename column'}</h3>
@@ -906,5 +913,7 @@ function ColumnDialog({ edit, known, onClose, onSave }: {
         </div>
       </div>
     </div>
+    </div>,
+    document.body,
   );
 }

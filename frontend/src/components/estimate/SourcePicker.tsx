@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../api';
 import { money } from '../../data/estimateCalc';
 
@@ -50,7 +51,9 @@ export function SourcePicker({ mode, excludeId, onPick, onClose }: {
   );
   const can = mode === 'start' ? tab === 'blank' || !!chosen : !!chosen && picked.size > 0;
 
-  return (
+  // On the page body: an ancestor with a transform would otherwise trap the fixed overlay inside the content area.
+  return createPortal(
+    <div className="eg-portal">
     <div role="dialog" aria-modal="true" aria-label={mode === 'start' ? 'New estimate' : 'Copy scopes'} onClick={onClose}
       style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="eg-card" style={{ width: 'min(620px, 100%)', maxHeight: 'min(80vh, 760px)', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
@@ -92,5 +95,7 @@ export function SourcePicker({ mode, excludeId, onPick, onClose }: {
         </div>
       </div>
     </div>
+    </div>,
+    document.body,
   );
 }
