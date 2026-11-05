@@ -945,6 +945,8 @@ export const api = {
     markedUpPdf: (id: string, layers?: string[]) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/markups/pdf${layers?.length ? `?layers=${encodeURIComponent(layers.join(','))}` : ''}`),
     saveMarkedUpCopy: (id: string, layers?: string[]) => request<{ id: string; name: string }>(`/file-room/files/${encodeURIComponent(id)}/markups/copy`, { method: 'POST', body: JSON.stringify({ layers }) }),
     /** Relative on purpose: works through the vite proxy and same-origin in prod. */
+    /** The saved small copy: `thumb` (300 px square) or `preview` (1200 px), WebP; `v` changes when it's remade. */
+    smallUrl: (id: string, kind: 'thumb' | 'preview', v: string) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/small?kind=${kind}&v=${encodeURIComponent(v)}`,
     contentUrl: (id: string, opts?: { thumb?: boolean; download?: boolean }) => {
       const q = [opts?.thumb ? 'thumb=1' : '', opts?.download ? 'download=1' : ''].filter(Boolean).join('&');
       return `${API_BASE}/file-room/files/${encodeURIComponent(id)}/content${q ? `?${q}` : ''}`;

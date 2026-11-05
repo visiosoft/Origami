@@ -1185,6 +1185,17 @@ export class FileRoomFileEntity {
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) notes!: string;
   /** A drawing's sheet numbers by page ("1": "A100"), read from the title blocks and correctable (Oct 31). */
   @Column({ type: 'simple-json', nullable: true }) sheetNames!: Record<string, string> | null;
+  /**
+   * Small copies for the grid and a quick look (Nov 5): a 300 px square WebP
+   * thumbnail and a 1200 px preview, kept in the workspace Drive's hidden
+   * "Origami previews" folder. State: null = never made (existing files),
+   * pending | ready | none (nothing Drive or we can draw) | failed.
+   */
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) thumbDriveId!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) previewDriveId!: string | null;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) previewState!: string | null;
+  @Column({ type: 'int', default: 0 }) previewTries!: number;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) previewAt!: string | null;
 }
 
 /** A folder someone created that holds no files yet — otherwise it would vanish. */

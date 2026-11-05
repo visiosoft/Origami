@@ -8,6 +8,7 @@ import { GoogleService } from '../google/google.service';
 import { subId } from '../database/task.types';
 import type { UploadActor } from '../google/attachments.service';
 import { SettingsService } from '../settings/settings.service';
+import { FilePreviewsService } from './file-previews.service';
 
 /** "a@x.com; b@y.com" -> "a@x.com, b@y.com"; every address checked. */
 export function recipients(to: string): string {
@@ -103,6 +104,7 @@ export class FileRoomService {
     private readonly settings: SettingsService,
     @InjectRepository(FileRoomShareEntity) private readonly shares: Repository<FileRoomShareEntity>,
     @Optional() private readonly tracking?: TrackingService,
+    @Optional() private readonly previews?: FilePreviewsService,
   ) {}
 
   /** The link to put in the email: tracked when tracking is on (Oct 27 backlog item 12), so the share shows when it was opened. */
@@ -140,6 +142,8 @@ export class FileRoomService {
       folderPath: Array.isArray(f.folderPath) ? f.folderPath : [],
       size: Number(f.size) || 0,
       isLatest: f.isLatest !== false,
+      /** Changes when the small copies are remade, so the browser can cache them for good. */
+      thumbV: f.previewState === 'ready' && f.thumbDriveId ? f.thumbDriveId.slice(-10) : null,
     } as FileRoomFileEntity;
   }
 
@@ -338,11 +342,14 @@ export class FileRoomService {
         updatedAt: new Date().toISOString(),
         groupId: groupId ?? undefined,
         isLatest: true,
+        previewState: 'pending',
       } as Partial<FileRoomFileEntity>);
       saved.push(await this.files.save(row));
       existing.push(row);
       this.log.log(`Stored ${fileName} in ${[name, ...folderPath].join('/')}`);
     }
+    // Make the thumbnails now rather than at the next background round.
+    void this.previews?.tick().catch(() => undefined);
     return saved.map((f) => this.hydrate(f));
   }
 
@@ -352,6 +359,13 @@ export class FileRoomService {
     const file = await this.files.findOneBy({ id });
     if (!file) throw new NotFoundException('File not found');
     return file;
+  }
+
+  /** A file's thumbnail or preview bytes (WebP), once made. */
+  async small(id: string, which: 'thumb' | 'preview') {
+    const file = await this.load(id);
+    if (!this.previews) throw new NotFoundException('No small copy yet.');
+    return { file: this.hydrate(file), body: await this.previews.variant(file, which) };
   }
 
   /** Stream a file's bytes; the record is resolved first, never a bare Drive id. */
@@ -437,6 +451,7 @@ export class FileRoomService {
       catch (err) { this.log.warn(`Could not trash ${file.driveId}: ${(err as Error).message}`); }
     }
     await this.files.remove(file);
+    await this.previews?.forget(file).catch(() => undefined);
     // Losing the latest revision promotes the next most recent in its group.
     if (file.groupId && file.isLatest !== false) {
       const rest = (await this.files.find()).filter((f) => f.groupId === file.groupId);
@@ -582,6 +597,8 @@ export class FileRoomService {
             existing.mimeType = child.mimeType;
             existing.folderPath = path;
             existing.updatedAt = child.modifiedTime || existing.updatedAt;
+            // Changed in Drive: its small copies are redone.
+            if (Number(existing.size) !== size || existing.mimeType !== child.mimeType) { existing.previewState = 'pending'; existing.previewTries = 0; existing.previewAt = null; }
             await this.files.save(existing);
             updated++;
           }
@@ -598,6 +615,7 @@ export class FileRoomService {
             uploadedBy: 'Google Drive',
             updatedAt: child.modifiedTime || new Date().toISOString(),
             isLatest: true,
+            previewState: 'pending',
           } as Partial<FileRoomFileEntity>));
           added++;
         }

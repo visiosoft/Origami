@@ -12,6 +12,8 @@ import { FileRoomService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from './file-ro
 import { CreateFolderDto, UpdateFileDto, EmailFileDto, MoveFileDto, FileIdsDto, EmailFilesDto, MoveFilesDto } from './dto/file-room.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
+import { FilePreviewsService, BACKFILL_KEY } from './file-previews.service';
+import { SettingsService } from '../settings/settings.service';
 import { MarkupsService } from './markups.service';
 import { Perm } from '../auth/guards/perm.guard';
 
@@ -23,6 +25,8 @@ export class FileRoomController {
     private readonly auth: AuthService,
     private readonly access: ProjectAccessService,
     private readonly markups: MarkupsService,
+    private readonly previews: FilePreviewsService,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -255,6 +259,36 @@ export class FileRoomController {
   async moveMany(@Body() dto: MoveFilesDto, @Claims() claims?: SessionClaims | null) {
     await this.assertManage(claims ?? null);
     return this.service.moveMany(dto.ids, dto.folderPath);
+  }
+
+  /**
+   * A file's small copy: `thumb` (300 px square, for the grid) or `preview`
+   * (1200 px, for a quick look). WebP; cached by the browser for good, since
+   * the URL carries a version that changes when the copy is remade.
+   */
+  @Get('files/:id/small')
+  async small(@Param('id') id: string, @Query('kind') kind: string, @Res() res: Response, @Claims() claims: SessionClaims | null) {
+    const { file, body } = await this.service.small(id, kind === 'preview' ? 'preview' : 'thumb');
+    if (!(await this.access.canSee(claims, (file as any).projectId))) {
+      res.status(403).json({ message: 'You don’t have access to this file.' });
+      return;
+    }
+    res.setHeader('Content-Type', 'image/webp');
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    res.end(body);
+  }
+
+  /** How far the thumbnails are (Settings), and the switch for filling in older files. */
+  @Get('previews/status')
+  async previewStatus(@Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
+    return this.previews.status();
+  }
+  @Put('previews/backfill')
+  async previewBackfill(@Body() dto: { on?: boolean }, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
+    await this.settings.set(BACKFILL_KEY, dto?.on ? 'on' : 'off');
+    return this.previews.status();
   }
 
   /**

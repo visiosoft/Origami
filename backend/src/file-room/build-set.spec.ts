@@ -10,7 +10,7 @@ describe('File Room: who may change files', () => {
     };
     const access = { permissions: jest.fn(async () => perms), assert: jest.fn(async () => undefined) };
     const auth = { verify: jest.fn(async () => field), requireActor: jest.fn(async () => ({ name: 'Sam' })) };
-    const c = new FileRoomController(service as any, auth as any, access as any, {} as any);
+    const c = new FileRoomController(service as any, auth as any, access as any, {} as any, {} as any, {} as any);
     return { c, service };
   };
   const field = { sub: 'U-F', roleKey: 'site_super', tier: 'internal' } as any;

@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-05a',
+    date: '2026-11-05',
+    title: 'File Room: real thumbnails, fast',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'Photos, PDFs and Office files show a picture instead of a “JPG” or “PDF” badge: a small 300 px copy (about 15–25 KB) made once when the file arrives, so a folder of 50 photos opens about as fast as one full photo used to.', where: 'Plan & File Room' },
+      { area: 'File Room', kind: 'improved', text: 'Pictures load only as they come on screen, keep their place while loading, and are remembered by the browser.' },
+      { area: 'File Room', kind: 'improved', text: 'Opening a photo or PDF shows a 1200 px preview at once while the original loads.' },
+      { area: 'File Room', kind: 'improved', text: 'Files uploaded before today get their small copies in the background; a new upload’s appears a few seconds later.' },
+    ],
+  },
+  {
     id: '2026-11-04o',
     date: '2026-11-04',
     title: 'Estimates: standard statements',

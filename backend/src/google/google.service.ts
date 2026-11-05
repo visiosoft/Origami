@@ -442,6 +442,29 @@ export class GoogleService {
     };
   }
 
+  /**
+   * Drive's own picture of a file at a given size (photos, HEIC, PDF and
+   * Office first pages), or null when Drive hasn't made one (yet). Unlike
+   * downloadDriveFile(thumb) it never falls back to the original.
+   */
+  async driveThumbnail(id: string, size = 1600): Promise<Buffer | null> {
+    const token = await this.workspaceToken();
+    const meta = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?fields=thumbnailLink,hasThumbnail&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });
+    const body: any = await meta.json().catch(() => ({}));
+    if (!meta.ok || !body?.thumbnailLink) return null;
+    const res = await fetch(thumbnailAt(body.thumbnailLink, size), { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    return Buffer.from(await res.arrayBuffer());
+  }
+
+  /** A Drive file's bytes in memory (for files small enough to process). */
+  async driveFileBuffer(id: string): Promise<Buffer> {
+    const token = await this.workspaceToken();
+    const res = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new BadRequestException('Could not read that file from Drive.');
+    return Buffer.from(await res.arrayBuffer());
+  }
+
   /** Everything directly inside a Drive folder — files and subfolders alike. */
   async listChildren(folderId: string): Promise<DriveFile[]> {
     const token = await this.workspaceToken();

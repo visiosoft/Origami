@@ -208,3 +208,13 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | K8 | Estimate letter PDF, email, e-sign; .xlsx export | ⏳ |
 | K9 | On acceptance: SOV, budget per CSI, draft subcontracts, contract value, billing schedule | ⏳ |
 | K10 | Sub bid packages (without our amounts) | ⏳ |
+
+## L. File Room speed (Nov 5)
+
+| # | Item | Status |
+|---|---|---|
+| L1 | Small copies per file: 300 px square WebP thumbnail (centre of a photo, top of a page) + 1200 px preview, kept in the workspace Drive's hidden "Origami previews" folder; photos from the original (sharp), PDFs/Office/HEIC from Drive's page-1 render | ✅ |
+| L2 | Grid loads thumbnails only near the screen (300 px ahead), fixed box, cached for good (versioned URL) | ✅ |
+| L3 | Existing files filled in by a background job: automatic on staging; on Odin only after `filePreviews.backfill` is switched on (GET/PUT file-room/previews/…) | ✅ (Odin: waiting for the go) |
+| L4 | Drive-synced files: made on sync, remade when changed in Drive | ✅ |
+| L5 | PDF/Office first page as the thumbnail | ✅ via Drive's render |

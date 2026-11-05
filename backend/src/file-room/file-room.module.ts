@@ -8,6 +8,7 @@ import { ProgressPhotosService } from './progress-photos.service';
 import { GoogleModule } from '../google/google.module';
 import { AuthModule } from '../auth/auth.module';
 import { FileRoomController } from './file-room.controller';
+import { FilePreviewsService } from './file-previews.service';
 import { FileRoomService } from './file-room.service';
 
 @Module({
@@ -18,7 +19,7 @@ import { FileRoomService } from './file-room.service';
     TrackingModule,
   ],
   controllers: [FileRoomController, ProgressPhotosController],
-  providers: [FileRoomService, ProgressPhotosService, MarkupsService],
-  exports: [FileRoomService],
+  providers: [FileRoomService, ProgressPhotosService, MarkupsService, FilePreviewsService],
+  exports: [FileRoomService, FilePreviewsService],
 })
 export class FileRoomModule {}

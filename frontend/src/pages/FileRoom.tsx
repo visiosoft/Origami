@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { LazyThumb } from '../components/LazyThumb';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { PdfMarkupViewer } from '../components/markup/PdfMarkupViewer';
@@ -201,6 +202,14 @@ export function FileRoom() {
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filesKey, filesPg, filesTick]);
+  // Thumbnails being made (just uploaded): look again a few times so they appear without a reload.
+  const previewPolls = useRef(0);
+  useEffect(() => {
+    if (!visibleFiles.some((f) => f.previewState === 'pending')) { previewPolls.current = 0; return; }
+    if (previewPolls.current >= 8) return;
+    const t = window.setTimeout(() => { previewPolls.current++; setFilesTick((n) => n + 1); }, 6000 + previewPolls.current * 2000);
+    return () => window.clearTimeout(t);
+  }, [visibleFiles]);
 
   const visibleFolders = useMemo(() => {
     if (atRoot) {
@@ -487,9 +496,12 @@ export function FileRoom() {
         return (
           <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
                style={{ ...card, borderRadius: 13, padding: 14, cursor: 'pointer', position: 'relative', outline: picked.has(f.id) ? '2px solid var(--ink)' : 'none', outlineOffset: -2 }}>
-            {canPick && <span style={{ position: 'absolute', top: 12, right: 12 }}>{pickBox(f.id)}</span>}
-            <div style={{ width: 38, height: 38, borderRadius: 9, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', marginBottom: 10, fontSize: 9, fontWeight: 800 }}>
-              {(f.ext || '?').slice(0, 4)}
+            {canPick && <span style={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>{pickBox(f.id)}</span>}
+            {/* The saved 300 px thumbnail (Nov 5), loaded only when scrolled to; the box keeps its size meanwhile. */}
+            <div style={{ aspectRatio: '4 / 3', margin: '-6px -6px 10px', borderRadius: 9, overflow: 'hidden', background: f.thumbV ? 'var(--c-efede8)' : st.bg, display: 'grid', placeItems: 'center' }}>
+              {f.thumbV
+                ? <LazyThumb src={api.fileRoom.smallUrl(f.id, 'thumb', f.thumbV)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                : <span style={{ color: st.c, fontSize: 11, fontWeight: 800, letterSpacing: '0.04em' }}>{(f.ext || '?').slice(0, 4).toUpperCase()}</span>}
             </div>
             <div title={f.name} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
             <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>{prettySize(f.size)} · {shortDate(f.updatedAt)}</div>
@@ -527,7 +539,9 @@ export function FileRoom() {
           <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', background: picked.has(f.id) ? 'rgba(245, 196, 67, 0.12)' : 'transparent' }}>
             {pickBox(f.id)}
-            <span style={{ width: 22, height: 22, borderRadius: 6, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 800, flexShrink: 0 }}>{(f.ext || '?').slice(0, 4)}</span>
+            {f.thumbV
+              ? <span style={{ width: 28, height: 28, borderRadius: 6, flexShrink: 0, overflow: 'hidden', background: 'var(--c-efede8)' }}><LazyThumb src={api.fileRoom.smallUrl(f.id, 'thumb', f.thumbV)} style={{ width: 28, height: 28, objectFit: 'cover', display: 'block' }} /></span>
+              : <span style={{ width: 28, height: 28, borderRadius: 6, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 800, flexShrink: 0 }}>{(f.ext || '?').slice(0, 4)}</span>}
             <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
             {badge(f)}
             {atRoot && <span style={{ fontSize: 10.5, color: '#2F6F68' }}>{data.projects.find((p) => p.id === Number(f.projectId))?.name}</span>}
@@ -741,8 +755,9 @@ export function FileRoom() {
 
             {isImage(selected) && (
               <div style={{ padding: '16px 22px 0' }}>
+                {/* The 1200 px preview shows at once; the original paints over it when it arrives. */}
                 <img src={api.fileRoom.contentUrl(selected.id)} alt={selected.name}
-                     style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.08)' }} />
+                     style={{ width: '100%', minHeight: selected.thumbV ? 160 : undefined, borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.08)', background: selected.thumbV ? `var(--c-efede8) url("${api.fileRoom.smallUrl(selected.id, 'preview', selected.thumbV)}") center / contain no-repeat` : undefined }} />
                 {isPhotoFile(selected) && (
                   <button type="button" onClick={() => setMarkingUp({ id: selected.id })}
                     style={{ marginTop: 6, padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>✎ Mark up</button>
@@ -752,7 +767,7 @@ export function FileRoom() {
             {canPreview(selected) && (
               <div style={{ padding: '16px 22px 0' }}>
                 <iframe key={selected.id} src={api.fileRoom.previewUrl(selected.id)} title={selected.name}
-                        style={{ width: '100%', height: 360, border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, background: 'var(--panel)' }} />
+                        style={{ width: '100%', height: 360, border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, background: selected.thumbV ? `var(--panel) url("${api.fileRoom.smallUrl(selected.id, 'preview', selected.thumbV)}") top center / contain no-repeat` : 'var(--panel)' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 6 }}>
                   {isPdf(selected) && (
                     <button type="button" onClick={() => setMarkingUp({ id: selected.id })}
