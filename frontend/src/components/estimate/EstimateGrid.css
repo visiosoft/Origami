@@ -45,6 +45,9 @@
 .eg-cell.is-placeholder { color: var(--muted); font-style: italic; }
 .eg-table td.is-sel { box-shadow: inset 0 0 0 2px var(--eg-sel-line); }
 .eg-table td.is-range { background: var(--eg-sel); }
+/* the frozen first column must stay opaque, or the columns scrolling under it show through */
+.eg-table td.eg-sticky.is-range { background: linear-gradient(var(--eg-sel), var(--eg-sel)), var(--surface); }
+tr.eg-note td.eg-sticky.is-range { background: linear-gradient(var(--eg-sel), var(--eg-sel)), var(--c-f7f9f7, #F8F6F1); }
 .eg-kind { font-weight: 700; color: var(--ink); white-space: nowrap; }
 tr.eg-note td { background: var(--c-f7f9f7, #F8F6F1); }
 tr.eg-scope td { background: var(--eg-head); border-top: 2px solid rgba(var(--rgb-shade), 0.18); }
