@@ -485,6 +485,10 @@ export const api = {
     update: (id: string, d: unknown) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     remove: (id: string) => request(`/meetings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     get: (id: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`),
+    /** "Notes by Gemini" Docs from the last 30 days, each with the meeting it belongs to (Nov 5). */
+    googleNotes: () => request<{ id: string; name: string; link: string | null; modifiedTime: string | null; title: string; date: string | null; time: string | null; meetingId: string | null; meetingTitle: string | null; imported: boolean }[]>('/meetings/google-notes'),
+    /** Import one Doc: onto its meeting, or onto a new meeting made from the Doc's name. */
+    importGoogleDoc: (d: { docId?: string; link?: string }) => request<{ meeting: import('./data/meetings').Meeting; created: boolean }>('/meetings/google-notes/import', { method: 'POST', body: JSON.stringify(d) }),
     /** Pull the meeting's "Notes by Gemini" from Google: a Doc link, or found by title and date (Nov 3 sync). */
     importGoogle: (id: string, link?: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}/import-google`, { method: 'POST', body: JSON.stringify({ link: link || undefined }) }),
     /** Raise a task, or a FOR RECORD item (FYI, observation, decision), from the meeting: a Special Actions Log entry linked to it. */

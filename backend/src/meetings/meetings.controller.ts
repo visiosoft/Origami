@@ -23,6 +23,13 @@ export class MeetingsController {
   }
 
   @Get() async list(@Claims() claims: SessionClaims | null) { return this.mine(await this.service.list(), claims); }
+  /** "Notes by Gemini" Docs from the last 30 days, each with its meeting (Nov 5: import even when the meeting isn't in Origami). */
+  @Get('google-notes') async googleNotesList() { if (!this.googleNotes) throw new NotFoundException('Not available'); return this.googleNotes.recentDocs(); }
+  /** Import one Doc onto its meeting, or onto a new meeting made from the Doc's name. */
+  @Post('google-notes/import') async googleNotesImport(@Body() body: { docId?: string; link?: string }, @Headers('authorization') a?: string) {
+    if (!this.googleNotes) throw new NotFoundException('Not available');
+    return this.googleNotes.importDoc(body || {}, await this.auth.actor(a));
+  }
   @Get(':id') async get(@Param('id') id: string, @Claims() claims: SessionClaims | null) {
     const m = await this.service.get(id);
     if (!(await this.mine([m as any], claims)).length) throw new NotFoundException('Meeting not found');

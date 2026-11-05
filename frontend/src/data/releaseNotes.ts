@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-05b',
+    date: '2026-11-05',
+    title: 'Meeting notes from Google: easier to find',
+    items: [
+      { area: 'Meetings', kind: 'new', text: '“Import notes from Google” at the top of Meetings lists the “Notes by Gemini” from the last 30 days and the meeting each goes on. Import one: if the meeting isn’t in Origami yet, it’s made from the notes.', where: 'Meetings → Import notes from Google' },
+      { area: 'Meetings', kind: 'improved', text: 'Every meeting has “Import notes from Google” right on it — no need to mark it Occurred and open the review first. Importing marks it Occurred and opens the review on the notes, with “Review items” ready.' },
+    ],
+  },
+  {
     id: '2026-11-05a',
     date: '2026-11-05',
     title: 'File Room: real thumbnails, fast',

@@ -218,3 +218,10 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | L3 | Existing files filled in by a background job: automatic on staging; on Odin only after `filePreviews.backfill` is switched on (GET/PUT file-room/previews/…) | ✅ (Odin: waiting for the go) |
 | L4 | Drive-synced files: made on sync, remade when changed in Drive | ✅ |
 | L5 | PDF/Office first page as the thumbnail | ✅ via Drive's render |
+
+## M. Client feedback (Nov 5)
+
+| # | Item | Status |
+|---|---|---|
+| M1 | “Import from Google” not visible: it was only inside a meeting's review (after marking it Occurred, on the Notes tab, below the fold). Now: a button at the top of Meetings listing recent Gemini notes (creates the meeting when it isn't in Origami), and a button on every meeting; imported notes open the review on the Notes tab | ✅ |
+| M2 | Demo videos with voice: Estimating, Meeting notes from Google | ✅ (sent in chat) |

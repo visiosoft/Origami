@@ -96,3 +96,8 @@
 /* Notes arrived from Google (Nov 3 sync). */
 .mt-notice { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border-radius: 10px; background: var(--mint, #e7f0e8); color: var(--forest, #2f5d3a); font-size: 12.5px; }
 .mt-notice span { flex: 1; min-width: 200px; }
+
+/* Import notes from Google (Nov 5) */
+.mt-gn-list { display: grid; gap: 8px; overflow-y: auto; max-height: min(52vh, 520px); }
+.mt-gn-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid rgba(var(--rgb-shade), 0.1); border-radius: 12px; background: var(--surface); }
+.mt-gn-row b { display: block; color: var(--ink); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
