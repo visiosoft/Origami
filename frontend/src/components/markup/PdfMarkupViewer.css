@@ -28,8 +28,12 @@
 .mk-scale { font-size: 10px; font-weight: 700; color: #7C3AED; text-align: center; }
 .mk-stage { flex: 1; min-width: 0; overflow: auto; padding: 16px; position: relative; }
 .mk-page { position: relative; margin: 0 auto; background: #fff; box-shadow: 0 6px 24px rgba(var(--rgb-ink), 0.18); }
+/* Dragging across the sheet never selects its labels: a selection would turn the next drag into a browser drag-and-drop and cancel the shape (Nov 12). */
+.mk-page { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .mk-page canvas { display: block; width: 100%; height: 100%; }
 .mk-page svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* The live layer (Nov 12): its own compositing layer, so drawing on it never repaints the sheet's markups. */
+.mk-page svg.mk-live-svg { pointer-events: none; will-change: transform; }
 .mk-msg { padding: 40px; text-align: center; color: var(--muted); font-size: 14px; }
 .mk-side-close { display: none; justify-self: end; }
 .mk-side { width: 300px; flex-shrink: 0; overflow-y: auto; background: var(--surface); border-left: 1px solid var(--border); padding: 12px 14px; display: grid; gap: 16px; align-content: start; }

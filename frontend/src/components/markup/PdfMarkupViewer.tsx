@@ -6,13 +6,14 @@ import { CsiSelect } from '../CsiSelect';
 import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, isDoubleTap, PHONE_RENDER_PIXELS, TOOL_GROUPS, groupOfTool, trianglePts, wrapLines, labelLayout, markupsBrief, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type MarkupLinkType, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
+  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, simplifyStroke, SCALE_KINDS, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, isDoubleTap, PHONE_RENDER_PIXELS, TOOL_GROUPS, groupOfTool, trianglePts, wrapLines, labelLayout, markupsBrief, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type MarkupLinkType, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
 import { FOR_RECORD_TOPICS } from '../../data/tasks';
 import { withDrawingCache } from '../../data/drawingCache';
 import { SheetPicker } from './SheetPicker';
+import { LiveLayer, type LiveApi } from './LiveLayer';
 
 type Tool = 'select' | 'pan' | Exclude<MarkupKind, never>;
 type PdfDoc = { numPages: number; getPage: (n: number) => Promise<any> };
@@ -151,7 +152,17 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const [fill, setFillState] = useState<boolean>(() => { try { return localStorage.getItem('origami.markup.fill') === '1'; } catch { return false; } });
   const setFill = (v: boolean) => { setFillState(v); try { localStorage.setItem('origami.markup.fill', v ? '1' : '0'); } catch { /* private window */ } };
   /** Where the pointer is while clicking out a polyline / path / polyshape (the rubber band). */
-  const [hoverPt, setHoverPt] = useState<Pt | null>(null);
+  const hover = useRef<Pt | null>(null);
+  /**
+   * Faster drawing (Nov 12): a pen stroke or a shape being dragged out lives here, not in state,
+   * and is drawn by the live layer only; the viewer redraws once, when the pen lifts.
+   */
+  const stroke = useRef<Pt[] | null>(null);
+  const live = useRef<LiveApi>(null);
+  /** The drawing's place on screen, read once per gesture rather than on every move. */
+  const rectAt = useRef<DOMRect | null>(null);
+  /** The selection box, hidden while its markup is dragged or resized on the live layer. */
+  const selG = useRef<SVGGElement>(null);
   /** The shared symbol library, and the one the Symbol tool drops (remembered per browser). */
   const [symbols, setSymbols] = useState<MarkupSymbol[]>([]);
   const symbolMap = useMemo(() => Object.fromEntries(symbols.map((x) => [x.id, x])), [symbols]);
@@ -199,7 +210,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const [lastInGroup, setLastInGroup] = useState<Record<string, string>>({});
   const cancelLongPress = () => { if (longPress.current) { window.clearTimeout(longPress.current.timer); longPress.current = null; } };
   /** Dragging a text box's edge to resize it. */
-  const resizing = useRef<{ id: string; x0: number; orig: number } | null>(null);
+  const resizing = useRef<{ id: string; x0: number; orig: number; m: Markup; w?: number } | null>(null);
   // Searching the drawing's own text (and the markups' notes).
   const [search, setSearch] = useState<{ q: string; hits: Hit[]; at: number; busy: boolean; noText: boolean } | null>(null);
   const pageText = useRef(new Map<number, TextRun[]>());
@@ -218,7 +229,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const svg = useRef<SVGSVGElement>(null);
-  const drag = useRef<{ id: string; from: Pt; orig: Pt[] } | null>(null);
+  const drag = useRef<{ id: string; from: Pt; orig: Pt[]; m: Markup; d?: Pt } | null>(null);
   const pan = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
   const [spaceDown, setSpaceDown] = useState(false);
 
@@ -436,7 +447,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
 
   /** A pointer event as a page-relative point. */
   const at = (e: { clientX: number; clientY: number }): Pt => {
-    const r = svg.current!.getBoundingClientRect();
+    const r = rectAt.current || svg.current!.getBoundingClientRect();
     return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))];
   };
 
@@ -564,7 +575,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const finishMulti = () => {
     const kind = tool as MarkupKind;
     const pts = draft ? dedupePoints(draft) : [];
-    setDraft(null); setHoverPt(null);
+    setDraft(null); hover.current = null;
     if (!size || pts.length < (MIN_POINTS[kind] || 2)) return;
     const data: MarkupData = { points: pts, color, width };
     if (kind === 'measure_area' || kind === 'measure_path') {
@@ -595,9 +606,10 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     // Where that point sits on the unscaled drawing.
     pinch.current = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: scale, cx: (scroller.current!.scrollLeft + mx) / scale, cy: (scroller.current!.scrollTop + my) / scale };
     // A second finger means a gesture, not a drawing: drop whatever the first finger started.
-    setDraft(null); setHoverPt(null);
-    if (drag.current) { const d = drag.current; setMarks((prev) => prev.map((m) => (m.id === d.id ? { ...m, data: { ...m.data, points: d.orig } } : m))); drag.current = null; }
-    resizing.current = null; pan.current = null;
+    dropLive();
+    if (drag.current) { unhide(drag.current.id); drag.current = null; }
+    if (resizing.current) { unhide(resizing.current.id); resizing.current = null; }
+    pan.current = null; rectAt.current = null;
   };
   const movePinch = () => {
     const pz = pinch.current, st = scroller.current;
@@ -610,7 +622,33 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     requestAnimationFrame(() => { st.scrollLeft = pz.cx * next - mx; st.scrollTop = pz.cy * next - my; });
   };
 
+  /** Drop whatever is being drawn (a second finger, a long press). */
+  const dropLive = () => { stroke.current = null; hover.current = null; setDraft(null); live.current?.show(null); };
+  const markupEl = (id: string) => svg.current?.querySelector<SVGGElement>(`[data-markup="${CSS.escape(id)}"]`) || null;
+  /**
+   * A markup being moved or resized is drawn on the live layer and hidden on the sheet meanwhile,
+   * so the sheet's other markups aren't redrawn on every move.
+   */
+  const hide = (id: string) => { const el = markupEl(id); if (el) el.style.visibility = 'hidden'; if (selG.current) selG.current.style.visibility = 'hidden'; };
+  const unhide = (id: string) => { const el = markupEl(id); if (el) el.style.visibility = ''; if (selG.current) selG.current.style.visibility = ''; live.current?.show(null); };
+  /** A markup as it looks on the sheet, with its selection box, for the live layer. */
+  const lifted = (m: Markup, data: MarkupData, d: Pt = [0, 0]) => {
+    if (!size) return null;
+    const b = boxOf({ ...m, data });
+    return <g transform={`translate(${d[0] * size.w} ${d[1] * size.h})`}>
+      <g opacity={m.private ? 0.75 : 1}>{shapeOf({ kind: m.kind, data }, size, SCALE_KINDS.has(m.kind) ? scale : 1, false, sheets, m.kind === 'symbol' ? symbolMap[m.data.symbolId || ''] : undefined)}</g>
+      <rect x={b.x0 * size.w - 4} y={b.y0 * size.h - 4} width={(b.x1 - b.x0) * size.w + 8} height={(b.y1 - b.y0) * size.h + 8} fill="none" stroke="#2563EB" strokeWidth={1} strokeDasharray="4 3" />
+    </g>;
+  };
+  /** The stroke or shape being drawn, as it looks so far. */
+  const showStroke = () => {
+    const pts = stroke.current, kind = tool as MarkupKind;
+    if (!pts) { live.current?.show(null); return; }
+    live.current?.show(() => ghost(kind, pts));
+  };
+
   const onDown = (e: React.PointerEvent) => {
+    rectAt.current = null;
     if (e.pointerType === 'pen') penSeen.current = true;
     if (e.pointerType === 'touch') {
       touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -650,7 +688,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           const m = hit(p0);
           if (!m) return;
           lp.fired = true;
-          setDraft(null); setHoverPt(null); tapAsk.current = null;
+          dropLive(); tapAsk.current = null;
           setSelectedId(m.id);
           navigator.vibrate?.(15);
         }, 500);
@@ -672,7 +710,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       if (selected?.kind === 'text' && selected.data.boxW && mine(selected) && selected.page === pageNo && size) {
         const b = boxOf(selected);
         if (Math.abs(p[0] - b.x1) < (coarse ? 22 : 8) / (size.w * scale) && p[1] >= b.y0 && p[1] <= b.y1) {
-          resizing.current = { id: selected.id, x0: b.x0, orig: selected.data.boxW };
+          resizing.current = { id: selected.id, x0: b.x0, orig: selected.data.boxW, m: selected };
+          rectAt.current = svg.current!.getBoundingClientRect();
           (e.target as Element).setPointerCapture?.(e.pointerId);
           return;
         }
@@ -681,7 +720,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       // Someone else's link (or any link, for a viewer) goes where it points; your own is picked up to move.
       if (m?.kind === 'link' && !mine(m)) { follow(m); return; }
       setSelectedId(m?.id || null);
-      if (m && mine(m)) { drag.current = { id: m.id, from: p, orig: m.data.points }; (e.target as Element).setPointerCapture?.(e.pointerId); }
+      if (m && mine(m)) { drag.current = { id: m.id, from: p, orig: m.data.points, m }; rectAt.current = svg.current!.getBoundingClientRect(); (e.target as Element).setPointerCapture?.(e.pointerId); }
       // On a touch screen, dragging empty paper with Select moves the sheet.
       else if (!m && e.pointerType !== 'mouse') { const sc = scroller.current!; pan.current = { x: e.clientX, y: e.clientY, sl: sc.scrollLeft, st: sc.scrollTop }; }
       return;
@@ -694,7 +733,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       return;
     }
     if ((tool === 'measure_len') && !pageScale) { toast('Set the scale on this page first (⇔): draw over a dimension you know.'); return; }
-    setDraft([p, p]);
+    stroke.current = [p, p];
+    rectAt.current = svg.current!.getBoundingClientRect();
+    showStroke();
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
 
@@ -713,23 +754,38 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     }
     const p = at(e);
     if (resizing.current) {
+      // The box is drawn at its new width on the live layer; the markup itself waits for the pen to lift.
       const r = resizing.current;
       const w = Math.max(0.03, Math.min(1 - r.x0, p[0] - r.x0));
-      setMarks((prev) => prev.map((m) => (m.id === r.id ? { ...m, data: { ...m.data, boxW: w } } : m)));
+      if (r.w === undefined) hide(r.id);
+      r.w = w;
+      live.current?.show(() => lifted(r.m, { ...r.m.data, boxW: w }));
       return;
     }
     if (drag.current) {
       const d = drag.current;
-      const dx = p[0] - d.from[0], dy = p[1] - d.from[1];
-      setMarks((prev) => prev.map((m) => (m.id === d.id ? { ...m, data: { ...m.data, points: d.orig.map(([x, y]) => [x + dx, y + dy] as Pt) } } : m)));
+      if (!d.d) hide(d.id);
+      const by: Pt = [p[0] - d.from[0], p[1] - d.from[1]];
+      d.d = by;
+      live.current?.show(() => lifted(d.m, d.m.data, by));
       return;
     }
-    if (MULTI_POINT.includes(tool as MarkupKind)) { if (draft) setHoverPt(p); return; }
-    if (!draft) return;
+    if (MULTI_POINT.includes(tool as MarkupKind)) {
+      if (draft) { hover.current = p; const kind = tool as MarkupKind, pts = draft; live.current?.show(() => ghost(kind, pts, p)); }
+      return;
+    }
+    const pts = stroke.current;
+    if (!pts) return;
     if (tool === 'pen' || tool === 'highlight') {
-      const last = draft[draft.length - 1];
-      if (Math.hypot(p[0] - last[0], p[1] - last[1]) > 0.0015) setDraft([...draft, p]);
-    } else setDraft([draft[0], p]);
+      // An Apple Pencil reports more points than there are frames: take them all, so curves stay smooth.
+      const all = (e.nativeEvent as PointerEvent).getCoalescedEvents?.();
+      for (const ev of all && all.length ? all : [e]) {
+        const q = ev === e ? p : at(ev);
+        const last = pts[pts.length - 1];
+        if (Math.hypot(q[0] - last[0], q[1] - last[1]) > 0.0015) pts.push(q);
+      }
+    } else pts[1] = p;
+    showStroke();
   };
 
   const onUp = (e?: React.PointerEvent) => {
@@ -739,7 +795,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       touches.current.delete(e.pointerId);
       if (pinch.current) { if (touches.current.size < 2) pinch.current = null; tapAsk.current = null; return; }
     }
-    if (pressed) { setDraft(null); tapAsk.current = null; return; }
+    rectAt.current = null;
+    if (pressed) { dropLive(); tapAsk.current = null; return; }
     if (tapAsk.current) {
       const p = tapAsk.current.p;
       tapAsk.current = null;
@@ -750,29 +807,44 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     if (resizing.current) {
       const r = resizing.current;
       resizing.current = null;
+      unhide(r.id);
       const m = marks.find((x) => x.id === r.id);
-      if (m && m.data.boxW !== r.orig) void editMarkup({ ...m, data: { ...m.data, boxW: r.orig } }, { data: m.data });
+      if (m && r.w !== undefined && r.w !== r.orig) {
+        const data = { ...m.data, boxW: r.w };
+        replace({ ...m, data });
+        void editMarkup(m, { data });
+      }
       return;
     }
     if (drag.current) {
       const d = drag.current;
       drag.current = null;
+      unhide(d.id);
       const m = marks.find((x) => x.id === d.id);
-      const before = m && { ...m, data: { ...m.data, points: d.orig } };
-      if (m && before && m.data.points.some((pt, i) => pt[0] !== d.orig[i][0] || pt[1] !== d.orig[i][1])) void editMarkup(before, { data: m.data });
+      if (m && d.d && (d.d[0] || d.d[1])) {
+        const [dx, dy] = d.d;
+        const data = { ...m.data, points: d.orig.map(([x, y]) => [x + dx, y + dy] as Pt) };
+        replace({ ...m, data });
+        void editMarkup(m, { data });
+      }
       return;
     }
-    if (!draft || MULTI_POINT.includes(tool as MarkupKind) || !size) return;
-    const pts = draft;
-    setDraft(null);
+    const drawn = stroke.current;
+    stroke.current = null;
+    if (!drawn || MULTI_POINT.includes(tool as MarkupKind) || !size) { live.current?.show(null); return; }
     const kind = tool as MarkupKind;
+    // A pen line keeps the points it needs: within 0.6 px of what was drawn, at this zoom.
+    const pts = kind === 'pen' || kind === 'highlight' ? simplifyStroke(drawn, 0.6 / scale, size.w, size.h) : drawn;
+    // The stroke stays on the live layer until it's saved and drawn as a markup.
+    const keep = (k: MarkupKind, d: MarkupData) => void save(k, d).finally(() => { if (!stroke.current) live.current?.show(null); });
+    const clear = () => live.current?.show(null);
     if (kind === 'symbol') {
       const sym = symbolMap[symbolId] || symbols[0];
-      if (!sym) { toast(canKeepSymbols ? 'Add a symbol to the library first (+ Add symbol).' : 'There are no symbols yet — an admin adds them.'); return; }
+      if (!sym) { clear(); toast(canKeepSymbols ? 'Add a symbol to the library first (+ Add symbol).' : 'There are no symbols yet — an admin adds them.'); return; }
       const dragged = Math.hypot((pts[1][0] - pts[0][0]) * size.w, (pts[1][1] - pts[0][1]) * size.h) >= 8;
       const half = STAMP_DEFAULT / 2, halfH = (STAMP_DEFAULT * size.w) / size.h / 2;
       const box: Pt[] = dragged ? [pts[0], pts[1]] : [[pts[0][0] - half, pts[0][1] - halfH], [pts[0][0] + half, pts[0][1] + halfH]];
-      void save('symbol', { points: box, color, width: 1, symbolId: sym.id, label: sym.name });
+      keep('symbol', { points: box, color, width: 1, symbolId: sym.id, label: sym.name });
       return;
     }
     if (kind === 'stamp') {
@@ -780,16 +852,16 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       const dragged = Math.hypot((pts[1][0] - pts[0][0]) * size.w, (pts[1][1] - pts[0][1]) * size.h) >= 8;
       const half = STAMP_DEFAULT / 2, halfH = (STAMP_DEFAULT * size.w) / size.h / 2;
       const box: Pt[] = dragged ? [pts[0], pts[1]] : [[pts[0][0] - half, pts[0][1] - halfH], [pts[0][0] + half, pts[0][1] + halfH]];
-      void save('stamp', { points: box, color, width: Math.max(1.5, width), icon: stampIcon });
+      keep('stamp', { points: box, color, width: Math.max(1.5, width), icon: stampIcon });
       return;
     }
-    if (TWO_POINT.includes(kind) && Math.hypot((pts[1][0] - pts[0][0]) * size.w, (pts[1][1] - pts[0][1]) * size.h) < 4) return;
-    if (kind === 'scale') { setAsk({ kind: 'scale', points: pts, value: '', unit: pageScale?.unit || 'ft' }); return; }
-    if (kind === 'link') { setAsk({ kind: 'link', points: pts, to: 'page', page: String(Math.min(pageNo + 1, doc?.numPages || 1)), fileId: '', filePage: '', value: '' }); return; }
+    if (TWO_POINT.includes(kind) && Math.hypot((pts[1][0] - pts[0][0]) * size.w, (pts[1][1] - pts[0][1]) * size.h) < 4) { clear(); return; }
+    if (kind === 'scale') { clear(); setAsk({ kind: 'scale', points: pts, value: '', unit: pageScale?.unit || 'ft' }); return; }
+    if (kind === 'link') { clear(); setAsk({ kind: 'link', points: pts, to: 'page', page: String(Math.min(pageNo + 1, doc?.numPages || 1)), fileId: '', filePage: '', value: '' }); return; }
     const data: MarkupData = { points: pts, color: kind === 'highlight' && color === MARKUP_COLORS[0] ? '#FACC15' : color, width: kind === 'highlight' ? Math.max(8, width * 5) : width };
     if (kind === 'measure_len' && pageScale) data.label = measureLabel('measure_len', pts, size.w, size.h, pageScale);
     if (FILLABLE.includes(kind) && fill) data.fill = true;
-    void save(kind, data);
+    keep(kind, data);
   };
 
   // ---------------------------------------------------------------- asks
@@ -1049,10 +1121,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   // ---------------------------------------------------------------- drawing a markup
   const render = (m: { kind: MarkupKind; data: MarkupData }, ghost = false) => (size ? shapeOf(m, size, scale, ghost) : null);
 
-  const draftShape = draft && size ? (() => {
-    const kind = tool as MarkupKind;
+  /** A markup as it's being drawn (shown on the live layer): the points so far, and where the pointer is for click-out tools. */
+  const ghost = (kind: MarkupKind, draft: Pt[], hoverAt?: Pt | null) => {
+    if (!size) return null;
     if (MULTI_POINT.includes(kind)) {
-      const pts = hoverPt ? [...draft, hoverPt] : draft;
+      const pts = hoverAt ? [...draft, hoverAt] : draft;
       const live = (kind === 'measure_path' || kind === 'measure_area') && pageScale && pts.length >= (MIN_POINTS[kind] || 2) ? measureLabel(kind, pts, size.w, size.h, pageScale) : '';
       const last = pts[pts.length - 1];
       return <g>
@@ -1065,7 +1138,14 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     if (kind === 'measure_len' && pageScale) data.label = measureLabel('measure_len', draft, size.w, size.h, pageScale);
     if (FILLABLE.includes(kind) && fill) data.fill = true;
     return render({ kind, data }, true);
-  })() : null;
+  };
+  // Clicked-out points (polyline, path, area) show on the live layer too; it follows the clicks and the tool's settings.
+  useEffect(() => {
+    if (stroke.current) return;
+    if (draft && MULTI_POINT.includes(tool as MarkupKind)) { const kind = tool as MarkupKind, pts = draft, h = hover.current; live.current?.show(() => ghost(kind, pts, h)); }
+    else live.current?.show(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, tool, color, width, fill, scale, pageScale, size]);
 
   const selBox = selected && selected.page === pageNo && size ? boxOf(selected) : null;
   const resizeHandle = selected && selBox && size && selected.kind === 'text' && selected.data.boxW && mine(selected) && tool === 'select';
@@ -1142,7 +1222,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     <div className="mk-pill" role="toolbar" aria-label="Finish the shape">
       <button type="button" className="mk-btn is-text is-dark" onClick={finishMulti}>✓ Done</button>
       <button type="button" className="mk-btn is-text" onClick={() => setDraft((d) => (d && d.length > 1 ? d.slice(0, -1) : null))}>↶ Point</button>
-      <button type="button" className="mk-btn is-text" onClick={() => { setDraft(null); setHoverPt(null); }}>✕ Cancel</button>
+      <button type="button" className="mk-btn is-text" onClick={() => { setDraft(null); hover.current = null; }}>✕ Cancel</button>
     </div>
   );
   // A selected markup on a phone or iPad (list closed): the everyday actions, without opening the list.
@@ -1318,15 +1398,18 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             <canvas ref={canvas} />
             {size && (
               <svg ref={svg} viewBox={`0 0 ${size.w} ${size.h}`} style={{ cursor, touchAction: 'none' }} aria-label="Markup layer"
-                onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+                onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onDragStart={(e) => e.preventDefault()}
                 onDoubleClick={(e) => { if (MULTI_POINT.includes(tool as MarkupKind)) { finishMulti(); return; } if (tool === 'select') { const m = hit(at(e)); if (m?.kind === 'link') follow(m); } }}>
-                {onPage.map((m) => <g key={m.id} data-markup={m.id} opacity={m.private ? 0.75 : 1}><MarkupShape m={m} w={size.w} h={size.h} scale={scale} sheets={sheets} symbol={m.kind === 'symbol' ? symbolMap[m.data.symbolId || ''] : undefined} /></g>)}
-                {draftShape}
+                {onPage.map((m) => <g key={m.id} data-markup={m.id} opacity={m.private ? 0.75 : 1}><MarkupShape m={m} w={size.w} h={size.h} scale={SCALE_KINDS.has(m.kind) ? scale : 1} sheets={sheets} symbol={m.kind === 'symbol' ? symbolMap[m.data.symbolId || ''] : undefined} /></g>)}
                 {search?.hits[search.at]?.page === pageNo && (() => { const b = search.hits[search.at].box; return <rect className="mk-hit" x={b.x0 * size.w - 2} y={b.y0 * size.h - 2} width={(b.x1 - b.x0) * size.w + 4} height={(b.y1 - b.y0) * size.h + 4} />; })()}
-                {selBox && <rect x={selBox.x0 * size.w - 4} y={selBox.y0 * size.h - 4} width={(selBox.x1 - selBox.x0) * size.w + 8} height={(selBox.y1 - selBox.y0) * size.h + 8} fill="none" stroke="#2563EB" strokeWidth={1} strokeDasharray="4 3" />}
-                {resizeHandle && <rect className="mk-resize" x={selBox.x1 * size.w - (coarse ? 9 : 4) / scale} y={((selBox.y0 + selBox.y1) / 2) * size.h - (coarse ? 20 : 10) / scale} width={(coarse ? 18 : 8) / scale} height={(coarse ? 40 : 20) / scale} rx={(coarse ? 5 : 2) / scale}><title>Drag to make the text box wider or narrower</title></rect>}
+                <g ref={selG}>
+                  {selBox && <rect x={selBox.x0 * size.w - 4} y={selBox.y0 * size.h - 4} width={(selBox.x1 - selBox.x0) * size.w + 8} height={(selBox.y1 - selBox.y0) * size.h + 8} fill="none" stroke="#2563EB" strokeWidth={1} strokeDasharray="4 3" />}
+                  {resizeHandle && <rect className="mk-resize" x={selBox.x1 * size.w - (coarse ? 9 : 4) / scale} y={((selBox.y0 + selBox.y1) / 2) * size.h - (coarse ? 20 : 10) / scale} width={(coarse ? 18 : 8) / scale} height={(coarse ? 40 : 20) / scale} rx={(coarse ? 5 : 2) / scale}><title>Drag to make the text box wider or narrower</title></rect>}
+                </g>
               </svg>
             )}
+            {/* What's being drawn or moved right now, on its own layer above the sheet's markups. */}
+            {size && <svg className="mk-live-svg" viewBox={`0 0 ${size.w} ${size.h}`} aria-hidden="true"><LiveLayer ref={live} /></svg>}
           </div>
         </div>
 
