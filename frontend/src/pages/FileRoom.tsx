@@ -940,7 +940,7 @@ export function FileRoom() {
         return (
           <PdfMarkupViewer
             key={f.id}
-            file={{ id: f.id, name: f.name, isLatest: (f as any).isLatest !== false, folderPath: f.folderPath }}
+            file={{ id: f.id, name: f.name, isLatest: (f as any).isLatest !== false, folderPath: f.folderPath, size: f.size, updatedAt: f.updatedAt }}
             projectId={Number(f.projectId) || null}
             projectName={data.projects.find((p) => p.id === Number(f.projectId))?.name || null}
             focusMarkupId={markingUp.focus || null}

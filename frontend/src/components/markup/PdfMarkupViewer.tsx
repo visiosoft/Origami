@@ -11,6 +11,8 @@ import {
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
 import { FOR_RECORD_TOPICS } from '../../data/tasks';
+import { withDrawingCache } from '../../data/drawingCache';
+import { SheetPicker } from './SheetPicker';
 
 type Tool = 'select' | 'pan' | Exclude<MarkupKind, never>;
 type PdfDoc = { numPages: number; getPage: (n: number) => Promise<any> };
@@ -95,7 +97,8 @@ type Ask =
  * Team-visible by default; "Private draft" keeps new ones to yourself.
  */
 export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, initialPage, projectFiles, onOpenFile, back, onClose, onSavedCopy, onUploaded, revisions }: {
-  file: { id: string; name: string; isLatest?: boolean; folderPath?: string[] };
+  /** size + updatedAt (when given) let the drawing be kept in the browser and opened instantly next time (Nov 10). */
+  file: { id: string; name: string; isLatest?: boolean; folderPath?: string[]; size?: number | null; updatedAt?: string | null };
   projectId?: number | null;
   projectName?: string | null;
   focusMarkupId?: string | null;
@@ -226,7 +229,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     api.fileRoom.sheets(file.id).then((n) => { if (live) { setSheets(n || {}); setSheetsLoaded(true); } }).catch(() => { if (live) { setSheets({}); setSheetsLoaded(true); } });
     // Photos open from a 2400 px copy: markups are stored in page units, so they land in the same place.
     const photo = isPhotoFile(file);
-    Promise.all([loadPdfjs(), photo ? api.fileRoom.photoBytes(file.id).catch(() => api.fileRoom.bytes(file.id)) : api.fileRoom.bytes(file.id), api.fileRoom.markups(file.id)])
+    Promise.all([loadPdfjs(), photo ? api.fileRoom.photoBytes(file.id).catch(() => api.fileRoom.bytes(file.id)) : withDrawingCache(file.id, file, () => api.fileRoom.bytes(file.id)), api.fileRoom.markups(file.id)])
       .then(async ([lib, bytes, list]) => {
         let d: PdfDoc;
         if (photo) {
@@ -317,7 +320,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const startCompare = (rev: Revision) => {
     setComparePick(false);
     setCompare({ rev, doc: null, show: 'both', dx: 0, dy: 0 });
-    Promise.all([loadPdfjs(), api.fileRoom.bytes(rev.id)])
+    Promise.all([loadPdfjs(), withDrawingCache(rev.id, rev as { size?: number | null; updatedAt?: string | null }, () => api.fileRoom.bytes(rev.id))])
       .then(([lib, bytes]) => lib.getDocument({ data: new Uint8Array(bytes) }).promise)
       .then((d: PdfDoc) => setCompare((c) => (c && c.rev.id === rev.id ? { ...c, doc: d } : c)))
       .catch((e: Error) => { toast('⚠ ' + (e.message || 'Couldn’t open that revision')); setCompare(null); });
@@ -1149,10 +1152,12 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         {canDraw && marks.length > 0 && <span className="mk-saved" title="Each markup is saved as soon as it’s drawn">✓ Saved</span>}
         <div className="mk-pages">
           {!phone && <button type="button" className="mk-btn" disabled={pageNo <= 1} onClick={() => setPageNo(pageNo - 1)} aria-label="Previous page">‹</button>}
-          {Object.keys(sheets).length > 0 && pages > 0 ? (
-            <select className="mk-sheet" aria-label="Sheet" value={pageNo} onChange={(e) => setPageNo(Number(e.target.value))}>
-              {Array.from({ length: pages }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{sheet(n) ? `${sheet(n)} · p. ${n}` : `p. ${n}`}</option>)}
-            </select>
+          {(Object.keys(sheets).length > 0 || pages > 1) && pages > 0 ? (
+            doc ? <SheetPicker doc={doc} pages={pages} page={pageNo} label={(n) => (sheet(n) ? `${sheet(n)} · p. ${n}` : `p. ${n}`)} onPick={setPageNo} /> : (
+              <select className="mk-sheet" aria-label="Sheet" value={pageNo} onChange={(e) => setPageNo(Number(e.target.value))}>
+                {Array.from({ length: pages }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{sheet(n) ? `${sheet(n)} · p. ${n}` : `p. ${n}`}</option>)}
+              </select>
+            )
           ) : <span>Page <input aria-label="Page" value={pageNo} onChange={(e) => { const n = Number(e.target.value); if (n >= 1 && n <= pages) setPageNo(n); }} /> of {pages || '…'}</span>}
           {canDraw && pages > 0 && !coarse && <button type="button" className="mk-btn" onClick={() => void renameSheet(pageNo)} aria-label="Name this sheet" title="Name this page by its sheet number (A100, E103…)">✎</button>}
           {canDraw && pages > 0 && !coarse && <button type="button" className="mk-btn" disabled={!!readingTitles} onClick={() => void readTitles(true)} aria-label="Read sheet titles" title="Read every page’s sheet number and title from its title block (scans by OCR)">↻</button>}
