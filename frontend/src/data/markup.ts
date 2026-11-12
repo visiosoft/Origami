@@ -135,6 +135,34 @@ export function dedupePoints(pts: Pt[], eps = 0.002): Pt[] {
 }
 
 /**
+ * A drawn stroke with the points it doesn't need (Ramer–Douglas–Peucker): every
+ * point dropped lies within `tol` of the line kept. w/h are the page's size, so
+ * `tol` is in page points; the ends are always kept.
+ */
+export function simplifyStroke(pts: Pt[], tol: number, w = 1, h = 1): Pt[] {
+  if (pts.length <= 2 || !(tol > 0)) return pts;
+  const keep = new Uint8Array(pts.length);
+  keep[0] = 1; keep[pts.length - 1] = 1;
+  const stack: [number, number][] = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop()!;
+    const ax = pts[a][0] * w, ay = pts[a][1] * h, bx = pts[b][0] * w, by = pts[b][1] * h;
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
+    let far = -1, worst = tol;
+    for (let i = a + 1; i < b; i++) {
+      const px = pts[i][0] * w - ax, py = pts[i][1] * h - ay;
+      const d = len ? Math.abs(px * dy - py * dx) / len : Math.hypot(px, py);
+      if (d > worst) { worst = d; far = i; }
+    }
+    if (far > 0) { keep[far] = 1; stack.push([a, far], [far, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+
+/** Markups whose look depends on the zoom (labels and pins keep their size on screen); the rest don't redraw when zooming. */
+export const SCALE_KINDS: ReadonlySet<string> = new Set(['pin', 'link', 'measure_len', 'measure_path', 'measure_area', 'scale']);
+
+/**
  * Text wrapped to a width: each paragraph broken at spaces, a word longer than
  * the line broken by letters. `measure` gives a string's width (same unit as maxW).
  * Mirrors the server, which wraps the same way when drawing the PDF.

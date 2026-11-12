@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FILLABLE, sheetNameFrom, sheetNameFromLines, sheetNumberOf, dedupePoints, pathLengthPts, trianglePts, wrapLines, labelLayout, markupsBrief } from './markup';
+import { FILLABLE, sheetNameFrom, sheetNameFromLines, sheetNumberOf, dedupePoints, simplifyStroke, SCALE_KINDS, pathLengthPts, trianglePts, wrapLines, labelLayout, markupsBrief } from './markup';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
 import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, pasteCopy, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
@@ -212,5 +212,43 @@ describe('markupsBrief (Nov 10: several markups → one RFI or task)', () => {
   });
   it('one markup with text uses that text as the subject', () => {
     expect(markupsBrief([mk('m1', 2, 'text', { text: 'Verify beam\nmore' })], { id: 'f', name: 'S.pdf' }, '').subject).toBe('Verify beam');
+  });
+});
+
+describe('simplifyStroke (faster drawing, Nov 12)', () => {
+  const dist = (p: [number, number], a: [number, number], b: [number, number]) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
+    const t = l ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (l * l))) : 0;
+    return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+  };
+  it('keeps short strokes and the two ends', () => {
+    expect(simplifyStroke([[0, 0], [1, 1]], 1)).toEqual([[0, 0], [1, 1]]);
+    const s = simplifyStroke([[0, 0], [0.5, 0.0001], [1, 0]], 1, 100, 100);
+    expect(s).toEqual([[0, 0], [1, 0]]);
+  });
+  it('drops most points of a smooth stroke and stays within the tolerance', () => {
+    const pts: [number, number][] = [];
+    for (let i = 0; i <= 300; i++) pts.push([0.2 + i * 0.002, 0.5 + Math.sin(i / 15) * 0.1]);
+    const W = 1224, H = 792, tol = 0.6;
+    const s = simplifyStroke(pts, tol, W, H);
+    expect(s.length).toBeLessThan(80);
+    expect(s[0]).toEqual(pts[0]);
+    expect(s[s.length - 1]).toEqual(pts[pts.length - 1]);
+    // Every original point lies within the tolerance of the simplified line.
+    const P = (p: [number, number]): [number, number] => [p[0] * W, p[1] * H];
+    for (const p of pts) {
+      let best = Infinity;
+      for (let i = 1; i < s.length; i++) best = Math.min(best, dist(P(p), P(s[i - 1]), P(s[i])));
+      expect(best).toBeLessThanOrEqual(tol + 1e-9);
+    }
+  });
+  it('keeps a sharp corner', () => {
+    const s = simplifyStroke([[0, 0], [0.25, 0], [0.5, 0], [0.5, 0.25], [0.5, 0.5]], 0.5, 100, 100);
+    expect(s).toEqual([[0, 0], [0.5, 0], [0.5, 0.5]]);
+  });
+  it('lists the kinds that redraw on zoom', () => {
+    expect(SCALE_KINDS.has('pin')).toBe(true);
+    expect(SCALE_KINDS.has('pen')).toBe(false);
+    expect(SCALE_KINDS.has('cloud')).toBe(false);
   });
 });
