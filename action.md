@@ -240,3 +240,10 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | N8 | Cancelled project stage; Closed + Cancelled projects and closed CRM leads hidden unless "Show closed & cancelled" | ✅ |
 | N9 | Field roles vs the access sheet: preview + "Apply to field roles" (Admin → User Access & Roles) | ✅ built — press it on staging |
 | N10 | Existing consultants saved as firm: preview + "Update consultants" (People) | ✅ built — press it on staging |
+| N11 | Drawing speed: PDF kept in the browser (Cache Storage, by file + version, 40 files / 400 MB, oldest out first) | ✅ |
+| N12 | Sheet picker with page pictures + search (replaces the sheet dropdown) | ✅ |
+| N13 | Measurement labels wrap, keep their size on screen and stay inside the page; unboxed text wraps at the page edge (screen + PDF) | ✅ |
+| N14 | Progress Photos: saved small thumbnails, lazy loading, "added" date beside the taken date | ✅ |
+| N15 | Several markups / a whole layer → one RFI, task, change order or FOR RECORD item | ✅ |
+| N16 | ✎ Sketch: blank 11×17 sheet in the project's Sketches folder, opened in the markup viewer | ✅ |
+| N17 | PDF layer (OCG) toggles for heavy drawing sets | ⏸ later — only if large sets are still slow with the browser copy |

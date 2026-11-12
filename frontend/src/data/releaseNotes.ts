@@ -16,6 +16,19 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-12d',
+    date: '2026-11-12',
+    title: 'Drawings: faster, sheet pictures, sketches, one RFI from many markups',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'A drawing opens straight from your browser after the first time (no download), until a newer version is uploaded.', where: 'File Room → open a PDF' },
+      { area: 'Drawings', kind: 'new', text: 'The sheet list shows a small picture of every sheet, with a search box.', where: 'Drawing viewer → sheet name at the top' },
+      { area: 'Drawings', kind: 'fixed', text: 'Measurement labels wrap and stay on the sheet on phones; older text notes wrap at the edge of the page, on screen and in the downloaded PDF.' },
+      { area: 'Drawings', kind: 'new', text: '“Pick several” in the Markups list (or ☑ beside a layer) makes one RFI, task, change order or FOR RECORD item listing every picked markup with a link back to it.', where: 'Drawing viewer → side panel → Markups' },
+      { area: 'File Room', kind: 'new', text: '“✎ Sketch” gives a blank sheet to draw on with the markup tools, kept in the project’s Sketches folder.', where: 'File Room → a project' },
+      { area: 'Progress Photos', kind: 'improved', text: 'Photos load from small saved copies as you scroll, and show the day they were added when it differs from the day taken.', where: 'Progress Photos' },
+    ],
+  },
+  {
     id: '2026-11-12c',
     date: '2026-11-12',
     title: 'Review and fix: field roles, consultants',
