@@ -15,6 +15,9 @@ type Incoming = { originalname: string; mimetype: string; size: number; buffer: 
  * Room (daily reports, uploads) without details are "unsorted" until given a
  * category.
  */
+/** The saved small picture's version, when it's ready (same as the File Room's). */
+const thumbVersion = (f?: FileRoomFileEntity) => (f?.previewState === 'ready' && f.thumbDriveId ? f.thumbDriveId.slice(-10) : null);
+
 @Injectable()
 export class ProgressPhotosService {
   constructor(
@@ -55,6 +58,8 @@ export class ProgressPhotosService {
     return {
       ...meta, tags: meta.tags || [],
       name: file?.name || '', mimeType: file?.mimeType || '', uploadedBy: file?.uploadedBy || meta.createdBy || '', folderPath: file?.folderPath || [],
+      // When it reached Origami (shown beside the camera date) and its saved small picture (Nov 10 sync).
+      uploadedAt: meta.createdAt || null, thumbV: thumbVersion(file),
     };
   }
 
@@ -70,7 +75,7 @@ export class ProgressPhotosService {
     const sorted = new Set(metas.map((m) => m.id));
     const unsorted = staff
       ? [...fileById.values()].filter((f) => isImage(f) && !sorted.has(f.id) && f.isLatest !== false)
-        .map((f) => ({ id: f.id, name: f.name, mimeType: f.mimeType, uploadedBy: f.uploadedBy, updatedAt: f.updatedAt, folderPath: f.folderPath || [] }))
+        .map((f) => ({ id: f.id, name: f.name, mimeType: f.mimeType, uploadedBy: f.uploadedBy, updatedAt: f.updatedAt, folderPath: f.folderPath || [], thumbV: thumbVersion(f) }))
         .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
       : [];
     return { photos, unsorted, notes, progress: progressSummary(notes) };

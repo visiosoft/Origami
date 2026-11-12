@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
  * The browser's own loading="lazy" starts far too early (1,250-2,500 px ahead),
  * so a whole page of 50 photos was fetched at once.
  */
-export function LazyThumb({ src, alt = '', style, margin = '300px' }: { src: string; alt?: string; style?: React.CSSProperties; margin?: string }) {
+export function LazyThumb({ src, alt = '', style, margin = '300px', fallback }: { src: string; alt?: string; style?: React.CSSProperties; margin?: string; /** Tried once if `src` fails. */ fallback?: string }) {
   const ref = useRef<HTMLImageElement>(null);
   const [near, setNear] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -20,6 +20,7 @@ export function LazyThumb({ src, alt = '', style, margin = '300px' }: { src: str
   }, [near, margin]);
   return (
     <img ref={ref} src={near ? src : undefined} alt={alt} decoding="async" onLoad={() => setLoaded(true)}
+      onError={fallback ? (e) => { const img = e.currentTarget; if (!img.dataset.fb) { img.dataset.fb = '1'; img.src = fallback; } } : undefined}
       style={{ ...style, opacity: loaded ? 1 : 0, transition: 'opacity 160ms ease' }} />
   );
 }

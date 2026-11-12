@@ -5,9 +5,10 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { AkPage, AkSeg, AkStats, akToday } from '../components/ActionKit';
 import { Drawer } from '../components/manpowerUi';
-import { PROGRESS_STATUS, groupBy, photoDate, weekOf, type PhotoCategories, type PhotoTrack, type ProgressNote, type ProgressPhoto, type ProgressStatus, type ProgressSummary, type UnsortedPhoto } from '../data/progressPhotos';
+import { PROGRESS_STATUS, addedDay, groupBy, localDay, photoDate, weekOf, type PhotoCategories, type PhotoTrack, type ProgressNote, type ProgressPhoto, type ProgressStatus, type ProgressSummary, type UnsortedPhoto } from '../data/progressPhotos';
 import './ProgressPhotos.css';
 import { Skeleton } from '../components/Skeleton';
+import { LazyThumb } from '../components/LazyThumb';
 
 const PROJECT_KEY = 'origami.progressPhotos.project';
 const TRACKS: [PhotoTrack, string][] = [['construction', 'Construction'], ['design', 'Design']];
@@ -43,13 +44,14 @@ function MetaFields({ meta, set, cats, withDate }: { meta: Meta; set: (m: Meta) 
   );
 }
 
-function Tile({ id, title, sub, desc, flag, picked, onPick, onClick }: { id: string; title: string; sub?: string; desc?: string; flag?: string; picked?: boolean; onPick?: (v: boolean) => void; onClick: () => void }) {
+function Tile({ id, thumbV, title, sub, desc, flag, picked, onPick, onClick }: { id: string; thumbV?: string | null; title: string; sub?: string; desc?: string; flag?: string; picked?: boolean; onPick?: (v: boolean) => void; onClick: () => void }) {
   return (
     <button type="button" className={'pp-tile' + (picked ? ' is-picked' : '')} onClick={onClick} title={desc || title}>
       <span className="pp-tile-img">
-        {/* Drive makes thumbnails a few seconds after upload: until then, the photo itself. */}
-        <img src={api.progressPhotos.url(id, { thumb: true, size: 480 })} alt={desc || title} loading="lazy"
-          onError={(e) => { const img = e.currentTarget; if (!img.dataset.full) { img.dataset.full = '1'; img.src = api.progressPhotos.url(id); } }} />
+        {/* The saved small picture (Nov 10 sync), asked for only as it nears the screen; until it's made, Drive's thumbnail, then the photo itself. */}
+        {thumbV
+          ? <LazyThumb src={api.fileRoom.smallUrl(id, 'thumb', thumbV)} alt={desc || title} />
+          : <LazyThumb src={api.progressPhotos.url(id, { thumb: true, size: 480 })} alt={desc || title} fallback={api.progressPhotos.url(id)} />}
         {flag && <span className="pp-tile-flag">{flag}</span>}
         {onPick && <input type="checkbox" className="pp-tile-check" checked={!!picked} onClick={(e) => e.stopPropagation()} onChange={(e) => onPick(e.target.checked)} aria-label={`Select ${title}`} />}
       </span>
@@ -144,7 +146,7 @@ export function ProgressPhotos() {
   const current = index >= 0 ? shown[index] : null;
 
   const tile = (p: ProgressPhoto) => (
-    <Tile key={p.id} id={p.id} title={p.category} sub={[shortDay(p.takenOn), p.area].filter(Boolean).join(' · ')} desc={p.caption} flag={p.clientVisible ? 'Client' : undefined} onClick={() => setOpen(p.id)} />
+    <Tile key={p.id} id={p.id} thumbV={p.thumbV} title={p.category} sub={[shortDay(p.takenOn), addedDay(p) && `added ${shortDay(addedDay(p)!)}`, p.area].filter(Boolean).join(' · ')} desc={p.caption} flag={p.clientVisible ? 'Client' : undefined} onClick={() => setOpen(p.id)} />
   );
   const notes = (data?.notes || []).filter((n) => (track === 'all' || n.track === track) && (!category || n.category === category));
   const latestOf = (c: string) => data?.progress.latest.find((n) => n.category === c && (track === 'all' || n.track === track));
@@ -370,7 +372,7 @@ function Viewer({ photo, cats, canManage, onPrev, onNext, onClose, onChanged, on
   };
   return createPortal(
     <div className="pp-light" role="dialog" aria-label="Photo" onClick={onClose}>
-      <div className="pp-light-img" onClick={(e) => e.stopPropagation()}>
+      <div className="pp-light-img" onClick={(e) => e.stopPropagation()} style={photo.thumbV ? { background: `url("${api.fileRoom.smallUrl(photo.id, 'preview', photo.thumbV)}") center / contain no-repeat` } : undefined}>
         {/* A large JPEG preview shows any photo (iPhone HEIC too) and loads fast; the original if that fails. */}
         <img key={photo.id} src={api.progressPhotos.url(photo.id, { thumb: true, size: 1600 })} alt={photo.caption || photo.category}
           onError={(e) => { const img = e.currentTarget; if (!img.dataset.full) { img.dataset.full = '1'; img.src = api.progressPhotos.url(photo.id); } }} />
@@ -383,7 +385,7 @@ function Viewer({ photo, cats, canManage, onPrev, onNext, onClose, onChanged, on
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>{photo.category}</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)' }}>{day(photo.takenOn)}{photo.uploadedBy ? ` · added by ${photo.uploadedBy}` : ''}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>Taken {day(photo.takenOn)}{photo.uploadedAt ? ` · added ${day(localDay(photo.uploadedAt))}` : ''}{photo.uploadedBy ? ` by ${photo.uploadedBy}` : ''}</div>
           </div>
           <button type="button" className="ak-btn" style={{ height: 32 }} onClick={onClose} aria-label="Close">✕</button>
         </div>
@@ -427,7 +429,7 @@ function Unsorted({ rows, cats, onSorted }: { rows: UnsortedPhoto[]; cats: Photo
         </div>
       </section>
       <div className="pp-grid">
-        {rows.map((r) => <Tile key={r.id} id={r.id} title={r.name} sub={[r.updatedAt && shortDay(r.updatedAt.slice(0, 10)), r.folderPath.join(' / ')].filter(Boolean).join(' · ')} picked={picked.has(r.id)} onPick={(v) => toggle(r.id, v)} onClick={() => toggle(r.id, !picked.has(r.id))} />)}
+        {rows.map((r) => <Tile key={r.id} id={r.id} thumbV={r.thumbV} title={r.name} sub={[r.updatedAt && shortDay(r.updatedAt.slice(0, 10)), r.folderPath.join(' / ')].filter(Boolean).join(' · ')} picked={picked.has(r.id)} onPick={(v) => toggle(r.id, v)} onClick={() => toggle(r.id, !picked.has(r.id))} />)}
       </div>
     </div>
   );
@@ -450,7 +452,7 @@ function Compare({ photos, onOpen }: { photos: ProgressPhoto[]; onOpen: (id: str
         <b style={{ fontSize: 13, color: 'var(--ink)' }}>{label}</b>
         <select className="ak-select" value={d} onChange={(e) => set(e.target.value)} aria-label={`${label} date`}>{dates.map((x) => <option key={x} value={x}>{day(x)}</option>)}</select>
       </div>
-      <div className="pp-grid">{pool.filter((p) => p.takenOn === d).map((p) => <Tile key={p.id} id={p.id} title={p.caption || p.category} sub={p.area} onClick={() => onOpen(p.id)} />)}</div>
+      <div className="pp-grid">{pool.filter((p) => p.takenOn === d).map((p) => <Tile key={p.id} id={p.id} thumbV={p.thumbV} title={p.caption || p.category} sub={p.area} onClick={() => onOpen(p.id)} />)}</div>
     </section>
   );
   return (
