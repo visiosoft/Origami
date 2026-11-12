@@ -247,3 +247,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | N15 | Several markups / a whole layer → one RFI, task, change order or FOR RECORD item | ✅ |
 | N16 | ✎ Sketch: blank 11×17 sheet in the project's Sketches folder, opened in the markup viewer | ✅ |
 | N17 | PDF layer (OCG) toggles for heavy drawing sets | ⏸ later — only if large sets are still slow with the browser copy |
+| N18 | Faster markup drawing on busy sheets: the stroke / shape / drag under the pen is drawn on its own live layer (the viewer redraws once, when the pen lifts); pen lines simplified on save (within 0.6 px); zoom only redraws pins, links and measure labels; text on the sheet can't be selected (a selection cancelled the next shape) | ✅ — memoised side panels and a bitmap of other layers not needed after measuring |

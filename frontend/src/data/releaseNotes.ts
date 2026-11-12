@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-12e',
+    date: '2026-11-12',
+    title: 'Drawing markups is smoother on busy sheets',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'Pen lines, clouds, boxes and measurements follow the pen smoothly on sheets with hundreds of markups; moving or resizing a markup no longer redraws the whole sheet.', where: 'Drawing viewer' },
+      { area: 'Drawings', kind: 'improved', text: 'Pen lines are saved lighter (the same line with fewer points), so sheets stay quick as markups pile up.' },
+      { area: 'Drawings', kind: 'fixed', text: 'On a computer, a box or cloud could vanish while being drawn right after a pen line (the browser picked up the sheet’s label text). Fixed.' },
+    ],
+  },
+  {
     id: '2026-11-12d',
     date: '2026-11-12',
     title: 'Drawings: faster, sheet pictures, sketches, one RFI from many markups',
