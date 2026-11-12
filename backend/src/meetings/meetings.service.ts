@@ -87,8 +87,11 @@ export class MeetingsService implements OnApplicationBootstrap {
     const id = 'MTG-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
     const projectId = (dto as any).projectId == null ? null : Number((dto as any).projectId);
     const peers = (await this.repo.find()).filter((m) => (m.projectId ?? null) === projectId);
+    // The creator attends unless they said otherwise (Nov 10: their meetings vanished for them otherwise).
+    const attendees = Array.isArray((dto as any).attendees) ? [...(dto as any).attendees] : [];
+    if (actor.id && !attendees.some((a: any) => a?.id === actor.id)) attendees.push({ id: actor.id, name: actor.name });
     return this.repo.save(this.repo.create({
-      type: 'Internal', attendees: [], rfiIds: [], changeOrderIds: [], ...dto, title: dto.title!.trim(),
+      type: 'Internal', rfiIds: [], changeOrderIds: [], ...dto, attendees, title: dto.title!.trim(), createdById: actor.id || null,
       serial: nextSerial(peers.map((m) => m.serial), 'meeting', serialYear(now)),
       status: normalizeMeetingStatus(dto.status),
       id, createdBy: actor.name, createdAt: now, updatedAt: now,

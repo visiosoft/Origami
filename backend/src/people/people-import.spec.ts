@@ -52,9 +52,9 @@ describe('People import', () => {
   });
   it('reads Google and Outlook contact exports, with the kind picked on the page', () => {
     const [g] = planImport([{ 'First Name': 'Kai', 'Last Name': 'Lono', 'Organization Name': 'Kestrel Electric', 'Organization Title': 'Estimator', 'E-mail 1 - Value': 'kai@kestrel.test', 'Phone 1 - Value': '808 555 0199' }], existing, projects, { update: false, defaultKind: 'Consultant' });
-    // A consultant is a firm: the person becomes its primary contact.
-    expect(g).toMatchObject({ action: 'create', kind: 'Consultant', name: 'Kestrel Electric' });
-    expect(g.person).toMatchObject({ contact: 'Kai Lono', company: 'Kestrel Electric', role: 'Estimator', email: 'kai@kestrel.test', phone: '808 555 0199' });
+    // A consultant is a person with a company (Nov 10: the firm used to become the name).
+    expect(g).toMatchObject({ action: 'create', kind: 'Consultant', name: 'Kai Lono' });
+    expect(g.person).toMatchObject({ company: 'Kestrel Electric', role: 'Estimator', email: 'kai@kestrel.test', phone: '808 555 0199' });
     const [o] = planImport([{ 'First Name': 'Ivy', 'Last Name': 'Ng', 'Mobile Phone': '555', 'E-mail Address': 'ivy@x.test', 'Job Title': 'Owner' }], existing, projects, { update: false, defaultKind: 'Client' });
     expect(o.person).toMatchObject({ kind: 'Client', role: 'Owner', email: 'ivy@x.test' });
   });

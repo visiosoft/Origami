@@ -47,8 +47,8 @@ const linkOk = (u?: string) => !!u && /^https?:\/\//i.test(u.trim());
  * Complete by itself once everything raised in it is done. Past meetings
  * recorded only in the Special Actions Log (its meeting type and date) are listed too.
  */
-/** `projectName`: shown inside a project (its Special Actions tab) -- that project's only, no project picker. */
-export function Meetings({ projectName }: { projectName?: string } = {}) {
+/** `projectName`/`projectId`: shown inside a project (its Special Actions tab) -- that project's only, no project picker. */
+export function Meetings({ projectName, projectId }: { projectName?: string; projectId?: number } = {}) {
   const { can } = useApp();
   const [meetings, setMeetings] = useState<Meeting[] | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -79,7 +79,9 @@ export function Meetings({ projectName }: { projectName?: string } = {}) {
 
   const today = akToday();
   const items = useMemo<Item[]>(() => {
-    const out: Item[] = (meetings || []).filter((m) => !projectName || m.project === projectName).map((m) => ({
+    // In a project: matched by id (a renamed project kept its meetings hidden when matched by name), else by name.
+    const inProject = (m: Meeting) => (!projectName && projectId == null) || (projectId != null && m.projectId === projectId) || (!!projectName && m.project === projectName);
+    const out: Item[] = (meetings || []).filter(inProject).map((m) => ({
       key: m.id, kind: 'meeting', date: m.date, time: m.time, title: m.title, type: m.type, project: m.project, status: meetingStatus(m.status), meeting: m,
       actions: tasks.filter((t) => t.meetingId === m.id),
     }));
@@ -95,7 +97,7 @@ export function Meetings({ projectName }: { projectName?: string } = {}) {
       out.push({ key: 'legacy:' + k, kind: 'legacy', date: isoDay(md) || raisedOn(list[0]) || '', title: `${type} meeting${isoDay(md) ? '' : ' · ' + md}`, type, project: proj, status: 'legacy', actions: list });
     }
     return out;
-  }, [meetings, tasks, projectName]);
+  }, [meetings, tasks, projectName, projectId]);
 
   const real = items.filter((i) => i.kind === 'meeting');
   const isUpcoming = (i: Item) => i.kind === 'meeting' && isPlanned(i.status) && i.date >= today;
@@ -164,8 +166,10 @@ export function Meetings({ projectName }: { projectName?: string } = {}) {
         {meetings === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {meetings && !shown.length && (
           <div className="ak-empty">
-            {view === 'upcoming' && status === 'all' ? 'Nothing scheduled.' : 'No meetings here.'}
-            {canEdit && <> <button type="button" className="ak-link" onClick={() => setOpenKey('new')}>Schedule one</button></>}
+            {view === 'upcoming' && status === 'all' ? 'Nothing coming up.' : 'No meetings here.'}
+            {/* Nov 10: meetings that already happened (or are still marked Scheduled with a past date) live under Past -- say so. */}
+            {view === 'upcoming' && real.length > 0 && <> <button type="button" className="ak-link" onClick={() => setView('all')}>Show all {real.length} meeting{real.length === 1 ? '' : 's'}</button></>}
+            {canEdit && <> · <button type="button" className="ak-link" onClick={() => setOpenKey('new')}>Schedule one</button></>}
           </div>
         )}
         {sorted.map((i, n) => {

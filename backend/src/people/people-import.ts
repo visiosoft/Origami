@@ -37,7 +37,8 @@ const KIND_ALIASES: Record<string, string> = {
   authority: 'Authority', city: 'Authority', inspector: 'Authority', agency: 'Authority',
   staff: 'Staff', employee: 'Staff', internal: 'Staff',
 };
-const COMPANY_KINDS = ['Consultant', 'Sub', 'Vendor', 'Authority'];
+/** Firms (the name is the company). Consultants are people with a company (Nov 10). */
+const COMPANY_KINDS = ['Sub', 'Vendor', 'Authority'];
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 const clean = (v: unknown) => String(v ?? '').replace(/\s+/g, ' ').trim();
 

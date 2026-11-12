@@ -16,6 +16,19 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-12a',
+    date: '2026-11-12',
+    title: 'Fixes from the Nov 10 sync',
+    items: [
+      { area: 'Photos', kind: 'fixed', text: 'Marking up a photo no longer freezes phones and iPads: it opens from a 2400 px copy instead of the full 12–48 MP original. Esc closes it, and on a phone the photo viewer has a ✕ on the photo itself.' },
+      { area: 'Meetings', kind: 'fixed', text: 'Meetings you create are always yours to see (you’re added as an attendee). A project’s Meetings tab finds its meetings even after the project is renamed, and “Nothing coming up” offers “Show all” for meetings already held.' },
+      { area: 'People', kind: 'fixed', text: 'Adding a consultant asks for their first and last name (and their firm), instead of saving the firm as their name.' },
+      { area: 'Tasks', kind: 'fixed', text: 'A task moved on the board while its panel is open no longer jumps back to its old status.' },
+      { area: 'Branding', kind: 'fixed', text: 'The logo and name from Settings → Branding now show in the app itself, and documents and emails use the same fallback name and colour.' },
+      { area: 'Cost codes', kind: 'fixed', text: 'A CSI code added in Settings shows up at once in every picker and in Estimating, without reloading. Editing codes follows the same rights as the server.' },
+    ],
+  },
+  {
     id: '2026-11-05b',
     date: '2026-11-05',
     title: 'Meeting notes from Google: easier to find',

@@ -335,6 +335,8 @@ export class MeetingEntity {
   @Column({ nullable: true }) reviewedBy!: string;
   @Column({ nullable: true }) reviewedAt!: string;
   @Column({ nullable: true }) createdBy!: string;
+  /** Who created it (Nov 10): they always see it, project or not. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) createdById!: string | null;
   @Column() createdAt!: string;
   @Column({ nullable: true }) updatedAt!: string;
 }

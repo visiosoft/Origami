@@ -31,6 +31,12 @@ import { Skeleton } from '../components/Skeleton';
 const BG = 'var(--font-display)';
 // Internal people are split by level (Executive … Labor); everyone else by kind.
 const KINDS = ['All', ...INTERNAL_LEVELS, 'Client', 'Consultant', 'Sub', 'Authority', 'Vendor'];
+/**
+ * Entries that are a firm (the name is the company, the person is the primary contact).
+ * Consultants are people (Nov 10: adding one saved the firm as their name): first and last
+ * name, with the firm as their company.
+ */
+const COMPANY_KINDS = ['Sub', 'Authority', 'Vendor'];
 const isLevel = (k: string) => (INTERNAL_LEVELS as readonly string[]).includes(k);
 const matchKind = (p: Person, k: string) => k === 'All' || (isLevel(k) ? internalLevelOf(p) === k : p.kind === k);
 const kindLabel = (k: string) => (k === 'Sub' ? 'Subs' : k);
@@ -344,7 +350,7 @@ export function People() {
     const [contactFirst, contactLast] = splitName(p.contact || '');
     const prof = normalizeProfile(p as any);
     // Older records hold one name: split it so first and last can be edited.
-    if (!['Consultant', 'Sub', 'Authority', 'Vendor'].includes(p.kind) && !prof.firstName && !prof.lastName) [prof.firstName, prof.lastName] = splitName(p.name);
+    if (!COMPANY_KINDS.includes(p.kind) && !prof.firstName && !prof.lastName) [prof.firstName, prof.lastName] = splitName(p.name);
     startPersonForm({
       name: p.name, kind: p.kind, role: p.role, company: p.company, contact: p.contact || '', contactFirst, contactLast,
       phone: p.phone === '—' ? '' : p.phone, email: p.email === '—' ? '' : p.email, tier: p.tier,
@@ -503,7 +509,7 @@ export function People() {
   );
 
   const tierFor: Record<string, Person['tier']> = { Staff: 'Internal', Client: 'Client', Consultant: 'Consultant', Sub: 'Consultant', Authority: 'Consultant', Vendor: 'Consultant' };
-  const isCompany = ['Consultant', 'Sub', 'Authority', 'Vendor'].includes(np.kind);
+  const isCompany = COMPANY_KINDS.includes(np.kind);
   const companyNames = [...new Set(all.map((p) => p.company).filter((c) => c && c !== '—'))].sort((a, b) => a.localeCompare(b));
   const needsComply = ['Consultant', 'Sub', 'Vendor'].includes(np.kind);
   const valid = np.name.trim().length > 1;
@@ -826,8 +832,11 @@ export function People() {
               </>}
               {isCompany
                 ? <div>{lbl(np.kind === 'Sub' || np.kind === 'Vendor' ? 'Trade' : 'Discipline')}<PickOrType value={np.role} options={np.kind === 'Sub' || np.kind === 'Vendor' ? tradeNames : CONSULTANT_DISCIPLINES} placeholder="Type the trade" onChange={(role) => setNp({ ...np, role })} /></div>
-                : field('Role or title', 'role', 'e.g. Project Coordinator')}
-              <div>{lbl('Company shown in lists', isCompany ? 'same as above if left blank' : undefined)}<PickOrType value={np.company} options={companyNames} placeholder={isCompany ? 'Same as above if left blank' : 'e.g. Origami Design + Build'} newLabel="+ New company…" onChange={(company) => setNp({ ...np, company })} /></div>
+                : np.kind === 'Consultant'
+                  // A consultant is a person now (Nov 10), still with their discipline.
+                  ? <div>{lbl('Discipline')}<PickOrType value={np.role} options={CONSULTANT_DISCIPLINES} placeholder="e.g. Structural engineer" onChange={(role) => setNp({ ...np, role })} /></div>
+                  : field('Role or title', 'role', 'e.g. Project Coordinator')}
+              <div>{lbl(np.kind === 'Consultant' ? 'Firm' : 'Company shown in lists', isCompany ? 'same as above if left blank' : undefined)}<PickOrType value={np.company} options={companyNames} placeholder={isCompany ? 'Same as above if left blank' : 'e.g. Origami Design + Build'} newLabel="+ New company…" onChange={(company) => setNp({ ...np, company })} /></div>
               {isCompany && <>
                 <div>{lbl('Primary contact · first name')}<input value={np.contactFirst ?? splitName(np.contact)[0]} placeholder="e.g. Dana" aria-label="Primary contact first name" onChange={(e) => setNp({ ...np, contactFirst: e.target.value, contactLast: np.contactLast ?? splitName(np.contact)[1] })} style={textBox} /></div>
                 <div>{lbl('Primary contact · last name')}<input value={np.contactLast ?? splitName(np.contact)[1]} placeholder="e.g. Whitfield" aria-label="Primary contact last name" onChange={(e) => setNp({ ...np, contactLast: e.target.value, contactFirst: np.contactFirst ?? splitName(np.contact)[0] })} style={textBox} /></div>

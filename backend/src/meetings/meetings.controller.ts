@@ -19,7 +19,10 @@ export class MeetingsController {
   private async mine<T extends { projectId?: number | null; attendees?: { id?: string; name?: string }[] | null }>(rows: T[], claims: SessionClaims | null) {
     const ids = await this.access.allowedIds(claims);
     if (ids === 'all') return rows;
-    return rows.filter((m) => (m.projectId != null ? ids.has(Number(m.projectId)) : (m.attendees || []).some((a) => a?.id === claims?.sub)));
+    // Their projects' meetings; others only if they attend or created them.
+    return rows.filter((m) => (m.projectId != null && ids.has(Number(m.projectId)))
+      || (m.attendees || []).some((a) => a?.id === claims?.sub)
+      || (!!claims?.sub && (m as { createdById?: string | null }).createdById === claims.sub));
   }
 
   @Get() async list(@Claims() claims: SessionClaims | null) { return this.mine(await this.service.list(), claims); }

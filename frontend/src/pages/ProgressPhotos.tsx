@@ -374,6 +374,8 @@ function Viewer({ photo, cats, canManage, onPrev, onNext, onClose, onChanged, on
         {/* A large JPEG preview shows any photo (iPhone HEIC too) and loads fast; the original if that fails. */}
         <img key={photo.id} src={api.progressPhotos.url(photo.id, { thumb: true, size: 1600 })} alt={photo.caption || photo.category}
           onError={(e) => { const img = e.currentTarget; if (!img.dataset.full) { img.dataset.full = '1'; img.src = api.progressPhotos.url(photo.id); } }} />
+        {/* On a phone the side panel is below the photo: a close button on the photo itself. */}
+        <button type="button" className="pp-light-x" onClick={onClose} aria-label="Close">✕</button>
         {onPrev && <button type="button" className="pp-light-nav is-prev" onClick={onPrev} aria-label="Previous photo">‹</button>}
         {onNext && <button type="button" className="pp-light-nav is-next" onClick={onNext} aria-label="Next photo">›</button>}
       </div>

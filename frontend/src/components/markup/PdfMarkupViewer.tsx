@@ -224,10 +224,17 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     setSheetsLoaded(false);
     api.fileRoom.symbols().then((list) => { if (live) setSymbols(Array.isArray(list) ? list : []); }).catch(() => undefined);
     api.fileRoom.sheets(file.id).then((n) => { if (live) { setSheets(n || {}); setSheetsLoaded(true); } }).catch(() => { if (live) { setSheets({}); setSheetsLoaded(true); } });
-    Promise.all([loadPdfjs(), api.fileRoom.bytes(file.id), api.fileRoom.markups(file.id)])
+    // Photos open from a 2400 px copy: markups are stored in page units, so they land in the same place.
+    const photo = isPhotoFile(file);
+    Promise.all([loadPdfjs(), photo ? api.fileRoom.photoBytes(file.id).catch(() => api.fileRoom.bytes(file.id)) : api.fileRoom.bytes(file.id), api.fileRoom.markups(file.id)])
       .then(async ([lib, bytes, list]) => {
         let d: PdfDoc;
-        if (isPhotoFile(file)) { const ph = await photoDoc(bytes); loading = ph; d = ph; }
+        if (photo) {
+          const ph = await photoDoc(bytes);
+          // Closed while it was decoding: let the bitmap go now, or it stays in memory.
+          if (!live) { void ph.destroy(); return; }
+          loading = ph; d = ph;
+        }
         else {
           const task = lib.getDocument({ data: new Uint8Array(bytes) });
           loading = task;
@@ -520,8 +527,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       const typing = (e.target as HTMLElement)?.closest?.('input, textarea, select');
       if (typing) return;
       if (e.key === ' ') { setSpaceDown(true); e.preventDefault(); }
-      // Esc backs out one step at a time; it never closes the drawing.
-      if (e.key === 'Escape') { if (photoView) setPhotoView(null); else if (ask) setAsk(null); else if (draft) setDraft(null); else if (comparePick) setComparePick(false); else if (compare) setCompare(null); else if (search) setSearch(null); else if (selectedId) setSelectedId(null); }
+      // Esc backs out one step at a time; it never closes a drawing, but with nothing left open it closes a photo (Nov 10).
+      if (e.key === 'Escape') { if (photoView) setPhotoView(null); else if (ask) setAsk(null); else if (draft) setDraft(null); else if (comparePick) setComparePick(false); else if (compare) setCompare(null); else if (search) setSearch(null); else if (selectedId) setSelectedId(null); else if (isPhotoFile(file)) close(); }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected && mine(selected)) { e.preventDefault(); void removeMarkup(selected); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); void step(!e.shiftKey); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c' && selected) { e.preventDefault(); copyMarkup(selected); }

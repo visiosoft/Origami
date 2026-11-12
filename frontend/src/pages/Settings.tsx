@@ -85,7 +85,8 @@ export function Settings() {
   );
   const [theme] = useTheme();
   if (theme === 'coterie') {
-    const canCodes = can('settings', 'manage') || can('manpower_con', 'manage');
+    // The same rights the server checks (Nov 10: settings-only managers saw an editable form and got refused).
+    const canCodes = can('manpower_con', 'manage') || can('fin_resources', 'manage');
     const sections: SettingsSection[] = [
       { key: 'notifications', tab: 'account', label: 'Notifications', hint: 'What we email or text you', render: () => <NotificationSettings /> },
       { key: 'my-calendar', tab: 'account', label: 'My Calendar', hint: 'Your Google Calendar', render: () => <MyCalendarSettings /> },

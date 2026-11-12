@@ -225,3 +225,14 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 |---|---|---|
 | M1 | “Import from Google” not visible: it was only inside a meeting's review (after marking it Occurred, on the Notes tab, below the fold). Now: a button at the top of Meetings listing recent Gemini notes (creates the meeting when it isn't in Origami), and a button on every meeting; imported notes open the review on the Notes tab | ✅ |
 | M2 | Demo videos with voice: Estimating, Meeting notes from Google | ✅ (sent in chat) |
+
+## N. Nov 10 sync (Weekly Sync – Ehsan + Origami DB)
+
+| # | Item | Status |
+|---|---|---|
+| N1 | Photo markup freeze / can't close: 2400 px copy instead of full original, bitmap freed if closed while loading, Esc closes, ✕ on the Progress Photos lightbox on phones | ✅ |
+| N2 | Meetings missing: creator becomes attendee + always sees it; project tab by projectId; "Show all" when nothing upcoming | ✅ |
+| N3 | Consultant contact saved firm as name: consultants are people (first/last + firm + discipline) in form, card scan, import | ✅ (existing records: fix-up offered separately) |
+| N4 | Task status jumping Assigned ↔ In progress: open panel rebases on outside changes; sectionId no longer saved from the panel | ✅ (confirm with Andrea's video) |
+| N5 | Branding in the app: public /brand, AppShell/sign-in logo from Settings, one fallback name/colour | ✅ |
+| N6 | CSI codes appear everywhere at once; edit rights match the server | ✅ |

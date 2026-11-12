@@ -65,7 +65,8 @@ function PriorityPill({ p }: { p?: Priority }) {
  * since the drawer resolves its task out of `tasks`.
  */
 /** The fields the task panel edits; they autosave together. */
-const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels', 'tags', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy'];
+/** `sectionId` isn't here: the server sets the column from the status (Nov 10). */
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'description', 'checklist', 'labels', 'tags', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy'];
 
 /** "Q3 PRD draft" -> "QP": the card's tile. */
 const initialsOf = (title: string) => {

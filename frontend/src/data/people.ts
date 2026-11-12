@@ -136,7 +136,8 @@ export interface DupMatch {
 
 export interface FormerCompany { company: string; personId?: number | null; role?: string | null; until?: string | null }
 
-const COMPANY_KINDS = ['Consultant', 'Sub', 'Authority', 'Vendor'];
+/** Firms. Consultants are people with a company (Nov 10). */
+const COMPANY_KINDS = ['Sub', 'Authority', 'Vendor'];
 /** The company a record stands for: a firm's own name, or the company a person works at. */
 export const companyOf = (p: Pick<Person, 'kind' | 'name' | 'company'>) => (COMPANY_KINDS.includes(p.kind) ? p.name : p.company || '').trim();
 

@@ -2,7 +2,28 @@
 // (place the file in frontend/public/). If that asset is missing it falls back
 // to a self-contained inline SVG lockup so the UI never renders broken.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+/** The workspace's own branding (Settings -> Branding), for the app and the sign-in screen (Nov 10). */
+export interface AppBrand { companyName: string; tagline: string | null; logoDataUrl: string | null; accentColor: string }
+let brandCache: Promise<AppBrand | null> | null = null;
+export function loadBrand(): Promise<AppBrand | null> {
+  if (!brandCache) brandCache = fetch('/api/brand').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  return brandCache;
+}
+/** After Settings -> Branding is saved: show the new logo and name without a reload. */
+export function refreshBrand() { brandCache = null; window.dispatchEvent(new Event('brand-changed')); }
+export function useBrand(): AppBrand | null {
+  const [b, setB] = useState<AppBrand | null>(null);
+  useEffect(() => {
+    let live = true;
+    const load = () => void loadBrand().then((x) => { if (live) setB(x); });
+    load();
+    window.addEventListener('brand-changed', load);
+    return () => { live = false; window.removeEventListener('brand-changed', load); };
+  }, []);
+  return b;
+}
 
 const BG = "'Bricolage Grotesque', serif";
 
@@ -33,6 +54,11 @@ function FallbackLockup({ markSize = 30 }: { markSize?: number }) {
 /** Full lockup: the supplied raster logo, or the inline SVG fallback. */
 export function Logo({ markSize = 30 }: { markSize?: number }) {
   const [failed, setFailed] = useState(false);
+  const brand = useBrand();
+  // The logo uploaded in Settings -> Branding wins; then the bundled one; then the drawn lockup.
+  if (brand?.logoDataUrl) {
+    return <img src={brand.logoDataUrl} alt={brand.companyName} style={{ height: Math.round(markSize * 1.5), width: 'auto', maxWidth: '100%', display: 'block', objectFit: 'contain' }} />;
+  }
   if (failed) return <FallbackLockup markSize={markSize} />;
   return (
     <img

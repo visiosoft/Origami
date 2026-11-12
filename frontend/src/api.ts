@@ -924,6 +924,8 @@ export const api = {
       request<{ added: number; updated: number; removed: number; folders: number; syncedAt?: string }>(`/file-room/sync?projectId=${projectId}`, { method: 'POST' }),
     /** The PDF itself, for the markup viewer. */
     bytes: (id: string) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/content`),
+    /** A photo for marking up (Nov 10): Drive's JPEG at up to 2400 px instead of the 12-48 MP original, which froze phones. */
+    photoBytes: (id: string) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/content?thumb=1&size=2400`),
     markups: (id: string) => request<Markup[]>(`/file-room/files/${encodeURIComponent(id)}/markups`),
     addMarkup: (id: string, m: Pick<Markup, 'kind' | 'page' | 'data' | 'private'> & { layer?: string | null }) => request<Markup>(`/file-room/files/${encodeURIComponent(id)}/markups`, { method: 'POST', body: JSON.stringify(m) }),
     editMarkup: (mid: string, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer' | 'linkType' | 'linkId'>>) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'PUT', body: JSON.stringify(patch) }),

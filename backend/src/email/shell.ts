@@ -19,7 +19,7 @@ export interface EmailBrand {
 export async function loadEmailBrand(settings: SettingsService): Promise<EmailBrand> {
   const brand = brandingFrom(await settings.getMany(BRAND_KEYS));
   return {
-    companyName: brand.companyName || 'Origami Design + Build',
+    companyName: brand.companyName,
     // Guard the colour: it lands in a style attribute, and a hex check is
     // simpler than trusting whatever a settings field happens to hold.
     accent: /^#[0-9a-f]{6}$/i.test(brand.accentColor) ? brand.accentColor : '#173326',
