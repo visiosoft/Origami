@@ -235,8 +235,10 @@ export class FileRoomController {
   /** Files emailed from the File Room: for a project (?projectId=) or one file (?fileId=). */
   @Tiers('internal')
   @Get('shares')
-  shareHistory(@Query('projectId') projectId?: string, @Query('fileId') fileId?: string) {
-    return this.service.shareHistory({ projectId: projectId ? Number(projectId) : undefined, fileId: fileId || undefined });
+  async shareHistory(@Query('projectId') projectId?: string, @Query('fileId') fileId?: string, @Claims() claims?: SessionClaims | null) {
+    if (projectId) await this.access.assert(claims ?? null, Number(projectId));
+    const rows = await this.service.shareHistory({ projectId: projectId ? Number(projectId) : undefined, fileId: fileId || undefined });
+    return Array.isArray(rows) ? this.access.filter(claims ?? null, rows as any[], (r: any) => r.projectId) : rows;
   }
 
   /** View links for several files. */

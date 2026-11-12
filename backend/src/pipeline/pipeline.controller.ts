@@ -1,16 +1,18 @@
 import { ProjectAccessService } from '../auth/project-access.service';
 import { Claims } from '../auth/guards/claims.decorator';
 import type { SessionClaims } from '../auth/crypto.util';
-import { ForbiddenException, Controller, Get, Post, Put, Delete, Param, Body, Query, Headers } from '@nestjs/common';
+import { ForbiddenException, Controller, Get, Post, Put, Delete, Param, Body, Query, Headers, UseInterceptors } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { PipelineService, type FollowUpInput } from './pipeline.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateDealDto } from './dto/create-deal.dto';
 import { Perm, ManageWrites } from '../auth/guards/perm.guard';
+import { ClientContactScope } from '../auth/client-contact.interceptor';
 
 @Tiers('internal')
 @Perm('pipeline', 'crm_holding')
 @ManageWrites('pipeline', 'crm_holding')
+@UseInterceptors(ClientContactScope)
 @Controller('pipeline')
 export class PipelineController {
   constructor(

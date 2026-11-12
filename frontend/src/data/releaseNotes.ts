@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-12b',
+    date: '2026-11-12',
+    title: 'Tighter access for site roles; Cancelled projects',
+    items: [
+      { area: 'Access', kind: 'fixed', text: 'Superintendents, foremen and labour reach only their own projects everywhere: project changes, daily logs, the program, project history, lead files, columns, crew assignments, workflows, guest links, File Room share history and project texts.' },
+      { area: 'Access', kind: 'fixed', text: 'Below internal level 2, clients’ phone numbers, emails and addresses are hidden in People and the CRM, contacts outside your projects can’t be opened, and company-wide dashboard figures aren’t shown.' },
+      { area: 'Access', kind: 'improved', text: 'The contract amount on projects shows only to roles that see project financials.' },
+      { area: 'Projects', kind: 'new', text: 'A “Cancelled” stage for projects that won’t go ahead. Closed and Cancelled projects — and Cold/Lost and Cancelled/Pass leads in the CRM — are hidden unless “Show closed & cancelled” is on.' },
+    ],
+  },
+  {
     id: '2026-11-12a',
     date: '2026-11-12',
     title: 'Fixes from the Nov 10 sync',

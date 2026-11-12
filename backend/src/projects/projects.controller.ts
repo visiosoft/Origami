@@ -16,7 +16,10 @@ export class ProjectsController {
 
   @Get()
   async findAll(@Claims() claims: SessionClaims | null) {
-    return this.access.filter(claims, await this.projectsService.findAll(), (p: any) => p.id);
+    const rows = await this.access.filter(claims, await this.projectsService.findAll(), (p: any) => p.id);
+    // The contract amount is a financial figure (Nov 10): only for roles that see project financials.
+    if (await this.access.canView(claims, 'fin_project', 'fin_business')) return rows;
+    return rows.map((p: any) => ({ ...p, contractAmt: null }));
   }
 
   @Get(':id')
@@ -33,13 +36,16 @@ export class ProjectsController {
 
   @Tiers('internal')
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: Partial<CreateProjectDto>, @Claims() claims: SessionClaims | null) {
+  async update(@Param('id') id: string, @Body() dto: Partial<CreateProjectDto>, @Claims() claims: SessionClaims | null) {
+    // Only a project the caller may see (Nov 10: any staff member could change any project).
+    await this.access.assert(claims, Number(id));
     return this.projectsService.update(id, dto, { id: claims?.sub });
   }
 
   @Tiers('internal')
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Claims() claims: SessionClaims | null) {
+    await this.access.assert(claims, Number(id));
     return this.projectsService.remove(id);
   }
 }

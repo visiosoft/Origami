@@ -22,7 +22,7 @@ export interface Project {
   estStart: string;
   duration: string;
   scope: string;
-  stage: 'Kickoff' | 'Design' | 'Construction' | 'Closeout';
+  stage: 'Kickoff' | 'Design' | 'Construction' | 'Closeout' | 'Cancelled';
   progress: number;
   referral: string;
   contactedBy: string;
@@ -67,7 +67,11 @@ export const STAGE_CONFIG = [
   { name: 'Design', label: 'Design', color: 'var(--c-245c3a)' },
   { name: 'Construction', label: 'Construction', color: 'var(--forest)' },
   { name: 'Closeout', label: 'Closed', color: 'var(--sidebar)' },
+  // Nov 10 sync: projects that won't go ahead. Closed and Cancelled are hidden unless asked for.
+  { name: 'Cancelled', label: 'Cancelled', color: 'var(--muted)' },
 ] as const;
+/** Stages that are over: hidden from the board and lists by default. */
+export const ENDED_STAGES: readonly string[] = ['Closeout', 'Cancelled'];
 
 /** The name shown for a stored project stage. */
 export const stageLabel = (stage?: string) => STAGE_CONFIG.find((s) => s.name === stage)?.label || stage || '';

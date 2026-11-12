@@ -10,6 +10,7 @@ import { LeadFilesService } from './lead-files.service';
 import { ClientWelcomeService } from './client-welcome.service';
 import { AllFilesService } from './all-files.service';
 import { Perm, ManageWrites } from '../auth/guards/perm.guard';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
 /**
  * A lead's files, on the routes the shared Attachments component uses
@@ -19,6 +20,7 @@ import { Perm, ManageWrites } from '../auth/guards/perm.guard';
 @Tiers('internal')
 @Perm('pipeline', 'crm_holding')
 @ManageWrites('pipeline', 'crm_holding')
+@UseInterceptors(ProjectScope)
 @Controller('lead-files')
 export class LeadFilesController {
   constructor(

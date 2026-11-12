@@ -1,12 +1,14 @@
-import { Controller, Get, Post, Put, Delete, Param, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseInterceptors } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { WorkflowsService } from './workflows.service';
 import { WorkflowItemsService } from './workflow-items.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { Perm } from '../auth/guards/perm.guard';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
 @Tiers('internal')
 @Perm('design', 'pm', 'projects')
+@UseInterceptors(ProjectScope)
 @Controller('workflows')
 export class WorkflowsController {
   constructor(

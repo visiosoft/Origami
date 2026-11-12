@@ -1,4 +1,4 @@
-import { Optional, Body, Controller, ForbiddenException, Get, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
+import { Optional, Body, Controller, ForbiddenException, Get, Param, Post, Put, Query, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Response } from 'express';
 import { ProjectProgramService, type ProgramActor } from './project-program.service';
 import { Tiers } from '../auth/guards/roles.decorator';
@@ -11,6 +11,7 @@ import { FileRoomService } from '../file-room/file-room.service';
 import type { AuthedRequest } from '../auth/guards/session.guard';
 import { assertFilled } from '../email-templates/placeholders';
 import { Perm } from '../auth/guards/perm.guard';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
 /** Who did it, off the verified session -- never off anything the client claims. */
 const actorFrom = (req: AuthedRequest): ProgramActor => ({ id: req.claims?.sub, name: req.claims?.name });
@@ -26,6 +27,7 @@ interface DocumentInput {
 
 @Tiers('internal')
 @Perm('pipeline', 'projects', 'design')
+@UseInterceptors(ProjectScope)
 @Controller('project-program')
 export class ProjectProgramController {
   constructor(

@@ -5,11 +5,13 @@ import { SmsLogService, type TextInput } from './sms-log.service';
 import { SmsService } from './sms.service';
 import { Roles, Tiers } from '../auth/guards/roles.decorator';
 import { assertFilled } from '../email-templates/placeholders';
+import { ForbiddenException } from '@nestjs/common';
+import { ProjectAccessService } from '../auth/project-access.service';
 
 @Tiers('internal')
 @Controller('sms')
 export class SmsController {
-  constructor(private readonly sms: SmsService, private readonly texts: SmsLogService) {}
+  constructor(private readonly sms: SmsService, private readonly texts: SmsLogService, private readonly access: ProjectAccessService) {}
 
   /** Whether SMS is set up, without returning the auth token. */
   @Get('status')
@@ -26,7 +28,10 @@ export class SmsController {
 
   /** The texts sent from one lead, contact or project. */
   @Get('messages')
-  messages(@Query('entityType') entityType: string, @Query('entityId') entityId: string) {
+  async messages(@Query('entityType') entityType: string, @Query('entityId') entityId: string, @Claims() claims?: SessionClaims | null) {
+    // Texts carry clients' numbers (Nov 10): a project's for its team; a lead's or contact's only above field roles.
+    if (entityType === 'project') await this.access.assert(claims ?? null, Number(entityId));
+    else if (!this.access.seesClientContacts(claims ?? null)) throw new ForbiddenException('Texts with clients are kept with the office.');
     return this.texts.list(String(entityType || ''), String(entityId || ''));
   }
 

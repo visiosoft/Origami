@@ -14,12 +14,14 @@ import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES } from '../google/attachments.service';
 import { Perm, ManageWrites } from '../auth/guards/perm.guard';
 import { ProjectAccessService } from '../auth/project-access.service';
+import { PersonScope } from './person-scope.interceptor';
 
 const INTERNAL_KINDS = /^(staff|executive|super|foreman|labou?r|internal)$/i;
 
 @Tiers('internal')
 @Perm('people')
 @ManageWrites('people')
+@UseInterceptors(PersonScope)
 @Controller('people')
 export class PeopleController {
   constructor(

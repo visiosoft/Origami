@@ -1,9 +1,10 @@
 import { ManageWrites } from '../auth/guards/perm.guard';
-import { Body, Controller, Get, Headers, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Put, Query, UseInterceptors } from '@nestjs/common';
 import { IsArray, IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { AuthService } from '../auth/auth.service';
 import { AssignmentsService } from './assignments.service';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
 export class AssignDto {
   @IsArray() employeeIds: string[];
@@ -43,6 +44,7 @@ export class UpdateAssignmentDto {
 
 @Tiers('internal')
 @ManageWrites('manpower_con', 'fin_resources')
+@UseInterceptors(ProjectScope)
 @Controller('assignments')
 export class AssignmentsController {
   constructor(

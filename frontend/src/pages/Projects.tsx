@@ -39,7 +39,7 @@ import { OriginatorLine } from '../components/ActionTools';
 import { askHoldReason } from '../components/CompletionNote';
 import { LABOR_TYPES, PRICING_TYPES } from '../data/projectTypes';
 import { useApp } from '../AppContext';
-import { STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
+import { ENDED_STAGES, STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
 import { mergeTokens } from '../data/clientPersonality';
 import { asHtml } from '../data/templateHtml';
 import { useCompanyTokens } from '../data/companyTokens';
@@ -52,7 +52,8 @@ const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slic
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 const PRIORITIES = ['High', 'Medium', 'Low'];
 const TASK_PRIORITIES: Priority[] = PRIORITY_ORDER;
-const STAGES = ['Kickoff', 'Design', 'Construction', 'Closeout'];
+const STAGES = ['Kickoff', 'Design', 'Construction', 'Closeout', 'Cancelled'];
+const SHOW_ENDED_KEY = 'origami.projects.showEnded';
 /** "LS — Lump sum", or — when unset. */
 const codeLabel = (list: readonly { code: string; label: string }[], v?: string | null) => (v ? `${v} — ${list.find((o) => o.code === v)?.label || v}` : '—');
 
@@ -144,6 +145,7 @@ export function Projects() {
   };
   const distinctValues = (key: 'priority' | 'contractType' | 'typeOfWork' | 'contactedBy') =>
     Array.from(new Set(projects.map((p) => p[key]).filter(Boolean))).sort();
+  const [showEnded, setShowEnded] = useState(() => { try { return localStorage.getItem(SHOW_ENDED_KEY) === '1'; } catch { return false; } });
   const filtersActive = JSON.stringify({ ...filters, hold: filters.hold || undefined }) !== JSON.stringify(BLANK_FILTERS);
   // Which project's hold form is open (drawer).
   const [holdFormFor, setHoldFormFor] = useState<number | null>(null);
@@ -639,6 +641,11 @@ export function Projects() {
             <span onClick={(e) => { e.stopPropagation(); deleteView(v.name); }} style={{ opacity: 0.6 }}>×</span>
           </div>
         ))}
+        <div onClick={() => setShowEnded((v) => { const n = !v; try { localStorage.setItem(SHOW_ENDED_KEY, n ? '1' : ''); } catch { /* private mode */ } return n; })}
+          title="Closed and cancelled projects are hidden unless this is on"
+          style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: showEnded ? 'var(--ink)' : 'var(--surface)', color: showEnded ? 'white' : 'var(--muted)' }}>
+          {showEnded ? '✓ ' : ''}Show closed & cancelled
+        </div>
         {filtersActive && (
           <div onClick={saveCurrentView} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', border: '1px dashed rgba(var(--rgb-shade), 0.2)', color: 'var(--forest)', cursor: 'pointer' }}>
             + Save this view
@@ -649,7 +656,7 @@ export function Projects() {
       {/* Pipeline columns */}
       {isNew ? (
         <div className="pc-board">
-          {STAGE_CONFIG.map((st, si) => {
+          {STAGE_CONFIG.filter((st) => showEnded || !ENDED_STAGES.includes(st.name)).map((st, si) => {
             const stageProjects = projects.filter((p) => p.stage === st.name && matchesFilters(p));
             return (
               <div key={st.name} className="pc-col">
@@ -685,7 +692,7 @@ export function Projects() {
         </div>
       ) : (
       <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
-        {STAGE_CONFIG.map((st) => {
+        {STAGE_CONFIG.filter((st) => showEnded || !ENDED_STAGES.includes(st.name)).map((st) => {
           const stageProjects = projects.filter((p) => p.stage === st.name && matchesFilters(p));
           return (
             <div key={st.name} style={{ flex: '0 0 280px' }}>

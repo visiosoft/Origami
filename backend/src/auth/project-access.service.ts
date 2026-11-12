@@ -95,6 +95,17 @@ export class ProjectAccessService {
   }
 
   /** True for staff (and administrators, whatever their tier). */
+  /**
+   * Client phone numbers, emails and addresses (Nov 10, PEOPLE ACCESS sheet):
+   * not below internal level 2 -- superintendents, foremen and labour work
+   * through the office, not with the client directly.
+   */
+  seesClientContacts(claims: SessionClaims | null): boolean {
+    if (!claims) return false;
+    if (claims.roleKey === 'admin') return true;
+    return this.isStaff(claims) && !FIELD_ROLE.test(String(claims.roleKey || ''));
+  }
+
   isStaff(claims: SessionClaims | null) {
     return !!claims && (claims.roleKey === 'admin' || (claims.tier === 'internal' && claims.roleKey !== PORTAL_ROLE));
   }
