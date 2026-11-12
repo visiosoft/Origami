@@ -365,9 +365,10 @@ function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData, sh
     for (const line of stampStrokes(d.icon || 'check', d.points[0], d.points[1])) path(poly(line.map((p) => toPage(p, w, h, rot))));
   } else if (kind === 'text') {
     const size = d.size || 12;
-    // A sized box wraps its text (Oct 31); older text runs on, line by line as typed.
+    // A sized box wraps its text (Oct 31); older text wraps at the page's edge (Nov 10), as on screen.
     const pageW = rot % 180 ? h : w;
-    const lines = d.boxW ? wrapLines(latin1(d.text || ''), d.boxW * pageW, (s) => font.widthOfTextAtSize(s, size)) : (d.text || '').split('\n');
+    const wrapW = d.boxW ? d.boxW * pageW : Math.max(60, (1 - (d.points[0]?.[0] ?? 0)) * pageW - 6);
+    const lines = wrapLines(latin1(d.text || ''), wrapW, (s) => font.widthOfTextAtSize(s, size));
     lines.forEach((line, i) => label(line, [pts[0][0], pts[0][1] + size * 1.2 * i + size], size));
   }
 }

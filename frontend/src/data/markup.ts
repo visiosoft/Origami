@@ -161,6 +161,30 @@ export function wrapLines(text: string, maxW: number, measure: (s: string) => nu
   return out;
 }
 
+/**
+ * Where a measurement label goes and how it breaks (Nov 10 sync: on a phone the
+ * labels ran off the screen). The label keeps the same size on screen at any
+ * zoom, wraps to a sensible width, and is moved back inside the page when it
+ * would spill over an edge. Everything is in page points.
+ */
+export function labelLayout(text: string, at: [number, number], page: { w: number; h: number }, scale: number, measure: (fs: number) => (s: string) => number) {
+  const k = scale > 0 ? scale : 1;
+  const fs = 12 / k;
+  const maxW = Math.max(fs * 4, Math.min(200 / k, page.w - 8 / k));
+  const width = measure(fs);
+  const lines = wrapLines(text, maxW, width);
+  const w = Math.max(...lines.map(width));
+  const h = lines.length * fs * 1.2;
+  const pad = 3 / k;
+  let x = at[0] + 4 / k;
+  let y = at[1] - 4 / k - h + fs;
+  if (x + w > page.w - pad) x = page.w - pad - w;
+  if (x < pad) x = pad;
+  if (y - fs < pad) y = pad + fs;
+  if (y - fs + h > page.h - pad) y = page.h - pad - h + fs;
+  return { x, y, fs, lines, w, h };
+}
+
 /** The key a layer is shown, hidden and downloaded by (same as the server's). */
 export const layerKey = (m: { layer?: string | null; authorId?: string | null; authorName?: string | null }) =>
   m.layer ? `L:${m.layer.toLowerCase()}` : `A:${m.authorId || m.authorName || ''}`;

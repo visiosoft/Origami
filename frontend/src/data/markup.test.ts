@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FILLABLE, sheetNameFrom, sheetNameFromLines, sheetNumberOf, dedupePoints, pathLengthPts, trianglePts, wrapLines } from './markup';
+import { FILLABLE, sheetNameFrom, sheetNameFromLines, sheetNumberOf, dedupePoints, pathLengthPts, trianglePts, wrapLines, labelLayout } from './markup';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
 import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, pasteCopy, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
@@ -183,5 +183,19 @@ describe('phones and tablets (Nov 4)', async () => {
   it('keeps a phone’s page picture smaller', () => {
     const s = capRenderScale(3456, 2592, 8, 3, PHONE_RENDER_PIXELS);
     expect(3456 * s * 2592 * s).toBeLessThanOrEqual(PHONE_RENDER_PIXELS + 1);
+  });
+});
+
+describe('labelLayout (Nov 10: labels on phones)', () => {
+  const measure = (fs: number) => (s: string) => s.length * fs * 0.5;
+  it('keeps the same size on screen at any zoom', () => {
+    expect(labelLayout('12 ft', [100, 100], { w: 800, h: 600 }, 2, measure).fs).toBe(6);
+    expect(labelLayout('12 ft', [100, 100], { w: 800, h: 600 }, 0.5, measure).fs).toBe(24);
+  });
+  it('wraps a long label and moves it back inside the page', () => {
+    const out = labelLayout('Area: 1,234.5 sq ft (living room and hallway, measured from plans)', [780, 5], { w: 800, h: 600 }, 1, measure);
+    expect(out.lines.length).toBeGreaterThan(1);
+    expect(out.x + out.w).toBeLessThanOrEqual(800);
+    expect(out.y - out.fs).toBeGreaterThanOrEqual(0);
   });
 });

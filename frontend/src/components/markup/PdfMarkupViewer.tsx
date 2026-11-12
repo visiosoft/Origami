@@ -6,7 +6,7 @@ import { CsiSelect } from '../CsiSelect';
 import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, isDoubleTap, PHONE_RENDER_PIXELS, TOOL_GROUPS, groupOfTool, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
+  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, isDoubleTap, PHONE_RENDER_PIXELS, TOOL_GROUPS, groupOfTool, trianglePts, wrapLines, labelLayout, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
@@ -576,11 +576,13 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   /** A text markup's box (0-1): wrapped to its width when it has one. */
   const boxOf = (m: Markup) => {
     if (!size) return boundsOf(m);
-    if (m.kind !== 'text' || !m.data.boxW) return boundsOf(m, 120 / size.w, 16 / size.h);
+    if (m.kind !== 'text') return boundsOf(m, 120 / size.w, 16 / size.h);
     const fs = m.data.size || 12;
-    const lines = wrapLines(m.data.text || '', m.data.boxW * size.w, textWidth(fs));
+    const width = textWidth(fs);
+    const lines = wrapLines(m.data.text || '', textWrapW(m.data, size), width);
     const [x, y] = m.data.points[0];
-    return { x0: x, y0: y, x1: x + m.data.boxW, y1: y + (lines.length * fs * 1.2 + fs * 0.3) / size.h };
+    const w = m.data.boxW || Math.max(...lines.map(width), fs) / size.w;
+    return { x0: x, y0: y, x1: x + w, y1: y + (lines.length * fs * 1.2 + fs * 0.3) / size.h };
   };
 
   /** Two fingers: pinch to zoom, move to pan (the point between them stays under the fingers). */
@@ -1597,6 +1599,12 @@ function textWidth(fs: number) {
   };
 }
 
+/** How wide a text markup wraps: its box, or (older text without one) what's left of the page to its right. */
+function textWrapW(d: MarkupData, size: { w: number; h: number }) {
+  if (d.boxW) return d.boxW * size.w;
+  return Math.max(60, (1 - (d.points[0]?.[0] ?? 0)) * size.w - 6);
+}
+
 /** How one markup looks, in page points (size = the page as shown, in points). */
 function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false, sheets?: Record<string, string>, symbol?: MarkupSymbol) {
   // A markup's note is kept in the side panel and the list, never written on the sheet (Nov 3 sync).
@@ -1611,9 +1619,12 @@ function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number;
   const common = { fill: 'none', stroke, strokeWidth: sw, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, opacity: ghost ? 0.7 : 1 };
   const poly = (list: Pt[]) => list.map((p) => p.join(',')).join(' ');
   const filled = m.data.fill ? { fill: stroke, fillOpacity: 0.25 } : {};
-  const tag = (text: string, p: Pt, color = stroke) => (
-    <text x={p[0] + 4} y={p[1] - 4} fontSize={11} fill={color} stroke="#fff" strokeWidth={3} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif">{text}</text>
-  );
+  const tag = (text: string, p: Pt, color = stroke) => {
+    const l = labelLayout(text, p, size, scale, textWidth);
+    return <text x={l.x} y={l.y} fontSize={l.fs} fill={color} stroke="#fff" strokeWidth={3 / (scale || 1)} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif">
+      {l.lines.map((line, i) => <tspan key={i} x={l.x} dy={i ? l.fs * 1.2 : 0}>{line}</tspan>)}
+    </text>;
+  };
   switch (m.kind) {
     case 'symbol': {
       // A library symbol in its box; pointing at it shows its name (Oct 31).
@@ -1678,7 +1689,7 @@ function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number;
     case 'text': {
       const fs = m.data.size || 12;
       // A sized box wraps its text (Oct 31), the same way the downloaded PDF does.
-      const lines = m.data.boxW ? wrapLines(m.data.text || '', m.data.boxW * size.w, textWidth(fs)) : (m.data.text || '').split('\n');
+      const lines = wrapLines(m.data.text || '', textWrapW(m.data, size), textWidth(fs));
       return <text x={pts[0][0]} y={pts[0][1] + fs} fontSize={fs} fill={stroke} fontFamily="Helvetica, Arial, sans-serif" style={{ whiteSpace: 'pre' }}>
         {lines.map((line, i) => <tspan key={i} x={pts[0][0]} dy={i ? fs * 1.2 : 0}>{line}</tspan>)}
       </text>;
