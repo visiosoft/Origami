@@ -6,7 +6,7 @@ import { CsiSelect } from '../CsiSelect';
 import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, isDoubleTap, PHONE_RENDER_PIXELS, TOOL_GROUPS, groupOfTool, trianglePts, wrapLines, labelLayout, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
+  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, isDoubleTap, PHONE_RENDER_PIXELS, TOOL_GROUPS, groupOfTool, trianglePts, wrapLines, labelLayout, markupsBrief, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type MarkupLinkType, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
@@ -88,7 +88,7 @@ type Ask =
   | { kind: 'pin'; at: Pt; value: string }
   | { kind: 'link'; points: Pt[]; to: 'page' | 'file'; page: string; fileId: string; filePage: string; value: string }
   | { kind: 'scale'; points: Pt[]; value: string; unit: 'ft' | 'm' }
-  | { kind: 'rfi' | 'task' | 'co' | 'record'; markup: Markup; value: string; topic?: string }
+  | { kind: 'rfi' | 'task' | 'co' | 'record'; markups: Markup[]; value: string; topic?: string }
   | { kind: 'symbols' };
 
 /**
@@ -207,6 +207,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const extraFiles = useRef<LinkableFile[]>([]);
   const extraFilesList = () => extraFiles.current;
   const [listAll, setListAll] = useState(false);
+  /** Markups picked to make one RFI or task from (Nov 10 sync); null when not picking. */
+  const [picking, setPicking] = useState<Set<string> | null>(null);
   // The list starts open on a desk, closed on a phone (it would cover the drawing).
   // Open beside the drawing on a wide screen; on a phone or an iPad in portrait it slides over, so it starts closed.
   const [panel, setPanel] = useState(() => window.innerWidth > (window.matchMedia?.('(pointer: coarse)').matches ? 1100 : 720));
@@ -819,38 +821,46 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       await save('scale', { points: ask.points, color: '#7C3AED', width: 1.5, real, unit: ask.unit });
       toast('Scale set for this page — measure away');
     } else if (ask.kind !== 'symbols') {
-      const m = ask.markup;
-      const subject = ask.value.trim() || `${KIND_LABEL[m.kind]} on ${file.name}, p. ${m.page}`;
-      const link = `/planroom?file=${encodeURIComponent(file.id)}&markup=${encodeURIComponent(m.id)}`;
-      const from = `${m.data.text ? m.data.text + '\n\n' : ''}From a markup on ${file.name}, page ${m.page}: ${window.location.origin}${link}`;
+      const ms = ask.markups;
+      const m = ms[0];
+      const brief = markupsBrief(ms, file, window.location.origin, ms.length > 1 ? pageName : undefined);
+      const subject = ask.value.trim() || brief.subject;
+      // One markup: its note, then the link; several: the list says each one's note.
+      const from = ms.length > 1 ? brief.body : `${brief.question ? brief.question + '\n\n' : ''}${brief.body}`;
+      const csi = ms.find((x) => x.data.csiCodeId)?.data.csiCodeId;
+      // Every markup links to what was made, so each one's panel opens it.
+      const linkAll = async (linkType: MarkupLinkType, linkId: string) => {
+        for (const x of ms) replace(await api.fileRoom.editMarkup(x.id, { linkType, linkId }));
+      };
       setBusy(true);
       try {
         if (ask.kind === 'rfi') {
           if (!projectId) throw new Error('This file isn’t in a project.');
           const rfi = await api.rfis.create({
-            projectId, subject, question: m.data.text || '',
-            drawingRef: `${file.name}, p. ${m.page}`,
-            drawings: [{ fileId: file.id, name: file.name, markupId: m.id, page: m.page }],
-            ...(m.data.csiCodeId ? { csiCodeId: m.data.csiCodeId } : {}),
+            projectId, subject, question: ms.length > 1 ? from : m.data.text || '',
+            drawingRef: brief.drawingRef,
+            drawings: ms.map((x) => ({ fileId: file.id, name: file.name, markupId: x.id, page: x.page })),
+            ...(csi ? { csiCodeId: csi } : {}),
           });
-          replace(await api.fileRoom.editMarkup(m.id, { linkType: 'rfi', linkId: rfi.id }));
-          toast(`RFI ${rfi.number ? '#' + rfi.number + ' ' : ''}drafted — open it from the markup’s panel when you’re ready`);
+          await linkAll('rfi', rfi.id);
+          toast(`RFI ${rfi.number ? '#' + rfi.number + ' ' : ''}drafted${ms.length > 1 ? ` from ${ms.length} markups` : ''} — open it from the markup’s panel when you’re ready`);
         } else if (ask.kind === 'co') {
           if (!projectId) throw new Error('This file isn’t in a project.');
           // Its CSI code goes on the change order's first line, so the change is tracked to the contract (Nov 3 sync).
-          const co: any = await api.finance.createChangeOrder(projectId, { title: subject, reason: 'unforeseen', description: from, ...(m.data.csiCodeId ? { items: [{ description: subject, csiCodeId: m.data.csiCodeId }] } : {}) });
-          replace(await api.fileRoom.editMarkup(m.id, { linkType: 'co', linkId: co.id }));
+          const co: any = await api.finance.createChangeOrder(projectId, { title: subject, reason: 'unforeseen', description: from, ...(csi ? { items: [{ description: subject, csiCodeId: csi }] } : {}) });
+          await linkAll('co', co.id);
           toast(`Change order ${co.number || ''} drafted — open it from the markup’s panel when you’re ready`);
         } else {
           const record = ask.kind === 'record';
           const t: any = await api.tasks.create({
             subject, project: projectName || '', description: from,
             ...(record ? { topicType: ask.topic || 'Observation' } : {}),
-            ...(m.data.csiCodeId ? { csiCodeId: m.data.csiCodeId } : {}),
+            ...(csi ? { csiCodeId: csi } : {}),
           });
-          replace(await api.fileRoom.editMarkup(m.id, { linkType: record ? 'record' : 'task', linkId: t.id }));
-          toast(record ? `${ask.topic || 'Observation'} added to FOR RECORD` : 'Task created');
+          await linkAll(record ? 'record' : 'task', t.id);
+          toast(record ? `${ask.topic || 'Observation'} added to FOR RECORD` : `Task created${ms.length > 1 ? ` from ${ms.length} markups` : ''}`);
         }
+        setPicking(null);
         // Stay in the drawing (Oct 31): the panel links to what was made.
         setSelectedId(m.id);
         setPanel(true);
@@ -1346,6 +1356,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                   <small>{l.count}</small>
                   {canRename(l) && <button type="button" className="mk-layer-edit" onClick={() => void renameLayer(l)} aria-label={`Rename ${l.name}`} title={l.named ? 'Rename for everyone' : 'Name this layer'}>✎</button>}
                   {canSetAccess(l.key) && <button type="button" className="mk-layer-edit" onClick={() => setAccessFor(accessFor === l.key ? null : l.key)} aria-label={`Who sees ${l.name}`} title="Who sees this layer">👁</button>}
+                  {canDraw && <button type="button" className="mk-layer-edit" onClick={() => { setListAll(true); setPicking(new Set(marks.filter((m) => layerKey(m) === l.key && !hidden.has(l.key)).map((m) => m.id))); }} aria-label={`Pick every markup on ${l.name}`} title="Pick every markup on this layer, to make one RFI or task">☑</button>}
                 </div>
                 {accessFor === l.key && <LayerAccessEditor name={l.name} rule={layerRules[l.key]} onSave={(r) => saveAccess(l.key, r)} onClose={() => setAccessFor(null)} />}
                 </Fragment>
@@ -1392,10 +1403,10 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                     <button type="button" className="mk-btn is-text" title="A copy beside it (Ctrl/⌘+D)" onClick={() => { copyMarkup(selected, true); void pasteMarkup(); }}>Duplicate</button>
                   </>}
                   {canDraw && !selected.linkType && selected.kind !== 'scale' && <>
-                    <button type="button" className="mk-btn is-text" disabled={busy || !projectId} title={projectId ? '' : 'Only for files in a project'} onClick={() => setAsk({ kind: 'rfi', markup: selected, value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create RFI</button>
-                    <button type="button" className="mk-btn is-text" disabled={busy} onClick={() => setAsk({ kind: 'task', markup: selected, value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create task</button>
-                    <button type="button" className="mk-btn is-text" disabled={busy || !projectId} title={projectId ? 'A draft change order with a link back to this spot' : 'Only for files in a project'} onClick={() => setAsk({ kind: 'co', markup: selected, value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create change order</button>
-                    <button type="button" className="mk-btn is-text" disabled={busy} onClick={() => setAsk({ kind: 'record', topic: 'Observation', markup: selected, value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Add to FOR RECORD</button>
+                    <button type="button" className="mk-btn is-text" disabled={busy || !projectId} title={projectId ? '' : 'Only for files in a project'} onClick={() => setAsk({ kind: 'rfi', markups: [selected], value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create RFI</button>
+                    <button type="button" className="mk-btn is-text" disabled={busy} onClick={() => setAsk({ kind: 'task', markups: [selected], value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create task</button>
+                    <button type="button" className="mk-btn is-text" disabled={busy || !projectId} title={projectId ? 'A draft change order with a link back to this spot' : 'Only for files in a project'} onClick={() => setAsk({ kind: 'co', markups: [selected], value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create change order</button>
+                    <button type="button" className="mk-btn is-text" disabled={busy} onClick={() => setAsk({ kind: 'record', topic: 'Observation', markups: [selected], value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Add to FOR RECORD</button>
                   </>}
                   {mine(selected) && <>
                     {selected.kind === 'text' && <button type="button" className="mk-btn is-text" onClick={() => { const t = window.prompt('Edit the text', selected.data.text || ''); if (t !== null && t.trim()) void editMarkup(selected, { data: { ...selected.data, text: t.trim() } }); }}>Edit text</button>}
@@ -1417,16 +1428,37 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             <section>
               <h4>
                 Markups
+                {canDraw && listed.length > 1 && !picking && <button type="button" className="mk-btn is-text mk-pick-btn" title="Pick several markups (or a whole layer) to make one RFI or task" onClick={() => setPicking(new Set())}>Pick several</button>}
                 <span className="mk-seg">
                   <button type="button" className={listAll ? '' : 'is-on'} onClick={() => setListAll(false)}>This page</button>
                   <button type="button" className={listAll ? 'is-on' : ''} onClick={() => setListAll(true)}>All</button>
                 </span>
               </h4>
               {!listed.length && <p className="mk-muted">None {listAll ? 'shown' : 'on this page'}.</p>}
+              {picking && (
+                <div className="mk-pickbar" role="group" aria-label="Picked markups">
+                  <span><b>{picking.size}</b> picked</span>
+                  <button type="button" className="mk-btn is-text" onClick={() => setPicking(new Set(listed.map((m) => m.id)))}>All {listed.length} shown</button>
+                  <button type="button" className="mk-btn is-text" onClick={() => setPicking(null)}>Cancel</button>
+                  {picking.size > 0 && (() => {
+                    const ms = marks.filter((m) => picking.has(m.id));
+                    const brief = markupsBrief(ms, file, '', pageName);
+                    return <div className="mk-pickbar-do">
+                      <button type="button" className="mk-btn is-text is-dark" disabled={busy || !projectId} title={projectId ? '' : 'Only for files in a project'} onClick={() => setAsk({ kind: 'rfi', markups: ms, value: brief.subject })}>One RFI</button>
+                      <button type="button" className="mk-btn is-text is-dark" disabled={busy} onClick={() => setAsk({ kind: 'task', markups: ms, value: brief.subject })}>One task</button>
+                      <button type="button" className="mk-btn is-text" disabled={busy || !projectId} onClick={() => setAsk({ kind: 'co', markups: ms, value: brief.subject })}>Change order</button>
+                      <button type="button" className="mk-btn is-text" disabled={busy} onClick={() => setAsk({ kind: 'record', topic: 'Observation', markups: ms, value: brief.subject })}>FOR RECORD</button>
+                    </div>;
+                  })()}
+                </div>
+              )}
               <ul className="mk-list">
                 {listed.map((m) => (
-                  <li key={m.id} className={m.id === selectedId ? 'is-on' : ''} onClick={() => { setSelectedId(m.id); setPageNo(m.page); setTool('select'); }}>
-                    <i style={{ background: m.data.color }} />
+                  <li key={m.id} className={(m.id === selectedId ? 'is-on' : '') + (picking?.has(m.id) ? ' is-picked' : '')} onClick={() => {
+                    if (picking) { const n = new Set(picking); if (n.has(m.id)) n.delete(m.id); else n.add(m.id); setPicking(n); return; }
+                    setSelectedId(m.id); setPageNo(m.page); setTool('select');
+                  }}>
+                    {picking ? <input type="checkbox" readOnly checked={picking.has(m.id)} aria-label="Pick" tabIndex={-1} /> : <i style={{ background: m.data.color }} />}
                     <span><b>{m.data.note || KIND_LABEL[m.kind]}</b>{m.data.note ? ` · ${KIND_LABEL[m.kind]}` : ''}{m.data.text ? ` — ${m.data.text.split('\n')[0]}` : m.data.label ? ` — ${m.data.label}` : m.kind === 'link' ? ` ${linkLabel(m.data.target, sheet)}` : ''}<small>{m.authorName}{listAll ? ` · ${pageName(m.page)}` : ''}{m.private ? ' · private' : ''}{markupLink(m.linkType, m.linkId) ? ` · ${markupLink(m.linkType, m.linkId)!.label}` : ''}</small></span>
                   </li>
                 ))}
@@ -1464,7 +1496,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       {ask && (
         <div className="mk-ask-bg" onClick={() => setAsk(null)}>
           <form className="mk-ask" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); void answer(); }}>
-            <h4>{ask.kind === 'symbols' ? 'Symbols' : ask.kind === 'text' ? 'Add text' : ask.kind === 'pin' ? 'Drop a pin' : ask.kind === 'link' ? 'Link to…' : ask.kind === 'scale' ? 'How long is the line you drew?' : ask.kind === 'rfi' ? 'Create an RFI from this markup' : ask.kind === 'co' ? 'Create a change order from this markup' : ask.kind === 'record' ? 'Add this markup to FOR RECORD' : 'Create a task from this markup'}</h4>
+            <h4>{ask.kind === 'symbols' ? 'Symbols' : ask.kind === 'text' ? 'Add text' : ask.kind === 'pin' ? 'Drop a pin' : ask.kind === 'link' ? 'Link to…' : ask.kind === 'scale' ? 'How long is the line you drew?' : (() => { const what = ask.markups.length > 1 ? `these ${ask.markups.length} markups` : 'this markup'; return ask.kind === 'rfi' ? `Create an RFI from ${what}` : ask.kind === 'co' ? `Create a change order from ${what}` : ask.kind === 'record' ? `Add ${what} to FOR RECORD` : `Create a task from ${what}`; })()}</h4>
             {ask.kind === 'symbols' && (
               <ul className="mk-symbol-list">
                 {symbols.map((x) => (

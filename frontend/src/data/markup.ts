@@ -185,6 +185,32 @@ export function labelLayout(text: string, at: [number, number], page: { w: numbe
   return { x, y, fs, lines, w, h };
 }
 
+/**
+ * Several markups made into one RFI or task (Nov 10 sync): a subject, a body
+ * listing every markup with a link back to its spot, and the pages they're on.
+ */
+export function markupsBrief(
+  marks: Pick<Markup, 'id' | 'kind' | 'page' | 'data'>[], file: { id: string; name: string }, origin: string,
+  pageName: (n: number) => string = (n) => `p. ${n}`,
+) {
+  const sorted = [...marks].sort((a, b) => a.page - b.page);
+  const pages = [...new Set(sorted.map((m) => m.page))];
+  const what = (m: Pick<Markup, 'kind' | 'data'>) => {
+    const t = (m.data.text || '').split('\n')[0] || m.data.label || '';
+    return `${m.data.note || KIND_LABEL[m.kind]}${t ? ` — ${t}` : ''}`;
+  };
+  const first = sorted.find((m) => m.data.text)?.data.text?.split('\n')[0];
+  const subject = (sorted.length === 1 ? first : null) || `${sorted.length} markup${sorted.length === 1 ? '' : 's'} on ${file.name}${pages.length === 1 ? `, ${pageName(pages[0])}` : ''}`;
+  const lines = sorted.map((m, i) => `${i + 1}. ${what(m)} (${pageName(m.page)}): ${origin}/planroom?file=${encodeURIComponent(file.id)}&markup=${encodeURIComponent(m.id)}`);
+  const question = sorted.map((m) => m.data.text).filter(Boolean).join('\n\n');
+  return {
+    subject: subject.slice(0, 120),
+    body: `From ${sorted.length === 1 ? 'a markup' : `${sorted.length} markups`} on ${file.name}:\n${lines.join('\n')}`,
+    question,
+    drawingRef: `${file.name}, ${pages.length === 1 ? pageName(pages[0]) : pages.map(pageName).join(', ')}`,
+  };
+}
+
 /** The key a layer is shown, hidden and downloaded by (same as the server's). */
 export const layerKey = (m: { layer?: string | null; authorId?: string | null; authorName?: string | null }) =>
   m.layer ? `L:${m.layer.toLowerCase()}` : `A:${m.authorId || m.authorName || ''}`;

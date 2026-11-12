@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FILLABLE, sheetNameFrom, sheetNameFromLines, sheetNumberOf, dedupePoints, pathLengthPts, trianglePts, wrapLines, labelLayout } from './markup';
+import { FILLABLE, sheetNameFrom, sheetNameFromLines, sheetNumberOf, dedupePoints, pathLengthPts, trianglePts, wrapLines, labelLayout, markupsBrief } from './markup';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
 import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, pasteCopy, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
@@ -197,5 +197,20 @@ describe('labelLayout (Nov 10: labels on phones)', () => {
     expect(out.lines.length).toBeGreaterThan(1);
     expect(out.x + out.w).toBeLessThanOrEqual(800);
     expect(out.y - out.fs).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('markupsBrief (Nov 10: several markups → one RFI or task)', () => {
+  const mk = (id: string, page: number, kind: any, data: any) => ({ id, page, kind, data: { points: [], color: '#000', width: 1, ...data } });
+  it('lists every markup with a link back, page order, and the pages', () => {
+    const b = markupsBrief([mk('m2', 3, 'cloud', { text: 'Check header size' }), mk('m1', 1, 'measure_len', { label: "12'-6\"" })], { id: 'f1', name: 'A-Set.pdf' }, 'https://x.test');
+    expect(b.subject).toBe('2 markups on A-Set.pdf');
+    expect(b.body.split('\n')[1]).toMatch(/^1\. .*12'-6" \(p\. 1\): https:\/\/x\.test\/planroom\?file=f1&markup=m1$/);
+    expect(b.body.split('\n')[2]).toMatch(/^2\. .*Check header size \(p\. 3\)/);
+    expect(b.drawingRef).toBe('A-Set.pdf, p. 1, p. 3');
+    expect(b.question).toBe('Check header size');
+  });
+  it('one markup with text uses that text as the subject', () => {
+    expect(markupsBrief([mk('m1', 2, 'text', { text: 'Verify beam\nmore' })], { id: 'f', name: 'S.pdf' }, '').subject).toBe('Verify beam');
   });
 });
