@@ -3,6 +3,7 @@ import { LazyThumb } from '../components/LazyThumb';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { PdfMarkupViewer } from '../components/markup/PdfMarkupViewer';
+import { sketchFile } from '../data/sketch';
 import { api } from '../api';
 import { isPhotoFile } from '../data/markup';
 import { RecipientPicker } from '../components/RecipientPicker';
@@ -290,6 +291,22 @@ export function FileRoom() {
     } finally {
       setUploading([]);
     }
+  };
+
+  /** A blank sheet in the project's Sketches folder, opened straight away to draw on (Nov 10 sync). */
+  const newSketch = async () => {
+    if (atRoot || !projectId) { toast('⚠ Open a project first'); return; }
+    if (!storageReady) { toast('⚠ Connect a Google account under Settings → Integrations to store files'); return; }
+    try {
+      const name = data.projects.find((p) => p.id === projectId)?.name;
+      const saved = (await api.fileRoom.upload(projectId, ['Sketches'], [sketchFile(name)])) as FileRoomFile[];
+      const f = Array.isArray(saved) ? saved[0] : null;
+      if (!f) throw new Error('Not saved');
+      remember([f]);
+      load();
+      setMarkingUp({ id: f.id });
+      toast('Sketch saved in Sketches — draw away');
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not start a sketch')); }
   };
 
   const createFolder = async (forProject: number, parent: string[], name: string) => {
@@ -628,6 +645,10 @@ export function FileRoom() {
               <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
                 {syncedLabel(data.projects.find((p) => p.id === projectId)?.syncedAt)}
               </span>
+            )}
+            {canManage && !atRoot && (
+              <div onClick={() => void newSketch()} role="button" title="A blank sheet to draw on with the markup tools, kept in this project's Sketches folder"
+                   style={{ padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.16)', color: 'var(--ink)' }}>✎ Sketch</div>
             )}
             {canManage && (
               <div onClick={() => setUploadOpen((v) => !v)}
