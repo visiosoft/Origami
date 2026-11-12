@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppSettingEntity, RoleEntity, UserEntity } from '../database/entities';
 import { DEFAULT_ROLES, SITE_SUPER_PERMISSIONS } from '../seed-data/users';
+import { fieldPolicy, isFieldRole } from './field-policy';
 
 /** Marks the one-time trim of the Site Superintendent role (v3: 2026-09-28, projects and File Room dropped). */
 const TIERS = ['internal', 'client', 'consultant'];
@@ -85,6 +86,30 @@ export class RolesService implements OnApplicationBootstrap {
     }
     this.log.log(`Merged ${plan.length} duplicate role(s); moved ${moved} user(s)`);
     return { applied: true, moved, removed: plan.map((p) => p.from.key) };
+  }
+
+  /**
+   * Field roles against the access sheet as Edward set it on Nov 10 (no
+   * estimates or financials beyond their own entries; People and Projects view
+   * only): each stored field role and what would change. Read-only.
+   */
+  async fieldPolicyPlan() {
+    const roles = await this.repo.find();
+    return roles.filter(isFieldRole).map((r) => ({ key: r.key, name: r.name, changes: fieldPolicy(r.permissions as any).changes })).filter((r) => r.changes.length);
+  }
+
+  /** Apply it, after the admin has seen the plan ({ confirm: true }). */
+  async applyFieldPolicy(confirm: boolean) {
+    const plan = await this.fieldPolicyPlan();
+    if (!confirm) return { applied: false, plan };
+    for (const p of plan) {
+      const role = await this.repo.findOneBy({ key: p.key });
+      if (!role) continue;
+      role.permissions = fieldPolicy(role.permissions as any).next as any;
+      await this.repo.save(role);
+    }
+    this.log.log(`Field-role policy applied to ${plan.length} role(s)`);
+    return { applied: true, roles: plan.map((p) => p.key) };
   }
 
   create(dto: any) {

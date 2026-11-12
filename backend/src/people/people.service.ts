@@ -182,6 +182,28 @@ export class PeopleService {
   }
 
   /** People who may be the same as the one being added (same name, email or phone). */
+  /**
+   * Consultants saved the old way (Nov 10): the firm as the name and the person
+   * as the "primary contact". Each becomes the person, with the firm as their
+   * company. Only records with a contact person; read-only unless confirmed.
+   */
+  async consultantFixPlan() {
+    const rows = await this.repo.find({ where: { kind: 'Consultant' } as any });
+    return rows
+      .filter((p) => String(p.contact || '').trim() && String(p.contact).trim().toLowerCase() !== String(p.name || '').trim().toLowerCase())
+      .map((p) => ({ id: p.id, nameNow: p.name, nameAfter: String(p.contact).trim(), company: String(p.company || '').trim() || p.name }));
+  }
+
+  async applyConsultantFix(confirm: boolean) {
+    const plan = await this.consultantFixPlan();
+    if (!confirm) return { applied: false, plan };
+    for (const p of plan) {
+      const [firstName, ...rest] = p.nameAfter.split(/\s+/);
+      await this.repo.update({ id: p.id } as any, { name: p.nameAfter, company: p.company, contact: null, firstName, lastName: rest.join(' ') || null } as any);
+    }
+    return { applied: true, changed: plan.length };
+  }
+
   async duplicates(q: { name?: string; firstName?: string; lastName?: string; email?: string; phone?: string; exclude?: string }) {
     const rows = await this.repo.find({ select: { id: true, name: true, firstName: true, lastName: true, email: true, phone: true, company: true, kind: true, contactStatus: true, contactStatusReason: true, lastActivityAt: true } });
     return findDuplicates(q, rows as DupRow[], q.exclude ? Number(q.exclude) : null).slice(0, 10);

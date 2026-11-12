@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Param, Body, Query, Headers, Res, UploadedFiles, UseInterceptors, BadRequestException, NotFoundException,
+  Controller, Get, Post, Put, Delete, Param, Body, Query, Headers, Res, UploadedFiles, UseInterceptors, BadRequestException, NotFoundException, ForbiddenException,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -85,6 +85,19 @@ export class PeopleController {
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(att.name)}"`);
     res.setHeader('Cache-Control', 'private, max-age=300');
     Readable.fromWeb(file.body).pipe(res);
+  }
+
+  /** Consultants saved with the firm as their name, and what each would become (Nov 10). Read-only. */
+  @Get('consultant-fix')
+  async consultantFix(@Claims() claims?: SessionClaims | null) {
+    if (!(await this.access.canManage(claims ?? null, 'people'))) throw new ForbiddenException('Your role doesn’t allow changing People.');
+    return this.peopleService.consultantFixPlan();
+  }
+
+  @Post('consultant-fix')
+  async applyConsultantFix(@Body() body: { confirm?: boolean }, @Claims() claims?: SessionClaims | null) {
+    if (!(await this.access.canManage(claims ?? null, 'people'))) throw new ForbiddenException('Your role doesn’t allow changing People.');
+    return this.peopleService.applyConsultantFix(body?.confirm === true);
   }
 
   /** Possible duplicates of a contact being added: ?name / firstName / lastName / email / phone, and exclude=<id>. */

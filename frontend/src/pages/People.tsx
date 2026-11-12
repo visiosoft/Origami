@@ -27,6 +27,7 @@ import {
   CONTACT_STATUS_HINT, CONTACT_STATUS_LABEL, contactStatusOf, type ContactStatus, type DupMatch,
 } from '../data/people';
 import { Skeleton } from '../components/Skeleton';
+import { ConsultantFix } from '../components/ConsultantFix';
 
 const BG = 'var(--font-display)';
 // Internal people are split by level (Executive … Labor); everyone else by kind.
@@ -603,6 +604,7 @@ export function People() {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: isNew ? 16 : 12 }}>
+      {canManage && <ConsultantFix onDone={reload} />}
       {isNew ? newTop : <>
       {/* Stats */}
       {statsStrip}

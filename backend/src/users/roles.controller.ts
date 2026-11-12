@@ -25,6 +25,18 @@ export class RolesController {
     return this.rolesService.mergeDuplicates(body?.confirm === true);
   }
 
+  /** Field roles vs the access sheet (Nov 10): what would change (read-only). */
+  @Get('field-policy')
+  fieldPolicy() {
+    return this.rolesService.fieldPolicyPlan();
+  }
+
+  /** Apply it: { confirm: true }. */
+  @Post('field-policy/apply')
+  applyFieldPolicy(@Body() body: { confirm?: boolean }) {
+    return this.rolesService.applyFieldPolicy(body?.confirm === true);
+  }
+
   @Post()
   create(@Body() dto: CreateRoleDto) {
     return this.rolesService.create(dto);

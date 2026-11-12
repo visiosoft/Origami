@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-12c',
+    date: '2026-11-12',
+    title: 'Review and fix: field roles, consultants',
+    items: [
+      { area: 'Access', kind: 'new', text: 'User Access & Roles shows which field roles (superintendent, foreman, labour) still allow estimates or financial figures, with every change listed. “Apply to field roles” keeps them to their own entries (reimbursables, timesheets, projected labour) and makes People and Projects view-only.', where: 'Admin → User Access & Roles' },
+      { area: 'People', kind: 'new', text: 'Consultants saved with the firm as their name are listed with what each would become (the person as the name, the firm as their company); “Update consultants” changes them.', where: 'People' },
+    ],
+  },
+  {
     id: '2026-11-12b',
     date: '2026-11-12',
     title: 'Tighter access for site roles; Cancelled projects',

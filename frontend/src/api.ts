@@ -450,6 +450,9 @@ export const api = {
     remove: (id: string | number) => request(`/people/${id}`, { method: 'DELETE' }),
     /** Possible duplicates of a contact being added (same name, email or phone), Expired first. */
     duplicates: (q: Record<string, string>) => request<DupMatch[]>(`/people/duplicates?${new URLSearchParams(q).toString()}`),
+    /** Consultants saved with the firm as their name (Nov 10): what each would become, then apply. */
+    consultantFix: () => request<{ id: number; nameNow: string; nameAfter: string; company: string }[]>('/people/consultant-fix', { cache: 'no-store' } as any),
+    applyConsultantFix: () => request<{ applied: boolean; changed?: number }>('/people/consultant-fix', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     /** Activity: logged interactions, RFPs / estimates, the company's point of contact, and alerts. */
     activity: (id: number) => request<ContactActivity>(`/people/${id}/activity`),
     logInteraction: (id: number, d: { kind: string; at: string; note?: string }) => request<ContactInteraction>(`/people/${id}/interactions`, { method: 'POST', body: JSON.stringify(d) }),
@@ -676,6 +679,9 @@ export const api = {
     /** Duplicate roles and who would move (Nov 3 sync); merging needs a confirm. */
     duplicates: () => request<{ from: { key: string; name: string }; to: { key: string; name: string }; users: { id: string; name: string; email: string }[] }[]>('/roles/duplicates', { cache: 'no-store' } as any),
     mergeDuplicates: () => request<{ applied: boolean; moved?: number; removed?: string[] }>('/roles/duplicates/merge', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
+    /** Field roles vs the access sheet (Nov 10): what would change, and apply it after review. */
+    fieldPolicy: () => request<{ key: string; name: string; changes: { key: string; from: string; to: string }[] }[]>('/roles/field-policy', { cache: 'no-store' } as any),
+    applyFieldPolicy: () => request<{ applied: boolean; roles?: string[] }>('/roles/field-policy/apply', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     list: () => request('/roles'),
     create: (data: unknown) => request('/roles', { method: 'POST', body: JSON.stringify(data) }),
     update: (key: string, data: unknown) => request(`/roles/${key}`, { method: 'PUT', body: JSON.stringify(data) }),

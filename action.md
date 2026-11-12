@@ -238,3 +238,5 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | N6 | CSI codes appear everywhere at once; edit rights match the server | ✅ |
 | N7 | Access for field roles (i-3 and below): project scope on daily-logs, project-program, audit-project, lead-files, project-sections, assignments, workflows (`:projectId` routes too), project PUT/DELETE, guest access, File Room shares, project texts; contacts by id narrowed; client phone/email/address hidden in People + CRM; company-wide dashboard figures only for full access; contractAmt only with financial rights | ✅ (stored role permissions: proposed changes waiting for a yes) |
 | N8 | Cancelled project stage; Closed + Cancelled projects and closed CRM leads hidden unless "Show closed & cancelled" | ✅ |
+| N9 | Field roles vs the access sheet: preview + "Apply to field roles" (Admin → User Access & Roles) | ✅ built — press it on staging |
+| N10 | Existing consultants saved as firm: preview + "Update consultants" (People) | ✅ built — press it on staging |
