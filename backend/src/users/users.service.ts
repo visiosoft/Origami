@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { cleanAltEmails, normEmail, sharesEmail } from '../common/emails';
 import { Optional, Injectable, OnApplicationBootstrap, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -129,10 +130,20 @@ export class UsersService implements OnApplicationBootstrap {
     return alt;
   }
 
+  private async freeUserId() {
+    for (let i = 0; i < 20; i++) {
+      const id = 'U-' + randomBytes(4).toString('hex').toUpperCase();
+      if (!(await this.repo.findOneBy({ id }))) return id;
+    }
+    throw new ConflictException('Could not pick an id for the new account; try again.');
+  }
+
   async create(dto: any) {
     await this.assertEmailFree(dto?.email);
     if (dto && 'altEmails' in dto) dto = { ...dto, altEmails: await this.cleanAlt(dto.altEmails, dto.email) };
-    const id = dto.id || 'U-' + String(1000 + (Date.now() % 9000));
+    // A fresh id that no account has (Nov 13: the old one, from the clock modulo 9000, could repeat and overwrite an account).
+    const id = dto.id || (await this.freeUserId());
+    if (dto.id && (await this.repo.findOneBy({ id: String(dto.id) }))) throw new ConflictException(`An account already has the id ${dto.id}.`);
     const user = this.repo.create({
       status: 'pending',
       tier: 'internal',
