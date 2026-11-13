@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13p',
+    date: '2026-11-13',
+    title: 'Two-step sign-in by text or email',
+    items: [
+      { area: 'Sign-in', kind: 'new', text: 'Staff can get their sign-in code by text message or email instead of an authenticator app — chosen when setting it up. A code works for 10 minutes, once; “Send a new code” is there if it doesn’t arrive.' },
+      { area: 'Settings', kind: 'new', text: 'Switch how your codes come (app, text, email, or a different mobile) — the first code from the new way confirms it.', where: 'Settings → Two-step sign-in' },
+      { area: 'Settings', kind: 'new', text: 'Administrators choose which ways are allowed (texts cost per message) and can switch two-step sign-in off for everyone.', where: 'Settings → Two-step sign-in' },
+    ],
+  },
+  {
     id: '2026-11-13o',
     date: '2026-11-13',
     title: 'Texts: opt out, settings link and mass texts',

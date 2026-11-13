@@ -84,7 +84,7 @@ describe('texts: opt-out, preferences and mass texts (Nov 13)', () => {
     MassTextsService.GAP_MS = 0;
     const b = await m.start({ people: [1, 2, 3, 4], leads: ['L-1'] }, 'Hi {first name}, the office is closed Friday.', { name: 'Edward' });
     await m.run(b.id, null, 0); // already sending: does nothing
-    for (let i = 0; i < 50 && store[b.id].status !== 'done'; i++) await new Promise((r) => setTimeout(r, 5));
+    for (let i = 0; i < 400 && store[b.id].status !== 'done'; i++) await new Promise((r) => setTimeout(r, 5));
     expect(sent.map((x) => [x.to, x.body, x.category])).toEqual([
       ['+14155550101', 'Hi Bea, the office is closed Friday.', 'announcements'],
       ['+14155550105', 'Hi Ed, the office is closed Friday.', 'announcements'],

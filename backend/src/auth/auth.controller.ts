@@ -42,8 +42,43 @@ export class AuthController {
   /** The first code from the app: two-step sign-in is on, backup codes are shown once, signed in. */
   @Public()
   @Post('2fa/enable')
-  async twoFactorEnable(@Body() body: { ticket: string; code: string; remember?: boolean }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return this.signedIn(res, await this.auth.twoFactorEnable(body?.ticket, body?.code, String(req.headers['user-agent'] || ''), !!body?.remember));
+  async twoFactorEnable(@Body() body: { ticket: string; code: string; remember?: boolean; method?: string }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.signedIn(res, await this.auth.twoFactorEnable(body?.ticket, body?.code, String(req.headers['user-agent'] || ''), !!body?.remember, body?.method || 'app'));
+  }
+
+  /** What the second step looks like: set-up or code, which way, and where codes go. */
+  @Public()
+  @Post('2fa/info')
+  twoFactorInfo(@Body() body: { ticket: string }) {
+    return this.auth.twoFactorInfo(body?.ticket);
+  }
+
+  /** Text or email a sign-in code (Nov 13): to their number / email, or -- setting up -- to the one they picked. */
+  @Public()
+  @Post('2fa/send')
+  twoFactorSend(@Body() body: { ticket: string; method?: string; phone?: string }) {
+    return this.auth.twoFactorSend(body?.ticket, { method: body?.method, phone: body?.phone });
+  }
+
+  /** Signed in, text / email users: a code to confirm a change. */
+  @AnySignedIn()
+  @Post('2fa/code')
+  sendOwnCode(@Headers('authorization') authorization?: string) {
+    return this.auth.sendOwnCode(authorization);
+  }
+
+  /** Switch how codes come: set up the new way ... */
+  @AnySignedIn()
+  @Post('2fa/method')
+  changeMethod(@Body() body: { method: string; phone?: string }, @Headers('authorization') authorization?: string) {
+    return this.auth.changeMethodStart(authorization, String(body?.method || ''), body?.phone);
+  }
+
+  /** ... and its first code switches to it. */
+  @AnySignedIn()
+  @Post('2fa/method/confirm')
+  confirmMethod(@Body() body: { method: string; code: string }, @Headers('authorization') authorization?: string) {
+    return this.auth.changeMethodConfirm(authorization, String(body?.method || ''), String(body?.code || ''));
   }
 
   /** Signing in with a code from the app (or a backup code). */

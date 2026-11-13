@@ -1019,6 +1019,16 @@ export class UserEntity {
   @Column({ type: 'simple-json', nullable: true }) backupCodes!: string[] | null;
   /** Devices that skip the code for 30 days ("remember this device"): hashed tokens. */
   @Column({ type: 'simple-json', nullable: true }) trustedDevices!: { hash: string; expiresAt: string; addedAt: string; label?: string }[] | null;
+  /** How their second step works (Nov 13): app (authenticator), sms (a code by text) or email; empty = app. */
+  @Column({ type: 'nvarchar', length: 10, nullable: true }) twoFactorMethod!: string | null;
+  /** The number codes are texted to. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) twoFactorPhone!: string | null;
+  /** The live text / email code (hashed), when it runs out, and recent sends (for the rate limit). */
+  @Column({ type: 'nvarchar', length: 100, nullable: true }) otpHash!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) otpExpiresAt!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) otpSends!: string[] | null;
+  /** A method being switched to (with its number), until its first code proves it. */
+  @Column({ type: 'simple-json', nullable: true }) otpPending!: { method: string; phone?: string | null } | null;
   @Column() createdAt!: string;
   // --- Authentication (never sent to the client; stripped in UsersService) ---
   @Column({ nullable: true }) passwordHash!: string;   // scrypt: salt:hash

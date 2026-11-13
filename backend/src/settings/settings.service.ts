@@ -14,6 +14,9 @@ export const PUBLIC_KEYS = [
   'google.workspaceClientId',
   'google.workspaceClientSecret',
   'app.baseUrl',
+  // Two-step sign-in for staff: 'off' turns it off; which ways codes may come (app,sms,email).
+  'auth.twoFactor',
+  'auth.twoFactorMethods',
   // A banner every signed-in page shows while it's on ("Updates 3-4 pm -- please save your work").
   'app.notice',
   'app.noticeActive',
