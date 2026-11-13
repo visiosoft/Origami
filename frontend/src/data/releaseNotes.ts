@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13m',
+    date: '2026-11-13',
+    title: 'More than one email per person',
+    items: [
+      { area: 'Admin', kind: 'new', text: 'A person can have other email addresses as well as their main one — for example an apogeec.com address and an Origami one. Signing in (password or Google), their People record, project access, timesheets and their employee record all match any of them. An address can only belong to one account.', where: 'Admin → users → “+ other emails”; Manpower → employee → Contact → Other emails' },
+    ],
+  },
+  {
     id: '2026-11-13l',
     date: '2026-11-13',
     title: 'QA/QC checklists, and where backup sheets go',

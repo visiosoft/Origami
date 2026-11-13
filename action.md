@@ -274,3 +274,11 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | P4 | File Room restricted folders (staff only / picked roles, companies, people; covers sub-folders): enforced on tree counts, file pages and search, list, meta, content/preview/thumbs, markups, share/email, upload, progress photos, All Files, contract attachments; Restrict… dialog + 🔒 | ✅ |
 | P5 | Role-based task assignment: one role list (programme teams, CRM keys, access role names), project team (ProjectEntity.roles) copied from the CRM on convert + backfill (preview/apply), unassigned role tasks filled on seed and on team change, unfilled chips, Team card | ✅ built — press "Copy the CRM team" on staging |
 | P6 | QA/QC checklists: template kind qaqc tied to programme tasks or labels, attached on seed and to open existing tasks, QA/QC page (list across projects + templates); backup sheet folder setting | ✅ built |
+
+## Q. Batch 5 (Nov 13 sync)
+
+Plan: second emails, project housekeeping, texts opt-out + mass texts, 2-step by text/email, estimate line math, CA contract rules, GC/sub prequal, Gmail per person, attendee meeting notes, architecture doc.
+
+| # | What | Status |
+|---|---|---|
+| Q1 | Second emails per person: `altEmails` on users and employees; sign-in (password, Google, invites), People link, project access, timesheets and staff sync match any address; an address can't belong to two accounts; Admin "+ other emails", employee "Other emails" | ✅ built |

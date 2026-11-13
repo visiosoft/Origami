@@ -1,3 +1,4 @@
+import { sharesEmail } from '../common/emails';
 import { personProjectIds } from '../people/person-projects';
 import { ForbiddenException, Global, Injectable, Module, Optional, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm';
@@ -126,13 +127,24 @@ export class ProjectAccessService {
     if (this.isStaff(claims) && !(await this.assignedOnly(claims))) return 'all';
     if (claims.roleKey === PORTAL_ROLE) return new Set();
     // Their People entries: the one their login was given from (People.userId), and any with the same email.
-    const email = String(claims.email || '').trim().toLowerCase();
+    // Any of the login's addresses (Nov 13: a person can have more than one).
+    const me = { email: claims.email, altEmails: (await this.altEmailsOf(claims.sub)) };
     const mine = (await this.people.find())
-      .filter((p) => (p.userId && p.userId === claims.sub) || (!!email && String(p.email || '').trim().toLowerCase() === email));
+      .filter((p) => (p.userId && p.userId === claims.sub) || sharesEmail(p, me));
     if (!mine.length) return new Set();
     // By project id (Nov 13); people not moved to ids yet are matched by name.
     const projects = await this.projectRefs();
     return new Set(mine.flatMap((p) => personProjectIds(p, projects)));
+  }
+
+  private altCache = new Map<string, { at: number; alt: string[] }>();
+  private async altEmailsOf(userId: string): Promise<string[]> {
+    if (!this.users || !userId) return [];
+    const hit = this.altCache.get(userId);
+    if (hit && Date.now() - hit.at < 15_000) return hit.alt;
+    const alt = ((await this.users.findOneBy({ id: userId }))?.altEmails || []) as string[];
+    this.altCache.set(userId, { at: Date.now(), alt });
+    return alt;
   }
 
   async canSee(claims: SessionClaims | null, projectId: number | null | undefined) {

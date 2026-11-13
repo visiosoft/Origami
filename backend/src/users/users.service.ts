@@ -1,3 +1,4 @@
+import { cleanAltEmails, normEmail, sharesEmail } from '../common/emails';
 import { Optional, Injectable, OnApplicationBootstrap, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -22,10 +23,9 @@ export class UsersService implements OnApplicationBootstrap {
   // without one can't be given any project. Each login is tied to one.
 
   /** The People record for a login: the one given from it (userId), else the one with its email. */
-  private async personFor(user: Pick<UserEntity, 'id' | 'email'>, all?: PersonEntity[]) {
+  private async personFor(user: Pick<UserEntity, 'id' | 'email'> & { altEmails?: string[] | null }, all?: PersonEntity[]) {
     const rows = all || (await this.people!.find());
-    const email = String(user.email || '').trim().toLowerCase();
-    return rows.find((p) => p.userId === user.id) || (email ? rows.find((p) => String(p.email || '').trim().toLowerCase() === email) : undefined);
+    return rows.find((p) => p.userId === user.id) || rows.find((p) => sharesEmail(p, user));
   }
 
   /** Tie a login to People: link the matching record, or add one (Staff for the team, Client / Consultant otherwise). */
@@ -119,8 +119,19 @@ export class UsersService implements OnApplicationBootstrap {
     }
   }
 
+  /** Other emails (Nov 13): cleaned, and none may belong to another account. */
+  private async cleanAlt(list: unknown, main: string, exceptId?: string) {
+    const alt = cleanAltEmails(list, main);
+    for (const e of alt) {
+      const other = await this.auth.findByEmail(e);
+      if (other && other.id !== exceptId) throw new ConflictException(`${e} already belongs to ${other.name || other.email}.`);
+    }
+    return alt;
+  }
+
   async create(dto: any) {
     await this.assertEmailFree(dto?.email);
+    if (dto && 'altEmails' in dto) dto = { ...dto, altEmails: await this.cleanAlt(dto.altEmails, dto.email) };
     const id = dto.id || 'U-' + String(1000 + (Date.now() % 9000));
     const user = this.repo.create({
       status: 'pending',
@@ -162,6 +173,7 @@ export class UsersService implements OnApplicationBootstrap {
     // Credentials are only ever changed through the auth flows, never a plain update.
     const { passwordHash, inviteToken, hasPassword, invitePending, invite, totpSecret, totpPending, totpEnabledAt, totpLastStep, backupCodes, trustedDevices, twoFactor, backupCodesLeft, ...safe } = dto ?? {};
     void totpSecret; void totpPending; void totpEnabledAt; void totpLastStep; void backupCodes; void trustedDevices; void twoFactor; void backupCodesLeft;
+    if ('altEmails' in safe) safe.altEmails = await this.cleanAlt(safe.altEmails, normEmail(safe.email || user.email), id);
     Object.assign(user, safe, { id });
     const saved = await this.repo.save(user);
 

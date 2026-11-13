@@ -1,3 +1,4 @@
+import { cleanAltEmails } from '../common/emails';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -65,6 +66,7 @@ export class EmployeesService {
       });
     }
     if (rest.overtimeRate != null && !(Number(rest.overtimeRate) > 0)) throw new BadRequestException('An overtime rate must be above 0 -- clear it to use their normal hourly rate.');
+    if ('altEmails' in rest) rest.altEmails = cleanAltEmails(rest.altEmails, rest.email ?? employee.email);
     if (rest.payRate != null && !(Number(rest.payRate) >= 0)) throw new BadRequestException('The pay rate cannot be negative.');
     Object.assign(employee, rest, { id, updatedAt: new Date().toISOString() });
     // The legacy active/inactive flag follows the richer lifecycle status.

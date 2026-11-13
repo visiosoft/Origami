@@ -1,3 +1,4 @@
+import { emailsOf, sharesEmail } from '../common/emails';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -80,9 +81,9 @@ export class WeeklyTimesheetsService {
     const linked = await this.employees.findOneBy({ userId: actor.id });
     if (linked) return linked;
     const user = await this.users.findOneBy({ id: actor.id });
-    const email = user?.email?.trim().toLowerCase();
-    if (!email) return null;
-    const matches = (await this.employees.find()).filter((e) => !e.userId && (e.email || '').trim().toLowerCase() === email);
+    if (!user || !emailsOf(user).length) return null;
+    // Any of the login's or the employee's addresses (Nov 13).
+    const matches = (await this.employees.find()).filter((e) => !e.userId && sharesEmail(e, user));
     if (matches.length !== 1) return null;
     matches[0].userId = actor.id;
     return this.employees.save(matches[0]);

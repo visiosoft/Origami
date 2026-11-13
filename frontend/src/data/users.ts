@@ -22,6 +22,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  /** Other addresses that are also this person (Nov 13). */
+  altEmails?: string[];
   tier: Tier;
   roleKey: string;
   status: UserStatus;

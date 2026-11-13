@@ -185,6 +185,17 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
                       onFocus={(e) => { e.target.style.border = '1px solid rgba(var(--rgb-shade), 0.14)'; e.target.style.background = 'white'; }}
                       onBlurCapture={(e) => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; }}
                     />
+                    {/* Other addresses that are also this person (Nov 13), e.g. apogeec.com: sign-in and records match any. */}
+                    <input
+                      key={'a' + u.id + (u.altEmails || []).join()}
+                      defaultValue={(u.altEmails || []).join(', ')}
+                      placeholder="+ other emails"
+                      aria-label={`Other emails for ${u.name}`}
+                      onBlur={(e) => { const list = e.target.value.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean); if (list.join() !== (u.altEmails || []).join()) patch(u, { altEmails: list }); }}
+                      style={{ ...inputStyle, width: '100%', padding: '3px 6px', border: '1px solid transparent', background: 'transparent', fontSize: 11, color: 'var(--muted)' }}
+                      onFocus={(e) => { e.target.style.border = '1px solid rgba(var(--rgb-shade), 0.14)'; e.target.style.background = 'white'; }}
+                      onBlurCapture={(e) => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; }}
+                    />
                   </>
                 )}
               </div>

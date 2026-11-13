@@ -969,6 +969,8 @@ export class UserEntity {
   @PrimaryColumn() id!: string;
   @Column() name!: string;
   @Column() email!: string;
+  /** Other addresses that are also this person (Nov 13), e.g. apogeec.com and the Origami domain; sign-in and records match any. */
+  @Column({ type: 'simple-json', nullable: true }) altEmails!: string[] | null;
   @Column() tier!: string; // internal | client | consultant
   @Column() roleKey!: string;
   @Column() status!: string; // pending | active | suspended
@@ -1273,6 +1275,8 @@ export class EmployeeEntity {
   @Column({ type: 'float', nullable: true }) payRate!: number;
   @Column({ nullable: true }) phone!: string;
   @Column({ nullable: true }) email!: string;
+  /** Other addresses for this employee (Nov 13); a login with any of them is linked. */
+  @Column({ type: 'simple-json', nullable: true }) altEmails!: string[] | null;
   @Column({ nullable: true }) hireDate!: string;
   @Column({ default: 'active' }) status!: string; // active | inactive -- superseded by employmentStatus
   /** Who this employee reports to -- the org/reporting layer, independent of any project assignment. */

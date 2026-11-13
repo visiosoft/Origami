@@ -1,3 +1,4 @@
+import { emailsOf, normEmail, sharesEmail } from '../common/emails';
 import { SUPER_ROLES } from '../users/role-merge';
 import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -56,9 +57,8 @@ export class AuthService {
   private async isSuperintendent(user: UserEntity) {
     if (SUPER_ROLES.includes(user.roleKey)) return true;
     if (!this.employees) return false;
-    const email = (user.email || '').trim().toLowerCase();
     const rows = await this.employees.find();
-    const emp = rows.find((e) => e.userId === user.id) || (email ? rows.find((e) => (e.email || '').trim().toLowerCase() === email) : undefined);
+    const emp = rows.find((e) => e.userId === user.id) || rows.find((e) => sharesEmail(e, user));
     return /super\s*-?\s*intend/i.test(`${emp?.designation || ''} ${emp?.jobTitle || ''}`);
   }
 
@@ -536,10 +536,15 @@ export class AuthService {
     return user?.calendarRefreshToken ? { refreshToken: user.calendarRefreshToken } : null;
   }
 
-  findByEmail(email: string) {
-    return this.users
+  /** The account with this address, as its main email or one of its others (Nov 13); the main one wins. */
+  async findByEmail(email: string) {
+    const e = normEmail(email);
+    if (!e) return null;
+    const rows = await this.users
       .createQueryBuilder('u')
-      .where('LOWER(u.email) = :email', { email: (email || '').trim().toLowerCase() })
-      .getOne();
+      .where('LOWER(u.email) = :email', { email: e })
+      .orWhere('LOWER(u.altEmails) LIKE :like', { like: `%"${e.replace(/[%_[\]]/g, (c) => `[${c}]`)}"%` })
+      .getMany();
+    return rows.find((u) => normEmail(u.email) === e) || rows.find((u) => emailsOf(u).includes(e)) || null;
   }
 }
