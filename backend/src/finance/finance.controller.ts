@@ -95,6 +95,8 @@ export class FinanceController {
   @Post('projects/:id/estimates/:eid/copy-scopes') async estimateCopyScopes(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.copyScopes(Number(id), eid, dto || {}, await this.actor(a), await this.canSee(a)); }
   @Get('estimates-all') async estimatesAll(@Headers('authorization') a?: string) { return this.estimates.allEstimates(await this.actor(a)); }
   @Get('estimate-source/:eid') async estimateSource(@Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.sourceSheet(eid, await this.actor(a), await this.canSee(a)); }
+  @Get('estimate-strategy-map') async strategyMap(@Headers('authorization') a?: string) { return this.estimates.strategyMapPlan(await this.actor(a)); }
+  @Post('estimate-strategy-map') async strategyMapApply(@Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.applyStrategyMap(dto?.confirm === true, await this.actor(a)); }
   @Get('estimate-statements') async statementList(@Query('csiCodeId') csi?: string, @Headers('authorization') a?: string) { return this.statements.list(await this.actor(a), csi === undefined ? undefined : csi || null); }
   @Get('estimate-statements/suggestions') async statementSuggestions(@Query('csiCodeId') csi?: string, @Query('kind') kind?: string, @Headers('authorization') a?: string) { return this.statements.suggestions(await this.actor(a), csi || null, kind || ''); }
   @Post('estimate-statements') async statementNew(@Body() dto: any, @Headers('authorization') a?: string) { return this.statements.create(dto || {}, await this.actor(a)); }

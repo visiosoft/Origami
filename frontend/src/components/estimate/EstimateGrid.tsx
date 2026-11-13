@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { useCsiCodes } from '../CsiSelect';
-import { computeEstimate, explainTotal, FORMULAS, money, NOTE_LABEL, type EstSettings, type FormulaId } from '../../data/estimateCalc';
+import { autoStrategy, computeEstimate, explainTotal, FORMULAS, money, NOTE_LABEL, type EstSettings, type FormulaId } from '../../data/estimateCalc';
 import { evaluateRow, formulaProblem, type Value } from '../../data/estimateFormula';
 import {
   BANDS, cellText, columnDefs, COLUMN_TYPES, customKey, effectiveColumns, History, LINE_COLS, lineNumbers, moveLine, newGr, newLine, newScope, parseTsv, pasteBlock, setCell, toTsv,
@@ -301,6 +301,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
       const hit = contractors.find((c) => c.companyName?.toLowerCase() === raw.trim().toLowerCase());
       next = { ...next, contractorId: hit ? hit.id : null };
     }
+    if (col.key === 'subName' && next.kind === 'item') next = { ...next, strategy: autoStrategy(next) };
     updateLines((ls) => ls.map((l) => (l.id === lineId ? next : l)));
   };
   const insertLine = (scopeId: string, kind = 'item', afterId?: string | null, before = false) => {
@@ -895,7 +896,7 @@ function ColumnDialog({ edit, known, onClose, onSave }: {
           </label>
           {type === 'formula' && <label style={{ display: 'grid', gap: 4, fontSize: 12.5, color: 'var(--muted)' }}>Formula
             <input style={{ ...field, fontFamily: 'ui-monospace, Menlo, monospace' }} value={formula} onChange={(e) => setFormula(e.target.value)} spellCheck={false} />
-            <span style={{ color: problem ? 'var(--eg-err)' : 'var(--muted)' }}>{problem || 'Name columns in [brackets]: =[Sub cost]*1.1 · =IF([Performing strategy]="Owner",0,[Line item total]) · SUM, MIN, MAX, AVERAGE, ROUND, ABS, IF, AND, OR, NOT'}</span>
+            <span style={{ color: problem ? 'var(--eg-err)' : 'var(--muted)' }}>{problem || 'Name columns in [brackets]: =[Sub cost]*1.1 · =IF([Performing strategy]="OFCI",0,[Line item total]) · SUM, MIN, MAX, AVERAGE, ROUND, ABS, IF, AND, OR, NOT'}</span>
           </label>}
           {type === 'choice' && <label style={{ display: 'grid', gap: 4, fontSize: 12.5, color: 'var(--muted)' }}>Choices, separated by commas
             <input style={field} value={choices} onChange={(e) => setChoices(e.target.value)} placeholder="Ordered, Delivered, Installed" />

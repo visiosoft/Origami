@@ -23,8 +23,25 @@ describe('estimate grid', () => {
     expect(parsePct('32%')).toBe(32);
     expect(parseDate('11/4/2026')).toBe('2026-11-04');
     expect(matchChoice('Self Perform', col('strategy').options!)).toBe('self_perform');
+    expect(matchChoice('Subcontract used', col('strategy').options!)).toBe('sub_used');
+    // Lines not yet moved off the old list show where they'll go.
+    expect(cellText({ ...L('1', 'a'), strategy: 'owner' } as EstLine, col('strategy'))).toBe('OFCI');
+    expect(cellText({ ...L('1', 'a'), strategy: 'subcontract', subName: 'Bay' } as EstLine, col('strategy'))).toBe('Subcontract used');
     expect(matchChoice('T&M', PRICING_OPTIONS)).toBe('tm');
     expect(matchChoice('cheap', PRICING_OPTIONS)).toBeUndefined();
+  });
+
+  it('the performing strategy follows the sub and OFCI pricing (Nov 13)', () => {
+    let l = L('1', 'a');
+    l = (setCell(l, col('subName'), 'Bay Concrete') as any).line;
+    expect(l.strategy).toBe('sub_used');
+    l = (setCell(l, col('subName'), '') as any).line;
+    expect(l.strategy).toBe('sub_required');
+    l = (setCell(l, col('strategy'), 'Self perform') as any).line;
+    l = (setCell(l, col('subName'), 'Bay Concrete') as any).line;
+    expect(l.strategy).toBe('self_perform');
+    l = (setCell(l, col('pricing'), 'OFCI') as any).line;
+    expect(l.strategy).toBe('ofci');
   });
 
   it('typing a markup % switches the line to % mode; typing $ switches back', () => {

@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { computeEstimate, explainTotal, lineMath, FORMULAS, type EstLineIn } from './estimate.calc';
+import { autoStrategy, computeEstimate, explainTotal, lineMath, mapOldStrategy, FORMULAS, type EstLineIn } from './estimate.calc';
 
 // The Catherine bathrooms example from "People access and Financials".
 const L = (id: string, scopeId: string, cost: number, markupAmt: number, pricing = 'fc'): EstLineIn => ({ id, scopeId, cost, markupAmt, markupMode: 'amt', pricing });
@@ -94,5 +94,30 @@ describe('estimate maths (F1-F19)', () => {
     const a = readFileSync(join(__dirname, 'estimate.calc.ts'), 'utf8');
     const b = readFileSync(join(__dirname, '../../../frontend/src/data/estimateCalc.ts'), 'utf8');
     expect(b).toBe(a);
+  });
+});
+
+describe('performing strategy (Edward\'s list, Nov 13)', () => {
+  it('maps the old list: subcontract by whether a sub is named, Owner to OFCI, Other cleared', () => {
+    expect(mapOldStrategy('subcontract', true)).toBe('sub_used');
+    expect(mapOldStrategy('subcontract', false)).toBe('sub_required');
+    expect(mapOldStrategy('contract_required', true)).toBe('sub_used');
+    expect(mapOldStrategy('contract_required', false)).toBe('sub_required');
+    expect(mapOldStrategy('owner', false)).toBe('ofci');
+    expect(mapOldStrategy('other', true)).toBeNull();
+    expect(mapOldStrategy('self_perform', true)).toBe('self_perform');
+    expect(mapOldStrategy('not_in_scope', false)).toBe('not_in_scope');
+    expect(mapOldStrategy(null, false)).toBeNull();
+  });
+
+  it('naming a sub, clearing it and OFCI pricing set the strategy; a hand-picked one stays', () => {
+    expect(autoStrategy({ strategy: null, subName: 'Bay Concrete' })).toBe('sub_used');
+    expect(autoStrategy({ strategy: 'sub_required', contractorId: 'K1' })).toBe('sub_used');
+    expect(autoStrategy({ strategy: 'sub_used', subName: '  ' })).toBe('sub_required');
+    expect(autoStrategy({ strategy: null })).toBeNull();
+    expect(autoStrategy({ strategy: 'self_perform', pricing: 'ofci' })).toBe('ofci');
+    expect(autoStrategy({ strategy: null, subPricing: 'ofci', subName: 'X' })).toBe('ofci');
+    expect(autoStrategy({ strategy: 'prime_procures', subName: 'Bay Concrete' })).toBe('prime_procures');
+    expect(autoStrategy({ strategy: 'not_in_scope', subName: 'Bay Concrete' })).toBe('not_in_scope');
   });
 });

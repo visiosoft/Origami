@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13a',
+    date: '2026-11-13',
+    title: 'Estimating: Edward’s performing strategies',
+    items: [
+      { area: 'Estimating', kind: 'improved', text: 'Performing strategy now offers Subcontract used, Subcontract required, Self perform, OFCI, Subcontractor procures, Prime procures, Designer procures and Not In Scope.', where: 'Estimating → an estimate → Performing strategy' },
+      { area: 'Estimating', kind: 'new', text: 'Naming a sub on a line sets “Subcontract used”, clearing it sets “Subcontract required”, and OFCI pricing sets OFCI. A strategy you picked yourself (self perform, procures, not in scope) is left alone.' },
+      { area: 'Estimating', kind: 'new', text: 'Lines saved with the old strategies are listed with where each goes (Subcontract and Contract Required by whether a sub is named, Owner → OFCI, Other → blank); “Update strategies” moves them. Amounts don’t change. Formulas that compare against an old name (e.g. "Owner") need the new one.', where: 'Estimating' },
+    ],
+  },
+  {
     id: '2026-11-12e',
     date: '2026-11-12',
     title: 'Drawing markups is smoother on busy sheets',

@@ -3,7 +3,7 @@
  * reading values typed or pasted from Excel, and copy back out. The React grid
  * in components/estimate only wires these to the screen.
  */
-import { COST_TYPES, NOTE_LABEL, PRICING_LABEL, STRATEGY_LABEL } from './estimateCalc';
+import { autoStrategy, COST_TYPES, NOTE_LABEL, PRICING_LABEL, STRATEGY_LABEL } from './estimateCalc';
 
 export interface EstScope { id: string; csiCodeId?: string | null; title?: string | null; factor?: number | null; privateNotes?: string | null; collapsed?: boolean; custom?: Record<string, unknown> | null }
 export interface EstLine {
@@ -239,8 +239,14 @@ export function setCell(line: EstLine, col: GridCol, raw: string): { line: EstLi
       break;
     }
   }
+  // Naming or clearing a sub, or OFCI pricing, sets the performing strategy (the server does the same).
+  if (l.kind === 'item' && STRATEGY_KEYS.includes(col.key)) {
+    if (col.key === 'subName' && !raw.trim()) l.contractorId = null;
+    l.strategy = autoStrategy(l);
+  }
   return { line: l };
 }
+const STRATEGY_KEYS = ['subName', 'pricing', 'subPricing', 'strategy'];
 
 function setCustom(line: EstLine, col: GridCol, raw: string): { line: EstLine } | { error: string } {
   const s = raw.trim();
@@ -265,6 +271,7 @@ export function cellText(line: EstLine, col: GridCol): string {
   }
   const v = (line as any)[col.key];
   if (col.kind === 'tags') return (line.costTypes || []).join(', ');
+  if (col.key === 'strategy') return STRATEGY_OPTIONS.find(([k]) => k === (autoStrategy(line) ?? ''))?.[1] ?? '';
   if (col.kind === 'choice') return (col.options || []).find(([k]) => k === (v ?? ''))?.[1] ?? '';
   if (col.key === 'markupPct') return line.markupPct == null ? '' : String(line.markupPct);
   return v == null ? '' : String(v);

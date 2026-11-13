@@ -74,6 +74,8 @@ describe('estimates', () => {
     const out = await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
     expect(out.lines.map((l: any) => l.id)).toEqual(['line-1', 'line-2', 'line-3']);
     expect(out.lines[2].cost).toBe(0);
+    // A named sub on an old "Subcontract" line saves as "Subcontract used" (Nov 13).
+    expect(out.lines.map((l: any) => l.strategy)).toEqual(['sub_used', 'not_in_scope', null]);
     expect(out.result.totals.subtotal).toBe(264000);
     expect(out.result.totals.grTotal).toBe(225000);
     // (2,640 + 2,250) / 0.83
@@ -211,4 +213,26 @@ describe('estimates', () => {
     expect((await svc.templates(actor)).rows.filter((r: any) => r.isDefault).map((r: any) => r.title)).toEqual(['Other']);
     await expect(svc.saveSettings(8, b.estimate.id, { version: b.estimate.version, isDefaultTemplate: true }, actor)).rejects.toThrow(/Only a template/);
   });
+
+  it('lists lines on the old strategies with where they go, and changes nothing until confirmed', async () => {
+    const { svc, s } = setup();
+    s.t(EstimateLineEntity).push(
+      { id: 'o1', estimateId: 'E1', projectId: 7, description: 'Framing', strategy: 'subcontract', subName: 'Bay' },
+      { id: 'o2', estimateId: 'E1', projectId: 7, description: 'Tile', strategy: 'contract_required', subName: null },
+      { id: 'o3', estimateId: 'E2', projectId: 8, description: 'Appliances', strategy: 'owner' },
+      { id: 'o4', estimateId: 'E2', projectId: 8, description: 'Misc', strategy: 'other' },
+      { id: 'o5', estimateId: 'E2', projectId: 8, description: 'Paint', strategy: 'self_perform' },
+    );
+    const plan = await svc.strategyMapPlan(actor);
+    expect(plan.total).toBe(4);
+    expect(plan.estimates).toBe(2);
+    expect(plan.groups.map((g) => [g.from, g.to, g.count]).sort()).toEqual([['contract_required', 'sub_required', 1], ['other', null, 1], ['owner', 'ofci', 1], ['subcontract', 'sub_used', 1]]);
+    expect(await svc.applyStrategyMap(false, actor)).toEqual({ applied: false });
+    expect(s.t(EstimateLineEntity).find((l) => l.id === 'o3')!.strategy).toBe('owner');
+    expect(await svc.applyStrategyMap(true, actor)).toEqual({ applied: true, changed: 4 });
+    expect(s.t(EstimateLineEntity).map((l) => l.strategy)).toEqual(['sub_used', 'sub_required', 'ofci', null, 'self_perform']);
+    expect((await svc.strategyMapPlan(actor)).total).toBe(0);
+    await expect(setup({}).svc.applyStrategyMap(true, actor)).rejects.toThrow(/editing estimates/);
+  });
 });
+

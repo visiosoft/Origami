@@ -8,7 +8,7 @@ import {
 import { ManpowerAccess, type Actor } from '../manpower/manpower-access.service';
 import { newId, todayISO } from '../manpower/workforce.util';
 import { FinancialsService, FIN_MODULE } from './financials.service';
-import { computeEstimate, FORMULAS, isPricing, NOTE_KINDS, STRATEGIES, type EstimateResult } from './estimate.calc';
+import { autoStrategy, computeEstimate, mapOldStrategy, FORMULAS, isPricing, NOTE_KINDS, OLD_STRATEGIES, STRATEGIES, type EstimateResult } from './estimate.calc';
 import { fromCents, toCents } from './money';
 
 export const ESTIMATING_MODULE = 'estimating';
@@ -371,6 +371,35 @@ export class EstimatesService {
   }
 
   /**
+   * Lines still on the performing strategies used before Nov 13, and where each
+   * would go (Edward's list). Read-only: nothing changes until applyStrategyMap.
+   */
+  async strategyMapPlan(actor: Actor) {
+    await this.need(actor, 'edit');
+    const rows = await this.lines.find({ where: { strategy: In([...OLD_STRATEGIES]) }, select: ['id', 'estimateId', 'projectId', 'description', 'strategy', 'subName', 'contractorId'] as any });
+    const groups = new Map<string, { from: string; to: string | null; count: number; samples: string[] }>();
+    for (const l of rows) {
+      const to = mapOldStrategy(l.strategy, !!(l.subName?.trim() || l.contractorId));
+      const k = `${l.strategy}>${to}`;
+      const g = groups.get(k) || { from: l.strategy as string, to, count: 0, samples: [] };
+      g.count++;
+      if (g.samples.length < 3) g.samples.push((l.description || '').slice(0, 80) || '(no description)');
+      groups.set(k, g);
+    }
+    return { total: rows.length, estimates: new Set(rows.map((r) => r.estimateId)).size, groups: [...groups.values()].sort((a, b) => b.count - a.count) };
+  }
+
+  /** Moves those lines to the new strategies. Amounts don't change (strategy isn't in the maths). */
+  async applyStrategyMap(confirm: boolean, actor: Actor) {
+    await this.need(actor, 'edit');
+    if (!confirm) return { applied: false };
+    const rows = await this.lines.find({ where: { strategy: In([...OLD_STRATEGIES]) } });
+    for (const l of rows) l.strategy = mapOldStrategy(l.strategy, !!(l.subName?.trim() || l.contractorId));
+    for (let i = 0; i < rows.length; i += 200) await this.lines.save(rows.slice(i, i + 200));
+    return { applied: true, changed: rows.length };
+  }
+
+  /**
    * The grid's save: the whole sheet as it stands. Rows not sent are deleted;
    * order is the order sent. All or nothing, and only on the version opened.
    */
@@ -405,8 +434,10 @@ export class EstimatesService {
       if (!isPricing(pricing)) throw new BadRequestException(`Unknown pricing type "${pricing}".`);
       const subPricing = l?.subPricing ? String(l.subPricing) : null;
       if (subPricing && !isPricing(subPricing)) throw new BadRequestException(`Unknown pricing type "${subPricing}".`);
-      const strategy = l?.strategy ? String(l.strategy) : null;
-      if (strategy && !(STRATEGIES as readonly string[]).includes(strategy)) throw new BadRequestException(`Unknown performing strategy "${strategy}".`);
+      const picked = l?.strategy ? String(l.strategy) : null;
+      if (picked && ![...STRATEGIES, ...OLD_STRATEGIES].includes(picked as any)) throw new BadRequestException(`Unknown performing strategy "${picked}".`);
+      // A named sub, a cleared sub and OFCI pricing set the strategy on their own (Nov 13).
+      const strategy = kind === 'item' ? autoStrategy({ strategy: picked, pricing, subPricing, subName: l?.subName, contractorId: l?.contractorId }) : picked;
       const markupMode = l?.markupMode === 'pct' ? 'pct' : 'amt';
       const dur = l?.durationDays == null || l.durationDays === '' ? null : Math.round(Number(l.durationDays));
       if (dur != null && (!Number.isFinite(dur) || dur < 0 || dur > 100000)) throw new BadRequestException('Duration must be a number of days.');

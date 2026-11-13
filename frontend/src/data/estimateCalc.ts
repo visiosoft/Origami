@@ -15,12 +15,39 @@ export const PRICING_LABEL: Record<PricingType, string> = {
   allowance: 'Allowance', ofci: 'Owner Furnished Contractor Installed (OFCI)', nis: 'Not In Scope (NIS)',
 };
 
-export const STRATEGIES = ['subcontract', 'self_perform', 'owner', 'contract_required', 'other', 'not_in_scope'] as const;
+/** Performing strategy (Edward's list, Nov 13). */
+export const STRATEGIES = [
+  'sub_used', 'sub_required', 'self_perform', 'ofci', 'sub_procures', 'prime_procures', 'designer_procures', 'not_in_scope',
+] as const;
 export type Strategy = (typeof STRATEGIES)[number];
 export const STRATEGY_LABEL: Record<Strategy, string> = {
-  subcontract: 'Subcontract', self_perform: 'Self Perform', owner: 'Owner', contract_required: 'Contract Required',
-  other: 'Other', not_in_scope: 'Not In Scope',
+  sub_used: 'Subcontract used', sub_required: 'Subcontract required', self_perform: 'Self perform',
+  ofci: 'OFCI', sub_procures: 'Subcontractor procures', prime_procures: 'Prime procures',
+  designer_procures: 'Designer procures', not_in_scope: 'Not In Scope',
 };
+/** The list before Nov 13; still read until the one-off mapping has run. */
+export const OLD_STRATEGIES = ['subcontract', 'owner', 'contract_required', 'other'] as const;
+
+/** Where an old strategy goes: a named sub makes a subcontract "used"; Owner is OFCI; Other is cleared. */
+export function mapOldStrategy(strategy: string | null | undefined, hasSub: boolean): string | null {
+  if (strategy === 'subcontract' || strategy === 'contract_required') return hasSub ? 'sub_used' : 'sub_required';
+  if (strategy === 'owner') return 'ofci';
+  if (strategy === 'other') return null;
+  return strategy || null;
+}
+
+/**
+ * The strategy that follows on its own from a line's sub and pricing:
+ * OFCI pricing gives OFCI; naming a sub gives "Subcontract used", clearing it "Subcontract required".
+ * A strategy picked by hand (self perform, procures, not in scope) is kept.
+ */
+export function autoStrategy(line: { strategy?: string | null; pricing?: string | null; subPricing?: string | null; subName?: string | null; contractorId?: string | null }): string | null {
+  const s = mapOldStrategy(line.strategy, !!(line.subName?.trim() || line.contractorId));
+  if (line.pricing === 'ofci' || line.subPricing === 'ofci') return 'ofci';
+  const hasSub = !!(line.subName?.trim() || line.contractorId);
+  if (!s || s === 'sub_used' || s === 'sub_required') return hasSub ? 'sub_used' : s ? 'sub_required' : null;
+  return s;
+}
 
 export const NOTE_KINDS = ['details', 'inclusion', 'exclusion', 'assumption'] as const;
 export const NOTE_LABEL: Record<(typeof NOTE_KINDS)[number], string> = {
@@ -33,7 +60,7 @@ export const COST_TYPES = ['Rough Labor', 'Rough Materials', 'Finish Labor', 'Fi
 export const FORMULAS = {
   F1: { label: 'Line markup %', text: 'Markup $ ÷ Sub cost' },
   F2: { label: 'Line price', text: 'Sub cost + Markup $ (with markup entered as %: Sub cost × (1 + Markup %))' },
-  F3: { label: 'Counted line price', text: 'Not In Scope lines count $0; every other line counts its price (OFCI and Owner lines count only what is entered on them)' },
+  F3: { label: 'Counted line price', text: 'Not In Scope lines count $0; every other line counts its price (OFCI lines count only what is entered on them)' },
   F4: { label: 'Precon higher end', text: 'Line price × Factor — shown for ranges, never added to totals' },
   F5: { label: 'Scope total', text: 'Sum of the counted line prices in the scope' },
   F6: { label: 'Scope profit %', text: 'Scope markup $ ÷ Scope sub cost' },

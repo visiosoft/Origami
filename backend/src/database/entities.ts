@@ -2790,7 +2790,7 @@ export class EstimateLineEntity {
   @Column({ default: 'fc' }) pricing!: string;
   /** The sub's own pricing type (the subcontractor columns' FC / T&M / ... boxes); null = same as the prime line. */
   @Column({ type: 'nvarchar', length: 20, nullable: true }) subPricing!: string | null;
-  /** subcontract | self_perform | owner | contract_required | other | not_in_scope */
+  /** sub_used | sub_required | self_perform | ofci | sub_procures | prime_procures | designer_procures | not_in_scope (Nov 13; older rows may still hold subcontract | owner | contract_required | other until mapped) */
   @Column({ type: 'nvarchar', length: 40, nullable: true }) strategy!: string | null;
   @Column({ type: 'nvarchar', length: 60, nullable: true }) contractorId!: string | null;
   @Column({ type: 'nvarchar', length: 200, nullable: true }) subName!: string | null;

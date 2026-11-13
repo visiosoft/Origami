@@ -5,6 +5,7 @@ import { useApp } from '../AppContext';
 import { EstimateGrid, type EstimateHeader } from '../components/estimate/EstimateGrid';
 import { SourcePicker } from '../components/estimate/SourcePicker';
 import { StatementLibrary } from '../components/estimate/StatementLibrary';
+import { StrategyMap } from '../components/estimate/StrategyMap';
 import { money } from '../data/estimateCalc';
 
 interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number }
@@ -77,6 +78,7 @@ export function Estimating() {
           <h1 style={{ margin: 0, font: '700 22px var(--font-display, inherit)', color: 'var(--ink)' }}>Estimating</h1>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Build a project’s estimate like the team’s spreadsheet: scopes by CSI code, the subcontractor and markup columns, then General Requirements, profit and contingency. Pick a project.</div>
         </div>
+        {rights.edit && <StrategyMap />}
         <input aria-label="Find a project" placeholder="Find a project…" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ padding: '9px 12px', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.15)', font: 'inherit', fontSize: 16, background: 'var(--surface)', color: 'var(--ink)' }} />
         <div style={{ display: 'grid', gap: 6 }}>
           {list.slice(0, 200).map((p) => (
