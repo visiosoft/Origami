@@ -1,3 +1,4 @@
+import { PhasesService } from '../project-tasks/phases.service';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { NEEDS_INTAKE, missingIntake } from './lead-intake';
 import { cleanDeadReason, cleanLossReason, DEAD_STAGES, deadReasonLabels, deadReasonSummary, isDueForArchive, type DeadReason } from './dead-leads';
@@ -46,6 +47,7 @@ export class PipelineService implements OnApplicationBootstrap {
     @Optional() private readonly tasks?: TasksService,
     @Optional() private readonly boardTasks?: ProjectTasksService,
     @Optional() private readonly hub?: NotifyHub,
+    @Optional() private readonly phases?: PhasesService,
   ) {}
 
   /** A lead's name for a notification (it lives on the lead record). */
@@ -328,6 +330,33 @@ export class PipelineService implements OnApplicationBootstrap {
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(archived ? 'Archived' : 'Restored from archive', actor)];
     this.leadMoved(id, (name) => `${name} ${archived ? 'archived' : 'restored from the archive'}`, actor);
     return this.repo.save(deal);
+  }
+
+  /**
+   * Projects converted before the team carried over (Nov 13): the CRM team
+   * each would get. Read-only; applyTeamBackfill copies it and fills their
+   * open, unassigned role tasks.
+   */
+  async teamBackfillPlan() {
+    const deals = (await this.repo.find()).filter((d) => d.convertedProjectId && d.roles && Object.values(d.roles).some((v) => String(v || '').trim()));
+    const out: { projectId: number; projectName: string; dealName: string; roles: Record<string, string> }[] = [];
+    for (const d of deals) {
+      const p = await this.projects.findOne(String(d.convertedProjectId)).catch(() => null) as any;
+      if (!p || (p.roles && Object.keys(p.roles).length)) continue;
+      out.push({ projectId: p.id, projectName: p.name, dealName: String((d as any).name || (d as any).title || d.id), roles: Object.fromEntries(Object.entries(d.roles).filter(([, v]) => String(v || '').trim())) as Record<string, string> });
+    }
+    return out;
+  }
+
+  async applyTeamBackfill(confirm: boolean) {
+    const plan = await this.teamBackfillPlan();
+    if (!confirm) return { applied: false, plan };
+    let filled = 0;
+    for (const p of plan) {
+      await this.projects.update(String(p.projectId), { roles: p.roles } as any);
+      filled += (await this.phases?.fillTeam(p.projectId)) || 0;
+    }
+    return { applied: true, changed: plan.length, filled };
   }
 
   /** The internal team on this pursuit. */
@@ -637,6 +666,8 @@ export class PipelineService implements OnApplicationBootstrap {
       contactedBy: deal.assignee || '',
       website: lead?.website || '',
       leadId: id,
+      // The internal team carries over: tasks given to a role fill in from it (Nov 13).
+      roles: deal.roles && Object.keys(deal.roles).length ? deal.roles : null,
       priority: 'Medium',
       progress: 0,
     };
@@ -650,6 +681,7 @@ export class PipelineService implements OnApplicationBootstrap {
       : await this.projects.create(fields);
 
     deal.convertedProjectId = Number(project.id);
+    await this.phases?.fillTeam(Number(project.id)).catch(() => 0);
     deal.archived = true;
     deal.archivedAt = new Date().toISOString();
     deal.timeline = [

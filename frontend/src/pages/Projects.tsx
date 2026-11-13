@@ -1,3 +1,5 @@
+import { TeamBackfill } from '../components/TeamBackfill';
+import { ProjectTeam } from '../components/ProjectTeam';
 import { forgetProjectPlace, rememberProjectPlace } from '../data/returnToProject';
 import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
@@ -589,6 +591,7 @@ export function Projects() {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
+      {currentUser?.roleKey === 'admin' && <TeamBackfill />}
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <input
@@ -898,6 +901,7 @@ export function Projects() {
             ) : tab === 'subs' || tab === 'guests' ? (
               // Project People (Oct 27 sync): who's on the project -- consultants, subs, client -- their subcontracts, and guest access, in one place.
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', display: 'grid', gap: 18, alignContent: 'start' }}>
+                <ProjectTeam projectId={sel.id} />
                 <ProjectPeople projectName={sel.name} />
                 <ProjectSubcontractors projectId={sel.id} onAddSubcontract={finView ? () => { setFinStart('subcontracts'); setTab('financial'); } : undefined} />
                 {canManage && <div style={{ margin: '0 -24px' }}><GuestAccessPanel projectId={sel.id} /></div>}

@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13k',
+    date: '2026-11-13',
+    title: 'Tasks go to the role, and the role to the person',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Each project has a team: who is its Project Manager, Project Coordinator, Estimator, Architect, Designer, Superintendent, Foreman, Admin, Accounting and Permits person. Programme tasks given to a role go to whoever fills it — when the project is set up, and whenever the team changes. A person picked by hand is never changed.', where: 'Projects → a project → People → Project team' },
+      { area: 'Projects', kind: 'new', text: 'The team comes over from the CRM when a lead becomes a project. Projects converted before this are listed for administrators with “Copy the CRM team”.', where: 'Projects' },
+      { area: 'Tasks', kind: 'new', text: 'A task given to a role nobody fills shows “Project Coordinator — unfilled” in amber, and the project team shows how many tasks wait on each empty role.' },
+      { area: 'CRM', kind: 'improved', text: 'The lead’s Internal Team has the same roles as the project team (Admin, Accounting and Permits added).' },
+    ],
+  },
+  {
     id: '2026-11-13j',
     date: '2026-11-13',
     title: 'Restricted File Room folders',

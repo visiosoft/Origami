@@ -569,6 +569,8 @@ export const api = {
       request<{ task: any; entry: any }>(`/tasks/${encodeURIComponent(id)}/linked-task`, { method: 'POST', body: JSON.stringify(d) }),
   },
   pipeline: {
+    teamBackfill: () => request<{ projectId: number; projectName: string; dealName: string; roles: Record<string, string> }[]>('/pipeline/team-backfill', { cache: 'no-store' } as any),
+    applyTeamBackfill: () => request<{ applied: boolean; changed?: number; filled?: number }>('/pipeline/team-backfill', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     /** Archived deals are excluded unless asked for. */
     list: (includeArchived = false) => request(`/pipeline${includeArchived ? '?archived=true' : ''}`),
     stages: () => request('/pipeline/stages'),
@@ -683,6 +685,11 @@ export const api = {
     add: (name: string) => request<TagInfo>('/tags', { method: 'POST', body: JSON.stringify({ name }) }),
     rename: (key: string, name: string) => request<{ changed: number }>(`/tags/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify({ name }) }),
     remove: (key: string) => request<{ changed: number }>(`/tags/${encodeURIComponent(key)}`, { method: 'DELETE' }),
+  },
+  /** The project's internal team (Nov 13): who fills each role; tasks given to a role follow. */
+  projectTeam: {
+    get: (projectId: number) => request<{ roles: Record<string, string>; summary: { key: string; label: string; userId: string | null; name: string | null; waiting: number }[] }>(`/project-phases/team?projectId=${projectId}`, { cache: 'no-store' } as any),
+    set: (projectId: number, roles: Record<string, string>) => request<{ roles: Record<string, string>; summary: { key: string; label: string; userId: string | null; name: string | null; waiting: number }[]; filled: number }>('/project-phases/team', { method: 'PUT', body: JSON.stringify({ projectId, roles }) }),
   },
   users: {
     list: () => request('/users'),

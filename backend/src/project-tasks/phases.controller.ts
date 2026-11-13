@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { PhasesService } from './phases.service';
 import { CreatePhaseDto } from './dto/create-phase.dto';
@@ -63,6 +64,22 @@ export class PhasesController {
     // The contract amount is a financial figure (K7): only for roles that see project financials.
     if (await this.access.canView(claims, 'fin_project', 'fin_business')) return rows;
     return (rows as any[]).map((r) => ({ ...r, contractAmt: null }));
+  }
+
+  /** The project team (Nov 13): who fills each role, and open tasks waiting on empty roles. */
+  @Get('team')
+  async team(@Query('projectId') projectId: string, @Claims() claims: SessionClaims | null) {
+    await this.access.assert(claims ?? null, Number(projectId));
+    return this.service.team(Number(projectId));
+  }
+
+  /** Change who fills the roles; their open, unassigned tasks follow. Staff who manage projects. */
+  @Tiers('internal')
+  @Put('team')
+  async setTeam(@Body() body: { projectId: number; roles: Record<string, string> }, @Claims() claims: SessionClaims | null) {
+    await this.access.assert(claims ?? null, Number(body?.projectId));
+    if (!(await this.access.canManage(claims ?? null, 'projects', 'pm'))) throw new ForbiddenException('Your role doesn’t allow changing the project team.');
+    return this.service.setTeam(Number(body?.projectId), body?.roles || {});
   }
 
   @Get('board')

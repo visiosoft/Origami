@@ -1,3 +1,4 @@
+import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
@@ -1108,6 +1109,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                   internalOnly={selected.projectId == null}
                   onChange={(u) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
                 />
+                <UnfilledRole team={(d as any).team} assigned={assigned} />
               </Field>
               <Field label="Source (requested by)">
                 <AssigneePicker

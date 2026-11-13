@@ -55,6 +55,8 @@ export class ProjectEntity {
   // kitchen remodel and a ground-up build don't share one shape. Unset falls
   // back to the library's first entry.
   @Column({ nullable: true }) templateKey!: string;
+  /** Who fills each role on this project (Nov 13): role key (projectManager...) -> users.id. Copied from the CRM deal when converted. */
+  @Column({ type: 'simple-json', nullable: true }) roles!: Record<string, string> | null;
   @Column({ nullable: true }) website!: string; // rolls over from the originating lead at conversion
   /** True when the project doesn't use the Project Program workbook (outsourced, software, small jobs); its answers are kept. */
   @Column({ nullable: true, default: false }) programOff!: boolean;

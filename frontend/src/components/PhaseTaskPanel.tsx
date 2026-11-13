@@ -1,3 +1,4 @@
+import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
@@ -158,6 +159,7 @@ export function PhaseTaskPanel({
               disabled={!canManage}
               onChange={(u: any) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
             />
+            <UnfilledRole team={draft.team} assigned={!!(draft.assigneeId || (draft.assignee || '').trim())} />
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
             {label('Collaborative', 'Follow the task without owning it — they hear about comments and when it’s done.')}

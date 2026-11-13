@@ -32,6 +32,19 @@ export class PipelineController {
     return this.scope(await this.pipelineService.findAll(archived === 'true') as any[], claims ?? null);
   }
 
+  /** Converted projects without their CRM team yet (Nov 13): what each would get. Administrators. */
+  @Get('team-backfill')
+  teamBackfill(@Claims() claims?: SessionClaims | null) {
+    if (claims?.roleKey !== 'admin') throw new ForbiddenException('Administrators only.');
+    return this.pipelineService.teamBackfillPlan();
+  }
+
+  @Post('team-backfill')
+  applyTeamBackfill(@Body() body: { confirm?: boolean }, @Claims() claims?: SessionClaims | null) {
+    if (claims?.roleKey !== 'admin') throw new ForbiddenException('Administrators only.');
+    return this.pipelineService.applyTeamBackfill(body?.confirm === true);
+  }
+
   @Get('stages')
   getStages() {
     return this.pipelineService.getStages();

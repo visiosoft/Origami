@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { fillByRole, PROJECT_ROLES, roleSummary } from './project-roles';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
+import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity, UserEntity } from '../database/entities';
 import { RETIRED_PHASE_KEYS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
 import {
   DEFAULT_PROGRAMME, DEFAULT_LIBRARY, DEFAULT_TEMPLATE_KEY, parseProgramme, parseLibrary, slugifyTemplateKey, phaseCategorizer,
@@ -49,7 +50,51 @@ export class PhasesService implements OnApplicationBootstrap {
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     private readonly sections: SectionsService,
     private readonly settings: SettingsService,
+    @Optional() @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
   ) {}
+
+  // ------------------------------------------------------------- the project team (Nov 13)
+
+  private async nameOfUser(): Promise<(id: string) => string | null> {
+    const rows = this.users ? await this.users.find({ select: { id: true, name: true, status: true } as any }) : [];
+    const m = new Map(rows.filter((u) => u.status !== 'suspended').map((u) => [u.id, u.name]));
+    return (id) => m.get(id) || null;
+  }
+
+  /** Tasks given to a role and nobody yet get whoever fills that role on the project. */
+  async fillTeam(projectId: number, rows?: ProjectTaskEntity[]) {
+    const project = await this.projects.findOne({ where: { id: projectId }, select: { id: true, roles: true } as any });
+    if (!project?.roles || !Object.keys(project.roles).length) return 0;
+    const tasks = rows || (await this.tasks.find({ where: { projectId } }));
+    const changed = fillByRole(tasks, project.roles, await this.nameOfUser());
+    if (changed.length && !rows) await this.tasks.save(changed);
+    return changed.length;
+  }
+
+  /** Who fills each role, and how many open tasks wait on each empty one. */
+  async team(projectId: number) {
+    const project = await this.projects.findOne({ where: { id: projectId }, select: { id: true, roles: true } as any });
+    if (!project) throw new NotFoundException('Project not found');
+    const tasks = await this.tasks.find({ where: { projectId }, select: { id: true, team: true, assignee: true, assigneeId: true, completed: true, status: true } as any });
+    const nameOf = await this.nameOfUser();
+    return { roles: project.roles || {}, summary: roleSummary(tasks, project.roles).map((r) => ({ ...r, name: r.userId ? nameOf(r.userId) : null })) };
+  }
+
+  /** Change who fills the roles; their open, unassigned tasks follow. */
+  async setTeam(projectId: number, roles: Record<string, unknown>) {
+    const project = await this.projects.findOneBy({ id: projectId });
+    if (!project) throw new NotFoundException('Project not found');
+    const keys = new Set(PROJECT_ROLES.map((r) => r.key));
+    const next: Record<string, string> = { ...(project.roles || {}) };
+    for (const [k, v] of Object.entries(roles || {})) {
+      if (!keys.has(k)) throw new BadRequestException(`Unknown role "${k}".`);
+      const id = String(v ?? '').trim();
+      if (id) next[k] = id; else delete next[k];
+    }
+    await this.projects.update({ id: projectId }, { roles: Object.keys(next).length ? next : null } as any);
+    const filled = await this.fillTeam(projectId);
+    return { ...(await this.team(projectId)), filled };
+  }
 
   /**
    * The office's library of named programmes -- a kitchen remodel and a
@@ -141,6 +186,7 @@ export class PhasesService implements OnApplicationBootstrap {
       if (touched) enriched.push(task);
     }
     if (enriched.length) await this.tasks.save(enriched);
+    await this.fillTeam(projectId);
 
     const extraPhases = phases.filter((ph) => !plan.some((d) => d.key === ph.key)).map((ph) => ph.name);
     this.log.log(`Applied template to project ${projectId}: +${missingPhases.length} phase(s), +${after - before} task(s)`);
@@ -309,6 +355,8 @@ export class PhasesService implements OnApplicationBootstrap {
       phase.seededAt = stamp;
     }
 
+    // Given to a role: the person who fills it on this project (Nov 13).
+    if (rows.length) await this.fillTeam(projectId, rows);
     if (rows.length) await this.tasks.save(rows);
     if (touched.length) await this.tasks.save(touched);
     await this.repo.save(pending);
