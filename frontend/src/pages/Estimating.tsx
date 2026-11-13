@@ -10,7 +10,22 @@ import { RevisionCompare } from '../components/estimate/RevisionCompare';
 import { money } from '../data/estimateCalc';
 
 interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number }
-interface Project { id: number; name: string; status?: string }
+interface Project { id: number; name: string; status?: string; stage?: string | null }
+
+/** The start page groups projects by where they are (Nov 13): CRM, Design, Precon, Construction. */
+export const STAGE_FOLDS: { key: string; label: string; stages: string[] }[] = [
+  { key: 'crm', label: 'CRM', stages: [''] },
+  { key: 'design', label: 'Design', stages: ['design'] },
+  { key: 'precon', label: 'Precon', stages: ['kickoff', 'precon', 'preconstruction'] },
+  { key: 'construction', label: 'Construction', stages: ['construction'] },
+  { key: 'closed', label: 'Closed & cancelled', stages: ['closeout', 'closed', 'cancelled'] },
+];
+export function foldOf(stage?: string | null): string {
+  const s = (stage || '').trim().toLowerCase();
+  return STAGE_FOLDS.find((f) => f.stages.includes(s))?.key || 'crm';
+}
+const FOLDS_KEY = 'origami.est.folds';
+const loadFolds = (): string[] => { try { return JSON.parse(localStorage.getItem(FOLDS_KEY) || '[]'); } catch { return []; } };
 
 const chip = (status: string) => <span className={`eg-chip is-${status}`}>{status}</span>;
 
@@ -35,6 +50,9 @@ export function Estimating() {
   const [filter, setFilter] = useState('');
   const [reload, setReload] = useState(0);
   const [comparing, setComparing] = useState(false);
+  const [shut, setShut] = useState<string[]>(loadFolds);
+  const [showClosed, setShowClosed] = useState(false);
+  const toggleFold = (k: string) => setShut((x) => { const n = x.includes(k) ? x.filter((y) => y !== k) : [...x, k]; try { localStorage.setItem(FOLDS_KEY, JSON.stringify(n)); } catch { /* private mode */ } return n; });
   const grid = useRef<{ flush: () => Promise<unknown> } | null>(null);
 
   useEffect(() => { (api.projects.list() as Promise<any>).then((l) => setProjects(Array.isArray(l) ? l : l?.rows || [])).catch(() => setProjects([])); }, []);
@@ -82,11 +100,29 @@ export function Estimating() {
         </div>
         {rights.edit && <StrategyMap />}
         <input aria-label="Find a project" placeholder="Find a project…" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ padding: '9px 12px', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.15)', font: 'inherit', fontSize: 16, background: 'var(--surface)', color: 'var(--ink)' }} />
-        <div style={{ display: 'grid', gap: 6 }}>
-          {list.slice(0, 200).map((p) => (
-            <button key={p.id} type="button" onClick={() => go({ project: String(p.id), estimate: null })} style={{ textAlign: 'left', padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)', font: 'inherit', fontSize: 14, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>{p.name}</button>
-          ))}
+        <div style={{ display: 'grid', gap: 10 }}>
+          {STAGE_FOLDS.filter((f) => f.key !== 'closed' || showClosed).map((f) => {
+            const mine = list.filter((p) => foldOf(p.stage) === f.key);
+            if (!mine.length && (filter || f.key === 'closed')) return null;
+            const isOpen = !!filter || !shut.includes(f.key);
+            return (
+              <section key={f.key} className="est-fold" aria-label={f.label}>
+                <button type="button" className="est-fold-head" aria-expanded={isOpen} onClick={() => toggleFold(f.key)}>
+                  <span className={`est-caret${isOpen ? ' is-open' : ''}`}>›</span>{f.label}<span className="est-count">{mine.length}</span>
+                </button>
+                {isOpen && (
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {mine.slice(0, 200).map((p) => (
+                      <button key={p.id} type="button" onClick={() => go({ project: String(p.id), estimate: null })} style={{ textAlign: 'left', padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)', font: 'inherit', fontSize: 14, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>{p.name}{p.stage && <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 500, color: 'var(--muted)' }}>{p.stage}</span>}</button>
+                    ))}
+                    {!mine.length && <div style={{ color: 'var(--muted)', fontSize: 13, padding: '0 4px' }}>None.</div>}
+                  </div>
+                )}
+              </section>
+            );
+          })}
           {!list.length && <div style={{ color: 'var(--muted)', fontSize: 13 }}>No projects found.</div>}
+          <label style={{ fontSize: 12.5, color: 'var(--muted)', display: 'inline-flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> Show closed &amp; cancelled</label>
         </div>
         <div className="eg-card" style={{ display: 'grid', gap: 8 }}>
           <h3 style={{ margin: 0 }}>Templates <span className="eg-scope-fig">Start any project’s estimate from one</span>
