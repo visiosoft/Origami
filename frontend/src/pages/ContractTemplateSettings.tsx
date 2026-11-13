@@ -19,7 +19,8 @@ export function ContractTemplateSettings() {
   const [sel, setSel] = useState<string | null>(null);
   const [draft, setDraft] = useState<ContractTemplate | null>(null);
   const load = () => api.contracts.templates().then((l) => { setList(l); if (!sel && l[0]) { setSel(l[0].id); setDraft(l[0]); } }).catch((e: Error) => toast('⚠ ' + e.message));
-  useEffect(() => { void load(); api.contracts.types().then((t) => setFields(t?.mergeFields || [])).catch(() => undefined); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [caClauses, setCaClauses] = useState('');
+  useEffect(() => { void load(); api.contracts.types().then((t) => { setFields(t?.mergeFields || []); setCaClauses(t?.caClauses || ''); }).catch(() => undefined); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = (t: ContractTemplate) => { setSel(t.id); setDraft(t); };
   const saved = list.find((t) => t.id === sel);
   const dirty = !!draft && (!saved || draft.name !== saved.name || draft.html !== saved.html || !!draft.isDefault !== !!saved.isDefault || draft.type !== saved.type);
@@ -49,7 +50,16 @@ export function ContractTemplateSettings() {
   const fieldGroups = [{ label: 'Signing', tokens: [{ key: 'initials', label: 'Initials box (every signer)' }] }, ...['contract', 'project', 'owner', 'party', 'company', 'changeOrder', 'subcontract'].map((g) => ({
     label: ({ contract: 'Contract', project: 'Project', owner: 'Owner', party: 'Other party', company: 'Our company', changeOrder: 'Change order', subcontract: 'Subcontract' } as Record<string, string>)[g],
     tokens: fields.filter(([k]) => k.startsWith(g + '.')).map(([k, l]) => ({ key: k, label: l })),
-  })).filter((g) => g.tokens.length)];
+  })).filter((g) => g.tokens.length),
+  // California (Nov 13): filled when the contract is shown.
+  { label: 'California', tokens: fields.filter(([k]) => !k.includes('.')).map(([k, l]) => ({ key: k, label: l })) }].filter((g) => g.tokens.length);
+  /** Add the drawings, three-day right to cancel and notice of cancellation, numbered after the last section. */
+  const addCaClauses = () => {
+    if (!draft || !caClauses) return;
+    const last = Math.max(0, ...[...draft.html.matchAll(/<h3[^>]*>\s*(\d+)\./g)].map((m) => Number(m[1])));
+    const block = caClauses.replace('<h3>0. ', `<h3>${last + 1}. `).replace('<h3>1. ', `<h3>${last + 2}. `);
+    setDraft({ ...draft, html: `${draft.html}\n${block}` });
+  };
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -76,6 +86,12 @@ export function ContractTemplateSettings() {
           <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
             Bring a contract in with <b>⤓ Word</b> (a .docx keeps its headings, numbered lists and tables) or paste it from Word or Google Docs. Then put the fields in with <b>+ Insert field</b> — owner name, project address, amounts — and they fill in when a contract is made.
           </div>
+          {caClauses && !/\{\{\s*cancel_by\s*\}\}/.test(draft.html) && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '8px 12px', borderRadius: 10, background: 'var(--mist)', fontSize: 12.5 }}>
+              <span style={{ flex: 1, minWidth: 220 }}>California home-improvement contracts need the three-day right to cancel and its notice. Add them, with the drawing list, at the end.</span>
+              <button type="button" style={btn()} onClick={addCaClauses}>+ California clauses</button>
+            </div>
+          )}
           <RichTextEditor value={draft.html} onChange={(html) => setDraft((d) => (d ? { ...d, html } : d))} minHeight={420} fields={fieldGroups} wordImport />
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" style={btn(true)} disabled={!dirty} onClick={() => void save()}>Save</button>

@@ -1,3 +1,4 @@
+import { LIVE_FIELDS } from './california';
 /**
  * Contracts signed inside ODIN (Oct 27 backlog: "Contracts for Services"):
  * the six kinds, their parties, their default templates, the merge fields and
@@ -55,6 +56,8 @@ export const MERGE_FIELDS: [string, string][] = [
   ['company.name', 'Our company name'], ['company.address', 'Our address'], ['company.license', 'Our licence number'],
   ['changeOrder.number', 'Change order number'], ['changeOrder.title', 'Change order title'], ['changeOrder.description', 'Change order description'], ['changeOrder.amount', 'Change order amount'],
   ['subcontract.number', 'Subcontract / PO number'], ['subcontract.title', 'Subcontract title'], ['subcontract.amount', 'Subcontract amount'],
+  // California (Nov 13): filled when the contract is shown.
+  ['cancel_by', 'Last day to cancel (3 business days after the owner signs)'], ['draw_schedule', 'Draw schedule table'], ['drawing_list', 'List of attached drawings'],
 ];
 
 /** Made-up details for previewing a template (Oct 30 sync): a real-looking contract, so gaps and layout show. */
@@ -75,7 +78,8 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
  */
 export function mergeContract(html: string, data: Record<string, string | null | undefined>): string {
   return String(html || '').replace(/\{\{\s*([\w.]+)\s*\}\}/g, (m, key: string) => {
-    if (key === 'initials') return m;
+    // Initials are the signers'; the cancel-by date, draw schedule and drawing list are filled when shown (california.ts).
+    if (key === 'initials' || LIVE_FIELDS.includes(key)) return m;
     const v = data[key];
     return v == null || v === '' ? m : esc(String(v));
   });
@@ -84,7 +88,7 @@ export function mergeContract(html: string, data: Record<string, string | null |
 /** The {{fields}} still unfilled (initials aside) -- shown before sending. */
 export function unfilledFields(html: string): string[] {
   const out = new Set<string>();
-  for (const m of String(html || '').matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)) if (m[1] !== 'initials') out.add(m[1]);
+  for (const m of String(html || '').matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)) if (m[1] !== 'initials' && !LIVE_FIELDS.includes(m[1])) out.add(m[1]);
   return [...out];
 }
 
@@ -129,6 +133,16 @@ export function statusFromParties(parties: ContractParty[]): ContractStatus {
 // ------------------------------------------------------------------ default templates
 
 const SECTION = (n: number, title: string, body: string) => `<h3>${n}. ${title}</h3>\n<p>${body}</p>\n<p>{{initials}}</p>`;
+/**
+ * The California home-improvement clauses (Nov 13): drawings, the three-day
+ * right to cancel and its notice. {{cancel_by}}, {{draw_schedule}} and
+ * {{drawing_list}} are filled when the contract is shown.
+ */
+export const CA_CLAUSES = (n: number) => [
+  SECTION(n, 'Drawings', 'The work is shown on these drawings, which are part of this contract: {{drawing_list}}'),
+  SECTION(n + 1, 'Three-day right to cancel', 'You, the buyer, have the right to cancel this contract within three business days. You may cancel by emailing, mailing, faxing or delivering a written notice to the contractor at the contractor’s place of business by {{cancel_by}}. If you cancel, any payments made will be returned within 10 days.'),
+  '<h3>Notice of cancellation</h3>\n<p>You may cancel this transaction, without any penalty or obligation, by {{cancel_by}}. To cancel, deliver a signed and dated copy of this notice, or any other written notice, to {{company.name}} at {{company.address}}.</p>\n<p>I hereby cancel this transaction. &nbsp; Date: ____________ &nbsp; Buyer’s signature: ________________________</p>',
+].join('\n');
 const HEAD = (title: string, between: string) => `<h2>${title}</h2>\n<p><strong>Contract no.</strong> {{contract.number}} &nbsp;·&nbsp; <strong>Date:</strong> {{contract.date}}</p>\n<p>This agreement is made between <strong>{{company.name}}</strong> (licence {{company.license}}), {{company.address}}, and ${between}, for the project <strong>{{project.name}}</strong> at {{project.address}}.</p>`;
 
 export const DEFAULT_TEMPLATES: Record<ContractType, { name: string; html: string }> = {
@@ -138,11 +152,12 @@ export const DEFAULT_TEMPLATES: Record<ContractType, { name: string; html: strin
       HEAD('General Construction Contract', '<strong>{{owner.name}}</strong> ("Owner")'),
       SECTION(1, 'Scope of work', 'Contractor will furnish the labour, materials and supervision to complete the work described in the attached estimate, drawings and specifications: {{project.scope}}'),
       SECTION(2, 'Contract price', 'Owner will pay Contractor <strong>{{contract.amount}}</strong>, subject to additions and deductions by approved change orders.'),
-      SECTION(3, 'Payments', 'Progress payments are due within 15 days of each invoice, less any agreed retention. Final payment is due on completion and acceptance of the work.'),
+      SECTION(3, 'Payments', 'Progress payments are due within 15 days of each invoice, less any agreed retention. Final payment is due on completion and acceptance of the work. Payments follow this schedule; the down payment is no more than $1,000 or 10% of the contract price, whichever is less: {{draw_schedule}}'),
       SECTION(4, 'Changes', 'No change to the scope, price or schedule is binding unless set out in a change order signed by both parties.'),
       SECTION(5, 'Schedule', 'Work will begin on the agreed start date and proceed with reasonable diligence, allowing for weather, permit and owner-caused delays.'),
       SECTION(6, 'Insurance and warranty', 'Contractor will carry general liability and workers’ compensation insurance and warrants its workmanship for one year from completion.'),
       SECTION(7, 'Disputes', 'The parties will first try to resolve any dispute in good faith before mediation, arbitration or court.'),
+      CA_CLAUSES(8),
     ].join('\n'),
   },
   owner: {
@@ -155,6 +170,7 @@ export const DEFAULT_TEMPLATES: Record<ContractType, { name: string; html: strin
       SECTION(4, 'Changes', 'Changes to scope, selections or schedule are made by written change order, priced before the work is done.'),
       SECTION(5, 'Permits and inspections', 'Origami will obtain the permits and inspections the work requires unless agreed otherwise in writing.'),
       SECTION(6, 'Warranty', 'Origami warrants its workmanship for one year from substantial completion; manufacturer warranties pass to Owner.'),
+      CA_CLAUSES(7),
     ].join('\n'),
   },
   sub: {

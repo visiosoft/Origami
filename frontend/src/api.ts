@@ -856,7 +856,7 @@ export const api = {
   },
   /** Contracts signed inside ODIN: templates, drafts, sending, counter-signing, the signed PDF. */
   contracts: {
-    types: () => request<{ types: ContractTypeInfo[]; mergeFields: [string, string][] }>('/contracts/types'),
+    types: () => request<{ types: ContractTypeInfo[]; mergeFields: [string, string][]; caClauses?: string }>('/contracts/types'),
     templates: () => request<ContractTemplate[]>('/contracts/templates'),
     createTemplate: (d: Partial<ContractTemplate>) => request<ContractTemplate>('/contracts/templates', { method: 'POST', body: JSON.stringify(d) }),
     saveTemplate: (id: string, d: Partial<ContractTemplate>) => request<ContractTemplate>(`/contracts/templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),

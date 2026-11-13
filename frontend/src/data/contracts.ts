@@ -12,7 +12,12 @@ export interface Contract {
   status: ContractStatus; parties: ContractParty[]; attachments: ContractAttachment[] | null; changeOrderId?: string | null; commitmentId?: string | null;
   sentAt?: string | null; signedAt?: string | null; signedFileId?: string | null; voidedAt?: string | null; voidReason?: string | null;
   createdByName?: string | null; createdAt: string; updatedAt?: string | null; initialsNeeded?: number; unfilled?: string[];
+  /** California rules (Nov 13): the draw schedule, its check, and the contract as the owner sees it (cancel-by date, schedule, drawings filled in). */
+  drawSchedule?: DrawRow[] | null;
+  draws?: { rows: (DrawRow & { amount: number })[]; total: number; cap: number; errors: string[] } | null;
+  rendered?: string;
 }
+export interface DrawRow { label: string; kind: 'down' | 'mobilization' | 'progress' | 'final'; mode: 'pct' | 'amt'; value: number; milestone?: string }
 export interface ContractTemplate { id: string; type: ContractType; name: string; html: string; isDefault?: boolean | null; updatedAt?: string | null; updatedBy?: string | null }
 export interface ContractSigningView {
   number: string; title: string; amount: string | null; status: ContractStatus; html: string; initialsNeeded: number;

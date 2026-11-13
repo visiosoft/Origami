@@ -8,8 +8,7 @@ import { RichTextEditor } from '../components/RichTextEditor';
 import { ContractSigner } from '../components/ContractSigner';
 import {
   ATTACH_KINDS, CONTRACT_TYPES, STATUS_LABEL, STATUS_TONE, sanitizeHtml, typeLabel, waitingOn,
-  type Contract, type ContractAttachment, type ContractParty, type ContractTemplate, type ContractType,
-} from '../data/contracts';
+  type Contract, type ContractAttachment, type ContractParty, type ContractTemplate, type ContractType, type DrawRow } from '../data/contracts';
 import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
@@ -176,16 +175,16 @@ function NewContract({ projects, defaultProject, onClose, onCreated }: { project
 function ContractDrawer({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
   const { toast } = useApp();
   const [c, setC] = useState<Contract | null>(null);
-  const [draft, setDraft] = useState<{ title: string; amount: string; html: string; parties: ContractParty[]; attachments: ContractAttachment[] } | null>(null);
+  const [draft, setDraft] = useState<{ title: string; amount: string; html: string; parties: ContractParty[]; attachments: ContractAttachment[]; drawSchedule: DrawRow[] } | null>(null);
   const [files, setFiles] = useState<{ id: string; name: string; folderPath: string[] }[]>([]);
   const [signing, setSigning] = useState(false);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
-  const load = () => api.contracts.get(id).then((r) => { setC(r); setDraft({ title: r.title, amount: r.amount || '', html: r.html || '', parties: r.parties, attachments: r.attachments || [] }); }).catch((e: Error) => toast('⚠ ' + e.message));
+  const load = () => api.contracts.get(id).then((r) => { setC(r); setDraft({ title: r.title, amount: r.amount || '', html: r.html || '', parties: r.parties, attachments: r.attachments || [], drawSchedule: r.drawSchedule || [] }); }).catch((e: Error) => toast('⚠ ' + e.message));
   useEffect(() => { void load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (c?.projectId) api.contracts.files(c.projectId).then(setFiles).catch(() => setFiles([])); }, [c?.projectId]);
   const isDraft = c?.status === 'draft';
-  const dirty = useMemo(() => !!c && !!draft && (draft.title !== c.title || draft.amount !== (c.amount || '') || draft.html !== (c.html || '') || JSON.stringify(draft.parties) !== JSON.stringify(c.parties) || JSON.stringify(draft.attachments) !== JSON.stringify(c.attachments || [])), [c, draft]);
+  const dirty = useMemo(() => !!c && !!draft && (draft.title !== c.title || draft.amount !== (c.amount || '') || draft.html !== (c.html || '') || JSON.stringify(draft.parties) !== JSON.stringify(c.parties) || JSON.stringify(draft.attachments) !== JSON.stringify(c.attachments || []) || JSON.stringify(draft.drawSchedule) !== JSON.stringify(c.drawSchedule || [])), [c, draft]);
   if (!c || !draft) return <Drawer title="Contract" onClose={onClose}><Skeleton label="Loading…" /></Drawer>;
 
   const run = async (label: string, fn: () => Promise<unknown>, ok: string) => {
@@ -262,6 +261,9 @@ function ContractDrawer({ id, onClose, onChanged }: { id: string; onClose: () =>
         )}
       </section>
 
+      {/* Draw schedule (Nov 13, California): down payment at most $1,000 or 10%, and it adds up to the price. */}
+      <DrawSchedule rows={draft.drawSchedule} amount={draft.amount} editable={isDraft} saved={c.draws || null} onChange={(rows) => setDraft({ ...draft, drawSchedule: rows })} />
+
       {/* Document */}
       <section style={{ display: 'grid', gap: 8 }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
@@ -277,7 +279,7 @@ function ContractDrawer({ id, onClose, onChanged }: { id: string; onClose: () =>
         )}
         {isDraft
           ? <RichTextEditor value={draft.html} onChange={(html) => setDraft((d) => (d ? { ...d, html } : d))} minHeight={420} />
-          : <div style={{ background: '#fff', color: '#1d1d1b', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', fontSize: 13.5, lineHeight: 1.6, maxHeight: 520, overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(c.html || '').replace(/\{\{\s*initials\s*\}\}/g, '<span style="display:inline-block;padding:2px 8px;border:1px dashed #B45309;border-radius:6px;font-size:11px;color:#7A4A0B;">Initials</span>') }} />}
+          : <div style={{ background: '#fff', color: '#1d1d1b', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', fontSize: 13.5, lineHeight: 1.6, maxHeight: 520, overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(c.rendered || c.html || '').replace(/\{\{\s*initials\s*\}\}/g, '<span style="display:inline-block;padding:2px 8px;border:1px dashed #B45309;border-radius:6px;font-size:11px;color:#7A4A0B;">Initials</span>') }} />}
       </section>
 
       {signing && c.status === 'countersign' && createPortal(
@@ -285,7 +287,7 @@ function ContractDrawer({ id, onClose, onChanged }: { id: string; onClose: () =>
           <div role="dialog" aria-label="Sign for Origami" onClick={(e) => e.stopPropagation()} style={{ width: 'min(820px, 100%)', maxHeight: '94vh', overflowY: 'auto', background: 'var(--surface)', borderRadius: 16, padding: 22, display: 'grid', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center' }}><div style={{ flex: 1, fontFamily: BG, fontSize: 19, fontWeight: 700 }}>Sign for Origami — {c.number}</div><button type="button" aria-label="Close" onClick={() => setSigning(false)} style={{ border: 0, background: 'transparent', fontSize: 20, color: 'var(--muted)', cursor: 'pointer' }}>×</button></div>
             {(() => { const me = c.parties.find((p) => p.internal && !p.signedAt); return (
-              <ContractSigner html={c.html || ''} defaultName={me?.name || ''} defaultInitials={(me?.name || '').split(/\s+/).map((w) => w[0] || '').join('').toUpperCase()} busy={busy === 'sign'} error={err} submitLabel="Sign and complete"
+              <ContractSigner html={c.rendered || c.html || ''} defaultName={me?.name || ''} defaultInitials={(me?.name || '').split(/\s+/).map((w) => w[0] || '').join('').toUpperCase()} busy={busy === 'sign'} error={err} submitLabel="Sign and complete"
                 onSubmit={(d) => { setBusy('sign'); setErr(''); api.contracts.countersign(c.id, d).then(() => { setSigning(false); toast('Signed — the contract is complete'); void load(); onChanged(); }).catch((e: Error) => setErr(e.message)).finally(() => setBusy('')); }} />
             ); })()}
           </div>
@@ -293,5 +295,65 @@ function ContractDrawer({ id, onClose, onChanged }: { id: string; onClose: () =>
         document.body,
       )}
     </Drawer>
+  );
+}
+
+const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const priceOf = (raw: string) => { const n = Number(String(raw || '').replace(/[^0-9.-]/g, '')); return raw.trim() && Number.isFinite(n) ? n : null; };
+const DRAW_KINDS: [DrawRow['kind'], string][] = [['down', 'Down payment'], ['mobilization', 'Mobilization'], ['progress', 'Progress'], ['final', 'Final / completion']];
+
+/**
+ * The draw schedule (Nov 13 sync, California): rows as % of the price or
+ * dollars; the down payment can't exceed $1,000 or 10% of the price, and the
+ * rows must add up to the price. {{draw_schedule}} puts the table in the contract.
+ */
+function DrawSchedule({ rows, amount, editable, saved, onChange }: { rows: DrawRow[]; amount: string; editable: boolean; saved: Contract['draws']; onChange: (rows: DrawRow[]) => void }) {
+  const price = priceOf(amount);
+  const amt = (r: DrawRow) => (r.mode === 'amt' ? r.value : Math.round((price ?? 0) * r.value) / 100);
+  const total = Math.round(rows.reduce((a, r) => a + amt(r), 0) * 100) / 100;
+  const cap = price ? Math.min(1000, Math.round(price * 10) / 100) : 1000;
+  const down = rows.find((r) => r.kind === 'down');
+  const problems = [
+    ...(down && amt(down) > cap + 1e-9 ? [`Down payment over the limit of ${usd(cap)} ($1,000 or 10%, whichever is less)`] : []),
+    ...(rows.length && price != null && Math.abs(total - price) > 0.009 ? [`Adds up to ${usd(total)}, not ${usd(price)}`] : []),
+    ...(rows.length && price == null ? ['Set the contract amount'] : []),
+  ];
+  const set = (i: number, p: Partial<DrawRow>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...p } : r)));
+  if (!editable && !rows.length) return null;
+  const field = { ...input, padding: '5px 8px' };
+  const starter = (p: number): DrawRow[] => {
+    const mob = Math.round(p * 0.1 * 100) / 100;
+    return [
+      { label: 'Down payment', kind: 'down', mode: 'amt', value: cap },
+      { label: 'Mobilization', kind: 'mobilization', mode: 'amt', value: mob },
+      { label: '75% complete', kind: 'progress', mode: 'amt', value: Math.round((p * 0.75 - cap - mob) * 100) / 100 },
+      { label: '100% complete', kind: 'final', mode: 'amt', value: Math.round(p * 0.25 * 100) / 100 },
+    ];
+  };
+  return (
+    <section aria-label="Draw schedule" style={{ display: 'grid', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 700 }}>Draw schedule</span>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Down payment at most {usd(cap)} · type {'{{draw_schedule}}'} in the contract to show it</span>
+      </div>
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) 130px 60px 90px 110px 24px', gap: 6, alignItems: 'center' }}>
+          <input aria-label="Payment" disabled={!editable} value={r.label} onChange={(e) => set(i, { label: e.target.value })} style={field} />
+          <select aria-label="Kind" disabled={!editable} value={r.kind} onChange={(e) => set(i, { kind: e.target.value as DrawRow['kind'] })} style={field}>{DRAW_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+          <select aria-label="% or $" disabled={!editable} value={r.mode} onChange={(e) => set(i, { mode: e.target.value as DrawRow['mode'] })} style={field}><option value="pct">%</option><option value="amt">$</option></select>
+          <input aria-label="Value" disabled={!editable} inputMode="decimal" value={r.value} onChange={(e) => set(i, { value: Math.max(0, Number(e.target.value) || 0) })} style={{ ...field, textAlign: 'right' }} />
+          <span style={{ textAlign: 'right', fontSize: 13, fontWeight: 600 }}>{usd(amt(r))}</span>
+          {editable ? <button type="button" aria-label={`Remove ${r.label}`} onClick={() => onChange(rows.filter((_, j) => j !== i))} style={{ border: 0, background: 'transparent', color: '#8E2E0A', cursor: 'pointer' }}>×</button> : <span />}
+        </div>
+      ))}
+      {editable && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" style={btn()} onClick={() => onChange([...rows, { label: rows.length ? 'Progress payment' : 'Down payment', kind: rows.length ? 'progress' : 'down', mode: rows.length ? 'pct' : 'amt', value: rows.length ? 0 : cap }])}>+ Payment</button>
+          {!rows.length && price != null && <button type="button" style={btn()} onClick={() => onChange(starter(price))}>Start from down / mobilization / 75% / 100%</button>}
+        </div>
+      )}
+      {rows.length > 0 && <div style={{ fontSize: 12.5, color: problems.length ? '#8E2E0A' : 'var(--success-deep)' }}>{problems.length ? problems.join(' · ') : `Adds up to ${usd(total)} ✓`}</div>}
+      {!editable && saved?.errors?.length ? <div style={{ fontSize: 12, color: '#8E2E0A' }}>{saved.errors.join(' ')}</div> : null}
+    </section>
   );
 }

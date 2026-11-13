@@ -506,6 +506,8 @@ export class ContractEntity {
   @Column({ type: 'nvarchar', length: 20 }) status!: string;
   @Column({ type: 'simple-json' }) parties!: { key: string; role: string; label: string; name: string; email: string; personId?: number | null; internal?: boolean; sentAt?: string | null; viewedAt?: string | null; lastViewedAt?: string | null; views?: number | null; signedAt?: string | null; signedName?: string | null; initials?: string | null; signatureImage?: string | null; ip?: string | null; userAgent?: string | null }[];
   @Column({ type: 'simple-json', nullable: true }) attachments!: { fileId: string; name: string; kind: string }[] | null;
+  /** The draw schedule (Nov 13, California rules): down payment, mobilization, progress milestones; placed by {{draw_schedule}}. */
+  @Column({ type: 'simple-json', nullable: true }) drawSchedule!: { label: string; kind: 'down' | 'mobilization' | 'progress' | 'final'; mode: 'pct' | 'amt'; value: number; milestone?: string }[] | null;
   @Column({ type: 'nvarchar', length: 64, nullable: true }) templateId!: string | null;
   @Column({ type: 'nvarchar', length: 64, nullable: true }) changeOrderId!: string | null;
   @Column({ type: 'nvarchar', length: 64, nullable: true }) commitmentId!: string | null;

@@ -5,7 +5,7 @@ import { Readable } from 'stream';
 import { Public } from '../auth/guards/public.decorator';
 import { Roles, Tiers } from '../auth/guards/roles.decorator';
 import type { AuthedRequest } from '../auth/guards/session.guard';
-import { CONTRACT_TYPES, MERGE_FIELDS } from './contract-types';
+import { CA_CLAUSES, CONTRACT_TYPES, MERGE_FIELDS } from './contract-types';
 import { ContractsService, type ContractActor } from './contracts.service';
 import { Perm } from '../auth/guards/perm.guard';
 import { ProjectScope } from '../auth/project-scope.interceptor';
@@ -59,7 +59,7 @@ export class ContractsController {
   @Tiers('internal')
   @Get('types')
   types() {
-    return { types: CONTRACT_TYPES, mergeFields: MERGE_FIELDS };
+    return { types: CONTRACT_TYPES, mergeFields: MERGE_FIELDS, caClauses: CA_CLAUSES(0) };
   }
 
   @Tiers('internal')

@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13r',
+    date: '2026-11-13',
+    title: 'Contracts: California three-day cancel and draw schedule',
+    items: [
+      { area: 'Contracts', kind: 'new', text: '{{cancel_by}} shows the last day the owner can cancel: midnight at the end of the third business day (Monday to Friday, not counting federal holidays) after they sign. Before they sign it explains how it’s worked out.' },
+      { area: 'Contracts', kind: 'new', text: 'A draw schedule on each contract — down payment, mobilization and progress payments as % or $. The down payment can’t be more than $1,000 or 10% of the price, and the payments must add up to the price before it can be sent. {{draw_schedule}} puts the table in the contract.', where: 'Contracts → a draft → Draw schedule' },
+      { area: 'Contracts', kind: 'new', text: '{{drawing_list}} lists the files attached as Drawings. “+ California clauses” adds the drawings section, the three-day right to cancel and the notice of cancellation to a template.', where: 'Settings → Contract templates' },
+    ],
+  },
+  {
     id: '2026-11-13q',
     date: '2026-11-13',
     title: 'Estimates: quantities, cost per square foot and total profit',
