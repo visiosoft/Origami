@@ -26,11 +26,19 @@
 .eg-table thead th { position: sticky; z-index: 3; background: var(--eg-head); font-weight: 700; font-size: 11.5px; color: var(--muted); text-align: left; padding: 6px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .eg-table thead tr.eg-bands th { top: 0; height: 26px; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10.5px; }
 .eg-table thead tr.eg-cols th { top: 26px; }
-.eg-band-prime { box-shadow: inset 0 3px 0 rgb(var(--rgb-forest)); }
-.eg-band-precon { box-shadow: inset 0 3px 0 rgb(var(--rgb-gold)); }
-.eg-band-sub { box-shadow: inset 0 3px 0 #3C5C8A; }
-.eg-band-markup { box-shadow: inset 0 3px 0 rgb(var(--rgb-success)); }
-.eg-band-notes { box-shadow: inset 0 3px 0 rgba(var(--rgb-shade), 0.3); }
+/* Column bands (Nov 13: clearer colours): each band tints its header and, lightly, its cells,
+   with a coloured rule where one band meets the next. --band is an "r, g, b" triple.
+   Prime is a fixed green so it reads as green in both themes; its cells stay white (the main typing area). */
+.eg-band-prime, .eg-b-prime { --band: 46, 125, 80; }
+.eg-band-precon, .eg-b-precon { --band: var(--rgb-gold); }
+.eg-band-sub, .eg-b-sub { --band: 60, 92, 138; }
+.eg-band-markup, .eg-b-markup { --band: var(--rgb-success); }
+.eg-band-notes, .eg-b-notes { --band: var(--rgb-shade); }
+.eg-table thead th[class*="eg-band-"] { background: linear-gradient(rgba(var(--band), 0.13), rgba(var(--band), 0.13)), var(--eg-head); box-shadow: inset 0 3px 0 rgb(var(--band)); color: var(--ink); }
+.eg-table thead tr.eg-bands th[class*="eg-band-"] { background: linear-gradient(rgba(var(--band), 0.24), rgba(var(--band), 0.24)), var(--eg-head); box-shadow: inset 0 3px 0 rgb(var(--band)), inset 0 -2px 0 rgba(var(--band), 0.6); font-weight: 800; }
+.eg-table th.eg-b-start, .eg-table td.eg-b-start { border-left: 2px solid rgba(var(--band), 0.7); }
+.eg-table thead tr.eg-bands th[class*="eg-band-"] { border-left: 2px solid rgba(var(--band), 0.7); }
+.eg-table tbody tr:not(.eg-note) td[class*="eg-b-"]:not(.eg-b-prime):not(.is-range) { background: linear-gradient(rgba(var(--band), 0.045), rgba(var(--band), 0.045)), var(--surface); }
 .eg-sticky { position: sticky; z-index: 2; }
 .eg-table thead .eg-sticky { z-index: 4; }
 .eg-num { left: 0; width: 56px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -126,6 +134,9 @@ tr.eg-scope td { background: var(--eg-head); border-top: 2px solid rgba(var(--rg
 .eg-stmts-empty { font-size: 12px; color: var(--muted); padding: 2px 4px; }
 .eg-stmt { text-align: left; font: inherit; font-size: 12.5px; line-height: 1.35; padding: 6px 8px; border-radius: 7px; border: 1px solid transparent; background: rgba(var(--rgb-shade), 0.03); color: var(--body); cursor: pointer; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .eg-stmt:hover { border-color: rgba(var(--rgb-success), 0.45); background: rgba(var(--rgb-success), 0.08); }
+.eg-stmt-row { display: flex; gap: 6px; align-items: flex-start; }
+.eg-stmt-row > input { margin-top: 8px; width: 16px; height: 16px; flex: none; accent-color: rgb(var(--rgb-forest)); }
+.eg-stmt-row > .eg-stmt { flex: 1; min-width: 0; }
 .eg-stmt-uses { margin-left: 6px; font-size: 11px; color: var(--muted); }
 .eg-stmts-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 2px 2px; font-size: 12px; color: var(--muted); }
 .eg-editor:has(.eg-stmts) { width: 440px !important; }

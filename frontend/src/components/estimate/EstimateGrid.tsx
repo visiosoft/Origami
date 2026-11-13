@@ -462,7 +462,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     const isSel = sel?.lineId === l.id && sel.col === ci;
     const sticky = ci === 0 ? ' eg-sticky eg-desc' : '';
     return (
-      <td key={c.key} className={`${isSel ? 'is-sel' : ''}${inRange(l.id, ci) && (anchor ? true : false) ? ' is-range' : ''}${sticky}`} style={{ width: c.width, minWidth: c.width, maxWidth: c.width }}
+      <td key={c.key} className={`eg-b-${c.band}${ci > 0 && cols[ci - 1].band !== c.band ? ' eg-b-start' : ''}${isSel ? ' is-sel' : ''}${inRange(l.id, ci) && (anchor ? true : false) ? ' is-range' : ''}${sticky}`} style={{ width: c.width, minWidth: c.width, maxWidth: c.width }}
         data-line={l.id} data-col={ci}
         onMouseDown={(e) => { if (e.button !== 0) return; if (e.shiftKey && sel) { if (!anchor) setAnchor(sel); } else setAnchor(null); setSel({ lineId: l.id, col: ci }); }}
         onDoubleClick={() => startEdit({ lineId: l.id, col: ci })}>
@@ -577,7 +577,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
             <tr className="eg-cols">
               <th className="eg-sticky eg-num">#</th>
               {cols.map((c, i) => (
-                <th key={c.key} className={`eg-band-${c.band}${i === 0 ? ' eg-sticky eg-desc' : ''}`} style={{ width: c.width, minWidth: c.width, maxWidth: c.width, textAlign: c.kind === 'money' || c.kind === 'calc' || c.kind === 'pct' || c.kind === 'number' ? 'right' : 'left', cursor: editable ? 'pointer' : undefined }}
+                <th key={c.key} className={`eg-band-${c.band}${i > 0 && cols[i - 1].band !== c.band ? ' eg-b-start' : ''}${i === 0 ? ' eg-sticky eg-desc' : ''}`} style={{ width: c.width, minWidth: c.width, maxWidth: c.width, textAlign: c.kind === 'money' || c.kind === 'calc' || c.kind === 'pct' || c.kind === 'number' ? 'right' : 'left', cursor: editable ? 'pointer' : undefined }}
                   title={editable ? 'Column options' : undefined}
                   onClick={(e) => { if (!editable) return; e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setColMenu({ key: c.key, x: Math.min(r.left, window.innerWidth - 230), y: r.bottom + 2 }); }}>
                   {c.label}{c.custom && !c.showClient && <span title="Internal only" style={{ marginLeft: 4 }}>🔒</span>}{c.hint && <Info text={c.hint} onTip={setTip} />}

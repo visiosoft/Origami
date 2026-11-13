@@ -255,3 +255,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 |---|------|--------|
 | O1 | Performing strategies (Edward's list) with automatic Subcontract used / required and OFCI; old lines listed with where each goes, "Update strategies" moves them (Owner → OFCI, Other → blank) | ✅ built — press it on staging |
 | O2 | Standard statements: tick several, "Insert N" adds them below in order (one undo) | ✅ |
+| O3 | Estimate colours: band headings tinted with a coloured rule between bands; Precon / Subcontractor / Markup cells lightly tinted; Prime a fixed green in both themes | ✅ |
