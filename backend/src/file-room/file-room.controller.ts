@@ -1,3 +1,4 @@
+import { FolderAccessService } from './folder-access.service';
 import { BadRequestException, ForbiddenException,
   Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
 } from '@nestjs/common';
@@ -27,6 +28,7 @@ export class FileRoomController {
     private readonly markups: MarkupsService,
     private readonly previews: FilePreviewsService,
     private readonly settings: SettingsService,
+    private readonly folders: FolderAccessService,
   ) {}
 
   /**
@@ -44,6 +46,7 @@ export class FileRoomController {
   private async seeFile(fileId: string, claims: SessionClaims | null | undefined) {
     const f = await this.markups.file(fileId);
     await this.access.assert(claims ?? null, f.projectId);
+    await this.folders.assertFile(claims ?? null, f);
     return f;
   }
 
@@ -170,7 +173,9 @@ export class FileRoomController {
   private async seeProject(claims?: SessionClaims | null) {
     // Staff on "Assigned projects" are narrowed too (Oct 30 sync), not only outside accounts.
     const allowed = await this.access.allowedIds(claims ?? null);
-    return (id: unknown) => allowed === 'all' || allowed.has(Number(id));
+    // And restricted folders (Nov 13): files and folders inside one the caller may not open are left out.
+    const folderOk = await this.folders.gate(claims ?? null);
+    return (id: unknown, path?: string[] | null) => (allowed === 'all' || allowed.has(Number(id))) && folderOk(id, path);
   }
 
   /** The tree without the files: projects, folders, file counts per folder and totals. */
@@ -192,6 +197,7 @@ export class FileRoomController {
   async fileMeta(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
     const r = await this.service.fileWithVersions(id);
     await this.access.assert(claims ?? null, r.file.projectId);
+    await this.folders.assertFile(claims ?? null, r.file as any);
     return r;
   }
 
@@ -202,11 +208,9 @@ export class FileRoomController {
     const scoped = Number.isFinite(pid) && pid > 0 ? pid : undefined;
     if (scoped) await this.access.assert(claims ?? null, scoped);
     const all = await this.service.list(scoped);
-    // Outside accounts, and staff on "Assigned projects", see only their projects.
-    const allowed = await this.access.allowedIds(claims ?? null);
-    if (allowed === 'all') return all;
-    const ok = (id: unknown) => allowed.has(Number(id));
-    return { ...all, projects: all.projects.filter((p: any) => ok(p.id)), files: all.files.filter((f: any) => ok(f.projectId)), folders: all.folders.filter((f: any) => ok(f.projectId)) };
+    // Outside accounts, and staff on "Assigned projects", see only their projects; nobody sees inside a folder kept from them.
+    const ok = await this.seeProject(claims);
+    return { ...all, projects: all.projects.filter((p: any) => ok(p.id)), files: all.files.filter((f: any) => ok(f.projectId, f.folderPath)), folders: all.folders.filter((f: any) => ok(f.projectId, f.path)) };
   }
 
   @Tiers('internal')
@@ -224,6 +228,7 @@ export class FileRoomController {
     // The build set (drawings, selections, specs) is changed by those who manage the File Room.
     const top = Array.isArray(folderPath) ? String(folderPath[0] || '') : '';
     if (top && (await this.service.buildSetOf(Number(projectId))).some((f) => f.toLowerCase() === top.toLowerCase())) await this.assertManage(await this.auth.verify(auth));
+    await this.folders.assertFile(await this.auth.verify(auth), { projectId: Number(projectId), folderPath: Array.isArray(folderPath) ? folderPath : [] });
     return this.service.upload(
       Number(projectId),
       Array.isArray(folderPath) ? folderPath : [],
@@ -244,14 +249,16 @@ export class FileRoomController {
   /** View links for several files. */
   @Tiers('internal')
   @Post('files/share')
-  shareMany(@Body() dto: FileIdsDto) {
+  async shareMany(@Body() dto: FileIdsDto, @Claims() claims?: SessionClaims | null) {
+    for (const id of dto.ids || []) await this.seeFile(id, claims);
     return this.service.shareMany(dto.ids);
   }
 
   /** Several files in one email. */
   @Tiers('internal')
   @Post('files/email')
-  async emailMany(@Body() dto: EmailFilesDto, @Headers('authorization') auth?: string) {
+  async emailMany(@Body() dto: EmailFilesDto, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
+    for (const id of dto.ids || []) await this.seeFile(id, claims);
     return this.service.emailMany(dto.ids, dto.to, dto.note || '', await this.auth.actor(auth));
   }
 
@@ -271,7 +278,7 @@ export class FileRoomController {
   @Get('files/:id/small')
   async small(@Param('id') id: string, @Query('kind') kind: string, @Res() res: Response, @Claims() claims: SessionClaims | null) {
     const { file, body } = await this.service.small(id, kind === 'preview' ? 'preview' : 'thumb');
-    if (!(await this.access.canSee(claims, (file as any).projectId))) {
+    if (!(await this.access.canSee(claims, (file as any).projectId)) || !(await this.folders.gate(claims))((file as any).projectId, (file as any).folderPath)) {
       res.status(403).json({ message: 'You don’t have access to this file.' });
       return;
     }
@@ -307,7 +314,7 @@ export class FileRoomController {
     @Query('size') size?: string,
   ) {
     const { file, body, mimeType } = await this.service.content(id, thumb === '1', Number(size) || undefined);
-    if (!(await this.access.canSee(claims, (file as any).projectId))) {
+    if (!(await this.access.canSee(claims, (file as any).projectId)) || !(await this.folders.gate(claims))((file as any).projectId, (file as any).folderPath)) {
       await (body as any)?.cancel?.().catch?.(() => {});
       res.status(403).json({ message: 'You don’t have access to this file.' });
       return;
@@ -326,7 +333,7 @@ export class FileRoomController {
   @Get('files/:id/preview')
   async preview(@Param('id') id: string, @Res() res: Response, @Claims() claims: SessionClaims | null) {
     const { file, body, mimeType, pdf } = await this.service.preview(id);
-    if (!(await this.access.canSee(claims, (file as any).projectId))) {
+    if (!(await this.access.canSee(claims, (file as any).projectId)) || !(await this.folders.gate(claims))((file as any).projectId, (file as any).folderPath)) {
       await (body as any)?.cancel?.().catch?.(() => {});
       res.status(403).json({ message: 'You don’t have access to this file.' });
       return;
@@ -337,6 +344,22 @@ export class FileRoomController {
     res.setHeader('Cache-Control', 'private, max-age=300');
     if (pdf) { res.end(pdf); return; }
     Readable.fromWeb(body).pipe(res);
+  }
+
+  /** Restricted folders of a project (Nov 13): which are kept to some people (names of who, for managers). */
+  @Get('folder-access')
+  async folderAccess(@Query('projectId') projectId: string, @Claims() claims?: SessionClaims | null) {
+    await this.access.assert(claims ?? null, Number(projectId));
+    return this.folders.list(Number(projectId), claims ?? null);
+  }
+
+  /** Keep a folder (and what's inside it) to staff, or to picked people / roles / companies -- or open it to everyone again. */
+  @Tiers('internal')
+  @Put('folder-access')
+  async setFolderAccess(@Body() dto: { projectId: number; path: string[]; audience: string; people?: unknown }, @Claims() claims?: SessionClaims | null) {
+    await this.assertManage(claims ?? null);
+    await this.access.assert(claims ?? null, Number(dto?.projectId));
+    return this.folders.set(Number(dto?.projectId), dto, { name: claims?.name || 'Someone' });
   }
 
   /** Lay out the standard project folders (Settings -> File Room) for one project. */
@@ -373,13 +396,15 @@ export class FileRoomController {
   /** Make the file readable by anyone holding the link, and return that link. */
   @Tiers('internal')
   @Post('files/:id/share')
-  share(@Param('id') id: string) {
+  async share(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
     return this.service.shareLink(id);
   }
 
   @Tiers('internal')
   @Post('files/:id/email')
-  async emailFile(@Param('id') id: string, @Body() dto: EmailFileDto, @Headers('authorization') auth?: string) {
+  async emailFile(@Param('id') id: string, @Body() dto: EmailFileDto, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
     return this.service.email(id, dto.to, dto.note ?? '', await this.auth.actor(auth));
   }
 

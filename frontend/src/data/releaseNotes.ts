@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13j',
+    date: '2026-11-13',
+    title: 'Restricted File Room folders',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'Keep a folder — and everything inside it — to staff only, or to chosen roles, companies and people. Others on the project don’t see it in the tree, the file lists, searches, All Files, progress photos or the contract and RFI file pickers, and can’t open its files by link. Administrators and File Room managers always see everything.', where: 'File Room → open a folder → Restrict…' },
+      { area: 'File Room', kind: 'new', text: 'A 🔒 marks restricted folders.' },
+    ],
+  },
+  {
     id: '2026-11-13i',
     date: '2026-11-13',
     title: 'View as: see the app as any role or person',

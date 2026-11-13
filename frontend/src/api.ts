@@ -902,6 +902,9 @@ export const api = {
   fileRoom: {
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
     /** The tree without the files: projects, folders, file counts per folder (counts[projectId][path joined by '>']) and totals. */
+    /** Restricted folders (Nov 13): which folders of a project are kept to some people; set who may open one. */
+    folderAccess: (projectId: number) => request<{ path: string[]; pathKey: string; audience: string; people?: { type: 'user' | 'role' | 'company'; id: string; name: string }[] | null }[]>(`/file-room/folder-access?projectId=${projectId}`, { cache: 'no-store' } as any),
+    setFolderAccess: (d: { projectId: number; path: string[]; audience: string; people?: unknown[] }) => request<unknown>('/file-room/folder-access', { method: 'PUT', body: JSON.stringify(d) }),
     /** Which top-level folders are the project's build set (Oct 30 sync). */
     setBuildSet: (projectId: number, folders: string[]) => request<{ projectId: number; buildSet: string[] }>(`/file-room/projects/${projectId}/build-set`, { method: 'PUT', body: JSON.stringify({ folders }) }),
     tree: () => request<{

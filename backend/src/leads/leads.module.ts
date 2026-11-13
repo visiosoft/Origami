@@ -1,3 +1,4 @@
+import { FileRoomModule } from '../file-room/file-room.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LeadsController } from './leads.controller';
@@ -13,7 +14,7 @@ import { LeadFilesService } from './lead-files.service';
 import { LeadFilesController } from './lead-files.controller';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([LeadEntity, LeadVersionEntity, ProjectEntity, LeadFilesEntity, UserEntity, TaskEntity, ProjectTaskEntity, ProjectPhaseEntity, RfiEntity, FileRoomFileEntity]), TasksModule, GoogleModule, AuthModule],
+    imports: [TypeOrmModule.forFeature([LeadEntity, LeadVersionEntity, ProjectEntity, LeadFilesEntity, UserEntity, TaskEntity, ProjectTaskEntity, ProjectPhaseEntity, RfiEntity, FileRoomFileEntity]), TasksModule, GoogleModule, AuthModule, FileRoomModule],
     controllers: [LeadsController, LeadFilesController, ClientUploadController],
     providers: [LeadsService, LeadFilesService, ClientWelcomeService, AllFilesService],
     exports: [LeadsService],

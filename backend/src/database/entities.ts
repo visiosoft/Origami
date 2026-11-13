@@ -1223,6 +1223,26 @@ export class FileRoomFolderEntity {
 }
 
 /** A record of File Room files emailed to someone: who sent what, to whom, when. */
+/**
+ * A File Room folder kept to some people (Nov 13, Batch 4): staff only, or
+ * picked people, roles and companies. Covers its sub-folders. Folders mostly
+ * exist only as paths on files, so this is keyed by project and path, not a
+ * folder row. No row = everyone who can see the project.
+ */
+@Entity('file_room_folder_access')
+export class FileRoomFolderAccessEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** The folder path joined by '>' (as the tree keys it). */
+  @Column({ type: 'nvarchar', length: 900 }) pathKey!: string;
+  @Column({ type: 'simple-json' }) path!: string[];
+  /** internal (staff only) | picked */
+  @Column({ type: 'nvarchar', length: 20 }) audience!: string;
+  @Column({ type: 'simple-json', nullable: true }) people!: { type: 'user' | 'role' | 'company'; id: string; name: string }[] | null;
+  @Column({ nullable: true }) updatedAt!: string;
+  @Column({ nullable: true }) updatedBy!: string;
+}
+
 @Entity('file_room_shares')
 export class FileRoomShareEntity {
   @PrimaryColumn() id!: string;

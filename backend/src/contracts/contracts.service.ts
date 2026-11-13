@@ -429,8 +429,8 @@ export class ContractsService implements OnApplicationBootstrap {
   }
 
   /** The File Room files a contract can attach (estimates, drawings, specs) for its project. */
-  async attachableFiles(projectId: number) {
+  async attachableFiles(projectId: number, folderOk: (projectId: unknown, path?: string[] | null) => boolean = () => true) {
     const rows = await this.files.find({ where: { projectId } as any });
-    return rows.filter((f) => f.isLatest !== false).map((f) => ({ id: f.id, name: f.name, folderPath: f.folderPath || [] })).sort((a, b) => a.name.localeCompare(b.name));
+    return rows.filter((f) => f.isLatest !== false && folderOk(f.projectId, f.folderPath)).map((f) => ({ id: f.id, name: f.name, folderPath: f.folderPath || [] })).sort((a, b) => a.name.localeCompare(b.name));
   }
 }

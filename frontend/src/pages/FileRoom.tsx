@@ -16,6 +16,7 @@ import {
   type FileRoomData, type FileRoomFile,
 } from '../data/fileRoom';
 import { Skeleton } from '../components/Skeleton';
+import { FolderAccessDialog, type FolderRule } from '../components/FolderAccessDialog';
 
 const BG = 'var(--font-display)';
 /** Documents Drive can show as a PDF (images have their own preview). */
@@ -99,6 +100,15 @@ export function FileRoom() {
   // Sort by name or by date changed (Nov 3 sync: photo folders had no way to find the newest).
   const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({});
+  // Restricted folders (Nov 13): per project, which folders are kept to some people.
+  const [restricted, setRestricted] = useState<Record<number, FolderRule[]>>({});
+  const [restricting, setRestricting] = useState<{ projectId: number; path: string[] } | null>(null);
+  const loadRestricted = (pid: number) => { api.fileRoom.folderAccess(pid).then((r) => setRestricted((s) => ({ ...s, [pid]: Array.isArray(r) ? r as FolderRule[] : [] }))).catch(() => undefined); };
+  const ruleFor = (pid: number, p: string[]) => (restricted[pid] || []).find((r) => r.pathKey.toLowerCase() === p.join('>').toLowerCase()) || null;
+  const lockIcon = (pid: number, p: string[]) => {
+    const r = ruleFor(pid, p);
+    return r ? <span title={r.audience === 'internal' ? 'Staff only' : 'Only chosen people'} aria-label="Restricted folder" style={{ fontSize: 11 }}>🔒</span> : null;
+  };
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderTreeFor, setNewFolderTreeFor] = useState<number | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
@@ -180,6 +190,7 @@ export function FileRoom() {
   const projectId = atRoot ? null : Number(path[0]);
   const folder = atRoot ? [] : path.slice(1);
   const project = data.projects.find((p) => p.id === projectId);
+  useEffect(() => { for (const id of [...Object.keys(openProjects).filter((k) => openProjects[k]).map(Number), ...(projectId ? [projectId] : [])]) if (!(id in restricted)) loadRestricted(id); }, [openProjects, projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- what the current folder holds -------------------------------------
 
@@ -425,6 +436,7 @@ export function FileRoom() {
                         projectId === p.id && pathKey(folder) === name,
                         () => setPath([String(p.id), name]), { indent: 26 })}
                     </div>
+                    {lockIcon(p.id, [name])}
                     {canManage && (
                       <button type="button" onClick={() => void toggleBuildSet(p.id, name)} aria-pressed={inBuildSet(p.id, name)} aria-label={`${inBuildSet(p.id, name) ? 'Take' : 'Put'} ${name} ${inBuildSet(p.id, name) ? 'out of' : 'in'} the build set`}
                         title={inBuildSet(p.id, name) ? 'In the build set — shown in this project’s Plan & File Room. Click to take it out.' : 'Put in the build set (drawings, selections, specs): the project’s Plan & File Room shows only these'}
@@ -467,6 +479,7 @@ export function FileRoom() {
 
   const breadcrumb = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
+      {projectId && folder.length > 0 && lockIcon(projectId, folder)}
       {shown.map((s, i) => {
         const last = i === shown.length - 1;
         return (
@@ -481,6 +494,12 @@ export function FileRoom() {
           </span>
         );
       })}
+      {canManage && projectId && folder.length > 0 && (
+        <button type="button" onClick={() => setRestricting({ projectId, path: folder })} title="Who can open this folder" style={{ marginLeft: 6, padding: '4px 10px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.15)', background: 'var(--surface)', font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>
+          {ruleFor(projectId, folder) ? '🔒 Who can open' : 'Restrict…'}
+        </button>
+      )}
+      {restricting && <FolderAccessDialog projectId={restricting.projectId} path={restricting.path} current={ruleFor(restricting.projectId, restricting.path)} onClose={() => setRestricting(null)} onSaved={() => loadRestricted(restricting.projectId)} />}
     </div>
   );
 

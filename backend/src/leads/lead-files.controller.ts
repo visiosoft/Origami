@@ -1,3 +1,6 @@
+import { FolderAccessService } from '../file-room/folder-access.service';
+import { Claims } from '../auth/guards/claims.decorator';
+import type { SessionClaims } from '../auth/crypto.util';
 import { Body, Controller, Delete, Get, Headers, Param, Post, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -29,18 +32,19 @@ export class LeadFilesController {
     private readonly attachments: AttachmentsService,
     private readonly welcome: ClientWelcomeService,
     private readonly all: AllFilesService,
+    private readonly folders: FolderAccessService,
   ) {}
 
   /** Every file on a project: its lead's, the client's, its tasks', RFIs' and File Room's -- numbered. */
   @Get('project/:projectId/all')
-  allForProject(@Param('projectId') projectId: string) {
-    return this.all.forProject(Number(projectId));
+  async allForProject(@Param('projectId') projectId: string, @Claims() claims?: SessionClaims | null) {
+    return this.all.forProject(Number(projectId), await this.folders.gate(claims ?? null));
   }
 
   /** Every file on a lead (and the project it became): stage files, client uploads, task files. */
   @Get(':leadId/all')
-  allForLead(@Param('leadId') leadId: string) {
-    return this.all.forLead(leadId);
+  async allForLead(@Param('leadId') leadId: string, @Claims() claims?: SessionClaims | null) {
+    return this.all.forLead(leadId, await this.folders.gate(claims ?? null));
   }
 
   /** The client welcome email + upload link: sent when, link live, uploads so far. */

@@ -1,3 +1,4 @@
+import { FolderAccessService } from '../file-room/folder-access.service';
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Response } from 'express';
 import { Readable } from 'stream';
@@ -22,7 +23,7 @@ const sendPdf = (res: Response, r: { pdf: Buffer; filename: string }, download: 
 @UseInterceptors(ProjectScope)
 @Controller('contracts')
 export class ContractsController {
-  constructor(private readonly contracts: ContractsService) {}
+  constructor(private readonly contracts: ContractsService, private readonly folders: FolderAccessService) {}
 
   // --- the signer's own page (no account) ---
 
@@ -100,8 +101,8 @@ export class ContractsController {
 
   @Tiers('internal')
   @Get('files')
-  files(@Query('projectId') projectId: string) {
-    return this.contracts.attachableFiles(Number(projectId));
+  async files(@Query('projectId') projectId: string, @Req() req: AuthedRequest) {
+    return this.contracts.attachableFiles(Number(projectId), await this.folders.gate(req.claims ?? null));
   }
 
   @Tiers('internal')
