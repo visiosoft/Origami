@@ -2756,6 +2756,8 @@ export class EstimateEntity extends FinanceStamped {
 export class EstimateScopeEntity {
   @PrimaryColumn() id!: string;
   @Column() estimateId!: string;
+  /** The row this was copied from in an earlier revision (kept across revisions, for Compare; Nov 13). */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) originId!: string | null;
   @Column('int') projectId!: number;
   @Column('int') scopeOrder!: number;
   @Column({ type: 'nvarchar', length: 60, nullable: true }) csiCodeId!: string | null;
@@ -2772,6 +2774,8 @@ export class EstimateScopeEntity {
 export class EstimateLineEntity {
   @PrimaryColumn() id!: string;
   @Column() estimateId!: string;
+  /** The row this was copied from in an earlier revision (kept across revisions, for Compare; Nov 13). */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) originId!: string | null;
   @Column('int') projectId!: number;
   @Column() scopeId!: string;
   @Column('int') lineOrder!: number;

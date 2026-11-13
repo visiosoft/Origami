@@ -234,5 +234,26 @@ describe('estimates', () => {
     expect((await svc.strategyMapPlan(actor)).total).toBe(0);
     await expect(setup({}).svc.applyStrategyMap(true, actor)).rejects.toThrow(/editing estimates/);
   });
+
+  it('a revision remembers where its rows came from; compare and restore an older revision', async () => {
+    const { svc, log } = setup();
+    const e = await svc.create(7, {}, actor);
+    const r1 = await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    await svc.markSent(7, e.estimate.id, actor);
+    const r2 = await svc.revise(7, e.estimate.id, actor);
+    expect(r2.lines.map((l: any) => l.originId)).toEqual(r1.lines.map((l: any) => l.id));
+    const edited = { ...sheet(r2.estimate.version), scopes: r2.scopes, lines: r2.lines.map((l: any, i: number) => (i === 0 ? { ...l, cost: 2500 } : l)), gr: r2.gr };
+    const saved = await svc.saveSheet(7, r2.estimate.id, edited, actor);
+    expect(saved.lines[0].originId).toBe('line-1');
+    const cmp = await svc.compare(7, e.estimate.id, r2.estimate.id, actor);
+    expect(cmp.counts).toMatchObject({ added: 0, removed: 0, changed: 1 });
+    expect(cmp.scopes[0].lines[0].fields.find((f: any) => f.field === 'cost')).toMatchObject({ a: 200000, b: 250000 });
+    await svc.markSent(7, r2.estimate.id, actor);
+    const r3 = await svc.revise(7, e.estimate.id, actor);
+    expect(r3.estimate.rev).toBe(3);
+    expect(r3.lines[0].cost).toBe(2000);
+    expect(log).toContain('restored');
+    await expect(svc.revise(7, e.estimate.id, actor)).rejects.toThrow(/already has a draft/);
+  });
 });
 

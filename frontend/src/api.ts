@@ -1070,6 +1070,7 @@ export const api = {
     strategyMap: () => request<{ total: number; estimates: number; groups: { from: string; to: string | null; count: number; samples: string[] }[] }>('/finance/estimate-strategy-map', { cache: 'no-store' } as any),
     applyStrategyMap: () => request<{ applied: boolean; changed?: number }>('/finance/estimate-strategy-map', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     estimateSent: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/sent`, { method: 'POST' }),
+    compareEstimates: (projectId: number, id: string, other: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/compare/${encodeURIComponent(other)}`, { cache: 'no-store' } as any),
     reviseEstimate: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/revise`, { method: 'POST' }),
     copyEstimateScopes: (projectId: number, id: string, d: { version: number; fromId: string; scopeIds: string[] }) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/copy-scopes`, { method: 'POST', body: JSON.stringify(d) }),
     /** Every estimate you can see, across projects -- to start from one. */

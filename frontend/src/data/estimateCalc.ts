@@ -238,3 +238,95 @@ export function explainTotal(id: FormulaId, r: EstimateResult, s: EstSettings): 
   };
   return `${f.label} = ${f.text}${worked[id] ? `\n${worked[id]}` : ''}`;
 }
+
+// ---------------------------------------------------------------- compare (Nov 13)
+
+export interface CmpScope { id: string; originId?: string | null; title?: string | null; csiCodeId?: string | null }
+export interface CmpLine extends EstLineIn { originId?: string | null; description?: string | null; strategy?: string | null; subName?: string | null }
+export interface CmpSheet { scopes: CmpScope[]; lines: CmpLine[]; result: EstimateResult }
+export type CmpStatus = 'added' | 'removed' | 'changed' | 'same';
+export interface CmpField { field: string; label: string; a: string | number | null; b: string | number | null }
+export interface CmpLineOut { key: string; status: CmpStatus; kind: string; description: string; priceA: number | null; priceB: number | null; fields: CmpField[] }
+export interface CmpScopeOut { key: string; status: CmpStatus; title: string; totalA: number | null; totalB: number | null; lines: CmpLineOut[] }
+export interface CmpOut { scopes: CmpScopeOut[]; totals: { key: string; label: string; a: number; b: number }[]; counts: Record<CmpStatus, number> }
+
+const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * Rev A against Rev B of the same estimate: scopes and lines added, removed
+ * and changed (field by field), and the totals. Rows are matched by the row
+ * they were copied from (originId, carried by each new revision); rows from
+ * before that was kept are matched by scope CSI code + title and line text.
+ */
+export function compareSheets(a: CmpSheet, b: CmpSheet): CmpOut {
+  const sKey = (s: CmpScope) => s.originId || s.id;
+  const aScopeKey = new Map(a.scopes.map((s) => [s.id, sKey(s)]));
+  // Scopes in B without a match by origin take an A scope's key by CSI code + title.
+  const aByText = new Map(a.scopes.map((s) => [`${s.csiCodeId || ''}|${norm(s.title)}`, sKey(s)]));
+  const aKeys = new Set(a.scopes.map(sKey));
+  const bScopeKey = new Map(b.scopes.map((s) => {
+    const k = sKey(s);
+    return [s.id, aKeys.has(k) ? k : aByText.get(`${s.csiCodeId || ''}|${norm(s.title)}`) || k];
+  }));
+  const priceOf = (sh: CmpSheet) => new Map(sh.result.lines.map((l) => [l.id, l]));
+  const pa = priceOf(a), pb = priceOf(b);
+  const scopeTotal = (sh: CmpSheet) => new Map(sh.result.scopes.map((s) => [s.id, s.total]));
+  const ta = scopeTotal(a), tb = scopeTotal(b);
+  const lineKeyed = (sh: CmpSheet, scopeKey: Map<string, string>, known?: Map<string, string>) => {
+    const out = new Map<string, CmpLine>();
+    const seen = new Map<string, number>();
+    for (const l of sh.lines) {
+      const sk = scopeKey.get(l.scopeId);
+      if (!sk) continue;
+      let k = l.originId || l.id;
+      if (known && !known.has(k)) {
+        // fall back to the line's text within the same scope (nth occurrence)
+        const t = `${sk}|${l.kind || 'item'}|${norm(l.description)}`;
+        const n = (seen.get(t) || 0) + 1; seen.set(t, n);
+        k = known.get(`${t}#${n}`) || k;
+      }
+      out.set(k, l);
+    }
+    return out;
+  };
+  const la = lineKeyed(a, aScopeKey);
+  const aText = new Map<string, string>();
+  { const seen = new Map<string, number>();
+    for (const [k, l] of la) { const t = `${aScopeKey.get(l.scopeId)}|${l.kind || 'item'}|${norm(l.description)}`; const n = (seen.get(t) || 0) + 1; seen.set(t, n); aText.set(`${t}#${n}`, k); aText.set(k, k); } }
+  const lb = lineKeyed(b, bScopeKey, aText);
+
+  const FIELDS: [string, string, (l: CmpLine, p?: LineOut) => string | number | null][] = [
+    ['description', 'Description', (l) => l.description || ''],
+    ['pricing', 'Pricing', (l) => l.pricing || 'fc'],
+    ['cost', 'Sub cost', (_l, p) => p?.cost ?? 0],
+    ['markup', 'Markup $', (_l, p) => p?.markup ?? 0],
+    ['price', 'Line price', (_l, p) => p?.price ?? 0],
+    ['strategy', 'Performing strategy', (l) => l.strategy || ''],
+    ['subName', 'Performing sub', (l) => l.subName || ''],
+  ];
+  const counts: Record<CmpStatus, number> = { added: 0, removed: 0, changed: 0, same: 0 };
+  const lineOut = (k: string, x: CmpLine | undefined, y: CmpLine | undefined): CmpLineOut => {
+    const px = x ? pa.get(x.id) : undefined, py = y ? pb.get(y.id) : undefined;
+    const fields = x && y ? FIELDS.map(([f, label, get]) => ({ field: f, label, a: get(x, px), b: get(y, py) })).filter((f) => f.a !== f.b) : [];
+    const status: CmpStatus = !x ? 'added' : !y ? 'removed' : fields.length ? 'changed' : 'same';
+    counts[status]++;
+    return { key: k, status, kind: (y || x)!.kind || 'item', description: (y || x)!.description || '', priceA: px ? px.price : null, priceB: py ? py.price : null, fields };
+  };
+  const scopeIds = (sh: CmpSheet, km: Map<string, string>) => sh.scopes.map((s) => km.get(s.id)!);
+  const order = [...new Set([...scopeIds(b, bScopeKey), ...scopeIds(a, aScopeKey)])];
+  const scopes: CmpScopeOut[] = order.map((k) => {
+    const sa = a.scopes.find((s) => aScopeKey.get(s.id) === k);
+    const sb = b.scopes.find((s) => bScopeKey.get(s.id) === k);
+    const keys = [...new Set([...[...lb].filter(([, l]) => bScopeKey.get(l.scopeId) === k).map(([lk]) => lk), ...[...la].filter(([, l]) => aScopeKey.get(l.scopeId) === k).map(([lk]) => lk)])];
+    const lines = keys.map((lk) => lineOut(lk, la.get(lk), lb.get(lk)));
+    const totalA = sa ? ta.get(sa.id) ?? 0 : null, totalB = sb ? tb.get(sb.id) ?? 0 : null;
+    const status: CmpStatus = !sa ? 'added' : !sb ? 'removed' : lines.some((l) => l.status !== 'same') || norm(sa.title) !== norm(sb.title) ? 'changed' : 'same';
+    return { key: k, status, title: (sb || sa)!.title || '', totalA, totalB, lines };
+  });
+  const T: [keyof EstimateTotals, string][] = [
+    ['subtotal', 'Subtotal'], ['grTotal', 'General Requirements'], ['gl', 'General Liability'], ['profit', 'Profit'], ['contingency', 'Contingency'],
+    ['totalBuild', 'Total build cost'], ['discount', 'Discounts & credits'], ['designCost', 'Design cost'], ['totalProject', 'Total project cost'],
+  ];
+  const totals = T.map(([key, label]) => ({ key, label, a: Number(a.result.totals[key]) || 0, b: Number(b.result.totals[key]) || 0 }));
+  return { scopes, totals, counts };
+}

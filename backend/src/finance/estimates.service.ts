@@ -8,7 +8,7 @@ import {
 import { ManpowerAccess, type Actor } from '../manpower/manpower-access.service';
 import { newId, todayISO } from '../manpower/workforce.util';
 import { FinancialsService, FIN_MODULE } from './financials.service';
-import { autoStrategy, computeEstimate, mapOldStrategy, FORMULAS, isPricing, NOTE_KINDS, OLD_STRATEGIES, STRATEGIES, type EstimateResult } from './estimate.calc';
+import { autoStrategy, compareSheets, computeEstimate, mapOldStrategy, FORMULAS, isPricing, NOTE_KINDS, OLD_STRATEGIES, STRATEGIES, type EstimateResult } from './estimate.calc';
 import { fromCents, toCents } from './money';
 
 export const ESTIMATING_MODULE = 'estimating';
@@ -179,9 +179,9 @@ export class EstimatesService {
   /** Copy rows into an estimate with new ids; scopes go after the ones it has. */
   private async cloneRows(m: EntityManager, sheet: EstimateSheet, target: { id: string; projectId: number }, startOrder = 0, withGr = true) {
     const scopeMap = new Map(sheet.scopes.map((s) => [s.id, newId('esc')]));
-    if (sheet.scopes.length) await m.save(sheet.scopes.map((s, i) => this.scopes.create({ ...s, id: scopeMap.get(s.id)!, estimateId: target.id, projectId: target.projectId, scopeOrder: startOrder + i })));
+    if (sheet.scopes.length) await m.save(sheet.scopes.map((s, i) => this.scopes.create({ ...s, originId: s.originId || s.id, id: scopeMap.get(s.id)!, estimateId: target.id, projectId: target.projectId, scopeOrder: startOrder + i })));
     const lines = sheet.lines.filter((l) => scopeMap.has(l.scopeId));
-    for (let i = 0; i < lines.length; i += 200) await m.save(lines.slice(i, i + 200).map((l) => this.lines.create({ ...l, id: newId('eln'), estimateId: target.id, projectId: target.projectId, scopeId: scopeMap.get(l.scopeId)! })));
+    for (let i = 0; i < lines.length; i += 200) await m.save(lines.slice(i, i + 200).map((l) => this.lines.create({ ...l, originId: l.originId || l.id, id: newId('eln'), estimateId: target.id, projectId: target.projectId, scopeId: scopeMap.get(l.scopeId)! })));
     if (withGr && sheet.gr.length) await m.save(sheet.gr.map((g) => this.grLines.create({ ...g, id: newId('egr'), estimateId: target.id, projectId: target.projectId })));
   }
 
@@ -411,6 +411,9 @@ export class EstimatesService {
     const sIn: any[] = Array.isArray(dto?.scopes) ? dto.scopes : [];
     const lIn: any[] = Array.isArray(dto?.lines) ? dto.lines : [];
     const gIn: any[] = Array.isArray(dto?.gr) ? dto.gr : [];
+    // Where each row was copied from survives the save (the grid doesn't send it).
+    const before = await this.sheetOf(id);
+    const originOf = new Map<string, string | null>([...before.scopes, ...before.lines].map((r) => [r.id, r.originId]));
     if (sIn.length > 300 || lIn.length > 5000 || gIn.length > 300) throw new BadRequestException('The estimate is too large to save at once.');
     const ids = new Set<string>();
     const idOf = (v: unknown, prefix: string) => {
@@ -421,7 +424,7 @@ export class EstimatesService {
       return out;
     };
     const scopes = sIn.map((s, i) => this.scopes.create({
-      id: idOf(s?.id, 'esc'), estimateId: id, projectId, scopeOrder: i, csiCodeId: str(s?.csiCodeId, 60), title: str(s?.title, 300),
+      id: idOf(s?.id, 'esc'), originId: originOf.get(String(s?.id)) ?? null, estimateId: id, projectId, scopeOrder: i, csiCodeId: str(s?.csiCodeId, 60), title: str(s?.title, 300),
       factor: s?.factor == null || s.factor === '' ? null : pct(s.factor, 'Factor', 100), privateNotes: str(s?.privateNotes, 20000), collapsed: !!s?.collapsed, custom: custom(s?.custom),
     }));
     const scopeIds = new Set(scopes.map((s) => s.id));
@@ -442,7 +445,7 @@ export class EstimatesService {
       const dur = l?.durationDays == null || l.durationDays === '' ? null : Math.round(Number(l.durationDays));
       if (dur != null && (!Number.isFinite(dur) || dur < 0 || dur > 100000)) throw new BadRequestException('Duration must be a number of days.');
       return this.lines.create({
-        id: idOf(l?.id, 'eln'), estimateId: id, projectId, scopeId, lineOrder: i, kind, statementId: str(l?.statementId, 60),
+        id: idOf(l?.id, 'eln'), originId: originOf.get(String(l?.id)) ?? null, estimateId: id, projectId, scopeId, lineOrder: i, kind, statementId: str(l?.statementId, 60),
         indent: Math.max(0, Math.min(3, Math.round(Number(l?.indent) || 0))),
         description: str(l?.description, 20000),
         costTypes: Array.isArray(l?.costTypes) ? l.costTypes.slice(0, 10).map((c: unknown) => String(c).slice(0, 60)) : null,
@@ -506,13 +509,24 @@ export class EstimatesService {
     if (same.some((x) => x.status === 'accepted')) throw new ConflictException(`${src.number} was accepted; changes now go through change orders.`);
     const sheet = await this.sheetOf(id);
     const rev = Math.max(...same.map((x) => x.rev)) + 1;
+    const restoring = src.rev < rev - 1;
     const copy = this.estimates.create({ ...this.settingsOf(src), id: newId('est'), projectId, number: src.number, isTemplate: false, rev, status: 'draft', revisionOf: src.id, sentAt: null, frozenAt: null, acceptedAt: null, acceptedBy: null, estimateDate: todayISO(), createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name });
     await this.db.transaction(async (m) => {
       await m.save(copy);
       await this.cloneRows(m, sheet, copy);
-      await this.fin.log(m, { projectId, entityType: 'estimate', entityId: copy.id, action: 'revised', reason: `${src.number} Rev ${rev} from Rev ${src.rev}` }, actor);
+      await this.fin.log(m, { projectId, entityType: 'estimate', entityId: copy.id, action: restoring ? 'restored' : 'revised', reason: restoring ? `${src.number} Rev ${src.rev} restored as Rev ${rev}` : `${src.number} Rev ${rev} from Rev ${src.rev}` }, actor);
     });
     return this.get(projectId, copy.id, actor);
+  }
+
+  /** Rev A (`id`) against Rev B (`otherId`) of the same estimate number (Nov 13). */
+  async compare(projectId: number, id: string, otherId: string, actor: Actor) {
+    await this.need(actor, 'view');
+    const [a, b] = await Promise.all([this.one(projectId, id), this.one(projectId, otherId)]);
+    if (a.number !== b.number || a.isTemplate || b.isTemplate) throw new BadRequestException('Only revisions of the same estimate can be compared.');
+    const side = async (e: EstimateEntity) => { const sh = await this.sheetOf(e.id); return { scopes: sh.scopes, lines: sh.lines, result: resultOf(e, sh) }; };
+    const out = compareSheets(await side(a), await side(b));
+    return { a: { id: a.id, rev: a.rev, status: a.status }, b: { id: b.id, rev: b.rev, status: b.status }, ...out };
   }
 
   /** Only a draft can be deleted; sent ones are the record. */

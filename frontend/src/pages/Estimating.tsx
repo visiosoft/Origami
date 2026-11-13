@@ -6,6 +6,7 @@ import { EstimateGrid, type EstimateHeader } from '../components/estimate/Estima
 import { SourcePicker } from '../components/estimate/SourcePicker';
 import { StatementLibrary } from '../components/estimate/StatementLibrary';
 import { StrategyMap } from '../components/estimate/StrategyMap';
+import { RevisionCompare } from '../components/estimate/RevisionCompare';
 import { money } from '../data/estimateCalc';
 
 interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number }
@@ -33,6 +34,7 @@ export function Estimating() {
   const [open, setOpen] = useState<EstimateHeader | null>(null);
   const [filter, setFilter] = useState('');
   const [reload, setReload] = useState(0);
+  const [comparing, setComparing] = useState(false);
   const grid = useRef<{ flush: () => Promise<unknown> } | null>(null);
 
   useEffect(() => { (api.projects.list() as Promise<any>).then((l) => setProjects(Array.isArray(l) ? l : l?.rows || [])).catch(() => setProjects([])); }, []);
@@ -119,8 +121,11 @@ export function Estimating() {
         {current && rights.edit && open?.status === 'draft' && (
           <button type="button" className="eg-btn is-primary" disabled={busy} onClick={() => window.confirm(`Mark ${current.number} Rev ${current.rev} as sent to the client? It is frozen after this; changes go in a new revision.`) && act(async () => { await grid.current?.flush(); return api.finance.estimateSent(projectId, current.id); }, () => setReload((n) => n + 1))}>Mark as sent</button>
         )}
-        {current && rights.edit && open && open.status !== 'draft' && open.status !== 'accepted' && !siblings.some((s) => s.status === 'draft') && (
-          <button type="button" className="eg-btn" disabled={busy} onClick={() => act(() => api.finance.reviseEstimate(projectId, current.id), (r) => go({ estimate: r.estimate.id }))}>New revision</button>
+        {current && siblings.length > 1 && <button type="button" className="eg-btn" onClick={() => setComparing(true)}>Compare…</button>}
+        {current && rights.edit && open && open.status !== 'draft' && open.status !== 'accepted' && !siblings.some((s) => s.status === 'draft') && !siblings.some((s) => s.status === 'accepted') && (
+          current.rev < Math.max(...siblings.map((s) => s.rev))
+            ? <button type="button" className="eg-btn" disabled={busy} title="Copy this revision as a new draft to keep working from it" onClick={() => window.confirm(`Copy ${current.number} Rev ${current.rev} as a new draft (Rev ${Math.max(...siblings.map((s) => s.rev)) + 1})? The later revisions stay as they are.`) && act(() => api.finance.reviseEstimate(projectId, current.id), (r) => go({ estimate: r.estimate.id }))}>Restore as new draft</button>
+            : <button type="button" className="eg-btn" disabled={busy} onClick={() => act(() => api.finance.reviseEstimate(projectId, current.id), (r) => go({ estimate: r.estimate.id }))}>New revision</button>
         )}
         {current && rights.edit && (
           <button type="button" className="eg-btn" disabled={busy} onClick={() => {
@@ -159,6 +164,13 @@ export function Estimating() {
           </table>
         </div>
       )}
+      {comparing && current && (() => {
+        const sorted = [...siblings].sort((x, y) => x.rev - y.rev);
+        const me = sorted.findIndex((x) => x.id === current.id);
+        const other = sorted[me > 0 ? me - 1 : 1] || sorted[0];
+        const [a, b] = me > 0 ? [other, current] : [current, other];
+        return <RevisionCompare projectId={projectId} revs={sorted} initialA={a.id} initialB={b.id} onClose={() => setComparing(false)} />;
+      })()}
       {starting && (
         <SourcePicker mode="start" onClose={() => setStarting(false)} onPick={(fromId, o) => act(() => api.finance.createEstimate(projectId, { title: o.title || undefined, fromId: fromId || undefined }), (r) => { setStarting(false); go({ estimate: r.estimate.id }); })} />
       )}

@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { autoStrategy, computeEstimate, explainTotal, lineMath, mapOldStrategy, FORMULAS, type EstLineIn } from './estimate.calc';
+import { autoStrategy, compareSheets, computeEstimate, explainTotal, lineMath, mapOldStrategy, FORMULAS, type EstLineIn } from './estimate.calc';
 
 // The Catherine bathrooms example from "People access and Financials".
 const L = (id: string, scopeId: string, cost: number, markupAmt: number, pricing = 'fc'): EstLineIn => ({ id, scopeId, cost, markupAmt, markupMode: 'amt', pricing });
@@ -112,6 +112,36 @@ describe('General Liability (F20, Nov 13)', () => {
     expect(off.totals.gl).toBe(0);
     expect(off.totals.totalBuild).toBe(none.totals.totalBuild);
     expect(off.totals.totalBuild).toBe(Math.round(1500000 / 0.83));
+  });
+});
+
+describe('compare two revisions (Nov 13)', () => {
+  const settings = { grPct: 17, profitPct: 12, contingencyPct: 5 };
+  const side = (scopes: any[], lines: any[]) => ({ scopes, lines, result: computeEstimate({ settings, scopes, lines, gr: [] }) });
+  it('matches rows by where they were copied from: added, removed, changed with old and new values, totals', () => {
+    const a = side([{ id: 's1', title: 'Demo' }], [
+      { id: 'a1', scopeId: 's1', description: 'Walls', cost: 1000, markupAmt: 300 },
+      { id: 'a2', scopeId: 's1', description: 'Haul', cost: 500, markupAmt: 100 },
+    ]);
+    const b = side([{ id: 't1', originId: 's1', title: 'Demo' }, { id: 't2', title: 'Tile' }], [
+      { id: 'b1', originId: 'a1', scopeId: 't1', description: 'Walls', cost: 1200, markupAmt: 300, subName: 'Bay' },
+      { id: 'b3', scopeId: 't2', description: 'Floor tile', cost: 2000, markupAmt: 500 },
+    ]);
+    const r = compareSheets(a, b);
+    expect(r.scopes.map((s) => [s.title, s.status])).toEqual([['Demo', 'changed'], ['Tile', 'added']]);
+    const demo = r.scopes[0].lines;
+    expect(demo.map((l) => [l.description, l.status])).toEqual([['Walls', 'changed'], ['Haul', 'removed']]);
+    expect(demo[0].fields.map((f) => [f.field, f.a, f.b])).toEqual([['cost', 100000, 120000], ['price', 130000, 150000], ['subName', '', 'Bay']]);
+    expect(r.counts).toEqual({ added: 1, removed: 1, changed: 1, same: 0 });
+    const sub = r.totals.find((t) => t.key === 'subtotal')!;
+    expect([sub.a, sub.b]).toEqual([190000, 400000]);
+  });
+  it('rows from before copies were tracked match by scope and line text', () => {
+    const a = side([{ id: 's1', csiCodeId: 'C1', title: 'Demo' }], [{ id: 'a1', scopeId: 's1', description: 'Walls', cost: 1000 }, { id: 'a2', scopeId: 's1', description: 'Walls', cost: 50 }]);
+    const b = side([{ id: 't1', csiCodeId: 'C1', title: 'demo ' }], [{ id: 'b1', scopeId: 't1', description: 'Walls', cost: 1000 }, { id: 'b2', scopeId: 't1', description: 'walls', cost: 60 }]);
+    const r = compareSheets(a, b);
+    expect(r.scopes).toHaveLength(1);
+    expect(r.scopes[0].lines.map((l) => l.status)).toEqual(['same', 'changed']);
   });
 });
 

@@ -257,3 +257,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | O2 | Standard statements: tick several, "Insert N" adds them below in order (one undo) | ✅ |
 | O3 | Estimate colours: band headings tinted with a coloured rule between bands; Precon / Subcontractor / Markup cells lightly tinted; Prime a fixed green in both themes | ✅ |
 | O4 | GR / GL / totals panel beside the sheet on wide screens (closable; below on iPad and phones); General Liability = rate × (subtotal + GR), F20; no GL line in GR for new estimates | ✅ |
+| O5 | Revision compare (added / removed / changed with old → new, ↑↓ amounts, totals; rows matched by where they were copied from, older rows by text) and "Restore as new draft" | ✅ |
