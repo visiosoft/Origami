@@ -15,7 +15,7 @@ import './EstimateGrid.css';
 
 export interface EstimateHeader {
   id: string; projectId: number; number: string; rev: number; title?: string | null; status: string; version: number;
-  grPct: number; profitPct: number; contingencyPct: number; showGrDetail: boolean; discount?: number | null; showDiscount: boolean;
+  grPct: number; profitPct: number; contingencyPct: number; glPct?: number | null; showGrDetail: boolean; discount?: number | null; showDiscount: boolean;
   designCost?: number | null; showDesignCost: boolean; estimateDate?: string | null; updatedBy?: string | null; sentAt?: string | null;
   payments?: { id: string; label: string; mode: 'pct' | 'amt'; value: number; trigger?: string }[] | null;
   columns?: ColumnDef[] | null;
@@ -24,6 +24,8 @@ export interface EstimateHeader {
 }
 
 const BANDS_KEY = 'origami.estimate.hiddenBands';
+const PANEL_KEY = 'origami.est.totalsPanel';
+const loadPanel = (): 'side' | 'closed' => { try { return localStorage.getItem(PANEL_KEY) === 'closed' ? 'closed' : 'side'; } catch { return 'side'; } };
 const loadHidden = (): Band[] => { try { return JSON.parse(localStorage.getItem(BANDS_KEY) || '[]'); } catch { return []; } };
 const SAVE_DELAY = 900;
 
@@ -91,6 +93,9 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     settings: (d: unknown) => api.finance.saveEstimate(projectId, estimateId, d),
   }), [isTemplate, projectId, estimateId]);
   const [viewW, setViewW] = useState(0);
+  // Wide screens: GR, General Liability and the totals sit in a panel beside the sheet (Nov 13); it can be closed.
+  const [panel, setPanel] = useState(loadPanel);
+  const togglePanel = () => setPanel((v) => { const n = v === 'side' ? 'closed' : 'side'; try { localStorage.setItem(PANEL_KEY, n); } catch { /* private mode */ } return n; });
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
@@ -203,7 +208,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
   const redo = () => { const p = history.current.redo(sheetRef.current); if (p) commit(p, { history: false }); };
 
   // ------------------------------------------------------------------ figures
-  const settings: EstSettings = head ? { grPct: head.grPct, profitPct: head.profitPct, contingencyPct: head.contingencyPct, discount: head.discount, designCost: head.designCost } : { grPct: 0, profitPct: 0, contingencyPct: 0 };
+  const settings: EstSettings = head ? { grPct: head.grPct, profitPct: head.profitPct, contingencyPct: head.contingencyPct, discount: head.discount, designCost: head.designCost, glPct: head.glPct ?? null } : { grPct: 0, profitPct: 0, contingencyPct: 0 };
   const result = useMemo(() => computeEstimate({
     settings,
     scopes: sheet.scopes.map((s) => ({ id: s.id, factor: s.factor })),
@@ -552,6 +557,9 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
           <input type="checkbox" disabled={!editable} checked={!!head.isDefaultTemplate} onChange={(e) => saveHead({ isDefaultTemplate: e.target.checked })} /> Company default for blank estimates
         </label>}
         <button type="button" className={`eg-btn${showCols ? ' is-on' : ''}`} onClick={(e) => { e.stopPropagation(); setShowCols((v) => !v); }}>Columns ▾</button>
+        <button type="button" className={`eg-btn eg-side-toggle${panel === 'side' ? ' is-on' : ''}`} aria-pressed={panel === 'side'} onClick={togglePanel} title="General Requirements, General Liability and totals beside the sheet">
+          {panel === 'side' ? 'Totals panel ⇥' : <>Totals <b style={{ fontVariantNumeric: 'tabular-nums' }}>{money(result.totals.totalProject)}</b> ⇤</>}
+        </button>
         <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }} aria-label="Column groups">
           {BANDS.filter((b) => b.key !== 'prime').map((b) => (
             <button key={b.key} type="button" className={`eg-btn${hidden.includes(b.key) ? '' : ' is-on'}`} aria-pressed={!hidden.includes(b.key)} onClick={() => toggleBand(b.key)}>{b.label}</button>
@@ -563,6 +571,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
 
       <datalist id="eg-contractors">{contractors.map((c) => <option key={c.id} value={c.companyName} />)}</datalist>
 
+      <div className={`eg-body${panel === 'side' ? ' has-side' : ' is-closed'}`}>
       <div className="eg-wrap" ref={wrapRef} style={viewW ? ({ '--eg-vw': `${viewW}px` } as React.CSSProperties) : undefined} tabIndex={0} role="grid" aria-label="Estimate lines" onKeyDown={onKey} onPaste={onPaste} onCopy={(e) => { if (!editing) copy(e); }}>
         <table className="eg-table" style={{ width: 56 + cols.reduce((a, c) => a + c.width, 0) }}>
           <colgroup>
@@ -654,6 +663,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
       <BelowTheLine head={head} sheet={sheet} result={result} editable={editable} explain={explain} onTip={setTip} saveHead={saveHead} updateGr={updateGr}
         addGr={() => commit({ ...sheetRef.current, gr: [...sheetRef.current.gr, newGr()] })}
         removeGr={(id) => commit({ ...sheetRef.current, gr: sheetRef.current.gr.filter((g) => g.id !== id) })} />
+      </div>
 
       {createPortal(
         <div className="eg-portal">
@@ -781,16 +791,16 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
           </label>
         </h3>
         <div style={{ overflowX: 'auto' }}>
-          <table className="eg-gr" style={{ minWidth: 690 }}>
-            <thead><tr><th style={{ width: 40 }}>#</th><th style={{ minWidth: 170 }}>General requirement</th><th style={{ width: 104 }}>In / out</th><th style={{ width: 92, textAlign: 'right' }}>Base</th><th style={{ width: 84 }}>Unit</th><th style={{ width: 56, textAlign: 'right' }}>Qty</th><th style={{ width: 112, textAlign: 'right' }}>Cost<Info text={`${FORMULAS.F9.label} = ${FORMULAS.F9.text}`} onTip={onTip} /></th>{editable && <th style={{ width: 28 }} />}</tr></thead>
+          <table className="eg-gr">
+            <thead><tr><th className="gr-num" style={{ width: 40 }}>#</th><th style={{ minWidth: 170 }}>General requirement</th><th style={{ width: 104 }}>In / out</th><th style={{ width: 92, textAlign: 'right' }}>Base</th><th className="gr-unit" style={{ width: 84 }}>Unit</th><th style={{ width: 56, textAlign: 'right' }}>Qty</th><th style={{ width: 112, textAlign: 'right' }}>Cost<Info text={`${FORMULAS.F9.label} = ${FORMULAS.F9.text}`} onTip={onTip} /></th>{editable && <th style={{ width: 28 }} />}</tr></thead>
             <tbody>
               {sheet.gr.map((g, i) => (
                 <tr key={g.id} className={g.included ? '' : 'is-out'}>
-                  <td style={{ color: 'var(--muted)' }}>{`${sheet.scopes.length + 1}.${String(i + 1).padStart(2, '0')}`}</td>
+                  <td className="gr-num" style={{ color: 'var(--muted)' }}>{`${sheet.scopes.length + 1}.${String(i + 1).padStart(2, '0')}`}</td>
                   <td><input aria-label="General requirement" disabled={!editable} defaultValue={g.title} key={`t-${g.id}-${g.title}`} onBlur={(e) => e.target.value !== g.title && updateGr(g.id, { title: e.target.value })} /></td>
                   <td><select aria-label="Included" disabled={!editable} value={g.included ? 'in' : 'out'} onChange={(e) => updateGr(g.id, { included: e.target.value === 'in' })}><option value="in">Included</option><option value="out">Excluded</option></select></td>
                   <td><input aria-label="Base amount" className="is-num" disabled={!editable} inputMode="decimal" defaultValue={g.base || ''} key={`b-${g.id}-${g.base}`} placeholder="0" onBlur={(e) => { const n = num(e.target.value) ?? 0; if (Number.isFinite(n) && n >= 0 && n !== g.base) updateGr(g.id, { base: n }); }} /></td>
-                  <td><input aria-label="Unit" disabled={!editable} list="eg-units" defaultValue={g.unit} key={`u-${g.id}-${g.unit}`} onBlur={(e) => e.target.value !== g.unit && updateGr(g.id, { unit: e.target.value || 'LS' })} /></td>
+                  <td className="gr-unit"><input aria-label="Unit" disabled={!editable} list="eg-units" defaultValue={g.unit} key={`u-${g.id}-${g.unit}`} onBlur={(e) => e.target.value !== g.unit && updateGr(g.id, { unit: e.target.value || 'LS' })} /></td>
                   <td><input aria-label="Quantity" className="is-num" disabled={!editable} inputMode="decimal" defaultValue={g.qty} key={`q-${g.id}-${g.qty}`} onBlur={(e) => { const n = num(e.target.value) ?? 0; if (Number.isFinite(n) && n >= 0 && n !== g.qty) updateGr(g.id, { qty: n }); }} /></td>
                   <td className="is-num" style={{ fontWeight: 600, color: 'var(--ink)' }}>{money(grOut.get(g.id)?.amount ?? 0)}</td>
                   {editable && <td><button type="button" className="eg-btn is-danger" style={{ padding: '2px 8px' }} aria-label={`Delete ${g.title}`} onClick={() => removeGr(g.id)}>×</button></td>}
@@ -801,6 +811,21 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
           <datalist id="eg-units">{['LS', 'Monthly', 'Weekly', 'Daily', 'Each', 'Hour', 'SF'].map((u) => <option key={u} value={u} />)}</datalist>
         </div>
         {editable && <div className="eg-add-row" style={{ position: 'static', paddingLeft: 0 }}><button type="button" onClick={addGr}>+ General requirement</button></div>}
+      </div>
+
+      <div className="eg-card">
+        <h3>General Liability <span className="eg-scope-fig">{t.gl ? <>Counted in the build cost</> : <>Off — no rate</>}</span></h3>
+        <div className="eg-totals">
+          <div className="eg-trow">
+            <span className="lbl">GL rate × (Subtotal + GR)<Info text={explain('F20')} onTip={onTip} /></span>
+            <span>
+              <input aria-label="General Liability rate %" className="is-num" disabled={!editable} defaultValue={head.glPct ?? ''} key={`gl-${head.glPct}`} inputMode="decimal" placeholder="%"
+                onBlur={(e) => { const n = num(e.target.value); if (n != null && (!Number.isFinite(n) || n < 0 || n >= 100)) { e.target.value = String(head.glPct ?? ''); return; } if ((n || null) !== (head.glPct || null)) saveHead({ glPct: n || null }); }} />
+            </span>
+            <span className="val">{money(t.gl)}</span>
+          </div>
+        </div>
+        {sheet.gr.some((g) => /general liability/i.test(g.title) && g.included) && !!t.gl && <div className="eg-error" style={{ marginTop: 8 }}>A General Requirements line is also called General Liability — exclude it so GL isn’t counted twice.</div>}
       </div>
 
       <div className="eg-card">
@@ -818,6 +843,7 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
             <span className="lbl">GR balance left<Info text={explain('F12')} onTip={onTip} /></span><span />
             <span className={`val${t.grBalance < 0 ? ' warn' : ''}`}>{t.grBalance < 0 ? `over by ${money(-t.grBalance)}` : money(t.grBalance)}</span>
           </div>
+          {!!t.gl && row('General Liability', 'F20', t.gl)}
           {row('Profit', 'F14', t.profit, pctInput('profitPct'))}
           {row('Contractor contingency', 'F15', t.contingency, pctInput('contingencyPct'))}
           {row('Total build cost', 'F13', t.totalBuild, null, 'is-big')}

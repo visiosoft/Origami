@@ -87,13 +87,31 @@ describe('estimate maths (F1-F19)', () => {
   it('every total explains its formula with the numbers', () => {
     expect(explainTotal('F14', r, settings)).toBe('Profit = Profit % × Total build cost\n12% × $56,775.41 = $6,813.05');
     expect(explainTotal('F13', r, settings)).toContain('($36,340.00 + $10,783.59) ÷ (1 − 12% − 5%) = $56,775.41');
-    expect(Object.keys(FORMULAS)).toHaveLength(19);
+    expect(Object.keys(FORMULAS)).toHaveLength(20);
   });
 
   it('the browser copy is identical', () => {
     const a = readFileSync(join(__dirname, 'estimate.calc.ts'), 'utf8');
     const b = readFileSync(join(__dirname, '../../../frontend/src/data/estimateCalc.ts'), 'utf8');
     expect(b).toBe(a);
+  });
+});
+
+describe('General Liability (F20, Nov 13)', () => {
+  const base = { scopes: [{ id: 's' }], lines: [{ id: 'l', scopeId: 's', cost: 10000, markupAmt: 2000 }], gr: [{ id: 'g', base: 3000, qty: 1 }] };
+  it('is the GL rate × (subtotal + GR) and is counted in the total build cost; parts still add up', () => {
+    const r = computeEstimate({ ...base, settings: { grPct: 17, profitPct: 12, contingencyPct: 5, glPct: 1.5 } });
+    expect(r.totals.gl).toBe(22500); // 1.5% × $15,000
+    expect(r.totals.totalBuild).toBe(Math.round((1500000 + 22500) / 0.83));
+    const t = r.totals;
+    expect(t.subtotal + t.grTotal + t.gl + t.profit + t.contingency).toBe(t.totalBuild);
+  });
+  it('off (null) changes nothing', () => {
+    const off = computeEstimate({ ...base, settings: { grPct: 17, profitPct: 12, contingencyPct: 5, glPct: null } });
+    const none = computeEstimate({ ...base, settings: { grPct: 17, profitPct: 12, contingencyPct: 5 } });
+    expect(off.totals.gl).toBe(0);
+    expect(off.totals.totalBuild).toBe(none.totals.totalBuild);
+    expect(off.totals.totalBuild).toBe(Math.round(1500000 / 0.83));
   });
 });
 

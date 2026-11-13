@@ -17,7 +17,6 @@ export const PRECON_KEY = 'fin:preconstruction_estimates';
 /** The General Requirements lines a new estimate starts with (the team's sheet, 2.01-2.14). */
 export const DEFAULT_GR: { title: string; unit: string; qty: number }[] = [
   { title: 'Construction Supervision', unit: 'Monthly', qty: 1 },
-  { title: 'General Liability', unit: 'LS', qty: 1 },
   { title: 'Documentation', unit: 'LS', qty: 1 },
   { title: 'Progress Cleaning', unit: 'LS', qty: 1 },
   { title: 'Final Cleaning', unit: 'LS', qty: 1 },
@@ -106,7 +105,7 @@ export interface EstimateSheet { scopes: EstimateScopeEntity[]; lines: EstimateL
 /** Feed the stored rows to the maths. */
 export function resultOf(e: EstimateEntity, sheet: EstimateSheet): EstimateResult {
   return computeEstimate({
-    settings: { grPct: e.grPct, profitPct: e.profitPct, contingencyPct: e.contingencyPct, discount: e.discount, designCost: e.designCost },
+    settings: { grPct: e.grPct, profitPct: e.profitPct, contingencyPct: e.contingencyPct, discount: e.discount, designCost: e.designCost, glPct: e.glPct },
     scopes: sheet.scopes.map((s) => ({ id: s.id, factor: s.factor })),
     lines: sheet.lines.map((l) => ({ id: l.id, scopeId: l.scopeId, kind: l.kind, pricing: l.pricing, cost: l.cost, markupMode: l.markupMode, markupAmt: l.markupAmt, markupPct: l.markupPct })),
     gr: sheet.gr.map((g) => ({ id: g.id, included: g.included, base: g.base, qty: g.qty })),
@@ -228,7 +227,7 @@ export class EstimatesService {
     if (!title) throw new BadRequestException('Give the template a name.');
     const src = dto?.fromId ? await this.source(String(dto.fromId), canSee) : null;
     const t = this.estimates.create({
-      ...(src ? this.settingsOf(src) : { grPct: 17, profitPct: 12, contingencyPct: 5, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null, columns: [], payments: [], areas: null }),
+      ...(src ? this.settingsOf(src) : { grPct: 17, profitPct: 12, contingencyPct: 5, glPct: null, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null, columns: [], payments: [], areas: null }),
       id: newId('est'), projectId: 0, number: 'TPL', rev: 1, isTemplate: true, status: 'draft', title, revisionOf: null, estimateDate: null,
       sentAt: null, frozenAt: null, acceptedAt: null, acceptedBy: null, createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
     });
@@ -315,7 +314,7 @@ export class EstimatesService {
       ...(def ? this.settingsOf(def) : {}),
       id: newId('est'), projectId, number, rev: 1, title: str(dto?.title, 200) || p.name || 'Estimate', status: 'draft',
       estimateDate: todayISO(), preparedById: actor.id || null, isTemplate: false, isDefaultTemplate: false,
-      ...(def ? {} : { columns: [], payments: [], areas: null, grPct: 17, profitPct: 12, contingencyPct: 5, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null }),
+      ...(def ? {} : { columns: [], payments: [], areas: null, grPct: 17, profitPct: 12, contingencyPct: 5, glPct: null, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null }),
       createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
     });
     await this.db.transaction(async (m) => {
@@ -343,6 +342,7 @@ export class EstimatesService {
     const has = (k: string) => dto && Object.prototype.hasOwnProperty.call(dto, k);
     if (has('title')) e.title = str(dto.title, 200);
     for (const k of ['grPct', 'profitPct', 'contingencyPct'] as const) if (has(k)) e[k] = pct(dto[k], k === 'grPct' ? 'GR %' : k === 'profitPct' ? 'Profit %' : 'Contingency %');
+    if (has('glPct')) e.glPct = dto.glPct == null || dto.glPct === '' ? null : pct(dto.glPct, 'GL rate %');
     if (has('discount')) e.discount = optAmount(dto.discount, 'Discount');
     if (has('designCost')) e.designCost = optAmount(dto.designCost, 'Design cost');
     for (const k of ['showGrDetail', 'showDiscount', 'showDesignCost'] as const) if (has(k)) e[k] = !!dto[k];

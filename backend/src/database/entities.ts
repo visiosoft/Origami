@@ -2730,6 +2730,8 @@ export class EstimateEntity extends FinanceStamped {
   @Column({ ...PCT, default: 17 }) grPct!: number;
   @Column({ ...PCT, default: 12 }) profitPct!: number;
   @Column({ ...PCT, default: 5 }) contingencyPct!: number;
+  /** General Liability rate % of (subtotal + GR), F20 (Nov 13). Null = off; older estimates keep a GL line in GR instead. */
+  @Column({ ...PCT, nullable: true }) glPct!: number | null;
   /** "Show detail costs in prime?": GR lines on the client's copy, or only the GR total. */
   @Column({ default: true }) showGrDetail!: boolean;
   @Column({ ...MONEY, nullable: true }) discount!: number | null;

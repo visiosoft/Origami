@@ -93,7 +93,7 @@ tr.eg-scope td { background: var(--eg-head); border-top: 2px solid rgba(var(--rg
 .eg-card { border: 1px solid var(--eg-line); border-radius: 12px; background: var(--surface); padding: 14px 16px; min-width: 0; }
 .eg-card h3 { margin: 0 0 10px; font: 700 14px var(--font-display, inherit); color: var(--ink); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .eg-card h3 .eg-scope-fig { margin-left: auto; font-family: var(--font-ui, inherit); }
-.eg-gr { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.eg-gr { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 690px; }
 .eg-gr th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 700; padding: 4px 6px; border-bottom: 1px solid var(--eg-line); }
 .eg-gr td { padding: 3px 4px; border-bottom: 1px solid rgba(var(--rgb-shade), 0.06); }
 .eg-gr input, .eg-gr select, .eg-totals input { font: inherit; font-size: 12.5px; padding: 5px 7px; border-radius: 7px; border: 1px solid transparent; background: transparent; color: var(--ink); width: 100%; box-sizing: border-box; }
@@ -114,6 +114,17 @@ tr.eg-scope td { background: var(--eg-head); border-top: 2px solid rgba(var(--rg
 .eg-split { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
 .eg-split b { color: var(--ink); font-variant-numeric: tabular-nums; }
 
+/* Wide screens: GR, GL and totals in a panel beside the sheet (Nov 13); narrower screens keep them below. */
+.eg-side-toggle { display: none; }
+@media (min-width: 1280px) {
+  .eg-side-toggle { display: inline-block; }
+  .eg-body.has-side { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 12px; align-items: start; }
+  .eg-body.has-side .eg-below { grid-template-columns: minmax(0, 1fr); position: sticky; top: 8px; max-height: calc(100vh - 160px); overflow: auto; overscroll-behavior: contain; }
+  .eg-body.has-side .eg-gr { min-width: 0; }
+  .eg-body.has-side .eg-gr .gr-num, .eg-body.has-side .eg-gr .gr-unit { display: none; }
+  .eg-body.is-closed .eg-below { display: none; }
+}
+.eg-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 @media (max-width: 1200px) {
   .eg-below { grid-template-columns: minmax(0, 1fr); }
 }

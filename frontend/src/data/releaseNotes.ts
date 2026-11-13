@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13b',
+    date: '2026-11-13',
+    title: 'Estimating: totals beside the sheet, and General Liability as a rate',
+    items: [
+      { area: 'Estimating', kind: 'improved', text: 'On a wide screen, General Requirements, General Liability and the totals sit in a panel beside the sheet, so direct costs and the below-the-line figures are visible together. “Totals panel” closes it (the button then shows the total); on iPad and phones they stay below the sheet.', where: 'Estimating → an estimate' },
+      { area: 'Estimating', kind: 'new', text: 'General Liability is worked out as a rate: GL % × (Subtotal + GR), counted in the total build cost like GR (formula F20 behind the ⓘ). Leave it empty for none. A company default comes from the default template.', where: 'Estimating → an estimate → General Liability' },
+      { area: 'Estimating', kind: 'improved', text: 'New estimates no longer start with a “General Liability” lump-sum GR line. Existing estimates keep theirs and their totals don’t change; if you set a GL rate, a note reminds you to exclude that GR line.' },
+    ],
+  },
+  {
     id: '2026-11-13a',
     date: '2026-11-13',
     title: 'Estimating: Edward’s performing strategies',

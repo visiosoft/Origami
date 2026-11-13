@@ -4,7 +4,7 @@
  * frontend/src/data/estimateCalc.ts must stay an exact copy (a test checks).
  *
  * Money is integer cents throughout; percentages are plain numbers (12 = 12%).
- * Every figure has a formula id (F1..F19) and a plain-words description,
+ * Every figure has a formula id (F1..F20) and a plain-words description,
  * shown behind the (i) next to each total.
  */
 
@@ -70,13 +70,14 @@ export const FORMULAS = {
   F10: { label: 'General Requirements total', text: 'Sum of the Included GR lines' },
   F11: { label: 'Suggested GR max', text: 'GR % × Subtotal ÷ (1 − GR % − Profit % − Contingency %) — a guide only' },
   F12: { label: 'GR balance left', text: 'Suggested GR max − GR total (negative = over the suggestion)' },
-  F13: { label: 'Total build cost', text: '(Subtotal + GR total) ÷ (1 − Profit % − Contingency %)' },
+  F13: { label: 'Total build cost', text: '(Subtotal + GR total + General Liability) ÷ (1 − Profit % − Contingency %)' },
   F14: { label: 'Profit', text: 'Profit % × Total build cost' },
   F15: { label: 'Contractor contingency', text: 'Contingency % × Total build cost (takes the rounding cent, so the parts add up exactly)' },
   F16: { label: 'Total build cost (revised)', text: 'Total build cost − Discounts & credits' },
   F17: { label: 'Total project cost', text: 'Total build cost (revised) + Total design cost' },
   F18: { label: 'Effective GR %', text: 'GR total ÷ Total build cost' },
   F19: { label: 'Payment', text: '% × Total project cost, or the fixed amount' },
+  F20: { label: 'General Liability', text: 'GL rate % × (Subtotal + GR total); counted in the total build cost like GR' },
 } as const;
 export type FormulaId = keyof typeof FORMULAS;
 
@@ -88,6 +89,8 @@ export interface EstSettings {
   discount?: number | null;
   /** Dollars. */
   designCost?: number | null;
+  /** General Liability rate (F20); null or 0 = not worked out (a GR line may carry it instead). */
+  glPct?: number | null;
 }
 export interface EstScopeIn { id: string; factor?: number | null }
 export interface EstLineIn {
@@ -113,6 +116,8 @@ export interface PaymentOut { id: string; amount: number }
 export interface EstimateTotals {
   subcontracted: number; markup: number; subtotal: number; high: number;
   grTotal: number; grSuggested: number; grBalance: number; effectiveGrPct: number | null;
+  /** General Liability (F20). */
+  gl: number;
   totalBuild: number; profit: number; contingency: number;
   discount: number; revisedBuild: number; designCost: number; totalProject: number;
   /** The letter's cost split; parts add up to the total project cost. */
@@ -177,9 +182,10 @@ export function computeEstimate(input: { settings: EstSettings; scopes: EstScope
   const error = denom <= 0 ? 'Profit % and Contingency % add up to 100% or more, so there is no total build cost.' : null;
 
   const grSuggested = denomAll > 0 ? rnd(((grPct / 100) * subtotal) / denomAll) : 0;
-  const totalBuild = error ? subtotal + grTotal : rnd((subtotal + grTotal) / denom);
+  const gl = pctOf(subtotal + grTotal, num(s.glPct));
+  const totalBuild = error ? subtotal + grTotal + gl : rnd((subtotal + grTotal + gl) / denom);
   const profit = error ? 0 : pctOf(totalBuild, profitPct);
-  const contingency = error ? 0 : totalBuild - subtotal - grTotal - profit;
+  const contingency = error ? 0 : totalBuild - subtotal - grTotal - gl - profit;
   const discount = cents(s.discount);
   const revisedBuild = totalBuild - discount;
   const designCost = cents(s.designCost);
@@ -198,7 +204,7 @@ export function computeEstimate(input: { settings: EstSettings; scopes: EstScope
   return {
     lines, scopes, gr, payments,
     totals: {
-      subcontracted, markup, subtotal, high, grTotal, grSuggested, grBalance: grSuggested - grTotal,
+      subcontracted, markup, subtotal, high, grTotal, gl, grSuggested, grBalance: grSuggested - grTotal,
       effectiveGrPct: ratio(grTotal, totalBuild), totalBuild, profit, contingency, discount, revisedBuild, designCost, totalProject,
       split, scheduled, unscheduled: totalProject - scheduled, error,
     },
@@ -222,11 +228,12 @@ export function explainTotal(id: FormulaId, r: EstimateResult, s: EstSettings): 
     F10: money(t.grTotal),
     F11: `${pct(s.grPct)} × ${money(t.subtotal)} ÷ (1 − ${pct(s.grPct)} − ${pct(s.profitPct)} − ${pct(s.contingencyPct)}) = ${money(t.grSuggested)}`,
     F12: `${money(t.grSuggested)} − ${money(t.grTotal)} = ${money(t.grBalance)}`,
-    F13: `(${money(t.subtotal)} + ${money(t.grTotal)}) ÷ (1 − ${pct(s.profitPct)} − ${pct(s.contingencyPct)}) = ${money(t.totalBuild)}`,
+    F13: `(${money(t.subtotal)} + ${money(t.grTotal)}${t.gl ? ` + ${money(t.gl)} GL` : ''}) ÷ (1 − ${pct(s.profitPct)} − ${pct(s.contingencyPct)}) = ${money(t.totalBuild)}`,
     F14: `${pct(s.profitPct)} × ${money(t.totalBuild)} = ${money(t.profit)}`,
     F15: `${pct(s.contingencyPct)} × ${money(t.totalBuild)} = ${money(t.contingency)}`,
     F16: `${money(t.totalBuild)} − ${money(t.discount)} = ${money(t.revisedBuild)}`,
     F17: `${money(t.revisedBuild)} + ${money(t.designCost)} = ${money(t.totalProject)}`,
+    F20: `${pct(num(s.glPct))} × (${money(t.subtotal)} + ${money(t.grTotal)}) = ${money(t.gl)}`,
     F18: t.effectiveGrPct == null ? '—' : `${money(t.grTotal)} ÷ ${money(t.totalBuild)} = ${pct(t.effectiveGrPct)}`,
   };
   return `${f.label} = ${f.text}${worked[id] ? `\n${worked[id]}` : ''}`;

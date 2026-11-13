@@ -191,7 +191,7 @@ describe('estimates', () => {
     const out = await svc.copyScopes(8, b.estimate.id, { version: b.estimate.version, fromId: a.estimate.id, scopeIds: ['scope-a'] }, actor, () => true);
     expect(out.scopes.map((s: any) => s.title)).toEqual(['Primary bathroom']);
     expect(out.lines).toHaveLength(3);
-    expect(out.gr).toHaveLength(14);
+    expect(out.gr).toHaveLength(13); // General Liability is worked out as a rate now (F20), not a GR line
   });
 
   it('the company default template: blank estimates take its columns, GR lines and percentages, not its scopes', async () => {
