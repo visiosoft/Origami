@@ -554,3 +554,18 @@
 .back-to-project { margin-left: 10px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(var(--rgb-shade), 0.14); background: var(--surface); color: var(--forest); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
 .back-to-project:hover { background: var(--mint); }
 @media (max-width: 700px) { .back-to-project { margin-left: 6px; max-width: 150px; } }
+
+/* View as (Nov 13) */
+.view-as { position: relative; }
+.view-as-btn { padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(var(--rgb-shade), 0.14); background: var(--surface); font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.view-as-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; width: 320px; max-width: calc(100vw - 32px); padding: 10px; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-pop, 0 12px 40px rgba(0,0,0,.18)); display: grid; gap: 8px; }
+.view-as-pop input { font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 9px; border: 1px solid rgba(var(--rgb-shade), 0.15); background: var(--surface); color: var(--ink); }
+.view-as-list { max-height: 340px; overflow: auto; display: grid; gap: 2px; }
+.view-as-list button { display: flex; justify-content: space-between; gap: 10px; text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-size: 13px; color: var(--ink); cursor: pointer; }
+.view-as-list button:hover { background: rgba(var(--rgb-shade), 0.06); }
+.view-as-list button span { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.view-as-head { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 6px 10px 2px; }
+.view-as-empty, .view-as-note { font-size: 12px; color: var(--muted); padding: 4px 10px; }
+.view-as-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 24px 10px; padding: 10px 16px; border-radius: 12px; background: #F6E3A1; color: #3A2E05; font-size: 13.5px; }
+.view-as-banner button { margin-left: auto; padding: 7px 14px; border-radius: 999px; border: 0; background: #3A2E05; color: #FFF8DC; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+@media (max-width: 700px) { .view-as-banner { margin: 0 12px 10px; } }

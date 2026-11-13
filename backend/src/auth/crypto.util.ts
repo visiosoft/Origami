@@ -59,6 +59,8 @@ export interface SessionClaims {
   tier: string;
   iat: number;
   exp: number;
+  /** Set when an administrator is viewing as this role or person (read-only): who they really are. */
+  viewedBy?: { sub: string; name: string; email: string; as: string } | null;
 }
 
 /** Sign an HS256 JWT. */

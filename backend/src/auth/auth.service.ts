@@ -13,6 +13,7 @@ import {
   hashPassword, verifyPassword, passwordProblem,
   randomToken, hashToken, signJwt, verifyJwt, signState, readState, type SessionClaims,
 } from './crypto.util';
+import { parseViewAs, viewAsStore } from './view-as';
 import { checkTotp, newBackupCodes, newTotpSecret, normBackupCode, openSecret, otpauthUri, sealSecret } from './totp';
 
 /** Two-step sign-in (Nov 13): the step between password / Google and a session. */
@@ -322,7 +323,7 @@ export class AuthService {
 
   /** New backup codes (the old ones stop working); needs a current code from the app. */
   async newBackupCodes(bearer: string | undefined, code: string) {
-    const claims = await this.verify(bearer);
+    const claims = await this.verifyReal(bearer);
     const user = claims ? await this.users.findOneBy({ id: claims.sub }) : null;
     if (!user?.totpSecret) throw new BadRequestException('Two-step sign-in isn’t set up.');
     const step = checkTotp(openSecret(user.totpSecret, await this.settings.jwtSecret()) || '', code, Date.now(), user.totpLastStep);
@@ -384,7 +385,33 @@ export class AuthService {
 
   // -------------------------------------------------------------------- misc
 
+  /**
+   * The caller -- or, when an administrator sends X-View-As (Nov 13), the role
+   * or person they're viewing as (read-only; the guard refuses changes).
+   */
   async verify(bearer: string | undefined): Promise<SessionClaims | null> {
+    const real = await this.verifyReal(bearer);
+    if (!real || real.roleKey !== 'admin') return real;
+    const va = parseViewAs(viewAsStore.getStore()?.header);
+    if (!va) return real;
+    return (await this.viewedAs(real, va)) || real;
+  }
+
+  /** As viewing: a person's own claims, or a role's (a stand-in id, VIEW-<role>). Null if not found. */
+  async viewedAs(real: SessionClaims, va: { kind: 'role' | 'person'; id: string }): Promise<SessionClaims | null> {
+    const by = { sub: real.sub, name: real.name, email: real.email, as: '' };
+    if (va.kind === 'person') {
+      const u = await this.users.findOneBy({ id: va.id });
+      if (!u || u.id === real.sub) return null;
+      return { ...real, sub: u.id, email: u.email, name: u.name, roleKey: u.roleKey, tier: u.tier, viewedBy: { ...by, as: u.name } };
+    }
+    const role = await this.roles.findOneBy({ key: va.id });
+    if (!role) return null;
+    return { ...real, sub: `VIEW-${role.key}`, email: '', name: role.name, roleKey: role.key, tier: role.tier, viewedBy: { ...by, as: role.name } };
+  }
+
+  /** The signed-in account itself, never a view-as (sessions, refresh, two-step settings). */
+  async verifyReal(bearer: string | undefined): Promise<SessionClaims | null> {
     const raw = bearer?.startsWith('Bearer ') ? bearer.slice(7) : bearer;
     if (!raw) return null;
     const claims = verifyJwt(raw, await this.settings.jwtSecret());
@@ -427,7 +454,7 @@ export class AuthService {
    * they last as long as their grant.
    */
   async refresh(bearer: string | undefined) {
-    const claims = await this.verify(bearer);
+    const claims = await this.verifyReal(bearer);
     if (!claims) throw new UnauthorizedException('Not signed in.');
     if (claims.sub.startsWith('GUEST-')) throw new UnauthorizedException('Guest links do not renew.');
     const user = await this.users.findOneBy({ id: claims.sub });
@@ -438,12 +465,17 @@ export class AuthService {
   async me(bearer: string | undefined) {
     const claims = await this.verify(bearer);
     if (!claims) throw new UnauthorizedException('Not signed in.');
+    // Viewing as a role: there's no account behind it, just the role (Nov 13).
+    if (claims.viewedBy && claims.sub.startsWith('VIEW-')) {
+      const role = await this.roles.findOneBy({ key: claims.roleKey });
+      return { id: claims.sub, name: claims.name, email: '', tier: claims.tier, roleKey: claims.roleKey, status: 'active', roleName: role?.name || claims.roleKey, rolePermissions: effectivePermissions(role?.permissions as any, null as any), isSuperintendent: SUPER_ROLES.includes(claims.roleKey), viewedBy: claims.viewedBy };
+    }
     const user = await this.users.findOneBy({ id: claims.sub });
     if (!user) throw new UnauthorizedException('Not signed in.');
     // The role's module permissions ride along so the app can show outside accounts only what they may use.
     const role = await this.roles.findOneBy({ key: user.roleKey });
     // With this person's own overrides on top (User Access & Roles -> a user -> Access).
-    return { ...publicUser(user), roleName: role?.name || user.roleKey, rolePermissions: effectivePermissions(role?.permissions as any, user.permissionOverrides as any), isSuperintendent: await this.isSuperintendent(user) };
+    return { ...publicUser(user), viewedBy: claims.viewedBy || null, roleName: role?.name || user.roleKey, rolePermissions: effectivePermissions(role?.permissions as any, user.permissionOverrides as any), isSuperintendent: await this.isSuperintendent(user) };
   }
 
   /**

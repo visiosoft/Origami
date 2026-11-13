@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13i',
+    date: '2026-11-13',
+    title: 'View as: see the app as any role or person',
+    items: [
+      { area: 'Admin', kind: 'new', text: 'Administrators can view the app as a role (e.g. Client Closed Book, Internal Super) or as a person: their menus, projects and data, exactly as the server gives them. It’s read-only — nothing can be changed while viewing as — and a yellow bar shows who you’re viewing as, with “Stop viewing as”.', where: 'Top bar → View as…' },
+      { area: 'Admin', kind: 'improved', text: 'The old “View as: Internal / Client / Consultant” switch, which only showed sample dashboards, is gone.' },
+    ],
+  },
+  {
     id: '2026-11-13h',
     date: '2026-11-13',
     title: 'Two-step sign-in for staff',

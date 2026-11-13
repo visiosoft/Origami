@@ -1,4 +1,7 @@
-import { CanActivate, ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+
+/** POSTs that only read or keep the real session going, allowed while viewing as. */
+const READ_POSTS = /^\/api\/auth\/(refresh|logout)\b/;
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { AuthService } from '../auth.service';
@@ -47,6 +50,10 @@ export class SessionGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<AuthedRequest>();
     const claims = await this.resolve(req);
     if (claims) {
+      // Viewing as someone else (Nov 13) is read-only: nothing is changed in their name.
+      if (claims.viewedBy && req.method !== 'GET' && req.method !== 'HEAD' && !READ_POSTS.test(req.originalUrl || req.url || '')) {
+        throw new ForbiddenException(`Viewing as ${claims.viewedBy.as} — read only. Stop viewing as to make changes.`);
+      }
       req.claims = claims;
       return true;
     }

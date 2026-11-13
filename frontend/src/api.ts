@@ -192,12 +192,27 @@ export function markBusy(): () => void {
   };
 }
 
+/**
+ * View as (Nov 13): an administrator sees the app as a role or a person,
+ * read-only. Kept per browser tab; sent on every request except the ones
+ * about the real session.
+ */
+const VIEW_AS_KEY = 'origami.viewAs';
+export const viewAs = {
+  get: (): string | null => { try { return sessionStorage.getItem(VIEW_AS_KEY); } catch { return null; } },
+  set: (v: string | null) => { try { if (v) sessionStorage.setItem(VIEW_AS_KEY, v); else sessionStorage.removeItem(VIEW_AS_KEY); } catch { /* private mode */ } clearReadCache(); },
+};
+const viewAsHeader = (path: string): Record<string, string> => {
+  const v = viewAs.get();
+  return v && !/^\/auth\/(refresh|logout|2fa)/.test(path) ? { 'X-View-As': v } : {};
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!cacheableRead(path, options)) {
     try { return await send<T>(path, options); }
     finally { if ((options?.method || 'GET').toUpperCase() !== 'GET') clearReadCache(); }
   }
-  const key = (session.get() || '') + ' ' + path;
+  const key = (session.get() || '') + ' ' + (viewAs.get() || '') + ' ' + path;
   const hit = readCache.get(key);
   if (hit && Date.now() - hit.at < READ_TTL_MS) return copy(hit.value as T);
   let pending = readsInFlight.get(key) as Promise<T> | undefined;
@@ -224,6 +239,7 @@ async function sendNow<T>(path: string, options: RequestInit | undefined, token:
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...viewAsHeader(path),
       ...(options?.headers ?? {}),
     },
   });
@@ -254,7 +270,7 @@ async function sendForm<T>(path: string, form: FormData): Promise<T> {
   const token = session.get();
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...viewAsHeader(path) },
     body: form,
   });
   if (!res.ok) {
@@ -269,7 +285,7 @@ async function sendForm<T>(path: string, form: FormData): Promise<T> {
 /** A file's bytes, signed in (for the PDF markup viewer and marked-up downloads). */
 async function requestBytes(path: string): Promise<ArrayBuffer> {
   const token = session.get();
-  const res = await fetch(`${API_BASE}${path}`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  const res = await fetch(`${API_BASE}${path}`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...viewAsHeader(path) } });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);

@@ -7,15 +7,15 @@ import { Logo, LogoMark } from './Logo';
 import { Notifications } from './Notifications';
 import { ThemeToggle } from './ThemeToggle';
 import { GlobalSearch, openGlobalSearch } from './GlobalSearch';
-import { useApp, type ViewMode } from '../AppContext';
+import { useApp } from '../AppContext';
 import { projectPlace } from '../data/returnToProject';
 import { ANY_OF_BY_ROUTE, NAV_GROUPS, PERSONAL_ROUTES, PERM_BY_ROUTE, permOf } from '../data/nav';
 import { AutosaveIndicator, AutosaveProvider } from '../autosave';
 import { ServerStatusBanner } from './ServerStatusBanner';
 import { SessionExpired } from './SessionExpired';
+import { ViewAsBanner, ViewAsPicker } from './ViewAs';
 import './AppShell.css';
 
-const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
 
 /**
  * TEMPORARY — modules considered ready to test, shown green in the sidebar.
@@ -29,7 +29,7 @@ const initialsOf = (name: string) =>
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { viewMode, setViewMode, toastMsg, can, loadingAccess, currentUser, currentRole, tier, signOut, authUser } = useApp();
+  const { toastMsg, can, loadingAccess, currentUser, currentRole, signOut, authUser } = useApp();
   // Which menu groups are open: what the person chose (kept in this browser), else just Main and the
   // group holding the page they're on -- so the menu doesn't grow with every group open (Nov 4).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -201,22 +201,7 @@ export function AppShell() {
             )}
           </div>
 
-          {tier === 'internal' && currentUser?.roleKey !== 'site_super' && (
-            <div className="view-switch">
-              <span className="view-switch-label">View as:</span>
-              <div className="view-switch-track">
-                {VIEW_MODES.map((m) => (
-                  <div
-                    key={m}
-                    className={`view-switch-pill ${viewMode === m ? 'active' : ''}`}
-                    onClick={() => setViewMode(m)}
-                  >
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {authUser?.roleKey === 'admin' && !authUser?.viewedBy && <ViewAsPicker />}
 
           <AutosaveIndicator />
 
@@ -229,6 +214,7 @@ export function AppShell() {
         <ServerStatusBanner />
         <TopProgress />
 
+        {authUser?.viewedBy && <ViewAsBanner as={authUser.viewedBy.as} tier={authUser.tier} />}
         <main className="content">
           <div className="content-inner">
             {/* The sidebar stays put while a page's code downloads. */}

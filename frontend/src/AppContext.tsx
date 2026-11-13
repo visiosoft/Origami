@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import { api, session, tokenExpiry, SESSION_EXPIRED_EVENT, SESSION_RESTORED_EVENT } from './api';
+import { api, session, viewAs, tokenExpiry, SESSION_EXPIRED_EVENT, SESSION_RESTORED_EVENT } from './api';
 import { can as canFor, type User, type Role, type Tier, type Action } from './data/users';
 
 export type ViewMode = 'internal' | 'client' | 'consultant';
@@ -173,6 +173,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // file and image URLs that authenticate with it.
     api.auth.logout().catch(() => { /* signing out locally matters more */ });
     session.clear();
+    viewAs.set(null);
     setSessionExpired(false);
     setAuthUser(null);
     try { localStorage.removeItem(CURRENT_USER_KEY); } catch { /* ignore */ }
