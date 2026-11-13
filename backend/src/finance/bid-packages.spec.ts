@@ -42,7 +42,8 @@ function setup() {
   const mails: any[] = [];
   const google: any = { isConnected: async () => true, sendMail: async (m: any) => mails.push(m) };
   const packages = repo(), invites = repo(), bids = repo();
-  const contractors = repo([{ id: 'K1', companyName: 'Tile Co', email: 'tile@x.test' }, { id: 'K2', companyName: 'Stone Inc', email: 'stone@x.test' }]);
+  // Prequalified, licence and insurance current (Nov 13: bid invites need it).
+  const contractors = repo([{ id: 'K1', companyName: 'Tile Co', email: 'tile@x.test', prequalStatus: 'approved', licenseNumber: 'C-10', licenseExpiry: '2099-01-01', insuranceProvider: 'Acme', insuranceExpiry: '2099-01-01' }, { id: 'K2', companyName: 'Stone Inc', email: 'stone@x.test', prequalStatus: 'approved', licenseNumber: 'C-10', licenseExpiry: '2099-01-01', insuranceProvider: 'Acme', insuranceExpiry: '2099-01-01' }, { id: 'K3', companyName: 'Nope LLC', email: 'n@x.test' }]);
   const csi = repo([{ id: 'C9', code: '09.30', division: 'Tiling' }]);
   const svc = new BidPackagesService(estimates, fin, settings, google, packages as any, invites as any, bids as any, contractors as any, csi as any);
   return { svc, packages, invites, bids, mails, draftLines };
@@ -63,6 +64,8 @@ describe('K10: sub bid packages', () => {
   it('inviting emails each sub a private link and adds their row on the Contractors page', async () => {
     const { svc, invites, bids, mails, packages } = setup();
     const p = await svc.create(7, 'E1', { scopeIds: ['S2'] }, actor);
+    // Nov 13: a sub that isn't prequalified can't be invited.
+    await expect(svc.invite(7, p.id, { contractorIds: ['K1', 'K3'] }, actor)).rejects.toThrow(/Can’t invite Nope LLC \(not prequalified yet\)/);
     const r = await svc.invite(7, p.id, { contractorIds: ['K1', 'K2'] }, actor);
     expect(r.invited.map((x) => x.vendorName)).toEqual(['Tile Co', 'Stone Inc']);
     expect(mails.map((m) => m.to)).toEqual(['tile@x.test', 'stone@x.test']);

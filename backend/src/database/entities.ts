@@ -1586,6 +1586,12 @@ export class ContractorEntity {
   @Column({ type: 'simple-json', nullable: true }) tradeIds!: string[];
   @Column({ nullable: true }) licenseNumber!: string;
   @Column({ nullable: true }) licenseExpiry!: string;
+  /** Prequalification (Nov 13): pending | approved | rejected; empty = not started. Bid invites need approved + licence and insurance current. */
+  @Column({ type: 'nvarchar', length: 12, nullable: true }) prequalStatus!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) prequal!: { trades?: string; yearsInBusiness?: number | null; references?: string; w9OnFile?: boolean; notes?: string; submittedAt?: string; submittedBy?: string } | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) prequalAt!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) prequalBy!: string | null;
+  @Column({ type: 'nvarchar', length: 2000, nullable: true }) prequalNotes!: string | null;
   @Column({ default: 'active' }) status!: string; // active | suspended | ended
   @Column({ ...TEXT, nullable: true }) notes!: string;
   @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];

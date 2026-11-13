@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13s',
+    date: '2026-11-13',
+    title: 'GC & Sub Prequalify',
+    items: [
+      { area: 'Preconstruction', kind: 'new', text: 'GC & Sub Prequalify: each company’s licence, insurance (with expiry dates), trades, years in business, references and W-9, reviewed and approved or turned down. Send a sub a private link to fill it in and upload their documents themselves.', where: 'Preconstruction → GC & Sub Prequalify & RFP' },
+      { area: 'Estimating', kind: 'improved', text: 'Bid packages can only be sent to prequalified subs whose licence and insurance are current; the others show why.', where: 'Estimating → Bid packages → Invite subs' },
+    ],
+  },
+  {
     id: '2026-11-13r',
     date: '2026-11-13',
     title: 'Contracts: California three-day cancel and draw schedule',

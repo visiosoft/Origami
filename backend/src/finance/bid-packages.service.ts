@@ -1,3 +1,4 @@
+import { prequalBlock } from '../manpower/prequal';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -118,6 +119,9 @@ export class BidPackagesService {
     const ids = [...new Set((dto?.contractorIds || []).map(String))];
     if (!ids.length) throw new BadRequestException('Pick the subs to invite.');
     const subs = await this.contractors.find({ where: { id: In(ids) } });
+    // Only prequalified subs with a current licence and insurance (Nov 13 sync).
+    const blocked = subs.map((c) => ({ c, why: prequalBlock(c) })).filter((x) => x.why);
+    if (blocked.length) throw new BadRequestException(`Can’t invite ${blocked.map((x) => `${x.c.companyName} (${x.why!.toLowerCase()})`).join(', ')}. Prequalify them first.`);
     const project = await this.fin.project(projectId);
     const canMail = await this.google.isConnected().catch(() => false);
     const emailBrand = await loadEmailBrand(this.settings);

@@ -50,6 +50,15 @@ export interface WeeklyReport {
 }
 
 /** A checklist made in advance ("Pre-pour inspection"). */
+export type PrequalAnswers = { trades?: string; yearsInBusiness?: number | null; references?: string; w9OnFile?: boolean; notes?: string; submittedAt?: string; submittedBy?: string };
+export type PrequalRow = {
+  id: string; companyName: string; contactPerson?: string; email?: string; phone?: string; tradeIds: string[];
+  licenseNumber?: string; licenseExpiry?: string; insuranceProvider?: string; insurancePolicyNumber?: string; insuranceExpiry?: string;
+  prequalStatus: 'pending' | 'approved' | 'rejected' | null; prequal: PrequalAnswers | null; prequalAt?: string | null; prequalBy?: string | null; prequalNotes?: string | null;
+  attachments: { id: string; name: string }[]; canBid: boolean; reason: string | null;
+};
+export type PrequalPublic = { companyName: string; licenseNumber?: string; licenseExpiry?: string; insuranceProvider?: string; insurancePolicyNumber?: string; insuranceExpiry?: string; prequal: PrequalAnswers | null; status: string | null; files: string[] };
+
 export type MassRecipient = { type: 'person' | 'lead'; id: string; name: string; phone: string; status: 'waiting' | 'sent' | 'failed' | 'skipped'; note?: string };
 
 export interface ChecklistTemplate { id: string; name: string; items: { item: string }[];
@@ -1342,6 +1351,16 @@ export const api = {
     fulfill: (id: string) => request(`/workforce-requests/${id}/fulfill`, { method: 'POST' }),
     allocate: (id: string, data: { lineId: string; employeeIds: string[]; startDate?: string; workArea?: string }) =>
       request(`/workforce-requests/${id}/allocate`, { method: 'POST', body: JSON.stringify(data) }),
+  },
+  /** GC & Sub Prequalify (Nov 13). */
+  prequal: {
+    list: () => request<PrequalRow[]>('/prequal', { cache: 'no-store' } as any),
+    save: (id: string, d: Record<string, unknown>) => request<PrequalRow>(`/prequal/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    decide: (id: string, decision: 'approved' | 'rejected' | 'pending', notes?: string) => request<PrequalRow>(`/prequal/${encodeURIComponent(id)}/decision`, { method: 'POST', body: JSON.stringify({ decision, notes }) }),
+    link: (id: string) => request<{ link: string; emailed: boolean }>(`/prequal/${encodeURIComponent(id)}/link`, { method: 'POST' }),
+    publicView: (token: string) => request<PrequalPublic>(`/prequal-public?token=${encodeURIComponent(token)}`, { cache: 'no-store' } as any),
+    publicSubmit: (token: string, d: Record<string, unknown>) => request<PrequalPublic>('/prequal-public', { method: 'POST', body: JSON.stringify({ ...d, token }) }),
+    publicUpload: (token: string, files: FileList | File[]) => requestForm<PrequalPublic>(`/prequal-public/files?token=${encodeURIComponent(token)}`, filesForm(files)),
   },
   contractors: {
     list: () => request('/contractors'),

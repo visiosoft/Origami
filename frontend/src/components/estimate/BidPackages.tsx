@@ -1,3 +1,4 @@
+import { prequalBlock, type PrequalFacts } from '../../data/prequal';
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../../api';
@@ -19,7 +20,7 @@ export function BidPackages({ projectId, estimateId, canEdit, onClose, onUsed }:
   useEffect(() => { api.finance.estimate(projectId, estimateId).then((r: any) => setScopes(r?.scopes || [])).catch(() => undefined); }, [projectId, estimateId]);
   const { toast } = useApp();
   const [rows, setRows] = useState<any[] | null>(null);
-  const [subs, setSubs] = useState<{ id: string; companyName: string; email?: string }[]>([]);
+  const [subs, setSubs] = useState<({ id: string; companyName: string; email?: string } & PrequalFacts)[]>([]);
   const [making, setMaking] = useState(false);
   const [form, setForm] = useState({ title: '', dueDate: '', notes: '', scopeIds: [] as string[] });
   const [inviting, setInviting] = useState<string | null>(null);
@@ -72,7 +73,7 @@ export function BidPackages({ projectId, estimateId, canEdit, onClose, onUsed }:
                 <input aria-label="Find a sub" placeholder="Find a sub…" value={find} onChange={(e) => setFind(e.target.value)} />
                 <div className="bp-subs">
                   {subs.filter((c) => !find || c.companyName?.toLowerCase().includes(find.toLowerCase())).slice(0, 80).map((c) => (
-                    <label key={c.id} className="bp-check"><input type="checkbox" checked={pick.includes(c.id)} onChange={(e) => setPick(e.target.checked ? [...pick, c.id] : pick.filter((x) => x !== c.id))} />{c.companyName}{!c.email && <span className="eg-scope-fig"> · no email (copy the link)</span>}</label>
+                    <label key={c.id} className="bp-check" title={prequalBlock(c) || undefined} style={prequalBlock(c) ? { opacity: 0.55 } : undefined}><input type="checkbox" disabled={!!prequalBlock(c)} checked={pick.includes(c.id)} onChange={(e) => setPick(e.target.checked ? [...pick, c.id] : pick.filter((x) => x !== c.id))} />{c.companyName}{prequalBlock(c) ? <span className="eg-scope-fig"> · {prequalBlock(c)}</span> : !c.email && <span className="eg-scope-fig"> · no email (copy the link)</span>}</label>
                   ))}
                 </div>
                 <button type="button" className="eg-btn is-primary" disabled={busy || !pick.length} onClick={() => void run(() => api.finance.inviteBid(projectId, p.id, pick), (r) => { setInviting(null); setLinks((x) => ({ ...x, ...Object.fromEntries(r.invited.map((v: any) => [`${p.id}:${v.contractorId}`, v.link])) })); const n = r.invited.filter((x: any) => x.emailed).length; toast(`${r.invited.length} invited${n < r.invited.length ? ` — ${r.invited.length - n} without email: copy their link` : ''}`); })}>Invite {pick.length || ''}</button>
