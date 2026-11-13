@@ -160,7 +160,8 @@ export class UsersService implements OnApplicationBootstrap {
       await this.assertEmailFree(dto.email, id);
     }
     // Credentials are only ever changed through the auth flows, never a plain update.
-    const { passwordHash, inviteToken, hasPassword, invitePending, invite, ...safe } = dto ?? {};
+    const { passwordHash, inviteToken, hasPassword, invitePending, invite, totpSecret, totpPending, totpEnabledAt, totpLastStep, backupCodes, trustedDevices, twoFactor, backupCodesLeft, ...safe } = dto ?? {};
+    void totpSecret; void totpPending; void totpEnabledAt; void totpLastStep; void backupCodes; void trustedDevices; void twoFactor; void backupCodesLeft;
     Object.assign(user, safe, { id });
     const saved = await this.repo.save(user);
 

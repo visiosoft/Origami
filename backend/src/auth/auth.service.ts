@@ -11,8 +11,16 @@ import { FOUNDER_ADMIN } from '../seed-data/users';
 import { effectivePermissions } from '../users/access-levels';
 import {
   hashPassword, verifyPassword, passwordProblem,
-  randomToken, hashToken, signJwt, verifyJwt, type SessionClaims,
+  randomToken, hashToken, signJwt, verifyJwt, signState, readState, type SessionClaims,
 } from './crypto.util';
+import { checkTotp, newBackupCodes, newTotpSecret, normBackupCode, openSecret, otpauthUri, sealSecret } from './totp';
+
+/** Two-step sign-in (Nov 13): the step between password / Google and a session. */
+export type TwoFactorStep = { twoFactor: 'setup' | 'code'; ticket: string; name: string; email: string };
+const TICKET_MS = 10 * 60_000;
+const DEVICE_DAYS = 30;
+const MAX_TRIES = 5;
+const LOCK_MS = 10 * 60_000;
 
 const SESSION_TTL_SECONDS = 12 * 60 * 60;     // 12h session
 const INVITE_TTL_DAYS = 7;
@@ -20,8 +28,9 @@ const RESET_TTL_HOURS = 2;
 
 /** The shape of a user the client is allowed to see — no secrets. */
 export function publicUser(u: UserEntity) {
-  const { passwordHash, inviteToken, calendarRefreshToken, ...rest } = u as any;
-  return { ...rest, hasPassword: !!passwordHash, invitePending: !!inviteToken, calendarConnected: !!calendarRefreshToken };
+  const { passwordHash, inviteToken, calendarRefreshToken, totpSecret, totpPending, totpLastStep, backupCodes, trustedDevices, ...rest } = u as any;
+  void totpSecret; void totpPending; void totpLastStep; void trustedDevices;
+  return { ...rest, hasPassword: !!passwordHash, invitePending: !!inviteToken, calendarConnected: !!calendarRefreshToken, twoFactor: !!u.totpEnabledAt, backupCodesLeft: Array.isArray(backupCodes) ? backupCodes.length : 0 };
 }
 
 @Injectable()
@@ -204,16 +213,138 @@ export class AuthService {
 
   // -------------------------------------------------------------------- login
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string, deviceToken?: string | null) {
     const user = await this.findByEmail(email);
     if (!user || !verifyPassword(password, user.passwordHash)) {
       throw new UnauthorizedException('Email or password is incorrect.');
     }
-    return this.issueSession(user);
+    return this.startSession(user, deviceToken);
+  }
+
+  // ---------------------------------------------------------- two-step sign-in (Nov 13)
+
+  /** Staff need a code from an authenticator app; clients, subs and guests don't. Settings `auth.twoFactor` = off turns it off. */
+  async needsTwoFactor(user: UserEntity) {
+    if (user.tier !== 'internal' || String(user.id).startsWith('GUEST-')) return false;
+    return (await this.settings.get('auth.twoFactor')) !== 'off';
+  }
+
+  /**
+   * After the password or Google: a session, or -- for staff -- a ticket for
+   * the second step (set up the app, or enter its code). A remembered device
+   * goes straight through.
+   */
+  async startSession(user: UserEntity, deviceToken?: string | null): Promise<Awaited<ReturnType<AuthService['issueSession']>> | TwoFactorStep> {
+    if (user.status === 'suspended') throw new UnauthorizedException('This account is suspended.');
+    if (!(await this.needsTwoFactor(user))) return this.issueSession(user);
+    if (user.totpEnabledAt && deviceToken && this.trusted(user, deviceToken)) return this.issueSession(user);
+    const ticket = signState({ mode: '2fa', uid: user.id }, await this.settings.jwtSecret());
+    return { twoFactor: user.totpEnabledAt ? 'code' : 'setup', ticket, name: user.name, email: user.email };
+  }
+
+  private trusted(user: UserEntity, deviceToken: string) {
+    const h = hashToken(deviceToken);
+    return (user.trustedDevices || []).some((d) => d.hash === h && Date.parse(d.expiresAt) > Date.now());
+  }
+
+  private tries = new Map<string, { fails: number; lockedUntil: number }>();
+  private async fromTicket(ticket: string) {
+    const st = readState(String(ticket || ''), await this.settings.jwtSecret(), TICKET_MS);
+    if (!st || st.mode !== '2fa' || !st.uid) throw new UnauthorizedException('That sign-in took too long. Sign in again.');
+    const user = await this.users.findOneBy({ id: String(st.uid) });
+    if (!user) throw new UnauthorizedException('Sign in again.');
+    const t = this.tries.get(user.id);
+    if (t && t.lockedUntil > Date.now()) throw new UnauthorizedException(`Too many wrong codes. Try again in ${Math.ceil((t.lockedUntil - Date.now()) / 60_000)} minutes.`);
+    return user;
+  }
+  private failed(user: UserEntity, msg = 'That code isn’t right. Check the time on your phone and try the newest code.'): never {
+    const t = this.tries.get(user.id) || { fails: 0, lockedUntil: 0 };
+    t.fails++;
+    if (t.fails >= MAX_TRIES) { t.fails = 0; t.lockedUntil = Date.now() + LOCK_MS; }
+    this.tries.set(user.id, t);
+    throw new UnauthorizedException(msg);
+  }
+
+  /** Step 1 of setting up: a new secret for the authenticator app (shown as a QR code and as text). */
+  async twoFactorSetup(ticket: string) {
+    const user = await this.fromTicket(ticket);
+    if (user.totpEnabledAt) throw new BadRequestException('Two-step sign-in is already set up -- enter the code from your app.');
+    const secret = newTotpSecret();
+    user.totpPending = sealSecret(secret, await this.settings.jwtSecret());
+    await this.users.save(user);
+    return { secret, uri: otpauthUri(secret, user.email), account: user.email };
+  }
+
+  /** Step 2: the first code proves the app works; backup codes are shown once; signed in. */
+  async twoFactorEnable(ticket: string, code: string, deviceLabel?: string, remember = false) {
+    const user = await this.fromTicket(ticket);
+    const server = await this.settings.jwtSecret();
+    const secret = user.totpPending ? openSecret(user.totpPending, server) : null;
+    if (!secret) throw new BadRequestException('Start the set-up again.');
+    const step = checkTotp(secret, code);
+    if (step == null) this.failed(user);
+    const codes = newBackupCodes();
+    Object.assign(user, { totpSecret: user.totpPending, totpPending: null, totpEnabledAt: new Date().toISOString(), totpLastStep: step, backupCodes: codes.map((c) => hashPassword(normBackupCode(c))) });
+    this.tries.delete(user.id);
+    const deviceToken = remember ? this.rememberDevice(user, deviceLabel) : null;
+    await this.users.save(user);
+    return { ...(await this.issueSession(user)), backupCodes: codes, deviceToken };
+  }
+
+  /** Signing in: a code from the app, or one of the backup codes (each works once). */
+  async twoFactorVerify(ticket: string, input: { code?: string; backupCode?: string; remember?: boolean; deviceLabel?: string }) {
+    const user = await this.fromTicket(ticket);
+    if (!user.totpEnabledAt || !user.totpSecret) throw new BadRequestException('Set up two-step sign-in first.');
+    if (input.backupCode) {
+      const want = normBackupCode(input.backupCode);
+      const i = (user.backupCodes || []).findIndex((h) => verifyPassword(want, h));
+      if (i < 0) this.failed(user, 'That backup code isn’t right, or was already used.');
+      user.backupCodes = (user.backupCodes || []).filter((_, j) => j !== i);
+    } else {
+      const secret = openSecret(user.totpSecret, await this.settings.jwtSecret());
+      const step = secret ? checkTotp(secret, String(input.code || ''), Date.now(), user.totpLastStep) : null;
+      if (step == null) this.failed(user);
+      user.totpLastStep = step;
+    }
+    this.tries.delete(user.id);
+    const deviceToken = input.remember ? this.rememberDevice(user, input.deviceLabel) : null;
+    await this.users.save(user);
+    return { ...(await this.issueSession(user)), deviceToken, backupCodesLeft: (user.backupCodes || []).length };
+  }
+
+  private rememberDevice(user: UserEntity, label?: string) {
+    const token = randomToken();
+    const now = Date.now();
+    const keep = (user.trustedDevices || []).filter((d) => Date.parse(d.expiresAt) > now).slice(-9);
+    user.trustedDevices = [...keep, { hash: hashToken(token), addedAt: new Date(now).toISOString(), expiresAt: new Date(now + DEVICE_DAYS * 86_400_000).toISOString(), label: String(label || '').slice(0, 80) || undefined }];
+    return token;
+  }
+
+  /** New backup codes (the old ones stop working); needs a current code from the app. */
+  async newBackupCodes(bearer: string | undefined, code: string) {
+    const claims = await this.verify(bearer);
+    const user = claims ? await this.users.findOneBy({ id: claims.sub }) : null;
+    if (!user?.totpSecret) throw new BadRequestException('Two-step sign-in isn’t set up.');
+    const step = checkTotp(openSecret(user.totpSecret, await this.settings.jwtSecret()) || '', code, Date.now(), user.totpLastStep);
+    if (step == null) throw new UnauthorizedException('That code isn’t right.');
+    const codes = newBackupCodes();
+    Object.assign(user, { totpLastStep: step, backupCodes: codes.map((c) => hashPassword(normBackupCode(c))) });
+    await this.users.save(user);
+    return { backupCodes: codes };
+  }
+
+  /** An administrator clears someone's two-step sign-in (lost phone): they set it up again at their next sign-in. */
+  async resetTwoFactor(userId: string) {
+    const user = await this.users.findOneBy({ id: userId });
+    if (!user) throw new BadRequestException('No such user.');
+    Object.assign(user, { totpSecret: null, totpPending: null, totpEnabledAt: null, totpLastStep: null, backupCodes: null, trustedDevices: null });
+    await this.users.save(user);
+    this.tries.delete(user.id);
+    return { reset: true };
   }
 
   /** Sign in (or link) a user from a verified Google profile. */
-  async loginWithGoogle(profile: GoogleProfile) {
+  async loginWithGoogle(profile: GoogleProfile, deviceToken?: string | null) {
     if (!profile.email) throw new UnauthorizedException('Google did not return an email address.');
     const user = await this.findByEmail(profile.email);
     if (!user) {
@@ -230,7 +361,7 @@ export class AuthService {
       user.inviteExpiresAt = null as any;
     }
     await this.users.save(user);
-    return this.issueSession(user);
+    return this.startSession(user, deviceToken);
   }
 
   /** Also used to log a guest access grant straight into a session -- see GuestAccessService. */

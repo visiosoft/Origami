@@ -304,8 +304,14 @@ const qs = (o?: Record<string, unknown>) => { const q = new URLSearchParams(); O
 
 export const api = {
   auth: {
+    /** A session, or -- for staff (Nov 13) -- a ticket for the second step. */
     login: (email: string, password: string) =>
-      request<{ token: string; user: unknown }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+      request<{ token?: string; user?: unknown; twoFactor?: 'setup' | 'code'; ticket?: string; name?: string; email?: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    twoFactorSetup: (ticket: string) => request<{ secret: string; uri: string; account: string }>('/auth/2fa/setup', { method: 'POST', body: JSON.stringify({ ticket }) }),
+    twoFactorEnable: (ticket: string, code: string, remember: boolean) => request<{ token: string; user: unknown; backupCodes: string[] }>('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ ticket, code, remember }) }),
+    twoFactorVerify: (ticket: string, d: { code?: string; backupCode?: string; remember?: boolean }) => request<{ token: string; user: unknown; backupCodesLeft: number }>('/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ ticket, ...d }) }),
+    newBackupCodes: (code: string) => request<{ backupCodes: string[] }>('/auth/2fa/backup-codes', { method: 'POST', body: JSON.stringify({ code }) }),
+    resetTwoFactor: (userId: string) => request<{ reset: boolean }>(`/auth/2fa/reset/${encodeURIComponent(userId)}`, { method: 'POST' }),
     me: () => request('/auth/me'),
     /** A fresh session token while the current one is still valid. */
     refresh: () => request<{ token: string; expiresIn: number; user: unknown }>('/auth/refresh', { method: 'POST' }),

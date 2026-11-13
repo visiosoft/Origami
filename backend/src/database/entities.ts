@@ -971,6 +971,16 @@ export class UserEntity {
   @Column() roleKey!: string;
   @Column() status!: string; // pending | active | suspended
   @Column({ nullable: true }) lastLogin!: string;
+  /** Two-step sign-in (Nov 13): the authenticator secret, sealed (auth/totp.ts); a pending one while being set up. */
+  @Column({ type: 'nvarchar', length: 400, nullable: true }) totpSecret!: string | null;
+  @Column({ type: 'nvarchar', length: 400, nullable: true }) totpPending!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) totpEnabledAt!: string | null;
+  /** The last 30-second step used, so the same code can't be used twice. */
+  @Column({ type: 'int', nullable: true }) totpLastStep!: number | null;
+  /** One-time backup codes, hashed (scrypt). */
+  @Column({ type: 'simple-json', nullable: true }) backupCodes!: string[] | null;
+  /** Devices that skip the code for 30 days ("remember this device"): hashed tokens. */
+  @Column({ type: 'simple-json', nullable: true }) trustedDevices!: { hash: string; expiresAt: string; addedAt: string; label?: string }[] | null;
   @Column() createdAt!: string;
   // --- Authentication (never sent to the client; stripped in UsersService) ---
   @Column({ nullable: true }) passwordHash!: string;   // scrypt: salt:hash

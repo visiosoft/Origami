@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { GoogleService } from './google.service';
 import { CalendarService } from './calendar.service';
 import { SettingsService } from '../settings/settings.service';
@@ -8,7 +8,7 @@ import { signState, readState } from '../auth/crypto.util';
 import { BRAND_KEYS, brandingFrom, buildLetterHtml, safeFilename } from '../documents/letterhead';
 import { Public } from '../auth/guards/public.decorator';
 import { Roles } from '../auth/guards/roles.decorator';
-import { SESSION_COOKIE, sessionCookieOptions } from '../auth/guards/cookie.util';
+import { DEVICE_COOKIE, readCookie, SESSION_COOKIE, sessionCookieOptions } from '../auth/guards/cookie.util';
 import type { AuthedRequest } from '../auth/guards/session.guard';
 import { assertFilled } from '../email-templates/placeholders';
 
@@ -107,6 +107,7 @@ export class GoogleController {
     @Query('code') code: string,
     @Query('state') state: string,
     @Query('error') error: string,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     const base = (await this.settings.baseUrl()) || '';
@@ -143,7 +144,9 @@ export class GoogleController {
         return res.redirect(`${base}/settings?tab=my-calendar&connected=${encodeURIComponent(profile.email)}`);
       }
 
-      const session = await this.auth.loginWithGoogle(profile);
+      const session = await this.auth.loginWithGoogle(profile, readCookie(req.headers.cookie, DEVICE_COOKIE));
+      // Staff go on to the second step (Nov 13): the ticket rides in the fragment, like the token.
+      if (!('token' in session)) return res.redirect(`${base}/login#twofa=${encodeURIComponent(session.ticket)}&step=${session.twoFactor}`);
       // The token rides in the fragment so it never lands in server or proxy logs.
       // Mirror the password flow: the cookie is what lets <img src> URLs work.
       res.cookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresIn));

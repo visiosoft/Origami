@@ -16,12 +16,14 @@
     "mammoth": "1.13.0",
     "origami-platform": "file:..",
     "pdfjs-dist": "4.10.38",
+    "qrcode": "1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@types/qrcode": "1.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.4.0",

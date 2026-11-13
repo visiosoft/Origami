@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Headers, Param, Post, Put, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Body, Controller, Get, Headers, Param, Post, Put, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, SetPasswordDto, ForgotPasswordDto, NotificationPrefsDto } from './dto/auth.dto';
 import { Public } from './guards/public.decorator';
 import { AnySignedIn } from './guards/roles.decorator';
-import { SESSION_COOKIE, sessionCookieOptions } from './guards/cookie.util';
+import { DEVICE_COOKIE, deviceCookieOptions, readCookie, SESSION_COOKIE, sessionCookieOptions } from './guards/cookie.util';
+import { Roles } from './guards/roles.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -12,12 +13,58 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const session = await this.auth.login(dto.email, dto.password);
+  async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const session = await this.auth.login(dto.email, dto.password, readCookie(req.headers.cookie, DEVICE_COOKIE));
+    // Staff go on to the second step (Nov 13): no session yet, just a ticket.
+    if (!('token' in session)) return session;
     // The same token, also as a cookie: the browser attaches it to <img src>
     // and download URLs, which cannot carry an Authorization header.
     res.cookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresIn));
     return session;
+  }
+
+  // ---------------------------------------------------------- two-step sign-in (Nov 13)
+  private signedIn(res: Response, s: { token: string; expiresIn: number; deviceToken?: string | null }) {
+    res.cookie(SESSION_COOKIE, s.token, sessionCookieOptions(s.expiresIn));
+    if (s.deviceToken) res.cookie(DEVICE_COOKIE, s.deviceToken, deviceCookieOptions());
+    const { deviceToken, ...out } = s;
+    void deviceToken;
+    return out;
+  }
+
+  /** Setting up: a secret for the authenticator app. */
+  @Public()
+  @Post('2fa/setup')
+  twoFactorSetup(@Body() body: { ticket: string }) {
+    return this.auth.twoFactorSetup(body?.ticket);
+  }
+
+  /** The first code from the app: two-step sign-in is on, backup codes are shown once, signed in. */
+  @Public()
+  @Post('2fa/enable')
+  async twoFactorEnable(@Body() body: { ticket: string; code: string; remember?: boolean }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.signedIn(res, await this.auth.twoFactorEnable(body?.ticket, body?.code, String(req.headers['user-agent'] || ''), !!body?.remember));
+  }
+
+  /** Signing in with a code from the app (or a backup code). */
+  @Public()
+  @Post('2fa/verify')
+  async twoFactorVerify(@Body() body: { ticket: string; code?: string; backupCode?: string; remember?: boolean }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.signedIn(res, await this.auth.twoFactorVerify(body?.ticket, { code: body?.code, backupCode: body?.backupCode, remember: !!body?.remember, deviceLabel: String(req.headers['user-agent'] || '') }));
+  }
+
+  /** New backup codes for the signed-in user (needs a current code). */
+  @AnySignedIn()
+  @Post('2fa/backup-codes')
+  newBackupCodes(@Body() body: { code: string }, @Headers('authorization') authorization?: string) {
+    return this.auth.newBackupCodes(authorization, body?.code);
+  }
+
+  /** An administrator clears a user's two-step sign-in (lost phone). */
+  @Roles('admin')
+  @Post('2fa/reset/:userId')
+  resetTwoFactor(@Param('userId') userId: string) {
+    return this.auth.resetTwoFactor(userId);
   }
 
   /** Ends the cookie session. The bearer token is discarded by the client. */

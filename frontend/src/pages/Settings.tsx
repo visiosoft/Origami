@@ -9,6 +9,7 @@ import { api } from '../api';
 import { GoogleSettings } from './GoogleSettings';
 import { BrandingSettings } from './BrandingSettings';
 import { NotificationSettings } from './NotificationSettings';
+import { TwoStepSettings } from '../components/TwoStepSettings';
 import { PipelineSlaSettings } from './PipelineSlaSettings';
 import { SmsSettings } from './SmsSettings';
 import { SchedulingSettings } from './SchedulingSettings';
@@ -89,6 +90,7 @@ export function Settings() {
     const canCodes = can('manpower_con', 'manage') || can('fin_resources', 'manage');
     const sections: SettingsSection[] = [
       { key: 'notifications', tab: 'account', label: 'Notifications', hint: 'What we email or text you', render: () => <NotificationSettings /> },
+      { key: 'two-step', tab: 'account', label: 'Two-step sign-in', hint: 'Authenticator app and backup codes', render: () => <TwoStepSettings /> },
       { key: 'my-calendar', tab: 'account', label: 'My Calendar', hint: 'Your Google Calendar', render: () => <MyCalendarSettings /> },
       { key: 'branding', tab: 'workspace', label: 'Branding & letterhead', hint: 'Logo, colours and letterhead', render: () => <BrandingSettings /> },
       { key: 'cost-codes', tab: 'workspace', label: 'Cost codes (CSI)', hint: 'Codes used on budgets and costs', render: () => <CostCodesSettings canManage={canCodes} /> },

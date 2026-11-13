@@ -269,3 +269,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | # | Item | Status |
 |---|------|--------|
 | P1 | People linked to projects by id (projectIds; names kept in step; rename sync; access, People scope, subs, notifications, guest access, client program check by id); preview + "Link by project" on People | ✅ built — press it on staging |
+| P2 | Two-step sign-in (TOTP, RFC 6238, no backend dependency) for internal staff on password and Google; QR set-up (qrcode 1.5.4, frontend only), 10 one-time backup codes, remember device 30 days, 5 tries then 10-minute lock, admin reset; setting `auth.twoFactor = off` turns it off | ✅ |

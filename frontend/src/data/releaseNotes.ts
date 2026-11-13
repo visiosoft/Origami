@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13h',
+    date: '2026-11-13',
+    title: 'Two-step sign-in for staff',
+    items: [
+      { area: 'Sign-in', kind: 'new', text: 'Staff sign in in two steps: after the password or Google, a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…). The first time, you scan a QR code and get 10 backup codes to keep. Clients, subs and guest links are unchanged.', where: 'Sign in' },
+      { area: 'Sign-in', kind: 'new', text: '“Remember this device” skips the code on that browser for 30 days. Lost your phone? Use a backup code (each works once), or ask an administrator to reset your two-step sign-in.' },
+      { area: 'Settings', kind: 'new', text: 'Two-step sign-in in your settings: on since when, backup codes left, and new backup codes.', where: 'Settings → Two-step sign-in' },
+      { area: 'Admin', kind: 'new', text: 'User Access shows whether each staff member has two-step sign-in on, with “Reset 2-step” for a lost phone.', where: 'Admin → User Access & Roles' },
+    ],
+  },
+  {
     id: '2026-11-13g',
     date: '2026-11-13',
     title: 'People are linked to projects, not project names',
