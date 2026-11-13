@@ -206,7 +206,7 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | K6 | Standard statements per CSI code (library on Estimating; pick from a note row; “Save this text…”), plus “used before” suggestions from past estimates. Seeded with the 2 reusable lines from the sheet — its “Standard Verbage” column is shifted against its codes, so not imported | ✅ |
 | K7 | Who sees what (money data types × role, book type per project), enforced on the server | ✅ Nov 13 — uses the access sheet's financial data types; book type = one of the four client roles |
 | K8 | Estimate letter PDF, email, e-sign; .xlsx export | ✅ Nov 13 |
-| K9 | On acceptance: SOV, budget per CSI, draft subcontracts, contract value, billing schedule | ⏳ |
+| K9 | On acceptance: SOV, budget per CSI, draft subcontracts, contract value, billing schedule | ✅ Nov 13 |
 | K10 | Sub bid packages (without our amounts) | ⏳ |
 
 ## L. File Room speed (Nov 5)
@@ -261,3 +261,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | O6 | Estimating start page grouped by stage: CRM (no stage yet) / Design / Precon (Kickoff) / Construction, counts, folds remembered; closed & cancelled behind a toggle | ✅ — CRM uses "no stage yet" (the projects list carries no lead status) |
 | O7 | K7: estimate money by role from the access sheet's financial data types (hidden figures sent as null; restricted roles get server figures, money read-only, saves keep stored amounts); book type per project; contractAmt hidden on project page + Design board too | ✅ |
 | O8 | K8: Letter tab, client's copy PDF (book type), Send to client (PDF + accept link, 60 days), public /sign-estimate (name + signature → Accepted, signed PDF to File Room Estimates, sender emailed), Excel export (exceljs) | ✅ |
+| O9 | K9: "Set up the job" (preview → confirm; contract value, budget per CSI with GR+GL under 01, draft subcontracts per named sub, payments → milestones; each step once, partial runs resumable) + "Mark accepted…" for paper acceptance | ✅ — a later revision can't be accepted once one is, so no "differences" path was needed |

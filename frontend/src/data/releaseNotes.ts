@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13e',
+    date: '2026-11-13',
+    title: 'Estimating: set up the job from an accepted estimate',
+    items: [
+      { area: 'Estimating', kind: 'new', text: '“Set up the job” on an accepted estimate shows what it will make, then makes it: the contract value (the accepted total), the cost budget per CSI code (direct cost before markup; GR and General Liability under 01), a draft subcontract for each named sub on “Subcontract used” lines, and a billing milestone for each payment on the schedule. Untick anything you’ll do by hand; each step runs once.', where: 'Estimating → an accepted estimate → Set up the job' },
+      { area: 'Estimating', kind: 'new', text: '“Mark accepted…” records a client who accepted on paper or by email, for a sent estimate.', where: 'Estimating → a sent estimate' },
+    ],
+  },
+  {
     id: '2026-11-13d',
     date: '2026-11-13',
     title: 'Estimating: send an estimate, and the client accepts it online',

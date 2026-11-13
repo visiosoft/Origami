@@ -182,3 +182,14 @@ tr.eg-scope td { background: var(--eg-head); border-top: 2px solid rgba(var(--rg
 .est-caret { display: inline-block; transition: transform 0.15s; color: var(--muted); }
 .est-caret.is-open { transform: rotate(90deg); }
 .est-count { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: rgba(var(--rgb-shade), 0.08); color: var(--muted); }
+
+/* Set up the job (K9) */
+.js { width: min(760px, 100%); }
+.js-step { border-top: 1px solid var(--eg-line); padding: 10px 0; }
+.js-head { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--ink); }
+.js-head input { width: 18px; height: 18px; accent-color: rgb(var(--rgb-forest)); }
+.js-done { width: 18px; height: 18px; border-radius: 50%; background: rgb(var(--rgb-success)); color: #fff; display: inline-grid; place-items: center; font-size: 11px; font-weight: 800; }
+.js-body { margin: 6px 0 0 26px; font-size: 13px; color: var(--body); }
+.js-body .eg-gr { min-width: 0; }
+.js-body .eg-gr td { padding: 4px 6px; }
+.js-body .eg-gr td.is-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }

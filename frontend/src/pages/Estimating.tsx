@@ -9,6 +9,7 @@ import { StatementLibrary } from '../components/estimate/StatementLibrary';
 import { StrategyMap } from '../components/estimate/StrategyMap';
 import { RevisionCompare } from '../components/estimate/RevisionCompare';
 import { LetterPanel } from '../components/estimate/LetterPanel';
+import { JobSetup } from '../components/estimate/JobSetup';
 import { money } from '../data/estimateCalc';
 
 interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number }
@@ -54,6 +55,7 @@ export function Estimating() {
   const [comparing, setComparing] = useState(false);
   const [tab, setTab] = useState<'sheet' | 'letter'>('sheet');
   const [sending, setSending] = useState(false);
+  const [settingUp, setSettingUp] = useState(false);
   const [mail, setMail] = useState({ to: '', cc: '', note: '' });
   /** K8: the client's copy as a PDF (new tab), or the internal workbook (download). */
   const openFile = async (kind: 'pdf' | 'xlsx') => {
@@ -183,6 +185,12 @@ export function Estimating() {
         )}
         {current && <button type="button" className="eg-btn" onClick={() => void openFile('pdf')} title="The client’s copy, as the project’s book type shows it">PDF</button>}
         {current && <button type="button" className="eg-btn" onClick={() => void openFile('xlsx')} title="The whole estimate as a spreadsheet (what your role may see)">Excel</button>}
+        {current && rights.edit && open?.status === 'sent' && !siblings.some((s) => s.status === 'accepted') && (
+          <button type="button" className="eg-btn" disabled={busy} title="The client accepted it on paper or by email" onClick={() => { const signer = window.prompt(`Who accepted ${current.number} Rev ${current.rev} for the client?`)?.trim(); if (signer) void act(() => api.finance.markEstimateAccepted(projectId, current.id, signer), () => { setReload((n) => n + 1); setSettingUp(true); }); }}>Mark accepted…</button>
+        )}
+        {current && rights.edit && open?.status === 'accepted' && (
+          <button type="button" className="eg-btn is-primary" onClick={() => setSettingUp(true)}>Set up the job</button>
+        )}
         {current && rights.edit && (open?.status === 'draft' || open?.status === 'sent') && !siblings.some((s) => s.status === 'accepted') && (
           <button type="button" className="eg-btn is-primary" disabled={busy} onClick={() => setSending(true)}>Send to client…</button>
         )}
@@ -230,6 +238,7 @@ export function Estimating() {
           </table>
         </div>
       )}
+      {settingUp && current && <JobSetup projectId={projectId} estimateId={current.id} label={`${current.number} Rev ${current.rev}`} onClose={() => setSettingUp(false)} />}
       {sending && current && createPortal(
         <div role="dialog" aria-modal="true" aria-label="Send to client" className="rc-back eg-portal" onClick={() => setSending(false)}>
           <form className="eg-card" style={{ width: 'min(520px, 100%)', display: 'grid', gap: 10 }} onClick={(e) => e.stopPropagation()}

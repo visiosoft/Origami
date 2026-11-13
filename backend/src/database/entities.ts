@@ -2741,6 +2741,10 @@ export class EstimateEntity extends FinanceStamped {
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) signatureImage!: string | null;
   @Column({ type: 'nvarchar', length: 80, nullable: true }) signedIp!: string | null;
   @Column({ type: 'nvarchar', length: 60, nullable: true }) signedFileId!: string | null;
+  /** K9: "Set up the job" -- when, by whom, and what each step made (contract, budget, subcontracts, milestones). */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) setupAt!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) setupBy!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) setupRefs!: Record<string, any> | null;
   @Column({ ...PCT, default: 17 }) grPct!: number;
   @Column({ ...PCT, default: 12 }) profitPct!: number;
   @Column({ ...PCT, default: 5 }) contingencyPct!: number;

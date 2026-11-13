@@ -1077,6 +1077,9 @@ export const api = {
       if (!res.ok) { const body = await res.json().catch(() => null); throw new Error((body && body.message) || `Could not make the file (${res.status})`); }
       return res.blob();
     },
+    estimateSetup: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { cache: 'no-store' } as any),
+    runEstimateSetup: (projectId: number, id: string, steps: string[]) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { method: 'POST', body: JSON.stringify({ steps }) }),
+    markEstimateAccepted: (projectId: number, id: string, signer: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/accepted`, { method: 'POST', body: JSON.stringify({ signer }) }),
     sendEstimate: (projectId: number, id: string, d: { to?: string; cc?: string; note?: string }) => request<{ sent: boolean; to: string }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
     estimatePublic: {
       get: (token: string) => request<any>(`/estimate-public?token=${encodeURIComponent(token)}`),

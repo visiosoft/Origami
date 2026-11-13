@@ -20,6 +20,7 @@ import { ManpowerAccess } from '../manpower/manpower-access.service';
 import { FinancialsService } from './financials.service';
 import { EstimatesService } from './estimates.service';
 import { EstimateLetterService } from './estimate-letter.service';
+import { EstimateSetupService } from './estimate-setup.service';
 import { EstimatePublicController } from './estimate-public.controller';
 import { FileRoomModule } from '../file-room/file-room.module';
 import { EstimateStatementsService } from './estimate-statements.service';
@@ -63,7 +64,7 @@ import {
   ],
   controllers: [ChangeOrderPublicController, EstimatePublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService, EstimateLetterService],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService, EstimateLetterService, EstimateSetupService],
   exports: [ChangeOrdersService, FinancialsService],
 })
 export class FinanceModule {}

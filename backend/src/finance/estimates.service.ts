@@ -191,6 +191,8 @@ export class EstimatesService {
   private settingsOf(src: EstimateEntity) {
     const { id: _i, version: _v, status: _s, sentAt: _sa, frozenAt: _f, acceptedAt: _a, acceptedBy: _ab, revisionOf: _r, projectId: _p, number: _n, rev: _rv, isTemplate: _t, isDefaultTemplate: _dt, createdAt: _c, createdBy: _cb, updatedAt: _u, updatedBy: _ub, ...rest } = src;
     void _i; void _v; void _s; void _sa; void _f; void _a; void _ab; void _r; void _p; void _n; void _rv; void _t; void _dt; void _c; void _cb; void _u; void _ub;
+    // Who it went to, the client's signature and the job set-up belong to that revision only (K8, K9).
+    for (const k of ['sentTo', 'sentById', 'signedName', 'signedEmail', 'signatureImage', 'signedIp', 'signedFileId', 'setupAt', 'setupBy', 'setupRefs'] as const) delete (rest as any)[k];
     return rest;
   }
 
