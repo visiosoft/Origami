@@ -54,6 +54,7 @@ const ConsultantMatrix = page(() => import('./pages/ConsultantMatrix'), 'Consult
 const MyCalendar = page(() => import('./pages/MyCalendar'), 'MyCalendar');
 const SignProposal = page(() => import('./pages/SignProposal'), 'SignProposal');
 const SignEstimate = page(() => import('./pages/SignEstimate'), 'SignEstimate');
+const SubBid = page(() => import('./pages/SubBid'), 'SubBid');
 const SignContract = page(() => import('./pages/SignContract'), 'SignContract');
 const Contracts = page(() => import('./pages/Contracts'), 'Contracts');
 const GuestEntry = page(() => import('./pages/GuestEntry'), 'GuestEntry');
@@ -111,6 +112,8 @@ export default function App() {
       <Route path="/sign-proposal" element={<SignProposal />} />
       {/* Public on purpose — a client accepts an estimate from the emailed link, no account (K8). */}
       <Route path="/sign-estimate" element={<SignEstimate />} />
+      {/* Public on purpose — a sub prices a bid package from the emailed link, no account (K10). */}
+      <Route path="/bid" element={<SubBid />} />
       <Route path="/sign-contract" element={<SignContract />} />
       {/* Public on purpose — where a guest access link logs a client/consultant in. */}
       <Route path="/guest" element={<GuestEntry />} />

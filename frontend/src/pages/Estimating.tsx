@@ -10,6 +10,7 @@ import { StrategyMap } from '../components/estimate/StrategyMap';
 import { RevisionCompare } from '../components/estimate/RevisionCompare';
 import { LetterPanel } from '../components/estimate/LetterPanel';
 import { JobSetup } from '../components/estimate/JobSetup';
+import { BidPackages } from '../components/estimate/BidPackages';
 import { money } from '../data/estimateCalc';
 
 interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number }
@@ -56,6 +57,7 @@ export function Estimating() {
   const [tab, setTab] = useState<'sheet' | 'letter'>('sheet');
   const [sending, setSending] = useState(false);
   const [settingUp, setSettingUp] = useState(false);
+  const [bidding, setBidding] = useState(false);
   const [mail, setMail] = useState({ to: '', cc: '', note: '' });
   /** K8: the client's copy as a PDF (new tab), or the internal workbook (download). */
   const openFile = async (kind: 'pdf' | 'xlsx') => {
@@ -183,6 +185,7 @@ export function Estimating() {
             {(['sheet', 'letter'] as const).map((k) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`eg-btn${tab === k ? ' is-on' : ''}`} onClick={async () => { await grid.current?.flush(); setTab(k); setReload((n) => n + 1); }}>{k === 'sheet' ? 'Sheet' : 'Letter'}</button>)}
           </span>
         )}
+        {current && <button type="button" className="eg-btn" onClick={async () => { await grid.current?.flush(); setBidding(true); }} title="Send scopes to subs for pricing, compare their prices">Bid packages</button>}
         {current && <button type="button" className="eg-btn" onClick={() => void openFile('pdf')} title="The client’s copy, as the project’s book type shows it">PDF</button>}
         {current && <button type="button" className="eg-btn" onClick={() => void openFile('xlsx')} title="The whole estimate as a spreadsheet (what your role may see)">Excel</button>}
         {current && rights.edit && open?.status === 'sent' && !siblings.some((s) => s.status === 'accepted') && (
@@ -238,6 +241,7 @@ export function Estimating() {
           </table>
         </div>
       )}
+      {bidding && current && <BidPackages projectId={projectId} estimateId={current.id} canEdit={rights.edit} onClose={() => setBidding(false)} onUsed={() => { setBidding(false); const draft = siblings.find((x) => x.status === 'draft'); if (draft && draft.id !== current.id) go({ estimate: draft.id }); else setReload((n) => n + 1); }} />}
       {settingUp && current && <JobSetup projectId={projectId} estimateId={current.id} label={`${current.number} Rev ${current.rev}`} onClose={() => setSettingUp(false)} />}
       {sending && current && createPortal(
         <div role="dialog" aria-modal="true" aria-label="Send to client" className="rc-back eg-portal" onClick={() => setSending(false)}>

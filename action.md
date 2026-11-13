@@ -207,7 +207,7 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | K7 | Who sees what (money data types × role, book type per project), enforced on the server | ✅ Nov 13 — uses the access sheet's financial data types; book type = one of the four client roles |
 | K8 | Estimate letter PDF, email, e-sign; .xlsx export | ✅ Nov 13 |
 | K9 | On acceptance: SOV, budget per CSI, draft subcontracts, contract value, billing schedule | ✅ Nov 13 |
-| K10 | Sub bid packages (without our amounts) | ⏳ |
+| K10 | Sub bid packages (without our amounts) | ✅ Nov 13 |
 
 ## L. File Room speed (Nov 5)
 
@@ -262,3 +262,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | O7 | K7: estimate money by role from the access sheet's financial data types (hidden figures sent as null; restricted roles get server figures, money read-only, saves keep stored amounts); book type per project; contractAmt hidden on project page + Design board too | ✅ |
 | O8 | K8: Letter tab, client's copy PDF (book type), Send to client (PDF + accept link, 60 days), public /sign-estimate (name + signature → Accepted, signed PDF to File Room Estimates, sender emailed), Excel export (exceljs) | ✅ |
 | O9 | K9: "Set up the job" (preview → confirm; contract value, budget per CSI with GR+GL under 01, draft subcontracts per named sub, payments → milestones; each step once, partial runs resumable) + "Mark accepted…" for paper acceptance | ✅ — a later revision can't be accepted once one is, so no "differences" path was needed |
+| O10 | K10: bid packages (allow-list snapshot of scope/line text + statements), invites by email with a private 90-day link, sub page /bid (per-line or total, notes, decline; updatable until chosen), leveling, "Use this bid" → draft revision by line + Contractors-page bids awarded / not awarded | ✅ — package files (drawings) not attached yet |

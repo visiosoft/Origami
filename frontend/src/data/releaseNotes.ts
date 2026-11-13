@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13f',
+    date: '2026-11-13',
+    title: 'Estimating: bid packages for subs',
+    items: [
+      { area: 'Estimating', kind: 'new', text: '“Bid packages”: pick scopes of an estimate to send to subs for pricing. They get the scope, its lines and the inclusions / exclusions — never our costs, markup or prices.', where: 'Estimating → an estimate → Bid packages' },
+      { area: 'Estimating', kind: 'new', text: 'Invite subs from the Contractors list: each gets an email with a private link (or copy the link for a sub without email). They price each line or give a total, add notes, or decline — on a phone or computer, no account. Each invite shows on the Contractors page as a bid (invited, then pending, awarded or not).' },
+      { area: 'Estimating', kind: 'new', text: 'Compare the prices line by line, with the lowest total marked. “Use this bid” puts that sub’s prices into the draft revision as sub cost and names them (a total only is spread over the lines by their current cost); they’re marked awarded and the others not.' },
+    ],
+  },
+  {
     id: '2026-11-13e',
     date: '2026-11-13',
     title: 'Estimating: set up the job from an accepted estimate',

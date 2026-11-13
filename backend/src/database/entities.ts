@@ -2523,6 +2523,55 @@ export class ContractorBidEntity {
   @Column({ nullable: true }) updatedAt!: string;
 }
 
+/**
+ * K10 (Nov 13): a sub bid package -- chosen scopes of an estimate sent to
+ * subs for pricing. `content` is a snapshot made when the package is created,
+ * built from an allow-list (scope and line text, CSI codes, inclusions /
+ * exclusions): never our costs, markup or prices. Line keys are the line's
+ * originId (or id), so a bid can be applied to a later draft revision.
+ */
+@Entity('bid_packages')
+export class BidPackageEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() estimateId!: string;
+  /** The estimate's number (EST-001): bids are applied to its current draft revision. */
+  @Column({ type: 'nvarchar', length: 40 }) estimateNumber!: string;
+  @Column({ type: 'nvarchar', length: 20 }) number!: string;
+  @Column({ type: 'nvarchar', length: 300 }) title!: string;
+  @Column({ type: 'simple-json' }) content!: { scopes: { key: string; title: string; csi: string | null; lines: { key: string; description: string }[]; notes: { kind: string; text: string }[] }[] };
+  @Column({ type: 'nvarchar', length: 10, nullable: true }) dueDate!: string | null;
+  @Column({ ...TEXT, nullable: true }) notes!: string | null;
+  /** draft | out | closed */
+  @Column({ default: 'draft' }) status!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+/** K10: one sub asked to price a bid package; their price, per line and/or in total. */
+@Entity('bid_invites')
+export class BidInviteEntity {
+  @PrimaryColumn() id!: string;
+  @Column() packageId!: string;
+  @Column('int') projectId!: number;
+  @Column() contractorId!: string;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) vendorName!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) email!: string | null;
+  /** The matching row on the Contractors page (contractor_bids). */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) contractorBidId!: string | null;
+  /** invited | viewed | submitted | declined | awarded | not_awarded */
+  @Column({ default: 'invited' }) status!: string;
+  @Column({ ...MONEY, nullable: true }) total!: number | null;
+  @Column({ type: 'simple-json', nullable: true }) lineAmounts!: Record<string, number> | null;
+  @Column({ ...TEXT, nullable: true }) notes!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) sentAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) viewedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) submittedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) decidedAt!: string | null;
+  @Column() createdAt!: string;
+}
+
 /** A cost incurred: a vendor bill, subcontractor invoice, material or equipment charge. Labor and reimbursables are counted from their own records. */
 @Entity('cost_entries')
 @Index('IX_cost_entries_project', ['projectId'])

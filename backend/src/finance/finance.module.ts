@@ -8,7 +8,7 @@ import {
   ProjectSectionEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, RoleEntity, TaskFinancialEntity,
   CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity, TimesheetEntity, TimesheetLineEntity,
   DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity, PersonEntity, SubcontractorTradeEntity, RfiEntity, ChangeEventEntity, ChangeOrderRequestEntity, CommitmentChangeOrderEntity,
-  EstimateEntity, EstimateScopeEntity, EstimateLineEntity, EstimateGrLineEntity, EstimateStatementEntity,
+  EstimateEntity, EstimateScopeEntity, EstimateLineEntity, EstimateGrLineEntity, EstimateStatementEntity, BidPackageEntity, BidInviteEntity, ContractorBidEntity,
 } from '../database/entities';
 import { ProjectSubsService } from './project-subs.service';
 import { DailyReportSummaryService } from './daily-report-summary.service';
@@ -21,6 +21,8 @@ import { FinancialsService } from './financials.service';
 import { EstimatesService } from './estimates.service';
 import { EstimateLetterService } from './estimate-letter.service';
 import { EstimateSetupService } from './estimate-setup.service';
+import { BidPackagesService } from './bid-packages.service';
+import { BidPublicController } from './bid-public.controller';
 import { EstimatePublicController } from './estimate-public.controller';
 import { FileRoomModule } from '../file-room/file-room.module';
 import { EstimateStatementsService } from './estimate-statements.service';
@@ -54,7 +56,7 @@ import {
       CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity,
       TimesheetEntity, TimesheetLineEntity, DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity,
       PersonEntity, SubcontractorTradeEntity, RfiEntity,
-      EstimateEntity, EstimateScopeEntity, EstimateLineEntity, EstimateGrLineEntity, EstimateStatementEntity,
+      EstimateEntity, EstimateScopeEntity, EstimateLineEntity, EstimateGrLineEntity, EstimateStatementEntity, BidPackageEntity, BidInviteEntity, ContractorBidEntity,
     ]),
     AuthModule,
     GoogleModule,
@@ -62,9 +64,9 @@ import {
     TrackingModule,
     FileRoomModule,
   ],
-  controllers: [ChangeOrderPublicController, EstimatePublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
+  controllers: [ChangeOrderPublicController, EstimatePublicController, BidPublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService, EstimateLetterService, EstimateSetupService],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService, EstimateLetterService, EstimateSetupService, BidPackagesService],
   exports: [ChangeOrdersService, FinancialsService],
 })
 export class FinanceModule {}

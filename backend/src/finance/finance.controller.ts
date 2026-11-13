@@ -21,6 +21,7 @@ import { ReportsService } from './reports.service';
 import { ProjectScope } from '../auth/project-scope.interceptor';
 import { EstimateLetterService } from './estimate-letter.service';
 import { EstimateSetupService } from './estimate-setup.service';
+import { BidPackagesService } from './bid-packages.service';
 import { EstimatesService } from './estimates.service';
 import { EstimateStatementsService } from './estimate-statements.service';
 import { ProjectAccessService } from '../auth/project-access.service';
@@ -55,6 +56,7 @@ export class FinanceController {
     private readonly statements: EstimateStatementsService,
     private readonly letters: EstimateLetterService,
     private readonly setup: EstimateSetupService,
+    private readonly bidPackages: BidPackagesService,
     private readonly projectAccess: ProjectAccessService,
     private readonly authService: AuthService,
   ) {}
@@ -109,6 +111,10 @@ export class FinanceController {
   @Get('projects/:id/estimates/:eid/setup') async estimateSetup(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.setup.preview(Number(id), eid, await this.actor(a)); }
   @Post('projects/:id/estimates/:eid/setup') async estimateSetupRun(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.setup.apply(Number(id), eid, dto || {}, await this.actor(a)); }
   @Post('projects/:id/estimates/:eid/accepted') async estimateAccepted(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.setup.markAccepted(Number(id), eid, dto || {}, await this.actor(a)); }
+  @Get('projects/:id/estimates/:eid/bid-packages') async bidPackageList(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.bidPackages.list(Number(id), eid, await this.actor(a)); }
+  @Post('projects/:id/estimates/:eid/bid-packages') async bidPackageNew(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.bidPackages.create(Number(id), eid, dto || {}, await this.actor(a)); }
+  @Post('projects/:id/bid-packages/:pid/invite') async bidInvite(@Param('id') id: string, @Param('pid') pid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.bidPackages.invite(Number(id), pid, dto || {}, await this.actor(a)); }
+  @Post('projects/:id/bid-packages/:pid/use/:iid') async bidUse(@Param('id') id: string, @Param('pid') pid: string, @Param('iid') iid: string, @Headers('authorization') a?: string) { return this.bidPackages.useBid(Number(id), pid, iid, await this.actor(a)); }
   @Post('projects/:id/estimates/:eid/send') async estimateSend(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.letters.send(Number(id), eid, dto || {}, await this.actor(a)); }
   @Get('projects/:id/estimates/:eid/compare/:other') async estimateCompare(@Param('id') id: string, @Param('eid') eid: string, @Param('other') other: string, @Headers('authorization') a?: string) { return this.estimates.compare(Number(id), eid, other, await this.actor(a)); }
   @Post('projects/:id/estimates/:eid/copy-scopes') async estimateCopyScopes(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.copyScopes(Number(id), eid, dto || {}, await this.actor(a), await this.canSee(a)); }

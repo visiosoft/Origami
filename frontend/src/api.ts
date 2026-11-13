@@ -1077,6 +1077,15 @@ export const api = {
       if (!res.ok) { const body = await res.json().catch(() => null); throw new Error((body && body.message) || `Could not make the file (${res.status})`); }
       return res.blob();
     },
+    /** K10: sub bid packages. */
+    bidPackages: (projectId: number, estimateId: string) => request<any[]>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(estimateId)}/bid-packages`, { cache: 'no-store' } as any),
+    createBidPackage: (projectId: number, estimateId: string, d: { title?: string; scopeIds: string[]; dueDate?: string; notes?: string }) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(estimateId)}/bid-packages`, { method: 'POST', body: JSON.stringify(d) }),
+    inviteBid: (projectId: number, packageId: string, contractorIds: string[]) => request<{ invited: { contractorId: string; vendorName: string; link: string; emailed: boolean }[] }>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/invite`, { method: 'POST', body: JSON.stringify({ contractorIds }) }),
+    useBid: (projectId: number, packageId: string, inviteId: string) => request<{ rev: number; changed: number; vendorName: string }>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/use/${encodeURIComponent(inviteId)}`, { method: 'POST' }),
+    bidPublic: {
+      get: (token: string) => request<any>(`/bid-public?token=${encodeURIComponent(token)}`),
+      submit: (token: string, d: { decline?: boolean; total?: string | number | null; lineAmounts?: Record<string, string>; notes?: string }) => request<{ status: string }>('/bid-public', { method: 'POST', body: JSON.stringify({ token, ...d }) }),
+    },
     estimateSetup: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { cache: 'no-store' } as any),
     runEstimateSetup: (projectId: number, id: string, steps: string[]) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { method: 'POST', body: JSON.stringify({ steps }) }),
     markEstimateAccepted: (projectId: number, id: string, signer: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/accepted`, { method: 'POST', body: JSON.stringify({ signer }) }),

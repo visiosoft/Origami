@@ -193,3 +193,23 @@ tr.eg-scope td { background: var(--eg-head); border-top: 2px solid rgba(var(--rg
 .js-body .eg-gr { min-width: 0; }
 .js-body .eg-gr td { padding: 4px 6px; }
 .js-body .eg-gr td.is-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Bid packages (K10) */
+.bp { border-top: 1px solid var(--eg-line); padding: 12px 0; }
+.bp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; color: var(--ink); }
+.bp-new { display: grid; gap: 10px; padding: 10px 0 14px; border-top: 1px solid var(--eg-line); }
+.bp-new label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.bp-new input, .bp-new textarea, .bp-invite > input { font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--eg-line); background: var(--surface); color: var(--ink); }
+.bp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.bp-new fieldset { border: 1px solid var(--eg-line); border-radius: 10px; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.bp-new legend { font-size: 12px; font-weight: 700; padding: 0 4px; }
+.bp-check { display: inline-flex !important; grid-auto-flow: column; align-items: center; gap: 6px !important; font-weight: 500 !important; font-size: 13px !important; cursor: pointer; }
+.bp-check input { width: 16px; height: 16px; }
+.bp-invite { display: grid; gap: 8px; margin: 6px 0 10px; }
+.bp-subs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; max-height: 220px; overflow: auto; padding: 4px; border: 1px solid var(--eg-line); border-radius: 10px; }
+.bp-level { min-width: 560px; }
+.bp-level td, .bp-level th { padding: 6px 8px; vertical-align: top; }
+.bp-level td.is-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bp-st { font-size: 10.5px; font-weight: 600; color: var(--muted); text-transform: none; }
+.bp-low { color: rgb(var(--rgb-success-deep)); }
+.bp-copy { padding: 2px 8px; font-size: 11px; margin-top: 2px; }

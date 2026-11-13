@@ -541,6 +541,27 @@ export class EstimatesService {
     const sheet = await this.sheetOf(e.id);
     return { e, sheet, result: resultOf(e, sheet), rights: actor ? await this.rights(actor) : null };
   }
+  /**
+   * K10: put a sub's bid into the estimate's current draft revision (only a
+   * draft: sent revisions are the record). `change` edits the draft's lines;
+   * the version moves on so an open sheet reloads instead of overwriting.
+   */
+  async changeDraftLines(projectId: number, number: string, change: (lines: EstimateLineEntity[]) => number, actor: Actor, reason: string) {
+    await this.need(actor, 'edit');
+    const draft = (await this.estimates.find({ where: { projectId, number, isTemplate: false } })).find((x) => x.status === 'draft');
+    if (!draft) throw new ConflictException(`${number} has no draft revision -- make a new revision, then use the bid.`);
+    if (!(await this.rights(actor)).money.full) throw new ForbiddenException('Using a bid needs a role that sees all of the estimate’s money.');
+    const lines = await this.lines.find({ where: { estimateId: draft.id } });
+    const changed = change(lines);
+    if (!changed) throw new BadRequestException('None of the package’s lines are in the draft revision any more.');
+    await this.db.transaction(async (m) => {
+      for (let i = 0; i < lines.length; i += 200) await m.save(lines.slice(i, i + 200));
+      draft.updatedAt = now(); draft.updatedBy = actor.name;
+      await m.save(draft);
+      await this.fin.log(m, { projectId, entityType: 'estimate', entityId: draft.id, action: 'bid_used', reason }, actor);
+    });
+    return { estimateId: draft.id, rev: draft.rev, changed };
+  }
   async revisionsOf(projectId: number, number: string) { return this.estimates.find({ where: { projectId, number, isTemplate: false } }); }
   async saveEntity(e: EstimateEntity) { return this.estimates.save(e); }
 
