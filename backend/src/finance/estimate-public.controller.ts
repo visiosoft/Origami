@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Public } from '../auth/guards/public.decorator';
+import { AnySignedIn } from '../auth/guards/roles.decorator';
+import { Claims } from '../auth/guards/claims.decorator';
+import type { SessionClaims } from '../auth/crypto.util';
+import { ProjectAccessService } from '../auth/project-access.service';
 import { EstimateLetterService } from './estimate-letter.service';
 
 /**
@@ -10,7 +14,15 @@ import { EstimateLetterService } from './estimate-letter.service';
  */
 @Controller('estimate-public')
 export class EstimatePublicController {
-  constructor(private readonly letters: EstimateLetterService) {}
+  constructor(private readonly letters: EstimateLetterService, private readonly access: ProjectAccessService) {}
+
+  /** A client's estimates, to review here (Nov 13): only on the projects they're linked to. */
+  @AnySignedIn()
+  @Get('mine')
+  async mine(@Claims() claims: SessionClaims | null) {
+    if (!claims || claims.tier !== 'client') return [];
+    return this.letters.forClient(await this.access.allowedIds(claims));
+  }
 
   @Public()
   @Get()

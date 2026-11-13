@@ -26,6 +26,8 @@ export interface EstimateHeader {
   columns?: ColumnDef[] | null;
   isTemplate?: boolean;
   isDefaultTemplate?: boolean;
+  /** Square feet by kind; `total` gives the cost per square foot (Nov 13, F22). */
+  areas?: Record<string, number> | null;
 }
 
 const BANDS_KEY = 'origami.estimate.hiddenBands';
@@ -219,7 +221,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
   const redo = () => { const p = history.current.redo(sheetRef.current); if (p) commit(p, { history: false }); };
 
   // ------------------------------------------------------------------ figures
-  const settings: EstSettings = head ? { grPct: head.grPct, profitPct: head.profitPct, contingencyPct: head.contingencyPct, discount: head.discount, designCost: head.designCost, glPct: head.glPct ?? null } : { grPct: 0, profitPct: 0, contingencyPct: 0 };
+  const settings: EstSettings = head ? { grPct: head.grPct, profitPct: head.profitPct, contingencyPct: head.contingencyPct, discount: head.discount, designCost: head.designCost, glPct: head.glPct ?? null, sqft: head.areas?.total ?? null } : { grPct: 0, profitPct: 0, contingencyPct: 0 };
   const computed = useMemo(() => computeEstimate({
     settings,
     scopes: sheet.scopes.map((s) => ({ id: s.id, factor: s.factor })),
@@ -227,7 +229,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     gr: sheet.gr,
     payments: head?.payments || [],
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [sheet, head?.grPct, head?.profitPct, head?.contingencyPct, head?.discount, head?.designCost, head?.glPct, head?.payments]);
+  }), [sheet, head?.grPct, head?.profitPct, head?.contingencyPct, head?.discount, head?.designCost, head?.glPct, head?.payments, head?.areas?.total]);
   // A role that can't see all the money gets the server's figures (with what it can't see left out), not the live sums.
   const result: EstimateResult = restricted && serverResult ? serverResult : computed;
   const lineOut = useMemo(() => new Map(result.lines.map((l) => [l.id, l])), [result]);
@@ -239,8 +241,8 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
   // ------------------------------------------------------------------ columns and the rows on screen
   const allCols = useMemo(() => effectiveColumns(head?.columns), [head?.columns]);
   const cols = useMemo(() => allCols.filter((c) => !c.hidden && !hidden.includes(c.band))
-    .filter((c) => !restricted || !((c.key === 'cost' && !moneyRights!.cost) || ((c.key === 'markupAmt' || c.key === 'markupPct') && !moneyRights!.markup) || ((c.key === 'price' || c.key === 'high') && !moneyRights!.price)))
-    .map((c) => (restricted && ['cost', 'markupAmt', 'markupPct', 'pricing'].includes(c.key) ? { ...c, locked: true } : c)), [allCols, hidden, restricted, moneyRights]);
+    .filter((c) => !restricted || !(((c.key === 'cost' || c.key === 'unitCost') && !moneyRights!.cost) || ((c.key === 'markupAmt' || c.key === 'markupPct') && !moneyRights!.markup) || ((c.key === 'price' || c.key === 'high') && !moneyRights!.price)))
+    .map((c) => (restricted && ['cost', 'markupAmt', 'markupPct', 'pricing', 'qty', 'unitCost'].includes(c.key) ? { ...c, locked: true } : c)), [allCols, hidden, restricted, moneyRights]);
   const saveCols = (next: (GridCol & { hidden?: boolean })[]) => saveHead({ columns: columnDefs(next) });
   const moveCol = (key: string, dir: -1 | 1) => {
     const vis = cols.map((c) => c.key); const i = vis.indexOf(key); const j = i + dir;
@@ -265,6 +267,8 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
       case 'price': return out ? out.countedPrice / 100 : 0;
       case 'high': return out ? out.high / 100 : 0;
       case 'durationDays': return l.durationDays ?? 0;
+      case 'qty': return l.qty ?? 0;
+      case 'unitCost': return l.unitCost ?? 0;
       default:
         if (col.custom) { const v = l.custom?.[col.key]; return v == null ? (col.kind === 'text' || col.kind === 'choice' ? '' : 0) : (v as Value); }
         return cellText(l, col);
@@ -343,6 +347,17 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
   };
   const duplicateLine = (id: string) => updateLines((ls) => { const i = ls.findIndex((l) => l.id === id); const c = { ...ls[i], id: newLine(ls[i].scopeId).id }; const out = [...ls]; out.splice(i + 1, 0, c); return out; });
   const addScope = () => { const s = newScope(); commit({ ...sheetRef.current, scopes: [...sheetRef.current.scopes, s], lines: [...sheetRef.current.lines, newLine(s.id)] }); };
+  /** A copy of a scope, lines and notes included, right after it (Nov 13). */
+  const duplicateScope = (id: string) => {
+    const cur = sheetRef.current;
+    const src = cur.scopes.find((s) => s.id === id);
+    if (!src) return;
+    const copy = { ...newScope(), ...src, id: newScope().id, title: src.title ? `${src.title} (copy)` : '(copy)', collapsed: false };
+    const lines = cur.lines.filter((l) => l.scopeId === id).map((l) => ({ ...l, id: newLine(copy.id).id, scopeId: copy.id }));
+    const at = cur.scopes.indexOf(src) + 1;
+    const lastLine = cur.lines.map((l) => l.scopeId).lastIndexOf(id);
+    commit({ ...cur, scopes: [...cur.scopes.slice(0, at), copy, ...cur.scopes.slice(at)], lines: [...cur.lines.slice(0, lastLine + 1), ...lines, ...cur.lines.slice(lastLine + 1)] });
+  };
   const moveScope = (id: string, dir: -1 | 1) => {
     const ss = [...sheetRef.current.scopes]; const i = ss.findIndex((s) => s.id === id); const j = i + dir;
     if (j < 0 || j >= ss.length) return;
@@ -632,6 +647,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
                       {so?.markup !== null && <span className="eg-scope-fig">Markup <b>{money(so?.markup ?? 0)}</b>{so?.profitPct != null && <> · <b>{Math.round(so.profitPct * 10) / 10}%</b></>}<Info text={`${FORMULAS.F6.label} = ${FORMULAS.F6.text}`} onTip={setTip} /></span>}
                       {!hidden.includes('precon') && (s.factor ?? 1) !== 1 && so?.high !== null && <span className="eg-scope-fig">Higher end <b>{money(so?.high ?? 0)}</b></span>}
                       {so?.total !== null && <span className="eg-scope-fig">Scope total <b>{money(so?.total ?? 0)}</b><Info text={`${FORMULAS.F5.label} = ${FORMULAS.F5.text}`} onTip={setTip} /></span>}
+                      {so?.perSqft != null && <span className="eg-scope-fig"><b>{money(so.perSqft)}</b>/sq ft</span>}
                       {editable && <button type="button" className="eg-btn" aria-label="Scope actions" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setMenu({ scopeId: s.id, x: Math.min(r.left, window.innerWidth - 220), y: r.bottom + 4 }); }}>⋯</button>}
                     </div>
                   </td>
@@ -700,6 +716,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
           </>}
           {menu.scopeId && <>
             <button type="button" onClick={() => { insertLine(menu.scopeId!); setMenu(null); }}>Add a line</button>
+            <button type="button" onClick={() => { duplicateScope(menu.scopeId!); setMenu(null); }}>Duplicate scope</button>
             <button type="button" onClick={() => { moveScope(menu.scopeId!, -1); setMenu(null); }}>Move scope up</button>
             <button type="button" onClick={() => { moveScope(menu.scopeId!, 1); setMenu(null); }}>Move scope down</button>
             <hr />
@@ -847,6 +864,14 @@ function BelowTheLine({ head, sheet, result, editable: canEditAll, see, explain,
             </span>
             <span className="val">{money(t.gl)}</span>
           </div>
+          <div className="eg-trow">
+            <span className="lbl">or as $ per $1,000 of cost</span>
+            <span>
+              <input aria-label="General Liability $ per $1,000" className="is-num" disabled={!editable} defaultValue={head.glPct ? Math.round(head.glPct * 1000) / 100 : ''} key={`gl1k-${head.glPct}`} inputMode="decimal" placeholder="$"
+                onBlur={(e) => { const n = num(e.target.value); if (n != null && (!Number.isFinite(n) || n < 0 || n >= 1000)) { e.target.value = head.glPct ? String(Math.round(head.glPct * 1000) / 100) : ''; return; } const pct = n ? Math.round(n * 1000) / 10000 : null; if ((pct || null) !== (head.glPct || null)) saveHead({ glPct: pct }); }} />
+            </span>
+            <span />
+          </div>
         </div>
         {sheet.gr.some((g) => /general liability/i.test(g.title) && g.included) && !!t.gl && <div className="eg-error" style={{ marginTop: 8 }}>A General Requirements line is also called General Liability — exclude it so GL isn’t counted twice.</div>}
       </div>
@@ -884,7 +909,20 @@ function BelowTheLine({ head, sheet, result, editable: canEditAll, see, explain,
             <span className="val">{money(t.designCost)}</span>
           </div>
           {row('Total project cost', 'F17', t.totalProject, null, 'is-big')}
+          <div className="eg-trow">
+            <span className="lbl">Total square feet<Info text={explain('F22')} onTip={onTip} /></span>
+            <span><input aria-label="Total square feet" className="is-num" disabled={!editable} defaultValue={head.areas?.total ?? ''} key={`sq-${head.areas?.total}`} inputMode="decimal" placeholder="sq ft"
+              onBlur={(e) => { const n = num(e.target.value); if (n != null && (!Number.isFinite(n) || n < 0)) { e.target.value = String(head.areas?.total ?? ''); return; } if ((n || null) !== (head.areas?.total || null)) saveHead({ areas: { ...(head.areas || {}), total: n || 0 } }); }} /></span>
+            <span className="val">{t.costPerSqft != null ? `${money(t.costPerSqft)}/sq ft` : '—'}</span>
+          </div>
           </>}
+          {t.totalProfit != null && t.totalProfit !== undefined && (
+            <div className="eg-trow is-big" aria-label="Total profit">
+              <span className="lbl">Total profit (markups + profit)<Info text={explain('F23')} onTip={onTip} /></span>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t.totalProfitPct != null ? `${Math.round(t.totalProfitPct * 10) / 10}%` : ''}</span>
+              <span className="val">{money(t.totalProfit)}</span>
+            </div>
+          )}
         </div>
         {t.split && <div className="eg-split" aria-label="Cost split">
           <span>Fixed <b>{money(t.split.fixed)}</b></span><span>Allowances <b>{money(t.split.allowance)}</b></span><span>T&amp;M <b>{money(t.split.tm)}</b></span><span>Contingency <b>{money(t.split.contingency)}</b></span><span>Soft cost <b>{money(t.split.soft)}</b></span>

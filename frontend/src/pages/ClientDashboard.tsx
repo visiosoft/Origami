@@ -27,6 +27,9 @@ export function ClientDashboard() {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
+  // Estimates to review here, not as PDFs (Nov 13).
+  const [estimates, setEstimates] = useState<Awaited<ReturnType<typeof api.finance.estimatePublic.mine>>>([]);
+  useEffect(() => { if (outside) api.finance.estimatePublic.mine().then((r) => setEstimates(Array.isArray(r) ? r : [])).catch(() => undefined); }, [outside]);
 
   useEffect(() => {
     Promise.all([api.projects.list(), outside ? Promise.resolve([]) : api.people.list()])
@@ -73,6 +76,21 @@ export function ClientDashboard() {
         <Stat label="In Construction" value={String(inConstruction)} accent="#D2822E" />
         <Stat label="Avg Progress" value={`${avg}%`} accent="var(--success)" />
       </div>
+
+      {estimates.length > 0 && (
+        <section aria-label="Estimates" style={{ background: 'var(--surface)', borderRadius: 16, padding: 16, marginBottom: 16, display: 'grid', gap: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>Estimates</div>
+          {estimates.map((e) => (
+            <a key={e.id} href={e.link} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), 0.08)', textDecoration: 'none', color: 'inherit' }}>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <b style={{ color: 'var(--ink)' }}>{e.projectName} — {e.number} Rev {e.rev}</b>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)' }}>{e.title || 'Estimate'}{e.sentAt ? ` · sent ${new Date(e.sentAt).toLocaleDateString()}` : ''}</span>
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: e.status === 'accepted' ? 'var(--mint)' : 'var(--amber-light)', color: e.status === 'accepted' ? 'var(--forest)' : '#93520F' }}>{e.status === 'accepted' ? 'Accepted' : 'Review and accept'}</span>
+            </a>
+          ))}
+        </section>
+      )}
 
       <MyTasks />
 

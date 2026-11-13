@@ -97,12 +97,12 @@ describe('K8: the estimate letter', () => {
     await expect(a.svc.publicView('bad.token')).rejects.toThrow(/expired/);
   });
 
-  it('sending marks a draft sent and emails the PDF with the accept link to the bill-to contact', async () => {
+  it('sending marks a draft sent and emails the accept link (no PDF attached) to the bill-to contact', async () => {
     const { svc, e, mails } = setup({ status: 'draft' });
     const out = await svc.send(7, 'E1', { note: 'Here it is' }, { name: 'Edward', id: 'U1' });
     expect(e.status).toBe('sent');
     expect(out.to).toBe('kai@example.test');
-    expect(mails[0].attachments[0].filename).toBe('EST-001 Rev 2.pdf');
+    expect(mails[0].attachments).toBeUndefined();
     expect(mails[0].html).toContain('/sign-estimate?token=');
     expect(mails[0].html).toContain('Review and accept the estimate');
     expect(e.sentById).toBe('U1');

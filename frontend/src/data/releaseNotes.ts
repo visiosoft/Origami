@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13q',
+    date: '2026-11-13',
+    title: 'Estimates: quantities, cost per square foot and total profit',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'Each line has Qty, Unit (SF, LF, EA, LS…) and Unit cost — fill them and Qty × Unit cost becomes the sub cost (e.g. 3 shower pans × $5,000). Typing a sub cost straight in still works.', where: 'Estimating → a sheet → Subcontractor columns' },
+      { area: 'Estimating', kind: 'new', text: 'Enter the total square feet to see the cost per square foot for the job and for each scope.', where: 'Estimating → Totals' },
+      { area: 'Estimating', kind: 'new', text: 'General Liability can be typed as dollars per $1,000 (e.g. $7) as well as a %; a Total profit line shows markups plus profit, in dollars and as a % of the project.' },
+      { area: 'Estimating', kind: 'new', text: '“Duplicate scope” copies a scope with all its lines and notes right below it.', where: 'Estimating → a scope’s ⋯ menu' },
+      { area: 'Clients', kind: 'improved', text: 'The estimate email no longer attaches a PDF — the client reviews and accepts it in the system, and their dashboard lists their estimates.' },
+    ],
+  },
+  {
     id: '2026-11-13p',
     date: '2026-11-13',
     title: 'Two-step sign-in by text or email',

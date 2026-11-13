@@ -2953,6 +2953,10 @@ export class EstimateLineEntity {
   @Column({ type: 'nvarchar', length: 200, nullable: true }) subName!: string | null;
   @Column({ type: 'int', nullable: true }) durationDays!: number | null;
   @Column({ type: 'nvarchar', length: 20, nullable: true }) startDate!: string | null;
+  /** Quantity, unit (SF, LF, EA, LS...) and unit cost (Nov 13): when quantity and unit cost are filled, quantity × unit cost is the sub cost (F21). */
+  @Column({ type: 'decimal', precision: 14, scale: 4, nullable: true, transformer: numberFrom }) qty!: number | null;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) unit!: string | null;
+  @Column({ ...MONEY, nullable: true }) unitCost!: number | null;
   @Column({ ...MONEY, default: 0 }) cost!: number;
   /** amt (markup typed in dollars) | pct */
   @Column({ default: 'amt' }) markupMode!: string;

@@ -1158,6 +1158,8 @@ export const api = {
     sendEstimate: (projectId: number, id: string, d: { to?: string; cc?: string; note?: string }) => request<{ sent: boolean; to: string }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
     estimatePublic: {
       get: (token: string) => request<any>(`/estimate-public?token=${encodeURIComponent(token)}`),
+      /** A client's estimates to review here (Nov 13). */
+      mine: () => request<{ id: string; projectId: number; projectName: string; number: string; rev: number; title: string | null; status: string; sentAt: string | null; acceptedAt: string | null; link: string }[]>('/estimate-public/mine', { cache: 'no-store' } as any),
       sign: (token: string, d: { name: string; email?: string; image: string; agree: boolean }) => request<{ accepted: boolean; acceptedAt: string }>('/estimate-public/sign', { method: 'POST', body: JSON.stringify({ token, ...d }) }),
       pdfUrl: (token: string) => `${API_BASE}/estimate-public/pdf?token=${encodeURIComponent(token)}`,
     },

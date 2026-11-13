@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { autoStrategy, compareSheets, computeEstimate, explainTotal, lineMath, mapOldStrategy, FORMULAS, type EstLineIn } from './estimate.calc';
+import { autoStrategy, compareSheets, computeEstimate, explainTotal, lineMath, mapOldStrategy, FORMULAS, type EstLineIn, qtyCost } from './estimate.calc';
 
 // The Catherine bathrooms example from "People access and Financials".
 const L = (id: string, scopeId: string, cost: number, markupAmt: number, pricing = 'fc'): EstLineIn => ({ id, scopeId, cost, markupAmt, markupMode: 'amt', pricing });
@@ -87,7 +87,38 @@ describe('estimate maths (F1-F19)', () => {
   it('every total explains its formula with the numbers', () => {
     expect(explainTotal('F14', r, settings)).toBe('Profit = Profit % × Total build cost\n12% × $56,775.41 = $6,813.05');
     expect(explainTotal('F13', r, settings)).toContain('($36,340.00 + $10,783.59) ÷ (1 − 12% − 5%) = $56,775.41');
-    expect(Object.keys(FORMULAS)).toHaveLength(20);
+    expect(Object.keys(FORMULAS)).toHaveLength(23);
+  });
+
+  it('Nov 13: Qty × Unit cost is the sub cost; cost per square foot; total profit = markups + profit', () => {
+    const r = computeEstimate({
+      settings: { grPct: 0, profitPct: 10, contingencyPct: 0, sqft: 1000 },
+      scopes: [{ id: 'S' }],
+      lines: [
+        { id: 'a', scopeId: 'S', qty: 3, unitCost: 5000, cost: 99, markupMode: 'pct', markupPct: 20 }, // 3 shower pans at $5,000
+        { id: 'b', scopeId: 'S', qty: 20, unitCost: 400, markupMode: 'amt', markupAmt: 0 }, // 20 windows at $400
+        { id: 'c', scopeId: 'S', qty: 2, cost: 700, markupMode: 'amt', markupAmt: 0 }, // no unit cost: the typed cost
+      ],
+      gr: [],
+    });
+    expect(r.lines.map((l) => l.cost)).toEqual([1500000, 800000, 70000]);
+    expect(qtyCost({ qty: 1.5, unitCost: 33.33 })).toBe(5000);
+    expect(qtyCost({ qty: null, unitCost: 10 })).toBeNull();
+    const t = r.totals;
+    expect(t.subtotal).toBe(1800000 + 800000 + 70000);
+    expect(t.totalProject).toBe(Math.round(2670000 / 0.9));
+    expect(t.costPerSqft).toBe(Math.round(t.totalProject / 1000));
+    expect(r.scopes[0].perSqft).toBe(2670);
+    expect(t.totalProfit).toBe(300000 + t.profit);
+    expect(explainTotal('F22', r, { grPct: 0, profitPct: 10, contingencyPct: 0, sqft: 1000 })).toContain('÷ 1,000 sq ft');
+    const none = computeEstimate({ settings: { grPct: 0, profitPct: 0, contingencyPct: 0 }, scopes: [], lines: [], gr: [] });
+    expect(none.totals.costPerSqft).toBeNull();
+  });
+
+  it('GL as $ per $1,000: $7 per $1,000 is 0.7%', () => {
+    const r = computeEstimate({ settings: { grPct: 0, profitPct: 0, contingencyPct: 0, glPct: 0.7 }, scopes: [{ id: 'S' }], lines: [{ id: 'a', scopeId: 'S', cost: 100000, markupMode: 'amt', markupAmt: 0 }], gr: [] });
+    expect(r.totals.gl).toBe(70000);
+    expect(explainTotal('F20', r, { grPct: 0, profitPct: 0, contingencyPct: 0, glPct: 0.7 })).toContain('$7.00 per $1,000');
   });
 
   it('the browser copy is identical', () => {

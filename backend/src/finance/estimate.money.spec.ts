@@ -53,6 +53,11 @@ describe('K7: who sees which estimate money', () => {
     keepStoredMoney(lines, gr, stored as any, moneyRightsOf(SUPER));
     expect(lines[0]).toMatchObject({ cost: 1000, markupAmt: 300, pricing: 'fc' });
     expect(lines[1]).toMatchObject({ cost: 0, markupAmt: 0 });
+    // Nov 13: quantity and unit cost are kept as stored too (they make the sub cost).
+    const l2: any[] = [{ id: 'l', qty: 99, unitCost: 1 }];
+    keepStoredMoney(l2, [], { lines: [{ id: 'l', cost: 1000, qty: 2, unitCost: 500, markupMode: 'amt', markupAmt: 0 }], gr: [] } as any, moneyRightsOf(FIELD));
+    expect(l2[0]).toMatchObject({ qty: 2, unitCost: 500, cost: 1000 });
+    expect(redactEstimate({ ...sheet(), lines: [{ ...sheet().lines[0], unitCost: 5 }] } as any, moneyRightsOf(FIELD)).lines[0].unitCost).toBeNull();
     expect(gr[0]).toMatchObject({ base: 500, qty: 2, included: true });
   });
 

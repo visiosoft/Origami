@@ -82,6 +82,19 @@ describe('estimates', () => {
     expect(out.result.totals.totalBuild).toBe(589157);
   });
 
+  it('Nov 13: a line with Qty and Unit cost saves Qty × Unit cost as its sub cost; square feet give the cost per sq ft', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    const sh: any = sheet(e.estimate.version);
+    sh.lines[0] = { ...sh.lines[0], qty: 3, unit: 'EA', unitCost: 5000, cost: 1 };
+    const out = await svc.saveSheet(7, e.estimate.id, sh, actor);
+    expect(out.lines[0]).toMatchObject({ qty: 3, unit: 'EA', unitCost: 5000, cost: 15000 });
+    expect(out.result.lines[0].cost).toBe(1500000);
+    const withArea = await svc.saveSettings(7, e.estimate.id, { version: out.estimate.version, areas: { total: 2000 } }, actor);
+    expect(withArea.estimate.areas).toEqual({ total: 2000 });
+    expect(withArea.result.totals.costPerSqft).toBe(Math.round(withArea.result.totals.totalProject / 2000));
+  });
+
   it('rows left out are deleted, and a stale version is refused', async () => {
     const { svc } = setup();
     const e = await svc.create(7, {}, actor);

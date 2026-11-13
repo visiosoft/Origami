@@ -52,7 +52,7 @@ export function redactEstimate<R extends { estimate: any; lines: any[]; gr: any[
   if (!m.total) { nul(e, ['discount', 'designCost']); e.payments = (e.payments || []).map((p: any) => ({ ...p, value: null })); }
   const lines = r.lines.map((l) => {
     const x = { ...l };
-    if (!m.cost) nul(x, ['cost']);
+    if (!m.cost) nul(x, ['cost', 'unitCost']);
     if (!m.markup) nul(x, ['markupAmt', 'markupPct']);
     return x;
   });
@@ -70,7 +70,7 @@ export function redactEstimate<R extends { estimate: any; lines: any[]; gr: any[
       const x: any = { ...s };
       if (!m.cost) nul(x, ['cost']);
       if (!m.markup) nul(x, ['markup', 'profitPct']);
-      if (!m.price) nul(x, ['total', 'high']);
+      if (!m.price) nul(x, ['total', 'high', 'perSqft']);
       return x;
     }),
     gr: res.gr.map((g) => (m.grDetail ? g : ({ ...g, amount: null } as any))),
@@ -82,8 +82,9 @@ export function redactEstimate<R extends { estimate: any; lines: any[]; gr: any[
       if (!m.subtotal) nul(t, ['subtotal', 'high']);
       if (!m.grTotal) nul(t, ['grTotal', 'grSuggested', 'grBalance', 'effectiveGrPct', 'gl']);
       if (!m.profit) nul(t, ['profit']);
+      if (!m.profit || !m.markup) nul(t, ['totalProfit', 'totalProfitPct']);
       if (!m.contingency) nul(t, ['contingency']);
-      if (!m.total) { nul(t, ['totalBuild', 'discount', 'revisedBuild', 'designCost', 'totalProject', 'scheduled', 'unscheduled']); t.split = null; }
+      if (!m.total) { nul(t, ['totalBuild', 'discount', 'revisedBuild', 'designCost', 'totalProject', 'scheduled', 'unscheduled', 'costPerSqft']); t.split = null; }
       return t;
     })(),
   };
@@ -110,7 +111,7 @@ export function redactCompare<C extends CmpOut>(c: C, m: MoneyRights): C {
  * already exist stay as stored, new rows start at $0, so nothing hidden is
  * overwritten. (Their money cells are read-only in the sheet.)
  */
-export function keepStoredMoney<L extends { id: string; cost?: any; markupMode?: any; markupAmt?: any; markupPct?: any; pricing?: any }, G extends { id: string; base?: any; qty?: any; included?: any }>(
+export function keepStoredMoney<L extends { id: string; cost?: any; markupMode?: any; markupAmt?: any; markupPct?: any; pricing?: any; qty?: any; unitCost?: any }, G extends { id: string; base?: any; qty?: any; included?: any }>(
   lines: L[], gr: G[], stored: { lines: L[]; gr: G[] }, m: MoneyRights,
 ) {
   if (m.full) return;
@@ -118,6 +119,7 @@ export function keepStoredMoney<L extends { id: string; cost?: any; markupMode?:
   for (const l of lines) {
     const s = sl.get(l.id);
     l.cost = s ? s.cost : 0; l.markupMode = s ? s.markupMode : 'amt'; l.markupAmt = s ? s.markupAmt : 0; l.markupPct = s ? s.markupPct : null;
+    l.qty = s ? s.qty ?? null : null; l.unitCost = s ? s.unitCost ?? null : null;
     if (s) l.pricing = s.pricing;
   }
   if (!m.grDetail || !m.grTotal) {

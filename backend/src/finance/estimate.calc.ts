@@ -77,7 +77,10 @@ export const FORMULAS = {
   F17: { label: 'Total project cost', text: 'Total build cost (revised) + Total design cost' },
   F18: { label: 'Effective GR %', text: 'GR total ÷ Total build cost' },
   F19: { label: 'Payment', text: '% × Total project cost, or the fixed amount' },
-  F20: { label: 'General Liability', text: 'GL rate % × (Subtotal + GR total); counted in the total build cost like GR' },
+  F20: { label: 'General Liability', text: 'GL rate × (Subtotal + GR total) — the rate as a % or as $ per $1,000 ($7 per $1,000 = 0.7%); counted in the total build cost like GR' },
+  F21: { label: 'Line sub cost from quantity', text: 'Quantity × Unit cost (when both are filled; otherwise the sub cost typed in)' },
+  F22: { label: 'Cost per square foot', text: 'Total project cost ÷ Total square feet (a scope: its total ÷ the same square feet)' },
+  F23: { label: 'Total profit', text: 'Markups on the lines + Profit — what the job is set to earn; % of the total project cost' },
 } as const;
 export type FormulaId = keyof typeof FORMULAS;
 
@@ -91,6 +94,8 @@ export interface EstSettings {
   designCost?: number | null;
   /** General Liability rate (F20); null or 0 = not worked out (a GR line may carry it instead). */
   glPct?: number | null;
+  /** Total square feet of the job (F22); null = no cost per square foot. */
+  sqft?: number | null;
 }
 export interface EstScopeIn { id: string; factor?: number | null }
 export interface EstLineIn {
@@ -105,12 +110,15 @@ export interface EstLineIn {
   markupMode?: string | null;
   markupAmt?: number | null;
   markupPct?: number | null;
+  /** Quantity and unit cost (dollars) (F21): when both are filled, Quantity × Unit cost is the sub cost. */
+  qty?: number | null;
+  unitCost?: number | null;
 }
 export interface EstGrIn { id: string; included?: boolean | null; base?: number | null; qty?: number | null }
 export interface EstPaymentIn { id: string; label?: string; mode?: string | null; value?: number | null }
 
 export interface LineOut { id: string; scopeId: string; cost: number; markup: number; markupPct: number | null; price: number; counted: boolean; countedPrice: number; high: number }
-export interface ScopeOut { id: string; cost: number; markup: number; total: number; profitPct: number | null; high: number; factor: number }
+export interface ScopeOut { id: string; cost: number; markup: number; total: number; profitPct: number | null; high: number; factor: number; /** F22, cents per square foot. */ perSqft: number | null }
 export interface GrOut { id: string; amount: number; included: boolean }
 export interface PaymentOut { id: string; amount: number }
 export interface EstimateTotals {
@@ -118,6 +126,10 @@ export interface EstimateTotals {
   grTotal: number; grSuggested: number; grBalance: number; effectiveGrPct: number | null;
   /** General Liability (F20). */
   gl: number;
+  /** F22: cents per square foot of the total project cost; null without square feet. */
+  costPerSqft: number | null;
+  /** F23: line markups + profit, and its % of the total project cost. */
+  totalProfit: number; totalProfitPct: number | null;
   totalBuild: number; profit: number; contingency: number;
   discount: number; revisedBuild: number; designCost: number; totalProject: number;
   /** The letter's cost split; parts add up to the total project cost. */
@@ -141,8 +153,14 @@ const ratio = (a: number, b: number) => (b ? Math.round((a / b) * 1e6) / 1e4 : n
 export const isPricing = (p: unknown): p is PricingType => (PRICING_TYPES as readonly string[]).includes(String(p));
 
 /** F1-F4 for one line. */
+/** F21: Quantity × Unit cost when both are filled, else null. */
+export function qtyCost(l: { qty?: number | null; unitCost?: number | null }): number | null {
+  const filled = (v: unknown) => v !== null && v !== undefined && (v as unknown) !== '' && Number.isFinite(Number(v));
+  return filled(l.qty) && filled(l.unitCost) ? rnd(cents(l.unitCost) * Number(l.qty)) : null;
+}
+
 export function lineMath(l: EstLineIn, factor = 1): LineOut {
-  const cost = cents(l.cost);
+  const cost = qtyCost(l) ?? cents(l.cost);
   const markup = l.markupMode === 'pct' ? pctOf(cost, num(l.markupPct)) : cents(l.markupAmt);
   const price = cost + markup;
   const counted = l.pricing !== 'nis';
@@ -164,7 +182,8 @@ export function computeEstimate(input: { settings: EstSettings; scopes: EstScope
     const cost = mine.reduce((a, l) => a + l.cost, 0);
     const markup = mine.reduce((a, l) => a + l.markup, 0);
     const total = mine.reduce((a, l) => a + l.countedPrice, 0);
-    return { id: sc.id, cost, markup, total, profitPct: ratio(markup, cost), high: mine.reduce((a, l) => a + l.high, 0), factor: factorOf.get(sc.id) ?? 1 };
+    const sqft = num(s.sqft);
+    return { id: sc.id, cost, markup, total, profitPct: ratio(markup, cost), high: mine.reduce((a, l) => a + l.high, 0), factor: factorOf.get(sc.id) ?? 1, perSqft: sqft > 0 ? rnd(total / sqft) : null };
   });
   const known = new Set(input.scopes.map((sc) => sc.id));
   const counted = lines.filter((l) => l.counted && known.has(l.scopeId));
@@ -206,6 +225,8 @@ export function computeEstimate(input: { settings: EstSettings; scopes: EstScope
     totals: {
       subcontracted, markup, subtotal, high, grTotal, gl, grSuggested, grBalance: grSuggested - grTotal,
       effectiveGrPct: ratio(grTotal, totalBuild), totalBuild, profit, contingency, discount, revisedBuild, designCost, totalProject,
+      costPerSqft: num(s.sqft) > 0 ? rnd(totalProject / num(s.sqft)) : null,
+      totalProfit: markup + profit, totalProfitPct: ratio(markup + profit, totalProject),
       split, scheduled, unscheduled: totalProject - scheduled, error,
     },
   };
@@ -233,7 +254,9 @@ export function explainTotal(id: FormulaId, r: EstimateResult, s: EstSettings): 
     F15: `${pct(s.contingencyPct)} × ${money(t.totalBuild)} = ${money(t.contingency)}`,
     F16: `${money(t.totalBuild)} − ${money(t.discount)} = ${money(t.revisedBuild)}`,
     F17: `${money(t.revisedBuild)} + ${money(t.designCost)} = ${money(t.totalProject)}`,
-    F20: `${pct(num(s.glPct))} × (${money(t.subtotal)} + ${money(t.grTotal)}) = ${money(t.gl)}`,
+    F20: `${pct(num(s.glPct))} (${money(Math.round(num(s.glPct) * 1000))} per $1,000) × (${money(t.subtotal)} + ${money(t.grTotal)}) = ${money(t.gl)}`,
+    F22: t.costPerSqft == null ? 'Enter the total square feet' : `${money(t.totalProject)} ÷ ${num(s.sqft).toLocaleString('en-US')} sq ft = ${money(t.costPerSqft)} per sq ft`,
+    F23: `${money(t.markup)} markups + ${money(t.profit)} profit = ${money(t.totalProfit)}${t.totalProfitPct == null ? '' : ` (${pct(t.totalProfitPct)} of ${money(t.totalProject)})`}`,
     F18: t.effectiveGrPct == null ? '—' : `${money(t.grTotal)} ÷ ${money(t.totalBuild)} = ${pct(t.effectiveGrPct)}`,
   };
   return `${f.label} = ${f.text}${worked[id] ? `\n${worked[id]}` : ''}`;

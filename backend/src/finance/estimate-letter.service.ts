@@ -96,7 +96,8 @@ export class EstimateLetterService {
 
   /**
    * Email the client's copy: marks a draft as sent (it's frozen from then on),
-   * attaches the PDF and a link to accept it online. To the project's bill-to
+   * with a link to review and accept it in the system -- no PDF attached
+   * (Nov 13 sync: clients review it here, so it isn't passed around). To the project's bill-to
    * contact unless another address is given.
    */
   async send(projectId: number, id: string, dto: { to?: string; cc?: string; note?: string }, actor: Actor) {
@@ -110,7 +111,6 @@ export class EstimateLetterService {
     if (e.status === 'draft') await this.estimates.markSent(projectId, id, actor);
     const fresh = await this.estimates.raw(projectId, id, actor);
     e = fresh.e;
-    const { pdf, filename } = await this.render(e, fresh.sheet, fresh.result);
     const project = await this.fin.project(projectId);
     const money = await this.clientMoney(projectId);
     const link = `${(await this.settings.baseUrl()) || ''}/sign-estimate?token=${encodeURIComponent(await this.token(e))}`;
@@ -123,12 +123,26 @@ export class EstimateLetterService {
       html: emailShell({ brand: emailBrand as any, eyebrow: `Estimate · ${e.number} Rev ${e.rev}`, title: first ? `Hi ${escapeHtml(first)},` : 'Hello,',
         body: estimateEmailBody({ number: e.number, rev: e.rev, title: e.title, projectName: project.name, total: money.total ? fresh.result.totals.totalProject : null, note }) + viewButton(link).replace('View the change order', 'Review and accept the estimate'),
         footer: `Sent by ${escapeHtml(actor.name)} at ${escapeHtml(emailBrand.companyName)}.` }),
-      attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
     });
     e.sentTo = [to, ...cc].join(', ').slice(0, 300); e.sentById = actor.id || null;
     await this.estimates.saveEntity(e);
     await this.fin.log(null, { projectId, entityType: 'estimate', entityId: e.id, action: 'estimate_emailed', changes: { sentTo: { from: null, to: e.sentTo } } }, actor);
     return { sent: true, to: e.sentTo, link };
+  }
+
+  /**
+   * A client's estimates (Nov 13): sent or accepted ones on their projects,
+   * each with a fresh link to review it here.
+   */
+  async forClient(allowed: 'all' | Set<number>) {
+    const rows = (await this.estimates.sentOn(allowed)).filter((e) => ['sent', 'accepted'].includes(e.status));
+    const base = (await this.settings.baseUrl()) || '';
+    const out = [];
+    for (const e of rows) {
+      const project = await this.fin.project(e.projectId).catch(() => null);
+      out.push({ id: e.id, projectId: e.projectId, projectName: project?.name || '', number: e.number, rev: e.rev, title: e.title, status: e.status, sentAt: e.sentAt, acceptedAt: e.acceptedAt, link: `${base}/sign-estimate?token=${encodeURIComponent(await this.token(e))}` });
+    }
+    return out;
   }
 
   /** The client's signing page: the letter, and whether it can still be accepted. */

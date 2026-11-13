@@ -3,13 +3,15 @@
  * reading values typed or pasted from Excel, and copy back out. The React grid
  * in components/estimate only wires these to the screen.
  */
-import { autoStrategy, COST_TYPES, NOTE_LABEL, PRICING_LABEL, STRATEGY_LABEL } from './estimateCalc';
+import { autoStrategy, COST_TYPES, NOTE_LABEL, PRICING_LABEL, STRATEGY_LABEL, qtyCost } from './estimateCalc';
 
 export interface EstScope { id: string; csiCodeId?: string | null; title?: string | null; factor?: number | null; privateNotes?: string | null; collapsed?: boolean; custom?: Record<string, unknown> | null }
 export interface EstLine {
   id: string; scopeId: string; kind: string; indent?: number; description?: string | null; costTypes?: string[] | null;
   pricing: string; subPricing?: string | null; strategy?: string | null; contractorId?: string | null; subName?: string | null;
   durationDays?: number | null; startDate?: string | null; cost: number; markupMode: string; markupAmt: number; markupPct?: number | null;
+  /** Quantity, unit and unit cost (Nov 13): both numbers filled -> Quantity × Unit cost is the sub cost (F21). */
+  qty?: number | null; unit?: string | null; unitCost?: number | null;
   subNotes?: string | null; privateNotes?: string | null; statementId?: string | null; custom?: Record<string, unknown> | null;
 }
 export interface EstGr { id: string; title: string; included: boolean; base: number; unit: string; qty: number; notes?: string | null; custom?: Record<string, unknown> | null }
@@ -99,7 +101,10 @@ export const LINE_COLS: GridCol[] = [
   { key: 'subPricing', label: 'Sub pricing', band: 'sub', kind: 'choice', width: 92, options: [['', 'Same'], ...PRICING_OPTIONS] },
   { key: 'durationDays', label: 'Duration (days)', band: 'sub', kind: 'number', width: 92 },
   { key: 'startDate', label: 'Est. start', band: 'sub', kind: 'date', width: 120 },
-  { key: 'cost', label: 'Sub cost', band: 'sub', kind: 'money', width: 110 },
+  { key: 'qty', label: 'Qty', band: 'sub', kind: 'number', width: 70, hint: 'With a unit cost, Qty × Unit cost is the sub cost' },
+  { key: 'unit', label: 'Unit', band: 'sub', kind: 'text', width: 64, hint: 'SF, LF, EA, LS, HR, SY, CY…' },
+  { key: 'unitCost', label: 'Unit cost', band: 'sub', kind: 'money', width: 100, hint: 'F21: Qty × Unit cost = Sub cost' },
+  { key: 'cost', label: 'Sub cost', band: 'sub', kind: 'money', width: 110, hint: 'Typed in, or Qty × Unit cost' },
   { key: 'markupAmt', label: 'Markup $', band: 'markup', kind: 'money', width: 104, hint: 'Type dollars, or type a % in the next column' },
   { key: 'markupPct', label: 'Markup %', band: 'markup', kind: 'pct', width: 84, hint: 'F1: Markup $ ÷ Sub cost' },
   { key: 'privateNotes', label: 'Private notes', band: 'notes', kind: 'longtext', width: 220, notes: true },
@@ -215,8 +220,10 @@ export function setCell(line: EstLine, col: GridCol, raw: string): { line: EstLi
     case 'money': {
       const n = parseMoney(raw);
       if (Number.isNaN(n)) return { error: `“${raw}” isn’t an amount.` };
-      if (col.key === 'cost' && (n ?? 0) < 0) return { error: 'Sub cost can’t be negative.' };
-      (l as any)[col.key] = n ?? 0;
+      if ((col.key === 'cost' || col.key === 'unitCost') && (n ?? 0) < 0) return { error: `${col.label} can’t be negative.` };
+      (l as any)[col.key] = col.key === 'unitCost' ? n : n ?? 0;
+      // A sub cost typed in replaces Qty × Unit cost.
+      if (col.key === 'cost') l.unitCost = null;
       if (col.key === 'markupAmt') l.markupMode = 'amt';
       break;
     }
@@ -231,7 +238,7 @@ export function setCell(line: EstLine, col: GridCol, raw: string): { line: EstLi
       if (!raw.trim()) { (l as any)[col.key] = null; break; }
       const n = Number(raw.replace(/,/g, ''));
       if (!Number.isFinite(n) || n < 0) return { error: `“${raw}” isn’t a number.` };
-      (l as any)[col.key] = Math.round(n);
+      (l as any)[col.key] = col.key === 'qty' ? Math.round(n * 10000) / 10000 : Math.round(n);
       break;
     }
     case 'date': {
@@ -241,6 +248,8 @@ export function setCell(line: EstLine, col: GridCol, raw: string): { line: EstLi
       break;
     }
   }
+  // Qty × Unit cost is the sub cost when both are filled (F21; the server does the same).
+  if (col.key === 'qty' || col.key === 'unitCost') { const c = qtyCost(l); if (c != null) l.cost = c / 100; }
   // Naming or clearing a sub, or OFCI pricing, sets the performing strategy (the server does the same).
   if (l.kind === 'item' && STRATEGY_KEYS.includes(col.key)) {
     if (col.key === 'subName' && !raw.trim()) l.contractorId = null;

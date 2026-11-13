@@ -8,7 +8,7 @@ import {
 import { ManpowerAccess, type Actor } from '../manpower/manpower-access.service';
 import { newId, todayISO } from '../manpower/workforce.util';
 import { FinancialsService, FIN_MODULE } from './financials.service';
-import { autoStrategy, compareSheets, computeEstimate, mapOldStrategy, FORMULAS, isPricing, NOTE_KINDS, OLD_STRATEGIES, STRATEGIES, type EstimateResult } from './estimate.calc';
+import { autoStrategy, compareSheets, computeEstimate, mapOldStrategy, FORMULAS, isPricing, NOTE_KINDS, OLD_STRATEGIES, STRATEGIES, type EstimateResult, qtyCost } from './estimate.calc';
 import { fromCents, toCents } from './money';
 import { keepStoredMoney, moneyRightsOf, redactCompare, redactEstimate, SETTING_MONEY, type MoneyRights } from './estimate.money';
 
@@ -106,9 +106,9 @@ export interface EstimateSheet { scopes: EstimateScopeEntity[]; lines: EstimateL
 /** Feed the stored rows to the maths. */
 export function resultOf(e: EstimateEntity, sheet: EstimateSheet): EstimateResult {
   return computeEstimate({
-    settings: { grPct: e.grPct, profitPct: e.profitPct, contingencyPct: e.contingencyPct, discount: e.discount, designCost: e.designCost, glPct: e.glPct },
+    settings: { grPct: e.grPct, profitPct: e.profitPct, contingencyPct: e.contingencyPct, discount: e.discount, designCost: e.designCost, glPct: e.glPct, sqft: (e.areas as any)?.total ?? null },
     scopes: sheet.scopes.map((s) => ({ id: s.id, factor: s.factor })),
-    lines: sheet.lines.map((l) => ({ id: l.id, scopeId: l.scopeId, kind: l.kind, pricing: l.pricing, cost: l.cost, markupMode: l.markupMode, markupAmt: l.markupAmt, markupPct: l.markupPct })),
+    lines: sheet.lines.map((l) => ({ id: l.id, scopeId: l.scopeId, kind: l.kind, pricing: l.pricing, cost: l.cost, markupMode: l.markupMode, markupAmt: l.markupAmt, markupPct: l.markupPct, qty: l.qty, unitCost: l.unitCost })),
     gr: sheet.gr.map((g) => ({ id: g.id, included: g.included, base: g.base, qty: g.qty })),
     payments: (e.payments || []).map((p) => ({ id: p.id, mode: p.mode, value: p.value })),
   });
@@ -287,6 +287,12 @@ export class EstimatesService {
     return this.get(projectId, id, actor);
   }
 
+  /** Sent / accepted estimates (the latest revision of each) on these projects -- for the client's dashboard. */
+  async sentOn(allowed: 'all' | Set<number>) {
+    const rows = await this.estimates.find({ where: { isTemplate: false, status: In(['sent', 'accepted']) }, order: { sentAt: 'DESC' } });
+    return rows.filter((e) => allowed === 'all' || allowed.has(e.projectId));
+  }
+
   async list(projectId: number, actor: Actor) {
     await this.need(actor, 'view');
     await this.project(projectId);
@@ -366,7 +372,7 @@ export class EstimatesService {
     if (has('payments')) e.payments = cleanPayments(dto.payments);
     if (has('areas')) {
       const a = dto.areas || {};
-      e.areas = Object.fromEntries(['demolish', 'footprint', 'built', 'conditioned', 'roof', 'hardscape', 'landscape'].filter((k) => a[k] != null && a[k] !== '').map((k) => [k, Math.max(0, Number(a[k]) || 0)]));
+      e.areas = Object.fromEntries(['total', 'demolish', 'footprint', 'built', 'conditioned', 'roof', 'hardscape', 'landscape'].filter((k) => a[k] != null && a[k] !== '').map((k) => [k, Math.max(0, Number(a[k]) || 0)]));
     }
     if (has('isDefaultTemplate')) {
       if (!e.isTemplate) throw new BadRequestException('Only a template can be the company default.');
@@ -456,13 +462,18 @@ export class EstimatesService {
       const markupMode = l?.markupMode === 'pct' ? 'pct' : 'amt';
       const dur = l?.durationDays == null || l.durationDays === '' ? null : Math.round(Number(l.durationDays));
       if (dur != null && (!Number.isFinite(dur) || dur < 0 || dur > 100000)) throw new BadRequestException('Duration must be a number of days.');
+      // Quantity × unit cost (Nov 13, F21): both filled -> that is the sub cost.
+      const qty = kind !== 'item' || l?.qty == null || l.qty === '' ? null : (() => { const q = Number(l.qty); if (!Number.isFinite(q) || q < 0 || q > 1e9) throw new BadRequestException('Quantity must be a positive number.'); return Math.round(q * 10000) / 10000; })();
+      const unitCost = kind !== 'item' || l?.unitCost == null || l.unitCost === '' ? null : amount(l.unitCost, 'Unit cost');
+      const fromQty = qtyCost({ qty, unitCost });
       return this.lines.create({
         id: idOf(l?.id, 'eln'), originId: originOf.get(String(l?.id)) ?? null, estimateId: id, projectId, scopeId, lineOrder: i, kind, statementId: str(l?.statementId, 60),
         indent: Math.max(0, Math.min(3, Math.round(Number(l?.indent) || 0))),
         description: str(l?.description, 20000),
         costTypes: Array.isArray(l?.costTypes) ? l.costTypes.slice(0, 10).map((c: unknown) => String(c).slice(0, 60)) : null,
         pricing, subPricing, strategy, contractorId: str(l?.contractorId, 60), subName: str(l?.subName, 200), durationDays: dur, startDate: str(l?.startDate, 20),
-        cost: kind === 'item' ? amount(l?.cost, 'Sub cost') : 0,
+        qty, unit: kind === 'item' ? str(l?.unit, 20) : null, unitCost,
+        cost: kind === 'item' ? (fromQty != null ? fromQty / 100 : amount(l?.cost, 'Sub cost')) : 0,
         markupMode, markupAmt: kind === 'item' && markupMode === 'amt' ? amount(l?.markupAmt, 'Markup', true) : 0,
         markupPct: kind === 'item' && markupMode === 'pct' ? pct(l?.markupPct, 'Markup %', 100) : null,
         subNotes: str(l?.subNotes, 20000), privateNotes: str(l?.privateNotes, 20000), custom: custom(l?.custom),
