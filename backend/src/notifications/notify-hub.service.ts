@@ -1,3 +1,4 @@
+import { personOnProject } from '../people/person-projects';
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -146,6 +147,9 @@ export class NotifyHub implements OnApplicationBootstrap, OnModuleDestroy {
   async broadcast(event: string, item: NotifyItem, scope: { projectName?: string } = {}) {
     const module = eventOf(event)?.module;
     const [users, roles, people] = await Promise.all([this.users.find(), this.roles.find(), scope.projectName ? this.people.find() : Promise.resolve([] as PersonEntity[])]);
+    // The project by name, then people matched by its id (Nov 13); by name if it can't be found.
+    const ref = scope.projectName && this.projects ? await this.projects.findOne({ where: { name: scope.projectName }, select: { id: true, name: true } }) : null;
+    const onIt = (p: PersonEntity) => (ref ? personOnProject(p, ref, [ref]) : (p.projects || []).includes(scope.projectName!));
     const ids = users.filter((u) => {
       if (u.status === 'suspended' || u.status === 'pending') return false;
       if (u.roleKey !== 'admin' && u.tier !== 'internal') return false;
@@ -154,7 +158,7 @@ export class NotifyHub implements OnApplicationBootstrap, OnModuleDestroy {
       if (module && perms[module] && !perms[module].view) return false;
       if (scope.projectName && extentOf(perms) === 'assigned') {
         const email = String(u.email || '').trim().toLowerCase();
-        return people.some((p) => ((p.userId && p.userId === u.id) || (!!email && String(p.email || '').trim().toLowerCase() === email)) && (p.projects || []).includes(scope.projectName!));
+        return people.some((p) => ((p.userId && p.userId === u.id) || (!!email && String(p.email || '').trim().toLowerCase() === email)) && onIt(p));
       }
       return true;
     }).map((u) => u.id);

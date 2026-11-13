@@ -1,3 +1,4 @@
+import { personProjectIds } from '../people/person-projects';
 import { ForbiddenException, Global, Injectable, Module, Optional, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -87,6 +88,15 @@ export class ProjectAccessService {
     return out;
   }
 
+  /** Every project's id and name (kept a few seconds): matching people's projects. */
+  private refs: { at: number; rows: { id: number; name: string }[] } | null = null;
+  async projectRefs(): Promise<{ id: number; name: string }[]> {
+    if (this.refs && Date.now() - this.refs.at < 15_000) return this.refs.rows;
+    const rows = (await this.projects.find({ select: { id: true, name: true } })).map((p) => ({ id: p.id, name: p.name }));
+    this.refs = { at: Date.now(), rows };
+    return rows;
+  }
+
   /** 'all', or the names of the projects the caller may read -- for records kept by project name (the Special Actions Log, people). */
   async allowedNames(claims: SessionClaims | null): Promise<'all' | Set<string>> {
     const ids = await this.allowedIds(claims);
@@ -117,12 +127,12 @@ export class ProjectAccessService {
     if (claims.roleKey === PORTAL_ROLE) return new Set();
     // Their People entries: the one their login was given from (People.userId), and any with the same email.
     const email = String(claims.email || '').trim().toLowerCase();
-    const linked = (await this.people.find())
-      .filter((p) => (p.userId && p.userId === claims.sub) || (!!email && String(p.email || '').trim().toLowerCase() === email))
-      .flatMap((p) => p.projects || []);
-    if (!linked.length) return new Set();
-    const names = new Set(linked);
-    return new Set((await this.projects.find()).filter((p) => names.has(p.name)).map((p) => p.id));
+    const mine = (await this.people.find())
+      .filter((p) => (p.userId && p.userId === claims.sub) || (!!email && String(p.email || '').trim().toLowerCase() === email));
+    if (!mine.length) return new Set();
+    // By project id (Nov 13); people not moved to ids yet are matched by name.
+    const projects = await this.projectRefs();
+    return new Set(mine.flatMap((p) => personProjectIds(p, projects)));
   }
 
   async canSee(claims: SessionClaims | null, projectId: number | null | undefined) {

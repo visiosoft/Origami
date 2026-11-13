@@ -1,9 +1,10 @@
+import { renamedPeople } from '../people/person-projects';
 import { BadRequestException, Injectable, Optional, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { cleanProjectCode, projectCodes } from '../database/serials';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotifyHub } from '../notifications/notify-hub.service';
-import { ProjectEntity } from '../database/entities';
+import { PersonEntity, ProjectEntity } from '../database/entities';
 
 @Injectable()
 export class ProjectsService implements OnApplicationBootstrap {
@@ -12,6 +13,7 @@ export class ProjectsService implements OnApplicationBootstrap {
   constructor(
     @InjectRepository(ProjectEntity) private readonly repo: Repository<ProjectEntity>,
     @Optional() private readonly hub?: NotifyHub,
+    @Optional() @InjectRepository(PersonEntity) private readonly people?: Repository<PersonEntity>,
   ) {}
 
   /** The "Leads" stage was renamed to "Kickoff" -- carry any row saved under the old name forward. */
@@ -95,9 +97,13 @@ export class ProjectsService implements OnApplicationBootstrap {
       }
       patch.code = code || null;
     }
-    const before = this.hub ? await this.repo.findOneBy({ id: Number(id) }) : null;
+    const before = this.hub || ('name' in patch && this.people) ? await this.repo.findOneBy({ id: Number(id) }) : null;
     await this.repo.update({ id: Number(id) }, patch as Partial<ProjectEntity>);
-    if (before) this.statusNotices(before, patch, actor);
+    if (before && this.hub) this.statusNotices(before, patch, actor);
+    // Renamed: everyone on it shows the new name; their link (the project id) doesn't change (Nov 13).
+    if (before && this.people && typeof patch.name === 'string' && patch.name !== before.name) {
+      for (const p of renamedPeople(await this.people.find(), before.id, before.name, patch.name)) await this.people.save(p);
+    }
     return this.findOne(id);
   }
 

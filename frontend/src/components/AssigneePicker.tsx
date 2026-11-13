@@ -1,3 +1,4 @@
+import { onProject } from '../data/people';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -17,7 +18,7 @@ export function useProjectUserIds(project?: string | null) {
     let live = true;
     loadPeople().then((people) => {
       if (!live) return;
-      const on = people.filter((p) => (p.projects || []).includes(project));
+      const on = people.filter((p) => onProject(p, { name: project }));
       const emails = new Set(on.map((p) => String(p.email || '').trim().toLowerCase()).filter(Boolean));
       setIds(new Set(users.filter((u) => on.some((p) => p.userId === u.id) || emails.has(String(u.email || '').trim().toLowerCase())).map((u) => u.id)));
     });

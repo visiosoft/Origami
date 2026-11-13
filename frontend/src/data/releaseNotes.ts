@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13g',
+    date: '2026-11-13',
+    title: 'People are linked to projects, not project names',
+    items: [
+      { area: 'People', kind: 'improved', text: 'Renaming a project no longer cuts people off it: clients, consultants and subs stay linked to the project itself, and their record shows the new name.' },
+      { area: 'People', kind: 'new', text: 'People still linked by name are listed with the project each name becomes, and names that match no project (to fix); “Link by project” moves them.', where: 'People' },
+      { area: 'People', kind: 'improved', text: '“Projects they can access” lists the real projects, so a new project can be picked before anyone is on it, and names no longer in use are marked ⚠.', where: 'People → a person → Projects they can access' },
+    ],
+  },
+  {
     id: '2026-11-13f',
     date: '2026-11-13',
     title: 'Estimating: bid packages for subs',

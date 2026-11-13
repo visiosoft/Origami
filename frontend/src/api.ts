@@ -451,6 +451,8 @@ export const api = {
     /** Possible duplicates of a contact being added (same name, email or phone), Expired first. */
     duplicates: (q: Record<string, string>) => request<DupMatch[]>(`/people/duplicates?${new URLSearchParams(q).toString()}`),
     /** Consultants saved with the firm as their name (Nov 10): what each would become, then apply. */
+    projectIdPlan: () => request<{ id: number; name: string; projects: { id: number; name: string }[]; unmatched: string[] }[]>('/people/project-ids', { cache: 'no-store' } as any),
+    applyProjectIds: () => request<{ applied: boolean; changed?: number }>('/people/project-ids', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     consultantFix: () => request<{ id: number; nameNow: string; nameAfter: string; company: string }[]>('/people/consultant-fix', { cache: 'no-store' } as any),
     applyConsultantFix: () => request<{ applied: boolean; changed?: number }>('/people/consultant-fix', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     /** Activity: logged interactions, RFPs / estimates, the company's point of contact, and alerts. */

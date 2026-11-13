@@ -41,11 +41,13 @@ describe('Nov 10 access rules', () => {
   });
 
   it('a contact is visible to an assigned-projects caller only if it’s theirs, our team, or on their projects', () => {
-    const mine = new Set(['Catherine bathrooms']);
-    expect(personVisible({ kind: 'Client', projects: ['Catherine bathrooms'] }, mine, 'U-G', true)).toBe(true);
-    expect(personVisible({ kind: 'Client', projects: ['Smith kitchen'] }, mine, 'U-G', true)).toBe(false);
-    expect(personVisible({ kind: 'Staff', projects: [] }, mine, 'U-G', true)).toBe(true);
-    expect(personVisible({ kind: 'Consultant', projects: [], userId: 'U-G' }, mine, 'U-G', true)).toBe(true);
+    const mine = new Set([1]);
+    const projects = [{ id: 1, name: 'Catherine bathrooms' }, { id: 2, name: 'Smith kitchen' }];
+    expect(personVisible({ kind: 'Client', projects: ['Catherine bathrooms'] }, mine, projects, 'U-G', true)).toBe(true);
+    expect(personVisible({ kind: 'Client', projects: ['Smith kitchen'] }, mine, projects, 'U-G', true)).toBe(false);
+    expect(personVisible({ kind: 'Client', projects: ['Old name'], projectIds: [1] }, mine, projects, 'U-G', true)).toBe(true);
+    expect(personVisible({ kind: 'Staff', projects: [] }, mine, projects, 'U-G', true)).toBe(true);
+    expect(personVisible({ kind: 'Consultant', projects: [], userId: 'U-G' }, mine, projects, 'U-G', true)).toBe(true);
   });
 
   it('opening another project’s contact by id is "not found"; lists and duplicates are narrowed and redacted', async () => {
@@ -53,7 +55,7 @@ describe('Nov 10 access rules', () => {
       { id: 1, kind: 'Client', projects: ['Catherine bathrooms'], phone: '650', email: 'c@x.test', name: 'Catherine' },
       { id: 2, kind: 'Client', projects: ['Smith kitchen'], phone: '408', email: 's@x.test', name: 'Sam Smith' },
     ];
-    const access = { allowedNames: async () => new Set(['Catherine bathrooms']), canView: async () => true, isStaff: () => true, seesClientContacts: () => false } as any;
+    const access = { allowedIds: async () => new Set([1]), projectRefs: async () => [{ id: 1, name: 'Catherine bathrooms' }, { id: 2, name: 'Smith kitchen' }], canView: async () => true, isStaff: () => true, seesClientContacts: () => false } as any;
     const repo = { findOne: async (o: any) => people.find((p) => p.id === o.where.id) || null, find: async () => people } as any;
     const scope = new PersonScope(access, repo);
     const run = (req: any, out: unknown) => (scope as any).run(ctx({ claims: super_, ...req }), handler(out));

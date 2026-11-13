@@ -85,6 +85,8 @@ export class PersonEntity {
   @Column() phone!: string;
   @Column() email!: string;
   @Column('simple-json') projects!: string[];
+  /** The projects they're on, by id (Nov 13): the record once set; `projects` keeps the names in step. Null = not moved yet (names are matched). */
+  @Column({ type: 'simple-json', nullable: true }) projectIds!: number[] | null;
   /** Which phases they work on, per project (Oct 26 review notes): { "HOM Cafe": ["design", "construction"] }. */
   @Column({ type: 'simple-json', nullable: true }) projectPhases!: Record<string, string[]> | null;
   @Column('int') openTasks!: number;

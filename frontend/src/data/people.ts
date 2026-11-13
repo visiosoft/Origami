@@ -20,6 +20,8 @@ export interface Person {
   phone: string;
   email: string;
   projects: string[];
+  /** Their projects by id (Nov 13); null until moved from names. */
+  projectIds?: number[] | null;
   /** Which phases they work on, per project: { "HOM Cafe": ["design"] }. */
   projectPhases?: Record<string, string[]> | null;
   openTasks: number;
@@ -157,4 +159,11 @@ export interface ContactActivity {
   lastInteractionAt: string | null;
   alerts: ContactAlert[];
   pointOfContact: { id: number; name: string } | null;
+}
+
+const normName = (s: unknown) => String(s ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+/** Is this person on that project? By id once their projects are moved to ids, else by name (case and spacing ignored). */
+export function onProject(p: { projects?: string[] | null; projectIds?: number[] | null }, project: { id?: number | null; name?: string | null }): boolean {
+  if (Array.isArray(p.projectIds) && project.id != null) return p.projectIds.includes(Number(project.id));
+  return (p.projects || []).some((n) => normName(n) === normName(project.name));
 }

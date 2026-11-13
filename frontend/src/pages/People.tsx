@@ -28,6 +28,7 @@ import {
 } from '../data/people';
 import { Skeleton } from '../components/Skeleton';
 import { ConsultantFix } from '../components/ConsultantFix';
+import { PeopleProjectFix } from '../components/PeopleProjectFix';
 
 const BG = 'var(--font-display)';
 // Internal people are split by level (Executive … Labor); everyone else by kind.
@@ -175,7 +176,10 @@ export function People() {
   useEffect(() => { reload(); }, []);
 
   const all: Person[] = people;
-  const projectNames: string[] = [];
+  // The real projects (Nov 13): a new project can be picked before anyone is on it, and old names don't linger.
+  const [realProjects, setRealProjects] = useState<string[]>([]);
+  useEffect(() => { (api.projects.list() as Promise<any>).then((l) => setRealProjects((Array.isArray(l) ? l : l?.rows || []).map((p: any) => String(p.name)).filter(Boolean).sort((a: string, b: string) => a.localeCompare(b)))).catch(() => undefined); }, []);
+  const projectNames: string[] = [...realProjects];
   all.forEach((p) => p.projects.forEach((pr) => { if (!projectNames.includes(pr)) projectNames.push(pr); }));
 
   let shown = all.filter((p) => matchKind(p, kf));
@@ -605,6 +609,7 @@ export function People() {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: isNew ? 16 : 12 }}>
       {canManage && <ConsultantFix onDone={reload} />}
+      {canManage && <PeopleProjectFix onDone={reload} />}
       {isNew ? newTop : <>
       {/* Stats */}
       {statsStrip}
@@ -848,9 +853,10 @@ export function People() {
               <div style={{ gridColumn: '1 / -1' }}>
                 {lbl('Projects they can access', np.projects.length ? np.projects.length + ' selected' : 'pick any number')}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {projectNames.map((o) => {
+                  {[...realProjects, ...np.projects.filter((o) => !realProjects.includes(o))].map((o) => {
                     const active = np.projects.includes(o);
-                    return <div key={o} onClick={() => setNp({ ...np, projects: active ? np.projects.filter((x) => x !== o) : [...np.projects, o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? 'var(--forest)' : 'var(--surface)', color: active ? 'white' : 'var(--muted)', border: '1px solid ' + (active ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o}</div>;
+                    const gone = realProjects.length > 0 && !realProjects.includes(o);
+                    return <div key={o} title={gone ? 'No project has this name now — untick it, or pick the right project' : undefined} onClick={() => setNp({ ...np, projects: active ? np.projects.filter((x) => x !== o) : [...np.projects, o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? 'var(--forest)' : 'var(--surface)', color: active ? 'white' : 'var(--muted)', border: '1px solid ' + (active ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o}{gone ? ' ⚠' : ''}</div>;
                   })}
                 </div>
               </div>

@@ -16,6 +16,8 @@ import { Perm, ManageWrites } from '../auth/guards/perm.guard';
 import { ProjectAccessService } from '../auth/project-access.service';
 import { PersonScope } from './person-scope.interceptor';
 
+import { personProjectIds } from './person-projects';
+
 const INTERNAL_KINDS = /^(staff|executive|super|foreman|labou?r|internal)$/i;
 
 @Tiers('internal')
@@ -36,14 +38,15 @@ export class PeopleController {
   @Perm('people', 'projects', 'tasks')
   @Get()
   async findAll(@Query('project') project?: string, @Claims() claims?: SessionClaims | null) {
-    const all = await this.peopleService.findAll(project);
+    const projects = await this.access.projectRefs();
+    const all = await this.peopleService.findAll(project, projects);
     // The whole directory for People; otherwise (and on "Assigned projects") the people on the caller's projects, and themselves.
-    const names = await this.access.allowedNames(claims ?? null);
-    const wholeDirectory = names === 'all' && (await this.access.canView(claims ?? null, 'people'));
+    const ids = await this.access.allowedIds(claims ?? null);
+    const wholeDirectory = ids === 'all' && (await this.access.canView(claims ?? null, 'people'));
     if (wholeDirectory) return all;
     // Our own team stays visible to staff; outside contacts (clients, subs, consultants, authorities, vendors)
-    // only when they're on one of the caller's projects (Nov 3 sync: George saw the whole address book).
-    const onMine = (p: any) => (p.projects || []).some((n: string) => names !== 'all' && names.has(n));
+    // only when they're on one of the caller's projects (Nov 3 sync: George saw the whole address book). By project id (Nov 13).
+    const onMine = (p: any) => ids !== 'all' && personProjectIds(p, projects).some((id) => ids.has(id));
     const staffView = this.access.isStaff(claims ?? null);
     return all.filter((p: any) => p.userId === claims?.sub || onMine(p) || (staffView && INTERNAL_KINDS.test(String(p.kind || ''))));
   }
@@ -92,6 +95,19 @@ export class PeopleController {
   async consultantFix(@Claims() claims?: SessionClaims | null) {
     if (!(await this.access.canManage(claims ?? null, 'people'))) throw new ForbiddenException('Your role doesn’t allow changing People.');
     return this.peopleService.consultantFixPlan();
+  }
+
+  /** People still linked to projects by name, and the project each name becomes (Nov 13). Read-only. */
+  @Get('project-ids')
+  async projectIds(@Claims() claims?: SessionClaims | null) {
+    if (!(await this.access.canManage(claims ?? null, 'people'))) throw new ForbiddenException('Your role doesn’t allow changing People.');
+    return this.peopleService.projectIdPlan();
+  }
+
+  @Post('project-ids')
+  async applyProjectIds(@Body() body: { confirm?: boolean }, @Claims() claims?: SessionClaims | null) {
+    if (!(await this.access.canManage(claims ?? null, 'people'))) throw new ForbiddenException('Your role doesn’t allow changing People.');
+    return this.peopleService.applyProjectIds(body?.confirm === true);
   }
 
   @Post('consultant-fix')

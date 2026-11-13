@@ -1,3 +1,4 @@
+import { onProject } from '../data/people';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
@@ -45,7 +46,7 @@ export function ClientDashboard() {
     [people, currentUser],
   );
   const projects = useMemo(
-    () => (outside ? allProjects : me ? allProjects.filter((p) => me.projects.includes(p.name)) : []),
+    () => (outside ? allProjects : me ? allProjects.filter((p) => onProject(me, p)) : []),
     [allProjects, me, outside],
   );
 

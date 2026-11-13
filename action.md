@@ -263,3 +263,9 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | O8 | K8: Letter tab, client's copy PDF (book type), Send to client (PDF + accept link, 60 days), public /sign-estimate (name + signature → Accepted, signed PDF to File Room Estimates, sender emailed), Excel export (exceljs) | ✅ |
 | O9 | K9: "Set up the job" (preview → confirm; contract value, budget per CSI with GR+GL under 01, draft subcontracts per named sub, payments → milestones; each step once, partial runs resumable) + "Mark accepted…" for paper acceptance | ✅ — a later revision can't be accepted once one is, so no "differences" path was needed |
 | O10 | K10: bid packages (allow-list snapshot of scope/line text + statements), invites by email with a private 90-day link, sub page /bid (per-line or total, notes, decline; updatable until chosen), leveling, "Use this bid" → draft revision by line + Contractors-page bids awarded / not awarded | ✅ — package files (drawings) not attached yet |
+
+## P. Batch 4, part 1 (Nov 13)
+
+| # | Item | Status |
+|---|------|--------|
+| P1 | People linked to projects by id (projectIds; names kept in step; rename sync; access, People scope, subs, notifications, guest access, client program check by id); preview + "Link by project" on People | ✅ built — press it on staging |

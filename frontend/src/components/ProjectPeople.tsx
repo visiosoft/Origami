@@ -32,7 +32,8 @@ export function ProjectPeople({ projectName }: { projectName: string }) {
   useEffect(() => {
     let live = true;
     (api.people.list(projectName) as Promise<any>)
-      .then((r) => { if (live) setPeople((Array.isArray(r) ? r : []).filter((p: Person) => (p.projects || []).includes(projectName))); })
+      // The server picks the people on this project (by id, Nov 13).
+      .then((r) => { if (live) setPeople(Array.isArray(r) ? r : []); })
       .catch(() => { if (live) setPeople([]); });
     return () => { live = false; };
   }, [projectName]);
