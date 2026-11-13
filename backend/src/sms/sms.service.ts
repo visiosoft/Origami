@@ -1,6 +1,15 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { SettingsService } from '../settings/settings.service';
+import { SmsPreferenceEntity } from '../database/entities';
 import { QUO_DEFAULT_FROM, sendViaQuo } from './quo';
+import { blocked, incomingText, keywordOf, prefsToken, readPrefsToken, verifyQuoSignature, withFooter, type TextCategory } from './opt-out';
+
+/** They asked not to get this kind of text (Nov 13). */
+export class OptedOutError extends BadRequestException {
+  constructor(to: string) { super(`${to} has opted out of these texts.`); }
+}
 
 const TWILIO_API = 'https://api.twilio.com/2010-04-01';
 
@@ -33,7 +42,63 @@ export function segmentsFor(body: string) {
 export class SmsService {
   private readonly log = new Logger('SmsService');
 
-  constructor(private readonly settings: SettingsService) {}
+  constructor(
+    private readonly settings: SettingsService,
+    @Optional() @InjectRepository(SmsPreferenceEntity) private readonly prefs?: Repository<SmsPreferenceEntity>,
+  ) {}
+
+  // ------------------------------------------------------------ opt-out and preferences (Nov 13 sync)
+  async preference(phone: string) {
+    const p = normalizeNumber(phone);
+    return p && this.prefs ? this.prefs.findOneBy({ phone: p }) : null;
+  }
+
+  /** Would a text of this kind to this number be blocked by their choice? */
+  async isBlocked(phone: string, category: TextCategory = 'updates') {
+    return blocked(await this.preference(phone), category);
+  }
+
+  async setPreference(phone: string, choice: { stopAll?: boolean; off?: string[] }, source: string) {
+    const p = normalizeNumber(phone);
+    if (!p || !this.prefs) throw new BadRequestException('Not a usable phone number.');
+    const off = (choice.off || []).filter((k) => k === 'updates' || k === 'announcements');
+    const row = { phone: p, stopAll: !!choice.stopAll, off, updatedAt: new Date().toISOString(), source };
+    await this.prefs.save(row);
+    this.log.log(`Text preferences for ${p}: ${row.stopAll ? 'all stopped' : off.length ? 'off: ' + off.join(', ') : 'all on'} (${source})`);
+    return row;
+  }
+
+  /** The link in every text's footer. */
+  async prefsUrl(phone: string) {
+    const p = normalizeNumber(phone);
+    return p ? `${(await this.settings.baseUrl()) || ''}/texts?t=${prefsToken(p, await this.settings.jwtSecret())}` : null;
+  }
+
+  /** The preferences page: who the link is for (masked) and what they get. */
+  async prefsFor(token: string) {
+    const phone = readPrefsToken(token, await this.settings.jwtSecret());
+    if (!phone) throw new BadRequestException('This link is not valid.');
+    const p = await this.preference(phone);
+    return { phone: phone.replace(/\d(?=\d{4})/g, '•'), stopAll: !!p?.stopAll, off: p?.off || [] };
+  }
+
+  async savePrefs(token: string, choice: { stopAll?: boolean; off?: string[] }) {
+    const phone = readPrefsToken(token, await this.settings.jwtSecret());
+    if (!phone) throw new BadRequestException('This link is not valid.');
+    await this.setPreference(phone, choice, 'page');
+    return this.prefsFor(token);
+  }
+
+  /** A Quo webhook: STOP / START replies change the sender's preference. Signed, or refused. */
+  async quoWebhook(headers: Record<string, any>, raw: string, payload: any) {
+    const secret = ((await this.settings.get('sms.quoWebhookSecret')) || process.env.QUO_WEBHOOK_SECRET || '').trim();
+    if (!verifyQuoSignature(headers, raw, secret)) throw new BadRequestException('Signature not valid.');
+    const msg = incomingText(payload);
+    const kw = msg && keywordOf(msg.text);
+    if (!msg || !kw) return { ok: true, action: null };
+    await this.setPreference(msg.from, kw === 'stop' ? { stopAll: true } : { stopAll: false, off: [] }, kw === 'stop' ? 'stop-reply' : 'start-reply');
+    return { ok: true, action: kw };
+  }
 
   /** Credentials, read fresh so a change in Settings takes effect immediately. */
   private async credentials() {
@@ -90,7 +155,8 @@ export class SmsService {
    * Both are plain REST calls, so no SDK -- a new dependency means an npm
    * install on every container start.
    */
-  async send(opts: { to: string; body: string }) {
+  async send(opts: { to: string; body: string; category?: TextCategory }) {
+    const category = opts.category || 'updates';
     const c = await this.credentials();
     if (!c.enabled) throw new BadRequestException('SMS is switched off in Settings.');
     if (!this.ready(c)) {
@@ -101,8 +167,10 @@ export class SmsService {
 
     const to = normalizeNumber(opts.to);
     if (!to || to.length < 8) throw new BadRequestException(`"${opts.to}" is not a usable phone number.`);
-    const body = (opts.body || '').trim();
-    if (!body) throw new BadRequestException('The message is empty.');
+    if (!(opts.body || '').trim()) throw new BadRequestException('The message is empty.');
+    // Their choice wins (Nov 13), and every text but a sign-in code says how to stop.
+    if (await this.isBlocked(to, category)) throw new OptedOutError(to);
+    const body = category === 'security' ? opts.body.trim() : withFooter(opts.body, await this.prefsUrl(to).catch(() => null));
     const meta = segmentsFor(body);
 
     if (c.provider === 'quo') {

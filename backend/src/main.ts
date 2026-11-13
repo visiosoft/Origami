@@ -12,7 +12,8 @@ import * as compression from 'compression';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody: the Quo webhook's signature is over the exact bytes sent (Nov 13).
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   app.setGlobalPrefix('api');
 

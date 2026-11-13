@@ -50,6 +50,8 @@ export interface WeeklyReport {
 }
 
 /** A checklist made in advance ("Pre-pour inspection"). */
+export type MassRecipient = { type: 'person' | 'lead'; id: string; name: string; phone: string; status: 'waiting' | 'sent' | 'failed' | 'skipped'; note?: string };
+
 export interface ChecklistTemplate { id: string; name: string; items: { item: string }[];
   /** Added by itself to new records: task, record, record:Observation, label:Safety. */
   autoFor?: string[]; createdById?: string; createdByName?: string; createdAt: string;
@@ -388,6 +390,15 @@ export const api = {
       request<import('./data/sms').SmsMessage[]>(`/sms/messages?entityType=${entityType}&entityId=${encodeURIComponent(entityId)}`),
     test: (to: string) =>
       request<{ sent: boolean; to: string }>('/sms/test', { method: 'POST', body: JSON.stringify({ to }) }),
+    /** Mass texts (Nov 13): who would get it, then send each their own. */
+    massPreview: (pick: { people?: number[]; leads?: string[] }) => request<MassRecipient[]>('/sms/mass/preview', { method: 'POST', body: JSON.stringify(pick) }),
+    massSend: (pick: { people?: number[]; leads?: string[] }, body: string) => request<{ id: string }>('/sms/mass', { method: 'POST', body: JSON.stringify({ ...pick, body }) }),
+    massList: () => request<{ id: string; at: string; body: string; byName: string | null; status: string; total: number; sent: number }[]>('/sms/mass', { cache: 'no-store' } as any),
+    massGet: (id: string) => request<{ id: string; status: string; body: string; recipients: MassRecipient[]; sent: number; failed: number; skipped: number; waiting: number }>(`/sms/mass/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
+    massStop: (id: string) => request(`/sms/mass/${encodeURIComponent(id)}/stop`, { method: 'POST' }),
+    /** The public text-settings page (link in every text's footer). */
+    prefs: (t: string) => request<{ phone: string; stopAll: boolean; off: string[] }>(`/texts/prefs?t=${encodeURIComponent(t)}`, { cache: 'no-store' } as any),
+    savePrefs: (t: string, choice: { stopAll: boolean; off: string[] }) => request<{ phone: string; stopAll: boolean; off: string[] }>('/texts/prefs', { method: 'PUT', body: JSON.stringify({ t, ...choice }) }),
   },
 
   notifications: {

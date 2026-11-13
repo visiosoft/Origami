@@ -165,6 +165,34 @@ export class ContactInteractionEntity {
  * A text sent to a client from a lead, contact or project (Oct 27 backlog item
  * 11), sent or failed -- the record's "Texts" list and an audit of what went out.
  */
+/** A phone number's text choices (Nov 13): STOP replies and the preferences page. */
+@Entity('sms_preferences')
+export class SmsPreferenceEntity {
+  /** E.164, e.g. +14155550100. */
+  @PrimaryColumn({ type: 'nvarchar', length: 20 }) phone!: string;
+  /** Stopped everything (STOP, or "no texts" on the page). */
+  @Column({ type: 'bit', default: false }) stopAll!: boolean;
+  /** Kinds turned off: updates | announcements. */
+  @Column({ type: 'simple-json', nullable: true }) off!: string[] | null;
+  @Column({ type: 'nvarchar', length: 40 }) updatedAt!: string;
+  /** stop-reply | start-reply | page | admin */
+  @Column({ type: 'nvarchar', length: 20 }) source!: string;
+}
+
+/** A mass text (Nov 13): one message sent to each person on their own. */
+@Entity('sms_batches')
+export class SmsBatchEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 40 }) at!: string;
+  @Column({ type: 'nvarchar', length: 2000 }) body!: string;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) byId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) byName!: string | null;
+  /** queued | sending | done | stopped */
+  @Column({ type: 'nvarchar', length: 12 }) status!: string;
+  /** Each recipient: who, their number, and what happened. */
+  @Column({ type: 'simple-json' }) recipients!: { type: 'person' | 'lead'; id: string; name: string; phone: string; status: 'waiting' | 'sent' | 'failed' | 'skipped'; note?: string }[];
+}
+
 @Entity('sms_messages')
 @Index('IX_sms_messages_entity', ['entityType', 'entityId'])
 export class SmsMessageEntity {

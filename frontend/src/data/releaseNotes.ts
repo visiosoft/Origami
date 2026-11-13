@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13o',
+    date: '2026-11-13',
+    title: 'Texts: opt out, settings link and mass texts',
+    items: [
+      { area: 'Texts', kind: 'new', text: 'Every text now ends with “Reply STOP to opt out” and a link where the person chooses which texts they get (project updates, announcements) or stops them all. People who opted out aren’t texted.' },
+      { area: 'Texts', kind: 'new', text: 'STOP and START replies are picked up from Quo once its webhook is added (Settings → SMS shows the address and takes the signing secret).', where: 'Settings → SMS' },
+      { area: 'People', kind: 'new', text: 'Mass texts: pick people (by project, company or kind) and CRM leads (by stage), write one message with {first name}, see who is skipped and why, then each person gets their own text — never a group thread. Progress and past sends are kept.', where: 'People → Mass text' },
+    ],
+  },
+  {
     id: '2026-11-13n',
     date: '2026-11-13',
     title: 'Projects tidy themselves; task lists stay current',

@@ -55,6 +55,8 @@ const ConsultantMatrix = page(() => import('./pages/ConsultantMatrix'), 'Consult
 const MyCalendar = page(() => import('./pages/MyCalendar'), 'MyCalendar');
 const SignProposal = page(() => import('./pages/SignProposal'), 'SignProposal');
 const SignEstimate = page(() => import('./pages/SignEstimate'), 'SignEstimate');
+const TextPrefs = page(() => import('./pages/TextPrefs'), 'TextPrefs');
+const MassTexts = page(() => import('./pages/MassTexts'), 'MassTexts');
 const SubBid = page(() => import('./pages/SubBid'), 'SubBid');
 const SignContract = page(() => import('./pages/SignContract'), 'SignContract');
 const Contracts = page(() => import('./pages/Contracts'), 'Contracts');
@@ -113,6 +115,8 @@ export default function App() {
       <Route path="/sign-proposal" element={<SignProposal />} />
       {/* Public on purpose — a client accepts an estimate from the emailed link, no account (K8). */}
       <Route path="/sign-estimate" element={<SignEstimate />} />
+      {/* Public on purpose — the text settings link at the foot of every text (Nov 13). */}
+      <Route path="/texts" element={<TextPrefs />} />
       {/* Public on purpose — a sub prices a bid package from the emailed link, no account (K10). */}
       <Route path="/bid" element={<SubBid />} />
       <Route path="/sign-contract" element={<SignContract />} />
@@ -131,6 +135,7 @@ export default function App() {
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/people" element={<People />} />
+        <Route path="/mass-texts" element={<MassTexts />} />
         <Route path="/tasks" element={<TasksRouter />} />
         <Route path="/requests" element={<TasksRouter initialMode="log" />} />
         <Route path="/settings" element={<Settings />} />

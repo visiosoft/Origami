@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { MassTextsService, type Pick } from './mass-texts.service';
 import { Claims } from '../auth/guards/claims.decorator';
 import type { SessionClaims } from '../auth/crypto.util';
 import { SmsLogService, type TextInput } from './sms-log.service';
@@ -11,7 +12,52 @@ import { ProjectAccessService } from '../auth/project-access.service';
 @Tiers('internal')
 @Controller('sms')
 export class SmsController {
-  constructor(private readonly sms: SmsService, private readonly texts: SmsLogService, private readonly access: ProjectAccessService) {}
+  constructor(private readonly sms: SmsService, private readonly texts: SmsLogService, private readonly access: ProjectAccessService, private readonly mass: MassTextsService) {}
+
+  // ------------------------------------------------------------ mass texts (Nov 13)
+  /** People who change People may mass-text; picking CRM leads also needs sight of client contacts. */
+  private async massAllowed(claims: SessionClaims | null | undefined, pick?: Pick) {
+    if (!(await this.access.canManage(claims ?? null, 'people'))) throw new ForbiddenException('Your role doesn’t allow mass texts.');
+    if (pick?.leads?.length && !this.access.seesClientContacts(claims ?? null)) throw new ForbiddenException('Texts with clients are kept with the office.');
+  }
+
+  @Post('mass/preview')
+  async massPreview(@Body() body: Pick, @Claims() claims?: SessionClaims | null) {
+    await this.massAllowed(claims, body);
+    return this.mass.preview(body || {});
+  }
+
+  @Post('mass')
+  async massSend(@Body() body: Pick & { body: string }, @Claims() claims?: SessionClaims | null) {
+    await this.massAllowed(claims, body);
+    assertFilled(body?.body);
+    return this.mass.start(body || {}, body?.body, claims ? { id: claims.sub, name: claims.name } : null);
+  }
+
+  @Get('mass')
+  async massList(@Claims() claims?: SessionClaims | null) {
+    await this.massAllowed(claims);
+    return this.mass.list();
+  }
+
+  @Get('mass/:id')
+  async massGet(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.massAllowed(claims);
+    return this.mass.get(id);
+  }
+
+  @Post('mass/:id/stop')
+  async massStop(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.massAllowed(claims);
+    return this.mass.stop(id);
+  }
+
+  /** An admin records a number's choice (e.g. someone asked by phone to stop). */
+  @Roles('admin')
+  @Post('opt-out')
+  optOut(@Body() body: { phone: string; stopAll?: boolean; off?: string[] }) {
+    return this.sms.setPreference(body?.phone, { stopAll: body?.stopAll !== false, off: body?.off }, 'admin');
+  }
 
   /** Whether SMS is set up, without returning the auth token. */
   @Get('status')

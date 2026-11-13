@@ -550,6 +550,7 @@ export function People() {
             <div key={v[0]} onClick={() => setView(v[0])} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', background: view === v[0] ? 'var(--seg-on)' : 'transparent', color: view === v[0] ? 'var(--ink)' : 'var(--body)' }}>{v[1]}</div>
           ))}
         </div>
+        {canManage && <button type="button" className="pp-btn is-ghost" onClick={() => navigate('/mass-texts')}>Mass text</button>}
         {canManage && <button type="button" className="pp-btn is-ghost" onClick={() => setImporting(true)}>Import</button>}
         {canManage && (
           <button type="button" className="pp-btn is-dark" onClick={openNew}>
@@ -650,7 +651,8 @@ export function People() {
       {/* Count + New */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>Showing {shown.length} of {all.length} records{pf === 'All projects' ? '' : ' on ' + pf}</div>
-        {canManage && <div onClick={() => setImporting(true)} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--surface)' }}>Import contacts</div>}
+        {canManage && <div role="button" onClick={() => navigate('/mass-texts')} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--surface)' }}>Mass text</div>}
+        {canManage && <div onClick={() => setImporting(true)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--surface)' }}>Import contacts</div>}
         {importing && <PeopleImport onClose={() => setImporting(false)} onDone={() => reload()} />}
         {canManage && (
           <div onClick={openNew} style={{ marginLeft: canManage ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(var(--rgb-forest), 0.22)' }}>
