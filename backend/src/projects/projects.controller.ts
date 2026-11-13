@@ -25,7 +25,10 @@ export class ProjectsController {
   @Get(':id')
   async findOne(@Param('id') id: string, @Claims() claims: SessionClaims | null) {
     await this.access.assert(claims, Number(id));
-    return this.projectsService.findOne(id);
+    const p = await this.projectsService.findOne(id);
+    // As in the list: the contract amount only for roles that see project financials (K7).
+    if (await this.access.canView(claims, 'fin_project', 'fin_business')) return p;
+    return { ...p, contractAmt: null };
   }
 
   @Tiers('internal')

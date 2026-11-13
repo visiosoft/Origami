@@ -139,7 +139,7 @@ describe('estimates', () => {
   it('view-only roles can read but not edit; others are refused', async () => {
     const viewer = setup({ estimating: { view: true } });
     await expect(viewer.svc.create(7, {}, actor)).rejects.toThrow(/doesn't allow editing/);
-    expect((await viewer.svc.list(7, actor)).rights).toEqual({ view: true, edit: false });
+    expect((await viewer.svc.list(7, actor)).rights).toMatchObject({ view: true, edit: false, money: { full: true } });
     const none = setup({ tasks: { view: true } });
     await expect(none.svc.list(7, actor)).rejects.toThrow(/doesn't include estimates/);
   });
@@ -254,6 +254,25 @@ describe('estimates', () => {
     expect(r3.lines[0].cost).toBe(2000);
     expect(log).toContain('restored');
     await expect(svc.revise(7, e.estimate.id, actor)).rejects.toThrow(/already has a draft/);
+  });
+
+  it('K7: a role without markup or totals gets them blanked and cannot overwrite them', async () => {
+    const full = setup();
+    const e = await full.svc.create(7, {}, actor);
+    await full.svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    const superPerms = { estimating: { view: true, manage: true }, 'fin:line_items_amount': { view: true }, 'fin:line_item_total': { view: true }, 'fin:markups': { view: false }, 'fin:total_construction': { view: false } };
+    (full.svc as any).access.permissionsOf = async () => superPerms;
+    const seen = await full.svc.get(7, e.estimate.id, actor);
+    expect(seen.lines[0]).toMatchObject({ cost: 2000, markupAmt: null });
+    expect(seen.result.totals.totalProject).toBeNull();
+    expect((await full.svc.list(7, actor)).rows[0].totalProject).toBeNull();
+    const back = { ...sheet(seen.estimate.version), lines: sheet(0).lines.map((l: any) => ({ ...l, markupAmt: null, cost: 1 })) };
+    await full.svc.saveSheet(7, e.estimate.id, back, actor);
+    (full.svc as any).access.permissionsOf = async () => 'all';
+    const after = await full.svc.get(7, e.estimate.id, actor);
+    expect(after.lines[0]).toMatchObject({ cost: 2000, markupAmt: 640 });
+    (full.svc as any).access.permissionsOf = async () => superPerms;
+    await expect(full.svc.saveSettings(7, e.estimate.id, { version: after.estimate.version, profitPct: 50 }, actor)).rejects.toThrow(/amounts/);
   });
 });
 

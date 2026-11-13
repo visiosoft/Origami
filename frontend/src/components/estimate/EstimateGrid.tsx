@@ -3,7 +3,12 @@ import { createPortal } from 'react-dom';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { useCsiCodes } from '../CsiSelect';
-import { autoStrategy, computeEstimate, explainTotal, FORMULAS, money, NOTE_LABEL, type EstSettings, type FormulaId } from '../../data/estimateCalc';
+import { autoStrategy, computeEstimate, explainTotal, FORMULAS, money as fmtMoney, NOTE_LABEL, type EstimateResult, type EstSettings, type FormulaId } from '../../data/estimateCalc';
+
+/** K7: which estimate money a role may see (the server decides; see backend finance/estimate.money.ts). */
+interface MoneyView { full: boolean; cost: boolean; markup: boolean; price: boolean; subtotal: boolean; grDetail: boolean; grTotal: boolean; profit: boolean; contingency: boolean; total: boolean }
+/** Amounts the caller can't see come as null and show as a dash. */
+const money = (c: number | null | undefined) => (c == null ? '—' : fmtMoney(c));
 import { evaluateRow, formulaProblem, type Value } from '../../data/estimateFormula';
 import {
   BANDS, cellText, columnDefs, COLUMN_TYPES, customKey, effectiveColumns, History, insertStatements, LINE_COLS, lineNumbers, moveLine, newGr, newLine, newScope, parseTsv, pasteBlock, setCell, toTsv,
@@ -93,6 +98,10 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     settings: (d: unknown) => api.finance.saveEstimate(projectId, estimateId, d),
   }), [isTemplate, projectId, estimateId]);
   const [viewW, setViewW] = useState(0);
+  // K7: which estimate money this role may see (from User Access & Roles); null = everything.
+  const [moneyRights, setMoneyRights] = useState<MoneyView | null>(null);
+  const [serverResult, setServerResult] = useState<EstimateResult | null>(null);
+  const restricted = !!moneyRights && !moneyRights.full;
   // Wide screens: GR, General Liability and the totals sit in a panel beside the sheet (Nov 13); it can be closed.
   const [panel, setPanel] = useState(loadPanel);
   const togglePanel = () => setPanel((v) => { const n = v === 'side' ? 'closed' : 'side'; try { localStorage.setItem(PANEL_KEY, n); } catch { /* private mode */ } return n; });
@@ -110,6 +119,8 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     versionRef.current = r.estimate.version;
     setLocked(!!r.locked);
     setCanEdit(!!r.rights?.edit);
+    setMoneyRights(r.rights?.money || null);
+    setServerResult(r.result || null);
     onChanged?.(r.estimate);
   }, [onChanged]);
   useEffect(() => {
@@ -209,14 +220,16 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
 
   // ------------------------------------------------------------------ figures
   const settings: EstSettings = head ? { grPct: head.grPct, profitPct: head.profitPct, contingencyPct: head.contingencyPct, discount: head.discount, designCost: head.designCost, glPct: head.glPct ?? null } : { grPct: 0, profitPct: 0, contingencyPct: 0 };
-  const result = useMemo(() => computeEstimate({
+  const computed = useMemo(() => computeEstimate({
     settings,
     scopes: sheet.scopes.map((s) => ({ id: s.id, factor: s.factor })),
     lines: sheet.lines,
     gr: sheet.gr,
     payments: head?.payments || [],
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [sheet, head?.grPct, head?.profitPct, head?.contingencyPct, head?.discount, head?.designCost, head?.payments]);
+  }), [sheet, head?.grPct, head?.profitPct, head?.contingencyPct, head?.discount, head?.designCost, head?.glPct, head?.payments]);
+  // A role that can't see all the money gets the server's figures (with what it can't see left out), not the live sums.
+  const result: EstimateResult = restricted && serverResult ? serverResult : computed;
   const lineOut = useMemo(() => new Map(result.lines.map((l) => [l.id, l])), [result]);
   const scopeOut = useMemo(() => new Map(result.scopes.map((s) => [s.id, s])), [result]);
   const nums = useMemo(() => lineNumbers(sheet), [sheet]);
@@ -225,7 +238,9 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
 
   // ------------------------------------------------------------------ columns and the rows on screen
   const allCols = useMemo(() => effectiveColumns(head?.columns), [head?.columns]);
-  const cols = useMemo(() => allCols.filter((c) => !c.hidden && !hidden.includes(c.band)), [allCols, hidden]);
+  const cols = useMemo(() => allCols.filter((c) => !c.hidden && !hidden.includes(c.band))
+    .filter((c) => !restricted || !((c.key === 'cost' && !moneyRights!.cost) || ((c.key === 'markupAmt' || c.key === 'markupPct') && !moneyRights!.markup) || ((c.key === 'price' || c.key === 'high') && !moneyRights!.price)))
+    .map((c) => (restricted && ['cost', 'markupAmt', 'markupPct', 'pricing'].includes(c.key) ? { ...c, locked: true } : c)), [allCols, hidden, restricted, moneyRights]);
   const saveCols = (next: (GridCol & { hidden?: boolean })[]) => saveHead({ columns: columnDefs(next) });
   const moveCol = (key: string, dir: -1 | 1) => {
     const vis = cols.map((c) => c.key); const i = vis.indexOf(key); const j = i + dir;
@@ -353,7 +368,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
     if (!editable) return;
     const line = sheetRef.current.lines.find((l) => l.id === s.lineId);
     const col = cols[s.col];
-    if (!line || !col || col.kind === 'calc' || (line.kind !== 'item' && !col.notes)) return;
+    if (!line || !col || col.kind === 'calc' || col.locked || (line.kind !== 'item' && !col.notes)) return;
     if (col.kind === 'check') { writeCell(line.id, col, line.custom?.[col.key] === true ? '' : 'yes'); return; }
     setEditing({ sel: s, value: initial ?? cellText(line, col) });
   };
@@ -558,7 +573,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
         </label>}
         <button type="button" className={`eg-btn${showCols ? ' is-on' : ''}`} onClick={(e) => { e.stopPropagation(); setShowCols((v) => !v); }}>Columns ▾</button>
         <button type="button" className={`eg-btn eg-side-toggle${panel === 'side' ? ' is-on' : ''}`} aria-pressed={panel === 'side'} onClick={togglePanel} title="General Requirements, General Liability and totals beside the sheet">
-          {panel === 'side' ? 'Totals panel ⇥' : <>Totals <b style={{ fontVariantNumeric: 'tabular-nums' }}>{money(result.totals.totalProject)}</b> ⇤</>}
+          {panel === 'side' || result.totals.totalProject == null ? 'Totals panel ⇥' : <>Totals <b style={{ fontVariantNumeric: 'tabular-nums' }}>{money(result.totals.totalProject)}</b> ⇤</>}
         </button>
         <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }} aria-label="Column groups">
           {BANDS.filter((b) => b.key !== 'prime').map((b) => (
@@ -613,10 +628,10 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
                       </select>
                       <input className="eg-scope-title" aria-label="Scope name" disabled={!editable} defaultValue={s.title || ''} key={`t-${s.id}-${s.title}`} placeholder="Scope name" onBlur={(e) => e.target.value !== (s.title || '') && updateScope(s.id, { title: e.target.value })} />
                       {!hidden.includes('precon') && <label className="eg-scope-fig">Factor <input aria-label="Precon factor" disabled={!editable} style={{ width: 64 }} inputMode="decimal" defaultValue={s.factor ?? ''} key={`f-${s.id}-${s.factor}`} placeholder="1.00" onBlur={(e) => { const v = e.target.value.trim(); const n = v ? Number(v) : null; if (n != null && (!Number.isFinite(n) || n <= 0)) { toast('The factor is a multiplier, like 1.15.'); return; } if (n !== (s.factor ?? null)) updateScope(s.id, { factor: n }); }} /><Info text={FORMULAS.F4.text} onTip={setTip} /></label>}
-                      <span className="eg-scope-fig">Sub cost <b>{money(so?.cost ?? 0)}</b></span>
-                      <span className="eg-scope-fig">Markup <b>{money(so?.markup ?? 0)}</b>{so?.profitPct != null && <> · <b>{Math.round(so.profitPct * 10) / 10}%</b></>}<Info text={`${FORMULAS.F6.label} = ${FORMULAS.F6.text}`} onTip={setTip} /></span>
-                      {!hidden.includes('precon') && (s.factor ?? 1) !== 1 && <span className="eg-scope-fig">Higher end <b>{money(so?.high ?? 0)}</b></span>}
-                      <span className="eg-scope-fig">Scope total <b>{money(so?.total ?? 0)}</b><Info text={`${FORMULAS.F5.label} = ${FORMULAS.F5.text}`} onTip={setTip} /></span>
+                      {so?.cost !== null && <span className="eg-scope-fig">Sub cost <b>{money(so?.cost ?? 0)}</b></span>}
+                      {so?.markup !== null && <span className="eg-scope-fig">Markup <b>{money(so?.markup ?? 0)}</b>{so?.profitPct != null && <> · <b>{Math.round(so.profitPct * 10) / 10}%</b></>}<Info text={`${FORMULAS.F6.label} = ${FORMULAS.F6.text}`} onTip={setTip} /></span>}
+                      {!hidden.includes('precon') && (s.factor ?? 1) !== 1 && so?.high !== null && <span className="eg-scope-fig">Higher end <b>{money(so?.high ?? 0)}</b></span>}
+                      {so?.total !== null && <span className="eg-scope-fig">Scope total <b>{money(so?.total ?? 0)}</b><Info text={`${FORMULAS.F5.label} = ${FORMULAS.F5.text}`} onTip={setTip} /></span>}
                       {editable && <button type="button" className="eg-btn" aria-label="Scope actions" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setMenu({ scopeId: s.id, x: Math.min(r.left, window.innerWidth - 220), y: r.bottom + 4 }); }}>⋯</button>}
                     </div>
                   </td>
@@ -648,10 +663,11 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
               <td className="eg-sticky eg-num" />
               <td colSpan={cols.length}>
                 <div className="eg-scope-row">
-                  <span>Subtotal <b>{money(t.subtotal)}</b><Info text={explain('F8')} onTip={setTip} /></span>
-                  <span className="eg-scope-fig">Subcontracted total <b>{money(t.subcontracted)}</b><Info text={explain('F7')} onTip={setTip} /></span>
-                  <span className="eg-scope-fig">Markup total <b>{money(t.markup)}</b></span>
-                  {!hidden.includes('precon') && <span className="eg-scope-fig">Higher end <b>{money(t.high)}</b></span>}
+                  {t.subtotal !== null && <span>Subtotal <b>{money(t.subtotal)}</b><Info text={explain('F8')} onTip={setTip} /></span>}
+                  {t.subcontracted !== null && <span className="eg-scope-fig">Subcontracted total <b>{money(t.subcontracted)}</b><Info text={explain('F7')} onTip={setTip} /></span>}
+                  {t.markup !== null && <span className="eg-scope-fig">Markup total <b>{money(t.markup)}</b></span>}
+                  {restricted && <span className="eg-scope-fig">Some amounts aren’t shown for your role, and amounts can’t be changed.</span>}
+                  {!hidden.includes('precon') && t.high !== null && <span className="eg-scope-fig">Higher end <b>{money(t.high)}</b></span>}
                 </div>
               </td>
             </tr>
@@ -660,7 +676,7 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
         {editorFor()}
       </div>
 
-      <BelowTheLine head={head} sheet={sheet} result={result} editable={editable} explain={explain} onTip={setTip} saveHead={saveHead} updateGr={updateGr}
+      <BelowTheLine head={head} sheet={sheet} result={result} editable={editable} see={moneyRights} explain={explain} onTip={setTip} saveHead={saveHead} updateGr={updateGr}
         addGr={() => commit({ ...sheetRef.current, gr: [...sheetRef.current.gr, newGr()] })}
         removeGr={(id) => commit({ ...sheetRef.current, gr: sheetRef.current.gr.filter((g) => g.id !== id) })} />
       </div>
@@ -758,11 +774,15 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
 }
 
 /** General Requirements, profit, contingency, discount, design cost and the payment rows -- every figure with its formula. */
-function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead, updateGr, addGr, removeGr }: {
+function BelowTheLine({ head, sheet, result, editable: canEditAll, see, explain, onTip, saveHead, updateGr, addGr, removeGr }: {
+  see: MoneyView | null;
   head: EstimateHeader; sheet: Sheet; result: ReturnType<typeof computeEstimate>; editable: boolean; explain: (id: FormulaId) => string; onTip: (t: Tip) => void;
   saveHead: (p: Partial<EstimateHeader>) => void; updateGr: (id: string, p: Partial<EstGr>) => void; addGr: () => void; removeGr: (id: string) => void;
 }) {
   const t = result.totals;
+  const v = see || { full: true, cost: true, markup: true, price: true, subtotal: true, grDetail: true, grTotal: true, profit: true, contingency: true, total: true };
+  // Amounts below the line are changed only by roles that see all the money (K7).
+  const editable = canEditAll && v.full;
   const grOut = new Map(result.gr.map((g) => [g.id, g]));
   const num = (v: string) => (v.trim() === '' ? null : Number(v.replace(/[$,%\s]/g, '')));
   const pctInput = (key: 'grPct' | 'profitPct' | 'contingencyPct') => (
@@ -784,6 +804,7 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
   const setPayments = (p: typeof payments) => saveHead({ payments: p });
   return (
     <div className="eg-below">
+      {v.grDetail && (
       <div className="eg-card">
         <h3>General Requirements <span className="eg-scope-fig">Below the line</span>
           <label className="eg-scope-fig" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
@@ -812,7 +833,9 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
         </div>
         {editable && <div className="eg-add-row" style={{ position: 'static', paddingLeft: 0 }}><button type="button" onClick={addGr}>+ General requirement</button></div>}
       </div>
+      )}
 
+      {v.grTotal && (
       <div className="eg-card">
         <h3>General Liability <span className="eg-scope-fig">{t.gl ? <>Counted in the build cost</> : <>Off — no rate</>}</span></h3>
         <div className="eg-totals">
@@ -827,14 +850,15 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
         </div>
         {sheet.gr.some((g) => /general liability/i.test(g.title) && g.included) && !!t.gl && <div className="eg-error" style={{ marginTop: 8 }}>A General Requirements line is also called General Liability — exclude it so GL isn’t counted twice.</div>}
       </div>
+      )}
 
       <div className="eg-card">
         <h3>Totals</h3>
         {t.error && <div className="eg-error">{t.error}</div>}
         <div className="eg-totals">
-          {row('Subtotal', 'F8', t.subtotal)}
-          {row('General Requirements total', 'F10', t.grTotal, t.effectiveGrPct != null ? <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{Math.round(t.effectiveGrPct * 10) / 10}%</span> : null)}
-          <div className="eg-trow">
+          {t.subtotal !== null && row('Subtotal', 'F8', t.subtotal)}
+          {t.grTotal !== null && row('General Requirements total', 'F10', t.grTotal, t.effectiveGrPct != null ? <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{Math.round(t.effectiveGrPct * 10) / 10}%</span> : null)}
+          {t.grTotal !== null && <><div className="eg-trow">
             <span className="lbl">Suggested GR max<Info text={explain('F11')} onTip={onTip} /></span>
             <span>{pctInput('grPct')}</span>
             <span className="val">{money(t.grSuggested)}</span>
@@ -842,10 +866,11 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
           <div className="eg-trow">
             <span className="lbl">GR balance left<Info text={explain('F12')} onTip={onTip} /></span><span />
             <span className={`val${t.grBalance < 0 ? ' warn' : ''}`}>{t.grBalance < 0 ? `over by ${money(-t.grBalance)}` : money(t.grBalance)}</span>
-          </div>
+          </div></>}
           {!!t.gl && row('General Liability', 'F20', t.gl)}
-          {row('Profit', 'F14', t.profit, pctInput('profitPct'))}
-          {row('Contractor contingency', 'F15', t.contingency, pctInput('contingencyPct'))}
+          {t.profit !== null && row('Profit', 'F14', t.profit, pctInput('profitPct'))}
+          {t.contingency !== null && row('Contractor contingency', 'F15', t.contingency, pctInput('contingencyPct'))}
+          {t.totalBuild !== null && <>
           {row('Total build cost', 'F13', t.totalBuild, null, 'is-big')}
           <div className="eg-trow">
             <span className="lbl">Discounts, credits<label className="show"><input type="checkbox" disabled={!editable} checked={head.showDiscount} onChange={(e) => saveHead({ showDiscount: e.target.checked })} />show client</label></span>
@@ -859,11 +884,13 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
             <span className="val">{money(t.designCost)}</span>
           </div>
           {row('Total project cost', 'F17', t.totalProject, null, 'is-big')}
+          </>}
         </div>
-        <div className="eg-split" aria-label="Cost split">
+        {t.split && <div className="eg-split" aria-label="Cost split">
           <span>Fixed <b>{money(t.split.fixed)}</b></span><span>Allowances <b>{money(t.split.allowance)}</b></span><span>T&amp;M <b>{money(t.split.tm)}</b></span><span>Contingency <b>{money(t.split.contingency)}</b></span><span>Soft cost <b>{money(t.split.soft)}</b></span>
-        </div>
+        </div>}
 
+        {v.total && <>
         <h3 style={{ marginTop: 16 }}>Payment schedule <span className="eg-scope-fig">{t.unscheduled !== 0 && payments.length ? <>Not scheduled <b>{money(t.unscheduled)}</b></> : null}</span></h3>
         <div className="eg-totals">
           {payments.map((p, i) => (
@@ -877,6 +904,7 @@ function BelowTheLine({ head, sheet, result, editable, explain, onTip, saveHead,
           ))}
         </div>
         {editable && <div className="eg-add-row" style={{ position: 'static', paddingLeft: 0 }}><button type="button" onClick={() => setPayments([...payments, { id: `p${Date.now().toString(36)}`, label: `Pmt ${payments.length + 1}`, mode: 'pct', value: 0 }])}>+ Payment</button></div>}
+        </>}
       </div>
     </div>
   );

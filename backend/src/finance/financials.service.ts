@@ -24,6 +24,12 @@ export const REIMB_MODULE = 'reimbursement';
  * A role that has never had a key set falls back to Project Financials -> manage, so
  * roles set up before these existed keep working as they did.
  */
+/** Book types (K7): each follows a client role's money view in User Access & Roles. */
+export const BOOK_TYPES = ['open', 'modified', 'closed', 'lump_sum'] as const;
+export const BOOK_ROLE: Record<(typeof BOOK_TYPES)[number], string> = {
+  open: 'r_client_open_book', modified: 'r_client_modified_open_book', closed: 'r_client_closed_book', lump_sum: 'r_client_lump_sum_closed_book',
+};
+
 export const FIN_ACTIONS = {
   prepareInvoice: 'finx_prepare_invoice',
   issueInvoice: 'finx_issue_invoice',
@@ -192,7 +198,7 @@ export class FinancialsService {
   /** Settings row, or unsaved defaults (version 0) for a project not set up yet. */
   async settingsFor(projectId: number) {
     const row = await this.pfin.findOneBy({ projectId });
-    return { row, exists: !!row, value: row || ({ projectId, currency: 'USD', fxRate: 1, originalContractValue: 0, originalBudget: null, retentionPct: 0, taxPct: 0, reimbursableMarkupPct: 0, laborBurdenPct: 0, paymentTermsDays: 30, requireProgressApproval: false, reportedProgress: 0, approvedProgress: 0, version: 0 } as unknown as ProjectFinancialEntity) };
+    return { row, exists: !!row, value: row || ({ projectId, currency: 'USD', fxRate: 1, originalContractValue: 0, originalBudget: null, retentionPct: 0, taxPct: 0, reimbursableMarkupPct: 0, laborBurdenPct: 0, paymentTermsDays: 30, requireProgressApproval: false, bookType: 'closed', reportedProgress: 0, approvedProgress: 0, version: 0 } as unknown as ProjectFinancialEntity) };
   }
 
   /** Everything the schedule of values is computed from. */
@@ -285,6 +291,10 @@ export class FinancialsService {
       patch.paymentTermsDays = d;
     }
     if (dto.requireProgressApproval !== undefined) patch.requireProgressApproval = !!dto.requireProgressApproval;
+    if (dto.bookType !== undefined) {
+      if (!(BOOK_TYPES as readonly string[]).includes(String(dto.bookType))) throw new BadRequestException('Book type is Open, Modified open, Closed or Lump sum closed.');
+      patch.bookType = String(dto.bookType);
+    }
     for (const k of ['billToName', 'billToEmail', 'billToAddress', 'contractNumber', 'poNumber', 'notes'] as const) if (dto[k] !== undefined) (patch as any)[k] = String(dto[k] ?? '').trim() || null;
 
     // The contract can't drop below what's already allocated to milestones and tasks.

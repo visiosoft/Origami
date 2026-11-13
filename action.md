@@ -204,7 +204,7 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | K5a | Reuse: named templates (Save as template, Estimating → Templates), new estimate from a template or any estimate you can see, “+ Scopes from…”; everything copied | ✅ |
 | K5 | Custom columns (text, number, $, %, date, choice, checkbox, formula) with Excel-style formulas; rename/move/resize/hide; internal unless shown to clients/subs; company default template for blank estimates | ✅ (custom columns on the GR table: later if wanted) |
 | K6 | Standard statements per CSI code (library on Estimating; pick from a note row; “Save this text…”), plus “used before” suggestions from past estimates. Seeded with the 2 reusable lines from the sheet — its “Standard Verbage” column is shifted against its codes, so not imported | ✅ |
-| K7 | Who sees what (money data types × role, book type per project), enforced on the server | ⏳ |
+| K7 | Who sees what (money data types × role, book type per project), enforced on the server | ✅ Nov 13 — uses the access sheet's financial data types; book type = one of the four client roles |
 | K8 | Estimate letter PDF, email, e-sign; .xlsx export | ⏳ |
 | K9 | On acceptance: SOV, budget per CSI, draft subcontracts, contract value, billing schedule | ⏳ |
 | K10 | Sub bid packages (without our amounts) | ⏳ |
@@ -259,3 +259,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | O4 | GR / GL / totals panel beside the sheet on wide screens (closable; below on iPad and phones); General Liability = rate × (subtotal + GR), F20; no GL line in GR for new estimates | ✅ |
 | O5 | Revision compare (added / removed / changed with old → new, ↑↓ amounts, totals; rows matched by where they were copied from, older rows by text) and "Restore as new draft" | ✅ |
 | O6 | Estimating start page grouped by stage: CRM (no stage yet) / Design / Precon (Kickoff) / Construction, counts, folds remembered; closed & cancelled behind a toggle | ✅ — CRM uses "no stage yet" (the projects list carries no lead status) |
+| O7 | K7: estimate money by role from the access sheet's financial data types (hidden figures sent as null; restricted roles get server figures, money read-only, saves keep stored amounts); book type per project; contractAmt hidden on project page + Design board too | ✅ |

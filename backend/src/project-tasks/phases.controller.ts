@@ -58,8 +58,11 @@ export class PhasesController {
 
   @Tiers('internal')
   @Get('overview')
-  overview() {
-    return this.service.overview();
+  async overview(@Claims() claims: SessionClaims | null) {
+    const rows = await this.service.overview();
+    // The contract amount is a financial figure (K7): only for roles that see project financials.
+    if (await this.access.canView(claims, 'fin_project', 'fin_business')) return rows;
+    return (rows as any[]).map((r) => ({ ...r, contractAmt: null }));
   }
 
   @Get('board')

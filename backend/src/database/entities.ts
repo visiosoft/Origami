@@ -1913,6 +1913,12 @@ export class ProjectFinancialEntity extends FinanceStamped {
   @Column({ ...PCT, default: 0 }) taxPct!: number;
   @Column({ type: 'int', default: 30 }) paymentTermsDays!: number;
   @Column({ default: false }) requireProgressApproval!: boolean;
+  /**
+   * Book type (K7, Nov 13): which client role's money view the client's copy
+   * of an estimate follows -- open | modified | closed | lump_sum (Client Open
+   * Book ... Client Lump Sum Closed Book in User Access & Roles).
+   */
+  @Column({ type: 'nvarchar', length: 20, default: 'closed' }) bookType!: string;
   @Column({ nullable: true }) billToName!: string;
   @Column({ nullable: true }) billToEmail!: string;
   @Column({ ...TEXT, nullable: true }) billToAddress!: string;

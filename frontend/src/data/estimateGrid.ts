@@ -21,6 +21,8 @@ export interface GridCol {
   key: string; label: string; band: Band; kind: ColKind; width: number; options?: [string, string][]; /** Shown on note rows too. */ notes?: boolean; hint?: string;
   /** A column someone added: its value lives in line.custom[key]. */
   custom?: boolean; formula?: string; showClient?: boolean; showSub?: boolean; type?: string;
+  /** Shown but not changeable (amounts for a role that can't see all of an estimate's money, K7). */
+  locked?: boolean;
 }
 
 /** A column as saved on the estimate (built-in ones only record name, width, place and hidden). */
@@ -197,7 +199,7 @@ export function parseDate(v: string): string | null | undefined {
  * money on note rows are left alone.
  */
 export function setCell(line: EstLine, col: GridCol, raw: string): { line: EstLine } | { error: string } {
-  if (col.kind === 'calc') return { line };
+  if (col.kind === 'calc' || col.locked) return { line };
   if (line.kind !== 'item' && !col.notes) return { line };
   if (col.custom) return setCustom(line, col, raw);
   const l = { ...line };

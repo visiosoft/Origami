@@ -30,7 +30,7 @@ export interface Summary {
 }
 export interface Settings {
   projectId: number; exists: boolean; version: number; currency: string; originalContractValue: number; originalBudget: number | null;
-  retentionPct: number; taxPct: number; paymentTermsDays: number; requireProgressApproval: boolean; billToName?: string; billToEmail?: string;
+  retentionPct: number; taxPct: number; paymentTermsDays: number; requireProgressApproval: boolean; bookType?: string; billToName?: string; billToEmail?: string;
   billToAddress?: string; contractNumber?: string; poNumber?: string; notes?: string; contractLockedAt?: string; reportedProgress: number; approvedProgress: number;
   reimbursableMarkupPct?: number; laborBurdenPct?: number;
 }

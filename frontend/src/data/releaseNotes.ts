@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13c',
+    date: '2026-11-13',
+    title: 'Estimating: each role sees only the money it should',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'Estimates follow the financial data types in User Access & Roles (Line items amount, Subcontracted total, Markups, Line item total, Subtotal, General Requirements, Profit, Contingency, Total construction). A role sees only the figures it’s allowed — for example a Super sees costs and line totals but not markups, GR, profit or the totals. Hidden amounts never leave the server.', where: 'Estimating' },
+      { area: 'Estimating', kind: 'new', text: 'Someone who can’t see all of an estimate’s money can still edit descriptions, notes, strategies and subs, but not amounts; saving never changes what they couldn’t see.' },
+      { area: 'Financials', kind: 'new', text: 'Book type per project — Open book, Modified open book, Closed book or Lump sum closed book. The client’s copy of the estimate shows what that client role may see.', where: 'Project → Financials → Settings' },
+      { area: 'Projects', kind: 'fixed', text: 'A project’s contract amount was still shown on the project page and the Design board to roles without financial access. Fixed.' },
+    ],
+  },
+  {
     id: '2026-11-13b',
     date: '2026-11-13',
     title: 'Estimating: totals beside the sheet, General Liability as a rate, compare revisions',

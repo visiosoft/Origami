@@ -10,6 +10,7 @@ import { newId, todayISO } from '../manpower/workforce.util';
 import { FinancialsService, FIN_MODULE } from './financials.service';
 import { autoStrategy, compareSheets, computeEstimate, mapOldStrategy, FORMULAS, isPricing, NOTE_KINDS, OLD_STRATEGIES, STRATEGIES, type EstimateResult } from './estimate.calc';
 import { fromCents, toCents } from './money';
+import { keepStoredMoney, moneyRightsOf, redactCompare, redactEstimate, SETTING_MONEY, type MoneyRights } from './estimate.money';
 
 export const ESTIMATING_MODULE = 'estimating';
 export const PRECON_KEY = 'fin:preconstruction_estimates';
@@ -138,8 +139,9 @@ export class EstimatesService {
     const has = (k: string, a: 'view' | 'manage') => perms === 'all' || !!perms?.[k]?.[a];
     const edit = [ESTIMATING_MODULE, PRECON_KEY, FIN_MODULE].some((k) => has(k, 'manage'));
     const view = edit || [ESTIMATING_MODULE, PRECON_KEY, FIN_MODULE].some((k) => has(k, 'view'));
-    return { view, edit };
+    return { view, edit, money: moneyRightsOf(perms as any) };
   }
+  private async money(actor: Actor): Promise<MoneyRights> { return (await this.rights(actor)).money; }
   private async need(actor: Actor, what: 'view' | 'edit') {
     const r = await this.rights(actor);
     if (!r[what]) throw new ForbiddenException(what === 'edit' ? "Your role doesn't allow editing estimates." : "Your role doesn't include estimates.");
@@ -215,9 +217,11 @@ export class EstimatesService {
     const out = [];
     for (const t of rows) {
       const sheet = await this.sheetOf(t.id);
-      out.push({ id: t.id, title: t.title, isDefault: !!t.isDefaultTemplate, updatedAt: t.updatedAt, updatedBy: t.updatedBy, scopes: sheet.scopes.length, lines: sheet.lines.filter((l) => l.kind === 'item').length, totalProject: fromCents(resultOf(t, sheet).totals.totalProject) });
+      out.push({ id: t.id, title: t.title, isDefault: !!t.isDefaultTemplate, updatedAt: t.updatedAt, updatedBy: t.updatedBy, scopes: sheet.scopes.length, lines: sheet.lines.filter((l) => l.kind === 'item').length, totalProject: fromCents(resultOf(t, sheet).totals.totalProject) as number | null });
     }
-    return { rights: await this.rights(actor), rows: out };
+    const rights = await this.rights(actor);
+    if (!rights.money.total) for (const r of out) r.totalProject = null;
+    return { rights, rows: out };
   }
 
   /** A blank template, or "Save as template" from an estimate (an exact copy). */
@@ -254,9 +258,10 @@ export class EstimatesService {
     const sheet = await this.sheetOf(id);
     const r = resultOf(e, sheet);
     const totals = new Map(r.scopes.map((s) => [s.id, s.total]));
+    const seePrice = (await this.money(actor)).price;
     return {
       id: e.id, title: e.title, isTemplate: e.isTemplate, number: e.number, rev: e.rev,
-      scopes: sheet.scopes.map((s) => ({ id: s.id, title: s.title, csiCodeId: s.csiCodeId, lines: sheet.lines.filter((l) => l.scopeId === s.id).length, total: fromCents(totals.get(s.id) || 0) })),
+      scopes: sheet.scopes.map((s) => ({ id: s.id, title: s.title, csiCodeId: s.csiCodeId, lines: sheet.lines.filter((l) => l.scopeId === s.id).length, total: seePrice ? fromCents(totals.get(s.id) || 0) : null })),
     };
   }
 
@@ -289,14 +294,17 @@ export class EstimatesService {
       const t = resultOf(e, await this.sheetOf(e.id)).totals;
       out.push({ id: e.id, number: e.number, rev: e.rev, title: e.title, status: e.status, estimateDate: e.estimateDate, sentAt: e.sentAt, acceptedAt: e.acceptedAt, updatedAt: e.updatedAt, totalProject: fromCents(t.totalProject), totalBuild: fromCents(t.totalBuild) });
     }
-    return { rights: await this.rights(actor), rows: out };
+    const rights = await this.rights(actor);
+    if (!rights.money.total) for (const r of out) { (r as any).totalProject = null; (r as any).totalBuild = null; }
+    return { rights, rows: out };
   }
 
   async get(projectId: number, id: string, actor: Actor) {
     await this.need(actor, 'view');
     const e = await this.one(projectId, id);
     const sheet = await this.sheetOf(id);
-    return { estimate: e, ...sheet, result: resultOf(e, sheet), formulas: FORMULAS, rights: await this.rights(actor), locked: LOCKED.includes(e.status) };
+    const rights = await this.rights(actor);
+    return redactEstimate({ estimate: e, ...sheet, result: resultOf(e, sheet), formulas: FORMULAS, rights, locked: LOCKED.includes(e.status) }, rights.money);
   }
 
   /**
@@ -340,6 +348,8 @@ export class EstimatesService {
     this.editable(e);
     this.checkVersion(e, dto?.version);
     const has = (k: string) => dto && Object.prototype.hasOwnProperty.call(dto, k);
+    const money = await this.money(actor);
+    for (const [k, need] of Object.entries(SETTING_MONEY)) if (has(k) && !money[need]) throw new ForbiddenException('Your role can’t see or change those estimate amounts.');
     if (has('title')) e.title = str(dto.title, 200);
     for (const k of ['grPct', 'profitPct', 'contingencyPct'] as const) if (has(k)) e[k] = pct(dto[k], k === 'grPct' ? 'GR %' : k === 'profitPct' ? 'Profit %' : 'Contingency %');
     if (has('glPct')) e.glPct = dto.glPct == null || dto.glPct === '' ? null : pct(dto.glPct, 'GL rate %');
@@ -463,6 +473,7 @@ export class EstimatesService {
       notes: str(g?.notes, 20000), custom: custom(g?.custom),
     }));
 
+    keepStoredMoney(lines, gr, before, await this.money(actor));
     await this.db.transaction(async (m) => {
       const old = await this.sheetOf(id);
       const drop = <T extends { id: string }>(rows: T[], keep: T[]) => rows.filter((r) => !keep.some((k) => k.id === r.id)).map((r) => r.id);
@@ -526,7 +537,7 @@ export class EstimatesService {
     if (a.number !== b.number || a.isTemplate || b.isTemplate) throw new BadRequestException('Only revisions of the same estimate can be compared.');
     const side = async (e: EstimateEntity) => { const sh = await this.sheetOf(e.id); return { scopes: sh.scopes, lines: sh.lines, result: resultOf(e, sh) }; };
     const out = compareSheets(await side(a), await side(b));
-    return { a: { id: a.id, rev: a.rev, status: a.status }, b: { id: b.id, rev: b.rev, status: b.status }, ...out };
+    return { a: { id: a.id, rev: a.rev, status: a.status }, b: { id: b.id, rev: b.rev, status: b.status }, ...redactCompare(out, await this.money(actor)) };
   }
 
   /** Only a draft can be deleted; sent ones are the record. */
