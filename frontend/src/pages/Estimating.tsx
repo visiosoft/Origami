@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { EstimateGrid, type EstimateHeader } from '../components/estimate/EstimateGrid';
@@ -7,6 +8,7 @@ import { SourcePicker } from '../components/estimate/SourcePicker';
 import { StatementLibrary } from '../components/estimate/StatementLibrary';
 import { StrategyMap } from '../components/estimate/StrategyMap';
 import { RevisionCompare } from '../components/estimate/RevisionCompare';
+import { LetterPanel } from '../components/estimate/LetterPanel';
 import { money } from '../data/estimateCalc';
 
 interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number }
@@ -50,6 +52,22 @@ export function Estimating() {
   const [filter, setFilter] = useState('');
   const [reload, setReload] = useState(0);
   const [comparing, setComparing] = useState(false);
+  const [tab, setTab] = useState<'sheet' | 'letter'>('sheet');
+  const [sending, setSending] = useState(false);
+  const [mail, setMail] = useState({ to: '', cc: '', note: '' });
+  /** K8: the client's copy as a PDF (new tab), or the internal workbook (download). */
+  const openFile = async (kind: 'pdf' | 'xlsx') => {
+    if (!projectId || !estimateId) return;
+    const w = kind === 'pdf' ? window.open('', '_blank') : null;
+    try {
+      await grid.current?.flush();
+      const blob = await api.finance.estimateFile(projectId, estimateId, kind);
+      const url = URL.createObjectURL(blob);
+      if (w) w.location.href = url;
+      else { const a = document.createElement('a'); a.href = url; a.download = `${current?.number || 'Estimate'} Rev ${current?.rev || ''}.xlsx`; a.click(); }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e: any) { w?.close(); toast(e?.message || 'Could not make the file.'); }
+  };
   const [shut, setShut] = useState<string[]>(loadFolds);
   const [showClosed, setShowClosed] = useState(false);
   const toggleFold = (k: string) => setShut((x) => { const n = x.includes(k) ? x.filter((y) => y !== k) : [...x, k]; try { localStorage.setItem(FOLDS_KEY, JSON.stringify(n)); } catch { /* private mode */ } return n; });
@@ -158,6 +176,16 @@ export function Estimating() {
           <button type="button" className="eg-btn is-primary" disabled={busy} onClick={() => window.confirm(`Mark ${current.number} Rev ${current.rev} as sent to the client? It is frozen after this; changes go in a new revision.`) && act(async () => { await grid.current?.flush(); return api.finance.estimateSent(projectId, current.id); }, () => setReload((n) => n + 1))}>Mark as sent</button>
         )}
         {current && siblings.length > 1 && <button type="button" className="eg-btn" onClick={() => setComparing(true)}>Compare…</button>}
+        {current && (
+          <span role="tablist" aria-label="Sheet or letter" style={{ display: 'inline-flex', gap: 4 }}>
+            {(['sheet', 'letter'] as const).map((k) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`eg-btn${tab === k ? ' is-on' : ''}`} onClick={async () => { await grid.current?.flush(); setTab(k); setReload((n) => n + 1); }}>{k === 'sheet' ? 'Sheet' : 'Letter'}</button>)}
+          </span>
+        )}
+        {current && <button type="button" className="eg-btn" onClick={() => void openFile('pdf')} title="The client’s copy, as the project’s book type shows it">PDF</button>}
+        {current && <button type="button" className="eg-btn" onClick={() => void openFile('xlsx')} title="The whole estimate as a spreadsheet (what your role may see)">Excel</button>}
+        {current && rights.edit && (open?.status === 'draft' || open?.status === 'sent') && !siblings.some((s) => s.status === 'accepted') && (
+          <button type="button" className="eg-btn is-primary" disabled={busy} onClick={() => setSending(true)}>Send to client…</button>
+        )}
         {current && rights.edit && open && open.status !== 'draft' && open.status !== 'accepted' && !siblings.some((s) => s.status === 'draft') && !siblings.some((s) => s.status === 'accepted') && (
           current.rev < Math.max(...siblings.map((s) => s.rev))
             ? <button type="button" className="eg-btn" disabled={busy} title="Copy this revision as a new draft to keep working from it" onClick={() => window.confirm(`Copy ${current.number} Rev ${current.rev} as a new draft (Rev ${Math.max(...siblings.map((s) => s.rev)) + 1})? The later revisions stay as they are.`) && act(() => api.finance.reviseEstimate(projectId, current.id), (r) => go({ estimate: r.estimate.id }))}>Restore as new draft</button>
@@ -177,7 +205,9 @@ export function Estimating() {
         )}
       </div>
 
-      {estimateId ? (
+      {estimateId && tab === 'letter' ? (
+        <LetterPanel key={`${estimateId}-${reload}`} projectId={projectId} estimateId={estimateId} onPreview={() => void openFile('pdf')} />
+      ) : estimateId ? (
         <EstimateGrid key={`${estimateId}-${reload}`} projectId={projectId} estimateId={estimateId} onChanged={setOpen} controlRef={grid} />
       ) : rows === null ? (
         <div style={{ color: 'var(--muted)' }}>Loading…</div>
@@ -199,6 +229,27 @@ export function Estimating() {
             </tbody>
           </table>
         </div>
+      )}
+      {sending && current && createPortal(
+        <div role="dialog" aria-modal="true" aria-label="Send to client" className="rc-back eg-portal" onClick={() => setSending(false)}>
+          <form className="eg-card" style={{ width: 'min(520px, 100%)', display: 'grid', gap: 10 }} onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => { e.preventDefault(); void act(async () => { await grid.current?.flush(); return api.finance.sendEstimate(projectId, current.id, mail); }, (r) => { setSending(false); toast(`Sent to ${r.to}`); setReload((n) => n + 1); }); }}>
+            <h3 style={{ margin: 0 }}>Send {current.number} Rev {current.rev} to the client</h3>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>The client gets the PDF and a link to accept it online.{open?.status === 'draft' ? ' This revision is marked sent and frozen; changes then go in a new revision.' : ''}</div>
+            {(['to', 'cc'] as const).map((k) => (
+              <label key={k} style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700 }}>{k === 'to' ? 'To' : 'Cc (optional)'}
+                <input type="email" multiple={k === 'cc'} value={mail[k]} placeholder={k === 'to' ? 'The bill-to email if left empty' : 'name@example.com, …'} onChange={(e) => setMail((m) => ({ ...m, [k]: e.target.value }))} style={{ font: 'inherit', fontSize: 16, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.15)' }} />
+              </label>
+            ))}
+            <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700 }}>Note (optional)
+              <textarea rows={3} value={mail.note} onChange={(e) => setMail((m) => ({ ...m, note: e.target.value }))} style={{ font: 'inherit', fontSize: 14, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.15)' }} />
+            </label>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" className="eg-btn" onClick={() => setSending(false)}>Cancel</button>
+              <button type="submit" className="eg-btn is-primary" disabled={busy}>{busy ? 'Sending…' : 'Send'}</button>
+            </div>
+          </form>
+        </div>, document.body,
       )}
       {comparing && current && (() => {
         const sorted = [...siblings].sort((x, y) => x.rev - y.rev);

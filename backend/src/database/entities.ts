@@ -2733,6 +2733,14 @@ export class EstimateEntity extends FinanceStamped {
   @Column({ type: 'nvarchar', length: 40, nullable: true }) sentAt!: string | null;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) acceptedAt!: string | null;
   @Column({ type: 'nvarchar', length: 120, nullable: true }) acceptedBy!: string | null;
+  /** K8 (Nov 13): who it was emailed to and by, and the client's signature when they accept it online. */
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) sentTo!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) sentById!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) signedName!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) signedEmail!: string | null;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) signatureImage!: string | null;
+  @Column({ type: 'nvarchar', length: 80, nullable: true }) signedIp!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) signedFileId!: string | null;
   @Column({ ...PCT, default: 17 }) grPct!: number;
   @Column({ ...PCT, default: 12 }) profitPct!: number;
   @Column({ ...PCT, default: 5 }) contingencyPct!: number;

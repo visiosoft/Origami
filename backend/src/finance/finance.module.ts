@@ -19,6 +19,9 @@ import { SettingsModule } from '../settings/settings.module';
 import { ManpowerAccess } from '../manpower/manpower-access.service';
 import { FinancialsService } from './financials.service';
 import { EstimatesService } from './estimates.service';
+import { EstimateLetterService } from './estimate-letter.service';
+import { EstimatePublicController } from './estimate-public.controller';
+import { FileRoomModule } from '../file-room/file-room.module';
 import { EstimateStatementsService } from './estimate-statements.service';
 import { InvoicesService } from './invoices.service';
 import { ChangeOrdersService } from './change-orders.service';
@@ -56,10 +59,11 @@ import {
     GoogleModule,
     SettingsModule,
     TrackingModule,
+    FileRoomModule,
   ],
-  controllers: [ChangeOrderPublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
+  controllers: [ChangeOrderPublicController, EstimatePublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService, EstimateLetterService],
   exports: [ChangeOrdersService, FinancialsService],
 })
 export class FinanceModule {}

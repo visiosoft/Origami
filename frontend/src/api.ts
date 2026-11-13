@@ -1070,6 +1070,19 @@ export const api = {
     strategyMap: () => request<{ total: number; estimates: number; groups: { from: string; to: string | null; count: number; samples: string[] }[] }>('/finance/estimate-strategy-map', { cache: 'no-store' } as any),
     applyStrategyMap: () => request<{ applied: boolean; changed?: number }>('/finance/estimate-strategy-map', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     estimateSent: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/sent`, { method: 'POST' }),
+    /** K8: the client's copy as a PDF, or the internal workbook, as a blob. */
+    estimateFile: async (projectId: number, id: string, kind: 'pdf' | 'xlsx'): Promise<Blob> => {
+      const token = session.get();
+      const res = await fetch(`${API_BASE}/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/${kind}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) { const body = await res.json().catch(() => null); throw new Error((body && body.message) || `Could not make the file (${res.status})`); }
+      return res.blob();
+    },
+    sendEstimate: (projectId: number, id: string, d: { to?: string; cc?: string; note?: string }) => request<{ sent: boolean; to: string }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
+    estimatePublic: {
+      get: (token: string) => request<any>(`/estimate-public?token=${encodeURIComponent(token)}`),
+      sign: (token: string, d: { name: string; email?: string; image: string; agree: boolean }) => request<{ accepted: boolean; acceptedAt: string }>('/estimate-public/sign', { method: 'POST', body: JSON.stringify({ token, ...d }) }),
+      pdfUrl: (token: string) => `${API_BASE}/estimate-public/pdf?token=${encodeURIComponent(token)}`,
+    },
     compareEstimates: (projectId: number, id: string, other: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/compare/${encodeURIComponent(other)}`, { cache: 'no-store' } as any),
     reviseEstimate: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/revise`, { method: 'POST' }),
     copyEstimateScopes: (projectId: number, id: string, d: { version: number; fromId: string; scopeIds: string[] }) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/copy-scopes`, { method: 'POST', body: JSON.stringify(d) }),

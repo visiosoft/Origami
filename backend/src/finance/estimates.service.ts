@@ -530,6 +530,18 @@ export class EstimatesService {
     return this.get(projectId, copy.id, actor);
   }
 
+  // ------------------------------------------------------------------ for the letter, signing and export (K8)
+  /** The stored estimate, its rows and figures (unredacted -- callers decide what leaves the server). */
+  async raw(projectId: number, id: string, actor: Actor | null, what: 'view' | 'edit' = 'view') {
+    if (actor) await this.need(actor, what);
+    const e = actor ? await this.one(projectId, id) : await this.estimates.findOne({ where: { id } });
+    if (!e || e.isTemplate) throw new NotFoundException('Estimate not found.');
+    const sheet = await this.sheetOf(e.id);
+    return { e, sheet, result: resultOf(e, sheet), rights: actor ? await this.rights(actor) : null };
+  }
+  async revisionsOf(projectId: number, number: string) { return this.estimates.find({ where: { projectId, number, isTemplate: false } }); }
+  async saveEntity(e: EstimateEntity) { return this.estimates.save(e); }
+
   /** Rev A (`id`) against Rev B (`otherId`) of the same estimate number (Nov 13). */
   async compare(projectId: number, id: string, otherId: string, actor: Actor) {
     await this.need(actor, 'view');

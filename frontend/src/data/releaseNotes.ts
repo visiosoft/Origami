@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13d',
+    date: '2026-11-13',
+    title: 'Estimating: send an estimate, and the client accepts it online',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'A “Letter” tab beside the sheet for the words of the client’s letter: opening, description of work, terms, notes and closing. The scopes, inclusions / exclusions and totals come from the sheet.', where: 'Estimating → an estimate → Letter' },
+      { area: 'Estimating', kind: 'new', text: '“PDF” shows the client’s copy on the letterhead, with the money the project’s book type allows (closed book: prices only; open book: costs and markups too).', where: 'Estimating → an estimate → PDF' },
+      { area: 'Estimating', kind: 'new', text: '“Send to client…” emails the PDF with a link to accept it online (to the bill-to contact unless you give another address). A draft is marked sent and frozen.', where: 'Estimating → an estimate → Send to client…' },
+      { area: 'Estimating', kind: 'new', text: 'The client reads the estimate on their phone or computer, types their name and signs. The revision becomes Accepted, the signed PDF is filed in the project’s File Room (Estimates), and whoever sent it gets an email. A replaced revision can’t be signed — the page points to the latest.' },
+      { area: 'Estimating', kind: 'new', text: '“Excel” downloads the estimate as a spreadsheet — the lines your role may see, scope subtotals as formulas, GR and totals, and a sheet of the inclusions / exclusions / assumptions.', where: 'Estimating → an estimate → Excel' },
+    ],
+  },
+  {
     id: '2026-11-13c',
     date: '2026-11-13',
     title: 'Estimating: each role sees only the money it should',
