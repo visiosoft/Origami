@@ -920,11 +920,13 @@ function DashboardView({ filtered, shownPhases, isDone, isProgress, isLate }: {
   const overdue = filtered.filter((r) => isLate(r.task)).length;
   const incomplete = total - done;
 
+  // What each number means (Nov 13 sync).
+  const inProgress = filtered.filter((r) => isProgress(r.task)).length;
   const tiles = [
-    { label: 'Total tasks', value: total, c: INK },
-    { label: 'Completed', value: done, c: 'var(--c-16a34a)' },
-    { label: 'Incomplete', value: incomplete, c: ACCENT },
-    { label: 'Overdue', value: overdue, c: '#B4232A' },
+    { label: 'Total tasks', value: total, c: INK, hint: 'Every task shown here' },
+    { label: 'Completed', value: done, c: 'var(--c-16a34a)', hint: 'Marked done' },
+    { label: 'Incomplete', value: incomplete, c: ACCENT, hint: `${inProgress} in progress · ${incomplete - inProgress} not started` },
+    { label: 'Overdue', value: overdue, c: '#B4232A', hint: 'Incomplete and past its due date (also counted in Incomplete)' },
   ];
 
   const byPhase = shownPhases.map((s) => ({ name: s.name, dot: s.colors?.dot || ACCENT, count: filtered.filter((r) => r.stage.key === s.key).length }));
@@ -944,6 +946,7 @@ function DashboardView({ filtered, shownPhases, isDone, isProgress, isLate }: {
           <div key={t.label} style={{ border: '1px solid rgba(var(--rgb-shade), .08)', borderRadius: 'var(--r-14)', padding: '16px 18px' }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>{t.label}</div>
             <div style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 30, color: t.c, marginTop: 6 }}>{t.value}</div>
+            <div style={{ fontSize: 11, color: '#9c96a4', marginTop: 4, lineHeight: 1.4 }}>{t.hint}</div>
           </div>
         ))}
       </div>

@@ -163,13 +163,17 @@ export const session = {
 export const READ_TTL_MS = 60_000;
 const readCache = new Map<string, { at: number; value: unknown }>();
 const readsInFlight = new Map<string, Promise<unknown>>();
-const NEVER_CACHE = /^\/(auth\/|status\b|notifications\/my-tasks|google\/status)/;
+// Tasks, the programme and the dashboard are always read fresh (Nov 13 sync: a teammate's
+// task update must show on the next refresh, not up to a minute later).
+const NEVER_CACHE = /^\/(auth\/|status\b|notifications\/my-tasks|google\/status|tasks\b|project-tasks\b|project-phases\b|dashboard\b)/;
 /** The last path segment is a record id (it has a digit), e.g. /tasks/T-2026-0007, /people/42. */
 const isRecordPath = (path: string) => /\d/.test(path.split('?')[0].split('/').filter(Boolean).pop() || '');
 export const cacheableRead = (path: string, options?: RequestInit) =>
   (options?.method || 'GET').toUpperCase() === 'GET' && options?.cache !== 'no-store' && !NEVER_CACHE.test(path) && !isRecordPath(path);
 /** Drop every cached read (after a change, or on signing in or out). */
 export function clearReadCache() { readCache.clear(); readsInFlight.clear(); }
+// Coming back to the tab (another window, a meeting screen): start from fresh reads.
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') clearReadCache(); });
 const copy = <T,>(v: T): T => (v === undefined || v === null ? v : structuredClone(v));
 
 // ---- Busy count: how many reads (and page downloads) are in flight, for the top loading bar ----
@@ -455,7 +459,12 @@ export const api = {
     workload: () => request('/dashboard/workload'),
   },
   projects: {
-    list: () => request('/projects'),
+    /** Archived projects (Nov 13) are left out unless asked for: 'only' or 'all'. */
+    list: (archived?: 'only' | 'all') => request(archived ? `/projects?archived=${archived}` : '/projects'),
+    archivePlan: () => request<{ on: boolean; afterDays: number; due: { id: number; name: string; stage: string; since?: string }[]; waiting: { id: number; name: string; stage: string; on?: string }[]; undated: { id: number; name: string; stage: string; on?: string }[] }>('/projects/archive-plan', { cache: 'no-store' } as any),
+    applyArchive: () => request<{ archived: number; counting: number }>('/projects/archive-plan', { method: 'POST' }),
+    archive: (id: string | number) => request(`/projects/${id}/archive`, { method: 'POST' }),
+    restore: (id: string | number) => request(`/projects/${id}/restore`, { method: 'POST' }),
     get: (id: string) => request(`/projects/${id}`),
     create: (data: unknown) => request('/projects', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string | number, data: unknown) => request(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

@@ -1,3 +1,5 @@
+import { SettingsService } from '../settings/settings.service';
+import { ARCHIVE_AFTER_DAYS, archiveDue, archivePlan } from './project-archive';
 import { renamedPeople } from '../people/person-projects';
 import { BadRequestException, Injectable, Optional, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { cleanProjectCode, projectCodes } from '../database/serials';
@@ -5,6 +7,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { PersonEntity, ProjectEntity } from '../database/entities';
+
+const AUTO_ARCHIVE_KEY = 'projects.autoArchive';
 
 @Injectable()
 export class ProjectsService implements OnApplicationBootstrap {
@@ -14,10 +18,14 @@ export class ProjectsService implements OnApplicationBootstrap {
     @InjectRepository(ProjectEntity) private readonly repo: Repository<ProjectEntity>,
     @Optional() private readonly hub?: NotifyHub,
     @Optional() @InjectRepository(PersonEntity) private readonly people?: Repository<PersonEntity>,
+    @Optional() private readonly settings?: SettingsService,
   ) {}
 
   /** The "Leads" stage was renamed to "Kickoff" -- carry any row saved under the old name forward. */
   async onApplicationBootstrap() {
+    // Closed-out / cancelled projects to the archive (Nov 13), hourly once switched on.
+    const sweep = setInterval(() => { void this.archiveSweep().catch((e: Error) => this.log.warn('Archive sweep failed: ' + e.message)); }, 60 * 60_000);
+    sweep.unref?.();
     try {
       const stale = await this.repo.findBy({ stage: 'Leads' });
       if (!stale.length) return;
@@ -30,8 +38,8 @@ export class ProjectsService implements OnApplicationBootstrap {
   }
 
   /** Every project, with `taskCode`: the prefix its task numbers carry (set by hand, or made from the name). */
-  async findAll() {
-    const rows = await this.repo.find({ order: { id: 'ASC' } });
+  async findAll(archived: 'hide' | 'only' | 'all' = 'hide') {
+    const rows = (await this.repo.find({ order: { id: 'ASC' } })).filter((p) => archived === 'all' || (archived === 'only' ? !!p.archivedAt : !p.archivedAt));
     const codes = projectCodes(rows);
     return rows.map((p) => Object.assign(p, { taskCode: codes.get(p.id) }));
   }
@@ -97,13 +105,53 @@ export class ProjectsService implements OnApplicationBootstrap {
       }
       patch.code = code || null;
     }
-    const before = this.hub || ('name' in patch && this.people) ? await this.repo.findOneBy({ id: Number(id) }) : null;
+    // Archive (Nov 13): set only through archive / restore; a stage change starts the 10-day count.
+    delete patch.archivedAt; delete patch.stageChangedAt;
+    if (patch.kind !== undefined && patch.kind !== 'internal') patch.kind = null;
+    const before = this.hub || ('name' in patch && this.people) || 'stage' in patch ? await this.repo.findOneBy({ id: Number(id) }) : null;
+    if (before && patch.stage && patch.stage !== before.stage) patch.stageChangedAt = new Date().toISOString();
     await this.repo.update({ id: Number(id) }, patch as Partial<ProjectEntity>);
     if (before && this.hub) this.statusNotices(before, patch, actor);
     // Renamed: everyone on it shows the new name; their link (the project id) doesn't change (Nov 13).
     if (before && this.people && typeof patch.name === 'string' && patch.name !== before.name) {
       for (const p of renamedPeople(await this.people.find(), before.id, before.name, patch.name)) await this.people.save(p);
     }
+    return this.findOne(id);
+  }
+
+  // ------------------------------------------------------------ archive (Nov 13 sync)
+  private autoOn = async () => (await this.settings?.get(AUTO_ARCHIVE_KEY)) === '1';
+
+  /** What switching auto-archive on would do (preview), and whether it's on. */
+  async archivePreview() {
+    return { on: await this.autoOn(), afterDays: ARCHIVE_AFTER_DAYS, ...archivePlan(await this.repo.find()) };
+  }
+
+  /** Apply: archive the due ones, start the count today for undated ones, and keep doing it hourly. */
+  async applyArchive(now = Date.now()) {
+    const plan = archivePlan(await this.repo.find(), now);
+    const at = new Date(now).toISOString();
+    for (const p of plan.due) await this.repo.update({ id: p.id }, { archivedAt: at });
+    for (const p of plan.undated) await this.repo.update({ id: p.id }, { stageChangedAt: at });
+    await this.settings?.set(AUTO_ARCHIVE_KEY, '1');
+    return { archived: plan.due.length, counting: plan.undated.length };
+  }
+
+  /** Hourly while switched on. */
+  async archiveSweep(now = Date.now()) {
+    if (!(await this.autoOn())) return 0;
+    const due = (await this.repo.find()).filter((p) => archiveDue(p, now));
+    const at = new Date(now).toISOString();
+    for (const p of due) await this.repo.update({ id: p.id }, { archivedAt: at });
+    if (due.length) this.log.log(`Archived ${due.length} closed / cancelled project(s)`);
+    return due.length;
+  }
+
+  async setArchived(id: string, archived: boolean) {
+    const p = await this.repo.findOneBy({ id: Number(id) });
+    if (!p) throw new NotFoundException(`Project ${id} not found`);
+    // Restored: the 10 days start again from today, so it isn't archived again straight away.
+    await this.repo.update({ id: p.id }, archived ? { archivedAt: new Date().toISOString() } : { archivedAt: null, stageChangedAt: new Date().toISOString() });
     return this.findOne(id);
   }
 

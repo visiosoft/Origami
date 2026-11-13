@@ -943,10 +943,20 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     const byStatus = TASK_STATUSES.map((st) => ({ status: st, count: topLevel.filter((t) => (t.status || 'Not started') === st).length }));
     const maxStatus = Math.max(1, ...byStatus.map((s) => s.count));
 
+    // What each number means (Nov 13 sync: "clearer definitions for incomplete").
+    const open = topLevel.filter((t) => !t.completed);
+    const openBy = (st: string) => open.filter((t) => (t.status || 'Not started') === st).length;
+    const HINT: Record<string, string> = {
+      'Total tasks': 'Every task shown here (sub-tasks counted with their parent)',
+      Completed: 'Marked complete',
+      Incomplete: TASK_STATUSES.filter((st) => !/^(done|complete)/i.test(st)).map((st) => `${openBy(st)} ${st.toLowerCase()}`).join(' · ') || 'Not marked complete',
+      Overdue: 'Incomplete and past its due date (also counted in Incomplete)',
+    };
     const tile = (label: string, value: number, color?: string) => (
-      <div key={label} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: '16px 18px' }}>
+      <div key={label} title={HINT[label]} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: '16px 18px' }}>
         <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
         <div style={{ fontFamily: BG, fontSize: 26, fontWeight: 700, color: color || 'var(--ink)' }}>{value}</div>
+        {HINT[label] && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4 }}>{HINT[label]}</div>}
       </div>
     );
 

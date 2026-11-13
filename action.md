@@ -282,3 +282,4 @@ Plan: second emails, project housekeeping, texts opt-out + mass texts, 2-step by
 | # | What | Status |
 |---|---|---|
 | Q1 | Second emails per person: `altEmails` on users and employees; sign-in (password, Google, invites), People link, project access, timesheets and staff sync match any address; an address can't belong to two accounts; Admin "+ other emails", employee "Other emails" | ✅ built |
+| Q2 | Project housekeeping: closed-out / cancelled projects archived 10 days after the stage changed (stageChangedAt, archivedAt; hourly, off until the admin presses Apply on the preview), Archived list + Restore; Internal project kind (filter; never shown to outside accounts); task, programme and dashboard reads never cached and the cache cleared on returning to the tab; task dashboard definitions; mobile collapse not reproduced — needs the screen it happened on | ✅ built — press "Apply and switch on" on Projects |

@@ -1,4 +1,5 @@
 import { TeamBackfill } from '../components/TeamBackfill';
+import { ArchiveBanner, ArchivedProjects } from '../components/ProjectArchive';
 import { ProjectTeam } from '../components/ProjectTeam';
 import { forgetProjectPlace, rememberProjectPlace } from '../data/returnToProject';
 import { TextClient } from '../components/TextClient';
@@ -61,12 +62,12 @@ const codeLabel = (list: readonly { code: string; label: string }[], v?: string 
 
 const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Kickoff', location: '', typeOfWork: '', contractType: 'Design + Build', contractAmt: '', estStart: '', duration: '', scope: '', referral: '', contactedBy: '', progress: 0, imgColor: '#173326' };
 
-interface ProjectFilters { priority: string; contractType: string; typeOfWork: string; contactedBy: string; q: string; hold?: string }
+interface ProjectFilters { priority: string; contractType: string; typeOfWork: string; contactedBy: string; q: string; hold?: string; kind?: string }
 interface SavedView { name: string; filters: ProjectFilters }
 const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWork: '', contactedBy: '', q: '' };
 
 /** The fields the project form edits; they autosave together. */
-const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'pricing', 'labor', 'code', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved'] as (keyof Project)[];
+const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'pricing', 'labor', 'code', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved', 'kind'] as (keyof Project)[];
 /** The fields the phase-task panel edits; they autosave together. */
 const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels', 'tags', 'holdReason'];
 
@@ -141,14 +142,17 @@ export function Projects() {
     if (filters.contactedBy && p.contactedBy !== filters.contactedBy) return false;
     if (filters.hold === 'active' && isOnHold(p)) return false;
     if (filters.hold === 'hold' && !isOnHold(p)) return false;
+    if (filters.kind === 'internal' && p.kind !== 'internal') return false;
+    if (filters.kind === 'client' && p.kind === 'internal') return false;
     const q = filters.q.trim().toLowerCase();
     if (q && !p.name.toLowerCase().includes(q) && !p.location.toLowerCase().includes(q)) return false;
     return true;
   };
   const distinctValues = (key: 'priority' | 'contractType' | 'typeOfWork' | 'contactedBy') =>
     Array.from(new Set(projects.map((p) => p[key]).filter(Boolean))).sort();
+  const [showArchived, setShowArchived] = useState(false);
   const [showEnded, setShowEnded] = useState(() => { try { return localStorage.getItem(SHOW_ENDED_KEY) === '1'; } catch { return false; } });
-  const filtersActive = JSON.stringify({ ...filters, hold: filters.hold || undefined }) !== JSON.stringify(BLANK_FILTERS);
+  const filtersActive = JSON.stringify({ ...filters, hold: filters.hold || undefined, kind: filters.kind || undefined }) !== JSON.stringify(BLANK_FILTERS);
   // Which project's hold form is open (drawer).
   const [holdFormFor, setHoldFormFor] = useState<number | null>(null);
 
@@ -592,6 +596,7 @@ export function Projects() {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       {currentUser?.roleKey === 'admin' && <TeamBackfill />}
+      {currentUser?.roleKey === 'admin' && <ArchiveBanner onChanged={reload} />}
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <input
@@ -621,6 +626,11 @@ export function Projects() {
           <option value="active">Active only</option>
           <option value="hold">On hold ({projects.filter(isOnHold).length})</option>
         </select>
+        <select aria-label="Client or internal" value={filters.kind || ''} onChange={(e) => setFilter('kind', e.target.value)} style={{ ...inputStyle, width: 150, background: 'var(--surface)' }}>
+          <option value="">Client and internal</option>
+          <option value="client">Client projects</option>
+          <option value="internal">Internal ({projects.filter((p) => p.kind === 'internal').length})</option>
+        </select>
         {filtersActive && <div onClick={clearFilters} style={{ fontSize: 12, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Clear</div>}
         <div style={{ flex: 1 }} />
         {canManage && <div onClick={openNew} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: 'var(--forest)', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)', whiteSpace: 'nowrap' }}>+ New Project</div>}
@@ -649,6 +659,10 @@ export function Projects() {
           style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: showEnded ? 'var(--ink)' : 'var(--surface)', color: showEnded ? 'white' : 'var(--muted)' }}>
           {showEnded ? '✓ ' : ''}Show closed & cancelled
         </div>
+        <div role="button" onClick={() => setShowArchived((v) => !v)} title="Closed-out and cancelled projects go to the archive 10 days after"
+          style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: showArchived ? 'var(--ink)' : 'var(--surface)', color: showArchived ? 'white' : 'var(--muted)' }}>
+          {showArchived ? '✓ ' : ''}Archived
+        </div>
         {filtersActive && (
           <div onClick={saveCurrentView} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', border: '1px dashed rgba(var(--rgb-shade), 0.2)', color: 'var(--forest)', cursor: 'pointer' }}>
             + Save this view
@@ -656,6 +670,7 @@ export function Projects() {
         )}
       </div>
 
+      {showArchived && <ArchivedProjects canManage={canManage} onChanged={reload} />}
       {/* Pipeline columns */}
       {isNew ? (
         <div className="pc-board">
@@ -1511,6 +1526,7 @@ export function Projects() {
                 ['Programme Template', 'templateKey', 'select-template', '1 / -1'],
                 ['Scope of work', 'scope', 'textarea', '1 / -1'],
                 ['Contract Approved', 'contractApproved', 'checkbox', '1 / -1'],
+                ['Internal project', 'kind', 'checkbox-internal', '1 / -1'],
               ].map(([label, key, kind, span]) => (
                 <div key={key as string} style={{ gridColumn: (span as string) || 'auto' }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
@@ -1518,6 +1534,11 @@ export function Projects() {
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink)', cursor: 'pointer', padding: '9px 0' }}>
                       <input type="checkbox" checked={!!(np as any)[key as string]} onChange={(e) => setNp({ ...np, [key as string]: e.target.checked })} />
                       Client has signed — lock the AEC Team roster in the Project Program
+                    </label>
+                  ) : kind === 'checkbox-internal' ? (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink)', cursor: 'pointer', padding: '9px 0' }}>
+                      <input type="checkbox" checked={(np as any).kind === 'internal'} onChange={(e) => setNp({ ...np, kind: e.target.checked ? 'internal' : 'client' } as any)} />
+                      Internal — e.g. business development; never shown to clients or subs
                     </label>
                   ) : kind === 'select-priority' ? (
                     <select value={(np as any)[key as string] || 'Medium'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{PRIORITIES.map((o) => <option key={o}>{o}</option>)}</select>

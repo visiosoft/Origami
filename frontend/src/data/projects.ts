@@ -23,6 +23,11 @@ export interface Project {
   duration: string;
   scope: string;
   stage: 'Kickoff' | 'Design' | 'Construction' | 'Closeout' | 'Cancelled';
+  /** client (default) or internal, e.g. business development (Nov 13). */
+  kind?: 'client' | 'internal' | null;
+  /** When the stage last changed, and when it went to the archive (Nov 13). */
+  stageChangedAt?: string | null;
+  archivedAt?: string | null;
   progress: number;
   referral: string;
   contactedBy: string;

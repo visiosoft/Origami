@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13n',
+    date: '2026-11-13',
+    title: 'Projects tidy themselves; task lists stay current',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Closed-out and cancelled projects move to the archive 10 days after they reach that stage. Administrators see what it would do first and switch it on with “Apply and switch on”. “Archived” lists them, and Restore brings one back.', where: 'Projects' },
+      { area: 'Projects', kind: 'new', text: 'A project can be marked Internal (e.g. business development). Internal projects can be filtered on their own and are never shown to clients or subs.', where: 'Projects → a project → Internal project' },
+      { area: 'Tasks', kind: 'fixed', text: 'Task lists, the programme and the dashboard always load fresh, and everything reloads when you come back to the tab — a teammate’s update shows on your next refresh.' },
+      { area: 'Tasks', kind: 'improved', text: 'The task dashboard says what each number means; Incomplete is broken down by status.' },
+    ],
+  },
+  {
     id: '2026-11-13m',
     date: '2026-11-13',
     title: 'More than one email per person',

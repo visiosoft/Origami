@@ -57,6 +57,12 @@ export class ProjectEntity {
   @Column({ nullable: true }) templateKey!: string;
   /** Who fills each role on this project (Nov 13): role key (projectManager...) -> users.id. Copied from the CRM deal when converted. */
   @Column({ type: 'simple-json', nullable: true }) roles!: Record<string, string> | null;
+  /** client (default) or internal, e.g. business development (Nov 13): internal ones are never shown to clients or subs. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) kind!: string | null;
+  /** When the stage last changed (Nov 13): closed-out / cancelled projects are archived 10 days after. */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) stageChangedAt!: string | null;
+  /** Set when archived (automatically or by hand); empty = active. */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) archivedAt!: string | null;
   @Column({ nullable: true }) website!: string; // rolls over from the originating lead at conversion
   /** True when the project doesn't use the Project Program workbook (outsourced, software, small jobs); its answers are kept. */
   @Column({ nullable: true, default: false }) programOff!: boolean;

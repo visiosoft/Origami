@@ -33,8 +33,11 @@ describe('read cache', () => {
     expect(cacheableRead('/people/42')).toBe(false);
     expect(cacheableRead('/auth/me')).toBe(false);
     expect(cacheableRead('/status')).toBe(false);
-    expect(cacheableRead('/project-tasks/board?projectId=3')).toBe(true);
-    expect(cacheableRead('/tasks/page?page=2')).toBe(true);
+    // Task lists, the programme and the dashboard are always fresh (Nov 13 sync).
+    expect(cacheableRead('/project-tasks/board?projectId=3')).toBe(false);
+    expect(cacheableRead('/tasks/page?page=2')).toBe(false);
+    expect(cacheableRead('/dashboard/summary')).toBe(false);
+    expect(cacheableRead('/people')).toBe(true);
     expect(cacheableRead('/projects', { method: 'POST' })).toBe(false);
     expect(cacheableRead('/projects', { cache: 'no-store' })).toBe(false);
   });
