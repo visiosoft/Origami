@@ -42,6 +42,9 @@ export const WORKSPACE_SCOPES = [
   'https://www.googleapis.com/auth/calendar.freebusy',
 ];
 
+/** Scopes for a person connecting their OWN Gmail (Nov 13): read, send and draft their mail -- nothing else. */
+export const MY_MAIL_SCOPES = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.compose'];
+
 /** Scopes for "Sign in with Google" — identity only. */
 export const LOGIN_SCOPES = ['openid', 'email', 'profile'];
 
@@ -132,9 +135,9 @@ export class GoogleService {
   }
 
   /** Where the browser should be sent to start a consent flow. */
-  async consentUrl(mode: 'connect' | 'login' | 'my-calendar', state: string): Promise<string> {
+  async consentUrl(mode: 'connect' | 'login' | 'my-calendar' | 'my-mail', state: string): Promise<string> {
     const { clientId, redirectUri } = await this.credentials(mode === 'connect' ? 'workspace' : 'public');
-    const scopes = mode === 'connect' ? WORKSPACE_SCOPES : mode === 'my-calendar' ? MY_CALENDAR_SCOPES : LOGIN_SCOPES;
+    const scopes = mode === 'connect' ? WORKSPACE_SCOPES : mode === 'my-calendar' ? MY_CALENDAR_SCOPES : mode === 'my-mail' ? MY_MAIL_SCOPES : LOGIN_SCOPES;
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -143,7 +146,7 @@ export class GoogleService {
       state,
       include_granted_scopes: 'true',
     });
-    if (mode === 'connect' || mode === 'my-calendar') {
+    if (mode === 'connect' || mode === 'my-calendar' || mode === 'my-mail') {
       // Offline + forced consent is the only way Google hands back a refresh token.
       params.set('access_type', 'offline');
       params.set('prompt', 'consent');
@@ -151,13 +154,14 @@ export class GoogleService {
       params.set('prompt', 'select_account');
     }
     const hd = await this.settings.get('google.hostedDomain');
-    if (hd) params.set('hd', hd);
+    // Personal connections may be on another domain (Nov 13: apogeec.com and the Origami one).
+    if (hd && mode !== 'my-mail' && mode !== 'my-calendar') params.set('hd', hd);
     return `${AUTH_URL}?${params.toString()}`;
   }
 
   // ----------------------------------------------------------------- OAuth
 
-  async exchangeCode(code: string, mode: 'connect' | 'login' | 'my-calendar' = 'login'): Promise<{ access_token: string; refresh_token?: string; expires_in: number }> {
+  async exchangeCode(code: string, mode: 'connect' | 'login' | 'my-calendar' | 'my-mail' = 'login'): Promise<{ access_token: string; refresh_token?: string; expires_in: number }> {
     const { clientId, clientSecret, redirectUri } = await this.credentials(mode === 'connect' ? 'workspace' : 'public');
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
@@ -876,7 +880,7 @@ export class GoogleService {
 const CRLF = String.fromCharCode(13, 10);
 
 /** RFC-2822 message, base64url encoded the way the Gmail API wants it. */
-function buildMime(opts: {
+export function buildMime(opts: {
   from: string; to: string; subject: string; html: string; text?: string; cc?: string; bcc?: string; replyTo?: string;
   attachments?: Array<{ filename: string; mimeType: string; content: Buffer }>;
 }) {

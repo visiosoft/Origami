@@ -1,3 +1,4 @@
+import { LinkedMail } from './LinkedMail';
 import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
@@ -275,6 +276,8 @@ export function PhaseTaskPanel({
             onAddLink={async (name: string, url: string) => { applied(await api.projectTasks.addLink(draft.id, name, url)); }}
           />
         </div>
+
+        <div style={{ padding: '0 22px' }}><LinkedMail entityType="task" entityId={draft.id} /></div>
 
         <div style={{ padding: '16px 22px 26px' }}>
           <ActivityFeed

@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13t',
+    date: '2026-11-13',
+    title: 'My Mail: your Gmail in Origami',
+    items: [
+      { area: 'Mail', kind: 'new', text: 'Connect your own Gmail to read, search and answer your mail here, with attachments. Only you see your mailbox.', where: 'Special Actions → My Mail' },
+      { area: 'Mail', kind: 'new', text: '“Link to…” puts a conversation on a lead, project or task so the team can read it there. Mail links itself when it has #P-45 (a project), #L-… (a lead) or a task number like #NARV-T-2026-0001, and when it’s from a lead.' },
+      { area: 'Projects', kind: 'new', text: 'Projects, leads and tasks show the email linked to them.' },
+    ],
+  },
+  {
     id: '2026-11-13s',
     date: '2026-11-13',
     title: 'GC & Sub Prequalify',

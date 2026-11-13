@@ -32,8 +32,8 @@ const RESET_TTL_HOURS = 2;
 
 /** The shape of a user the client is allowed to see — no secrets. */
 export function publicUser(u: UserEntity) {
-  const { passwordHash, inviteToken, calendarRefreshToken, totpSecret, totpPending, totpLastStep, backupCodes, trustedDevices, otpHash: _h, otpExpiresAt: _e, otpSends: _s, otpPending: _p, ...rest } = u as any;
-  void totpSecret; void totpPending; void totpLastStep; void trustedDevices; void _h; void _e; void _s; void _p;
+  const { passwordHash, inviteToken, calendarRefreshToken, mailRefreshToken: _m, totpSecret, totpPending, totpLastStep, backupCodes, trustedDevices, otpHash: _h, otpExpiresAt: _e, otpSends: _s, otpPending: _p, ...rest } = u as any;
+  void _m; void totpSecret; void totpPending; void totpLastStep; void trustedDevices; void _h; void _e; void _s; void _p;
   return { ...rest, hasPassword: !!passwordHash, invitePending: !!inviteToken, calendarConnected: !!calendarRefreshToken, twoFactor: !!u.totpEnabledAt, backupCodesLeft: Array.isArray(backupCodes) ? backupCodes.length : 0 };
 }
 
@@ -654,6 +654,24 @@ export class AuthService {
     user.calendarEmail = email;
     user.calendarConnectedAt = new Date().toISOString();
     await this.users.save(user);
+  }
+
+  /** Their own Gmail (Nov 13): the refresh token is kept sealed. */
+  async connectMyMail(userId: string, refreshToken: string, email: string) {
+    const user = await this.users.findOneBy({ id: userId });
+    if (!user) return;
+    Object.assign(user, { mailRefreshToken: sealSecret(refreshToken, await this.settings.jwtSecret()), mailEmail: email, mailConnectedAt: new Date().toISOString() });
+    await this.users.save(user);
+  }
+  async disconnectMyMail(userId: string) {
+    const user = await this.users.findOneBy({ id: userId });
+    if (!user) return;
+    Object.assign(user, { mailRefreshToken: null, mailEmail: null, mailConnectedAt: null });
+    await this.users.save(user);
+  }
+  async myMailStatus(userId: string) {
+    const user = await this.users.findOneBy({ id: userId });
+    return { connected: !!user?.mailRefreshToken, email: user?.mailEmail || '', connectedAt: user?.mailConnectedAt || '' };
   }
 
   async disconnectMyCalendar(userId: string) {

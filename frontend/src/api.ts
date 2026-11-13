@@ -59,6 +59,12 @@ export type PrequalRow = {
 };
 export type PrequalPublic = { companyName: string; licenseNumber?: string; licenseExpiry?: string; insuranceProvider?: string; insurancePolicyNumber?: string; insuranceExpiry?: string; prequal: PrequalAnswers | null; status: string | null; files: string[] };
 
+export type MailLink = { id: string; entityType: 'lead' | 'project' | 'task'; entityId: string; label: string | null; auto?: boolean };
+export type MailThreadRow = { id: string; subject: string; from: string; to: string; date: string; snippet: string; count: number; unread: boolean; links: MailLink[] };
+export type MailMessage = { id: string; threadId: string; from: string; to: string; cc: string; subject: string; date: string; messageId: string; unread: boolean; snippet: string; html: string; text: string; attachments: { id: string; filename: string; mimeType: string; size: number }[] };
+export type MailThread = { id: string; subject: string; messages: MailMessage[]; links: MailLink[] };
+export type LinkedMailRow = { id: string; threadId: string; subject: string | null; ownerName: string | null; mine: boolean; auto: boolean; lastAt: string | null; messages: { from: string; to: string; date: string; subject: string; text: string; attachments: string[] }[] };
+
 export type MassRecipient = { type: 'person' | 'lead'; id: string; name: string; phone: string; status: 'waiting' | 'sent' | 'failed' | 'skipped'; note?: string };
 
 export interface ChecklistTemplate { id: string; name: string; items: { item: string }[];
@@ -457,6 +463,12 @@ export const api = {
     },
     testDrive: () => request<{ ok: boolean; folderId: string }>('/google/drive/test', { method: 'POST' }),
     driveFiles: (q?: string) => request<DriveFile[]>(`/google/drive/files${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    /** Their own Gmail (Nov 13). */
+    myMail: {
+      status: () => request<{ connected: boolean; email: string; connectedAt?: string }>('/google/my-mail/status', { cache: 'no-store' } as any),
+      connectUrl: () => `${API_BASE}/google/my-mail/connect`,
+      disconnect: () => request<{ connected: boolean }>('/google/my-mail/disconnect', { method: 'POST' }),
+    },
     myCalendar: {
       status: () => request<{ connected: boolean; email: string; connectedAt: string }>('/google/my-calendar/status'),
       connectUrl: () => `${API_BASE}/google/my-calendar/connect`,
@@ -1351,6 +1363,21 @@ export const api = {
     fulfill: (id: string) => request(`/workforce-requests/${id}/fulfill`, { method: 'POST' }),
     allocate: (id: string, data: { lineId: string; employeeIds: string[]; startDate?: string; workArea?: string }) =>
       request(`/workforce-requests/${id}/allocate`, { method: 'POST', body: JSON.stringify(data) }),
+  },
+  /** My mail (Nov 13): the caller's own Gmail, and mail linked to records. */
+  mail: {
+    threads: (q = '', page = '') => request<{ threads: MailThreadRow[]; nextPageToken: string | null }>(`/mail/threads?q=${encodeURIComponent(q)}&page=${encodeURIComponent(page)}`, { cache: 'no-store' } as any),
+    thread: (id: string) => request<MailThread>(`/mail/threads/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
+    attachment: async (mid: string, aid: string, name: string) => new Blob([await requestBytes(`/mail/messages/${encodeURIComponent(mid)}/attachments/${encodeURIComponent(aid)}?name=${encodeURIComponent(name)}`)]),
+    send: (d: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string }, files: File[] = []) => {
+      const f = filesForm(files);
+      for (const [k, v] of Object.entries(d)) if (v != null && v !== '') f.append(k, String(v));
+      return requestForm<{ id: string; threadId: string }>('/mail/send', f);
+    },
+    contacts: (q: string) => request<{ name: string; email: string; kind: string }[]>(`/mail/contacts?q=${encodeURIComponent(q)}`, { cache: 'no-store' } as any),
+    link: (threadId: string, entityType: 'lead' | 'project' | 'task', entityId: string) => request(`/mail/threads/${encodeURIComponent(threadId)}/link`, { method: 'POST', body: JSON.stringify({ entityType, entityId }) }),
+    unlink: (id: string) => request(`/mail/links/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    linked: (entityType: 'lead' | 'project' | 'task', entityId: string) => request<LinkedMailRow[]>(`/mail/linked?entityType=${entityType}&entityId=${encodeURIComponent(entityId)}`, { cache: 'no-store' } as any),
   },
   /** GC & Sub Prequalify (Nov 13). */
   prequal: {

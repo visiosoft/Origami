@@ -47,6 +47,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { key: 'actions', label: 'Special Actions', parent: 'main', hint: 'Your calendar and timesheets, and everything that needs action: meetings, FOR RECORD (observations, FYI, decisions), RFI, tasks, change orders and approvals', items: [
     { label: 'My Calendar', route: 'my-calendar', icon: 'cal', desc: 'Your calendar: meetings, due dates and Google Calendar' },
     { label: 'My Timesheets', route: 'my-timesheet', icon: 'clip', personal: true, desc: 'Your own hours, week by week' },
+    { label: 'My Mail', route: 'mail', icon: 'q', personal: true, desc: 'Your own Gmail: read, reply and link mail to leads, projects and tasks' },
     { label: 'Meetings', route: 'meetings', icon: 'cal', desc: 'Manage, track and create meetings; generate the actions below from them' },
     { label: 'FOR RECORD', route: 'observations', icon: 'q', desc: 'Observations, FYIs and decisions on record; link them to tasks and change orders' },
     { label: 'RFI', route: 'rfis', icon: 'q', desc: 'Manage, track and create RFIs' },

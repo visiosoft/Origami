@@ -57,6 +57,7 @@ const SignProposal = page(() => import('./pages/SignProposal'), 'SignProposal');
 const SignEstimate = page(() => import('./pages/SignEstimate'), 'SignEstimate');
 const TextPrefs = page(() => import('./pages/TextPrefs'), 'TextPrefs');
 const SubPrequal = page(() => import('./pages/SubPrequal'), 'SubPrequal');
+const Mail = page(() => import('./pages/Mail'), 'Mail');
 const PrequalForm = page(() => import('./pages/PrequalForm'), 'PrequalForm');
 const MassTexts = page(() => import('./pages/MassTexts'), 'MassTexts');
 const SubBid = page(() => import('./pages/SubBid'), 'SubBid');
@@ -141,6 +142,7 @@ export default function App() {
         <Route path="/people" element={<People />} />
         <Route path="/mass-texts" element={<MassTexts />} />
         <Route path="/sub_prequal" element={<SubPrequal />} />
+        <Route path="/mail" element={<Mail />} />
         <Route path="/tasks" element={<TasksRouter />} />
         <Route path="/requests" element={<TasksRouter initialMode="log" />} />
         <Route path="/settings" element={<Settings />} />

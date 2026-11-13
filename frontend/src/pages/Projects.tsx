@@ -1,3 +1,4 @@
+import { LinkedMail } from '../components/LinkedMail';
 import { TeamBackfill } from '../components/TeamBackfill';
 import { ArchiveBanner, ArchivedProjects } from '../components/ProjectArchive';
 import { ProjectTeam } from '../components/ProjectTeam';
@@ -819,6 +820,7 @@ export function Projects() {
             {tab === 'overview' ? (
               <div>
                 <WorkGlance projectId={sel.id} showRfis={rfiView} showChanges={finView} onOpen={openWork} />
+                <div style={{ padding: '0 28px' }}><LinkedMail entityType="project" entityId={sel.id} /></div>
                 <div style={{ padding: '24px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                   <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 14 }}>Project Details</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

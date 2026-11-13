@@ -1068,6 +1068,10 @@ export class UserEntity {
   // Never returned to the client -- see publicUser() in auth.service.
   @Column({ nullable: true }) calendarRefreshToken!: string;
   @Column({ nullable: true }) calendarEmail!: string;
+  /** Their own Gmail (Nov 13): the refresh token sealed (auth/totp.ts sealSecret), the address, when connected. */
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) mailRefreshToken!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) mailEmail!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) mailConnectedAt!: string | null;
   @Column({ nullable: true }) calendarConnectedAt!: string;
 }
 
@@ -3013,4 +3017,29 @@ export class EstimateStatementEntity {
   @Column({ type: 'nvarchar', length: 120, nullable: true }) createdBy!: string | null;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
   @Column({ type: 'nvarchar', length: 120, nullable: true }) updatedBy!: string | null;
+}
+
+/**
+ * A Gmail thread linked to a lead, project or task (Nov 13 sync): by hand,
+ * by a #tag in the mail, or because a lead wrote it. Keeps a copy of the
+ * messages so people who can see the record can read it.
+ */
+@Entity('email_links')
+export class EmailLinkEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 64 }) threadId!: string;
+  /** Whose mailbox it is in. */
+  @Column({ type: 'nvarchar', length: 64 }) ownerId!: string;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) ownerName!: string | null;
+  /** lead | project | task */
+  @Column({ type: 'nvarchar', length: 12 }) entityType!: string;
+  @Column({ type: 'nvarchar', length: 80 }) entityId!: string;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) label!: string | null;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) subject!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) messages!: { from: string; to: string; date: string; subject: string; text: string; attachments: string[] }[] | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) lastAt!: string | null;
+  /** Linked by a #tag or a lead's address rather than by hand. */
+  @Column({ type: 'bit', default: false }) auto!: boolean;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
 }

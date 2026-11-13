@@ -67,6 +67,8 @@ describe('two-step sign-in for staff', () => {
   });
 
   it('set up, then sign in with a code, a backup code once, or a remembered device', async () => {
+    // A fixed clock: if a 30-second step ended mid-test, a fresh code would rightly work and the "used once" check would fail.
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-13T10:00:05Z'));
     const svc = make();
     const t1: any = await login(svc, 'sara@x.com');
     const { secret } = await svc.twoFactorSetup(t1.ticket);
@@ -87,6 +89,7 @@ describe('two-step sign-in for staff', () => {
     expect(viaBackup.token).toBeTruthy();
     expect(viaBackup.backupCodesLeft).toBe(9);
     await expect(svc.twoFactorVerify(t2.ticket, { backupCode: on.backupCodes[3] })).rejects.toThrow(/already used/);
+    jest.restoreAllMocks();
   });
 
   it('locks for 10 minutes after five wrong codes; a stale ticket or admin reset start over', async () => {

@@ -171,8 +171,8 @@ export class UsersService implements OnApplicationBootstrap {
       await this.assertEmailFree(dto.email, id);
     }
     // Credentials are only ever changed through the auth flows, never a plain update.
-    const { passwordHash, inviteToken, hasPassword, invitePending, invite, totpSecret, totpPending, totpEnabledAt, totpLastStep, backupCodes, trustedDevices, twoFactor, backupCodesLeft, twoFactorMethod, twoFactorPhone, otpHash: _h, otpExpiresAt: _e, otpSends: _s, otpPending: _p, ...safe } = dto ?? {};
-    void totpSecret; void totpPending; void totpEnabledAt; void totpLastStep; void backupCodes; void trustedDevices; void twoFactor; void backupCodesLeft; void twoFactorMethod; void twoFactorPhone; void _h; void _e; void _s; void _p;
+    const { passwordHash, inviteToken, hasPassword, invitePending, invite, totpSecret, totpPending, totpEnabledAt, totpLastStep, backupCodes, trustedDevices, twoFactor, backupCodesLeft, twoFactorMethod, twoFactorPhone, otpHash: _h, otpExpiresAt: _e, otpSends: _s, otpPending: _p, mailRefreshToken: _mr, mailEmail: _me, mailConnectedAt: _mc, ...safe } = dto ?? {};
+    void totpSecret; void totpPending; void totpEnabledAt; void totpLastStep; void backupCodes; void trustedDevices; void twoFactor; void backupCodesLeft; void twoFactorMethod; void twoFactorPhone; void _h; void _e; void _s; void _p; void _mr; void _me; void _mc;
     if ('altEmails' in safe) safe.altEmails = await this.cleanAlt(safe.altEmails, normEmail(safe.email || user.email), id);
     Object.assign(user, safe, { id });
     const saved = await this.repo.save(user);
