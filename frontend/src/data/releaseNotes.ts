@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13l',
+    date: '2026-11-13',
+    title: 'QA/QC checklists, and where backup sheets go',
+    items: [
+      { area: 'QA/QC', kind: 'new', text: 'QA/QC checklists: inspections and quality checks tied to a programme task (e.g. Final Inspection) or a label. Every project’s matching task gets the checklist when its programme is set up, and open tasks that already exist get it as soon as the checklist is saved.', where: 'QA/QC & Safety → QA/QC → QA/QC templates' },
+      { area: 'QA/QC', kind: 'new', text: 'The QA/QC page lists every QA/QC checklist on tasks across your projects, with how many items are done; pick a project to narrow it and click one to open the project’s programme.', where: 'QA/QC & Safety → QA/QC' },
+      { area: 'Settings', kind: 'new', text: 'Backup sheets can go in a folder inside each project’s Drive folder (e.g. Admin / Backups). Existing sheets move there at the next refresh.', where: 'Settings → Google Workspace → Backup sheets' },
+    ],
+  },
+  {
     id: '2026-11-13k',
     date: '2026-11-13',
     title: 'Tasks go to the role, and the role to the person',

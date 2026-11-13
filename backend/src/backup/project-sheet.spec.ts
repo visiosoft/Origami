@@ -37,9 +37,11 @@ describe('the backup sheet', () => {
     }) as any;
     try {
       const updates: any[] = [];
+      const folders: string[] = [];
+      let setting: string | null = null;
       const repo = (rows: any[]) => ({ find: async () => rows, update: async (w: any, p: any) => updates.push(p) });
       const svc = new ProjectSheetService(repo([]) as any, repo(data.boardTasks) as any, repo(data.logTasks) as any, repo(data.rfis) as any, repo(data.changeOrders) as any, repo(data.meetings) as any,
-        { workspaceToken: async () => 'tok', folderForPath: async () => 'FOLDER', isConnected: async () => true } as any, {} as any);
+        { workspaceToken: async () => 'tok', folderForPath: async (_root: string, path: string[]) => { folders.push(path.join('/')); return 'FOLDER'; }, isConnected: async () => true } as any, { get: async () => setting } as any);
       const r = await svc.refresh({ id: 3, name: 'Cole Valley', backupSheetId: null } as any);
       expect(r.sheetId).toBe('SHEET1');
       expect(updates).toEqual([{ backupSheetId: 'SHEET1' }]);
@@ -54,6 +56,11 @@ describe('the backup sheet', () => {
       await svc.refresh({ id: 3, name: 'Cole Valley', backupSheetId: 'SHEET1' } as any);
       expect(calls[0]).toBe('GET https://www.googleapis.com/drive/v3/files/SHEET1');
       expect(calls.some((c) => c === 'POST https://www.googleapis.com/drive/v3/files')).toBe(false);
+      // Nov 13: a destination folder inside the project folder; an existing sheet is moved there.
+      calls.length = 0; setting = 'Admin/Backups';
+      await svc.refresh({ id: 3, name: 'Cole Valley', backupSheetId: 'SHEET1' } as any);
+      expect(folders.pop()).toBe('Cole Valley/Admin/Backups');
+      expect(calls).toContain('PATCH https://www.googleapis.com/drive/v3/files/SHEET1');
     } finally { global.fetch = real; }
   });
 });

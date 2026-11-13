@@ -12,6 +12,12 @@ const DRIVE_FILES = 'https://www.googleapis.com/drive/v3/files';
 const KEY_ON = 'backup.sheets.enabled';
 const KEY_LAST = 'backup.sheets.lastRun';
 const KEY_RESULT = 'backup.sheets.lastResult';
+/** Where in the project's Drive folder the sheet goes (Nov 13), e.g. "Backups" or "Admin/Backups"; empty = the project folder. */
+const KEY_FOLDER = 'backup.sheets.folder';
+/** "Admin / Backups" -> ['Admin', 'Backups'] (no empty or dot parts). */
+export function backupSubfolder(raw: string | null | undefined): string[] {
+  return String(raw || '').split(/[\\/>]/).map((x) => x.trim()).filter((x) => x && x !== '.' && x !== '..').slice(0, 6);
+}
 const DEFAULT_TZ = 'America/Los_Angeles';
 const CLOSED = /closed|archiv|cancel|lost|complete/i;
 
@@ -48,10 +54,15 @@ export class ProjectSheetService implements OnApplicationBootstrap, OnModuleDest
     const [on, last, result] = await Promise.all([this.settings.get(KEY_ON), this.settings.get(KEY_LAST), this.settings.get(KEY_RESULT)]);
     let parsed: any = null;
     try { parsed = result ? JSON.parse(result) : null; } catch { parsed = null; }
-    return { enabled: on === '1', lastRun: last || null, lastResult: parsed, connected: await this.google.isConnected() };
+    return { enabled: on === '1', lastRun: last || null, lastResult: parsed, connected: await this.google.isConnected(), folder: backupSubfolder(await this.settings.get(KEY_FOLDER)).join(' / ') };
   }
   async setEnabled(on: boolean) {
     await this.settings.set(KEY_ON, on ? '1' : '0');
+    return this.status();
+  }
+  /** The folder inside each project's Drive folder for its backup sheet; existing sheets move there at the next refresh. */
+  async setFolder(folder: string) {
+    await this.settings.set(KEY_FOLDER, backupSubfolder(folder).join('/'));
     return this.status();
   }
 
@@ -113,8 +124,16 @@ export class ProjectSheetService implements OnApplicationBootstrap, OnModuleDest
       const meta = await call(`${DRIVE_FILES}/${encodeURIComponent(id)}?fields=id,trashed&supportsAllDrives=true`).catch(() => null);
       if (!meta || meta.trashed) id = null;
     }
+    const folder = await this.google.folderForPath(DRIVE_ROOT, [p.name, ...backupSubfolder(await this.settings.get(KEY_FOLDER))]);
+    if (id) {
+      // The destination changed in Settings: move the sheet there.
+      const meta = await call(`${DRIVE_FILES}/${encodeURIComponent(id)}?fields=parents&supportsAllDrives=true`).catch(() => null);
+      const parents: string[] = meta?.parents || [];
+      if (meta && !parents.includes(folder)) {
+        await call(`${DRIVE_FILES}/${encodeURIComponent(id)}?addParents=${encodeURIComponent(folder)}&removeParents=${encodeURIComponent(parents.join(','))}&supportsAllDrives=true`, { method: 'PATCH', body: '{}' }).catch(() => null);
+      }
+    }
     if (!id) {
-      const folder = await this.google.folderForPath(DRIVE_ROOT, [p.name]);
       const made = await call(`${DRIVE_FILES}?supportsAllDrives=true`, { method: 'POST', body: JSON.stringify({ name: `${p.name} — backup`, mimeType: 'application/vnd.google-apps.spreadsheet', parents: [folder] }) });
       id = made.id as string;
       await this.projects.update({ id: p.id }, { backupSheetId: id } as any);

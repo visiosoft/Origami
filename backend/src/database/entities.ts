@@ -1032,6 +1032,8 @@ export class ChecklistTemplateEntity {
   @Column({ type: 'simple-json', nullable: true }) items!: { item: string }[] | null;
   /** Added by itself to new records of these kinds: task, record, record:Observation, label:Safety. */
   @Column({ type: 'simple-json', nullable: true }) autoFor!: string[] | null;
+  /** general | qaqc (Nov 13): QA/QC checklists show on the QA/QC page and are added to programme tasks as they're set up. */
+  @Column({ type: 'nvarchar', length: 20, default: 'general' }) kind!: string;
   @Column({ nullable: true }) createdById!: string;
   @Column({ nullable: true }) createdByName!: string;
   @Column() createdAt!: string;

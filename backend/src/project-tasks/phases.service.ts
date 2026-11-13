@@ -2,7 +2,8 @@ import { fillByRole, PROJECT_ROLES, roleSummary } from './project-roles';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity, UserEntity } from '../database/entities';
+import { ChecklistTemplateEntity, ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity, UserEntity } from '../database/entities';
+import { withAutoChecklists } from './auto-checklist';
 import { RETIRED_PHASE_KEYS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
 import {
   DEFAULT_PROGRAMME, DEFAULT_LIBRARY, DEFAULT_TEMPLATE_KEY, parseProgramme, parseLibrary, slugifyTemplateKey, phaseCategorizer,
@@ -51,6 +52,7 @@ export class PhasesService implements OnApplicationBootstrap {
     private readonly sections: SectionsService,
     private readonly settings: SettingsService,
     @Optional() @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
+    @Optional() @InjectRepository(ChecklistTemplateEntity) private readonly checklistTemplates?: Repository<ChecklistTemplateEntity>,
   ) {}
 
   // ------------------------------------------------------------- the project team (Nov 13)
@@ -306,6 +308,8 @@ export class PhasesService implements OnApplicationBootstrap {
     const sectionId = (sections[0])?.id ?? `S-${projectId}-0`;
     const existing = await this.tasks.find({ where: { projectId } });
     const stamp = new Date().toISOString();
+    // QA/QC checklists tied to a programme task or a label go on as the task is set up (Nov 13).
+    const qaqc = this.checklistTemplates ? (await this.checklistTemplates.find()).filter((t) => t.kind === 'qaqc') : [];
     const rows: ProjectTaskEntity[] = [];
     const touched: ProjectTaskEntity[] = [];
 
@@ -346,7 +350,7 @@ export class PhasesService implements OnApplicationBootstrap {
           completed: false,
           order: i,
           team: tpl.team || '',
-          attachments: [], comments: [], checklist: [], labels: tpl.labels || [],
+          attachments: [], comments: [], checklist: qaqc.length ? withAutoChecklists(qaqc, { kind: 'task', labels: tpl.labels || [], programmeId: tpl.id }, []) : [], labels: tpl.labels || [],
           activity: [event('created', { name: 'System' }, { text: 'added from the standard programme' })],
           createdAt: stamp.slice(0, 10),
           updatedAt: stamp,

@@ -373,8 +373,9 @@ function DrivePanel() {
  */
 function BackupSheetsPanel() {
   const { toast, authUser } = useApp();
-  const [st, setSt] = useState<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null } | null>(null);
+  const [st, setSt] = useState<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; folder?: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [folder, setFolder] = useState<string | null>(null);
   const isAdmin = authUser?.roleKey === 'admin';
   useEffect(() => { if (isAdmin) api.backup.sheets().then(setSt).catch(() => undefined); }, [isAdmin]);
   if (!isAdmin || !st) return null;
@@ -387,6 +388,13 @@ function BackupSheetsPanel() {
   const toggle = async () => {
     setBusy(true);
     try { setSt(await api.backup.setSheets(!st.enabled)); }
+    catch (e) { toast('⚠ ' + (e as Error).message); }
+    finally { setBusy(false); }
+  };
+  const saveFolder = async () => {
+    if (folder === null) return;
+    setBusy(true);
+    try { setSt(await api.backup.setSheetsFolder(folder)); setFolder(null); toast(folder.trim() ? `Backup sheets go in “${folder.trim()}” inside each project folder` : 'Backup sheets go in each project folder'); }
     catch (e) { toast('⚠ ' + (e as Error).message); }
     finally { setBusy(false); }
   };
@@ -405,6 +413,12 @@ function BackupSheetsPanel() {
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>
           {st.lastRun ? `Last refreshed ${new Date(st.lastRun).toLocaleString()} — ${st.lastResult?.projects ?? 0} project${st.lastResult?.projects === 1 ? '' : 's'}` : 'Not run yet'}
         </span>
+      </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+        <label htmlFor="bk-folder" style={{ fontSize: 12.5, fontWeight: 700 }}>Folder inside each project</label>
+        <input id="bk-folder" value={folder ?? st.folder ?? ''} placeholder="e.g. Admin / Backups — blank for the project folder" onChange={(e) => setFolder(e.target.value)}
+          style={{ flex: '1 1 240px', padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.15)', font: 'inherit', fontSize: 13 }} />
+        {folder !== null && folder !== (st.folder ?? '') && <button type="button" disabled={busy} onClick={() => void saveFolder()} style={{ padding: '8px 15px', borderRadius: 999, border: 0, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: '#fff', font: 'inherit' }}>Save folder</button>}
       </div>
       {!!st.lastResult?.failed?.length && (
         <div style={{ marginTop: 10, fontSize: 12, color: '#8E2E0A' }}>{st.lastResult.failed.map((f) => `${f.project}: ${f.error || 'failed'}`).join(' · ')}</div>

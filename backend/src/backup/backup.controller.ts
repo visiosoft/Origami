@@ -12,7 +12,7 @@ export class BackupController {
   status() { return this.sheets.status(); }
 
   @Put()
-  set(@Body() body: { enabled?: boolean }) { return this.sheets.setEnabled(!!body?.enabled); }
+  set(@Body() body: { enabled?: boolean; folder?: string }) { return body && 'folder' in body ? this.sheets.setFolder(String(body.folder ?? '')) : this.sheets.setEnabled(!!body?.enabled); }
 
   /** Refresh now: every active project, or { projectId }. */
   @Post('run')

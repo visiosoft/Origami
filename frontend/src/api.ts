@@ -52,7 +52,9 @@ export interface WeeklyReport {
 /** A checklist made in advance ("Pre-pour inspection"). */
 export interface ChecklistTemplate { id: string; name: string; items: { item: string }[];
   /** Added by itself to new records: task, record, record:Observation, label:Safety. */
-  autoFor?: string[]; createdById?: string; createdByName?: string; createdAt: string }
+  autoFor?: string[]; createdById?: string; createdByName?: string; createdAt: string;
+  /** general | qaqc (Nov 13). */
+  kind?: string }
 
 /** A saved filter set on a list page (Saved views). */
 export interface SavedView { id: string; page: string; name: string; filters: Record<string, unknown> | null; createdAt: string }
@@ -357,9 +359,11 @@ export const api = {
   /** Checklists made in advance and added to tasks. */
   checklistTemplates: {
     list: () => request<ChecklistTemplate[]>('/checklist-templates'),
-    save: (name: string, items: string[], autoFor?: string[]) => request<ChecklistTemplate>('/checklist-templates', { method: 'POST', body: JSON.stringify({ name, items, autoFor }) }),
-    update: (id: string, d: { name?: string; items?: string[]; autoFor?: string[] }) => request<ChecklistTemplate>(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    save: (name: string, items: string[], autoFor?: string[], kind?: string) => request<ChecklistTemplate & { applied?: number }>('/checklist-templates', { method: 'POST', body: JSON.stringify({ name, items, autoFor, kind }) }),
+    update: (id: string, d: { name?: string; items?: string[]; autoFor?: string[]; kind?: string }) => request<ChecklistTemplate & { applied?: number }>(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     remove: (id: string) => request(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    /** QA/QC checklists on tasks (Nov 13): per task and template, done of total. */
+    qaqc: (projectId?: number) => request<{ taskId: string; projectId: number; title: string; phaseId: string | null; templateId: string; templateName: string; total: number; done: number; dueDate: string | null; assignee: string | null; completed: boolean }[]>(`/checklist-templates/qaqc${projectId ? `?projectId=${projectId}` : ''}`, { cache: 'no-store' } as any),
   },
   /** The caller's own saved filter sets, per list page. */
   views: {
@@ -675,8 +679,10 @@ export const api = {
   },
   /** Backup sheets per project (Oct 30 sync; admins). */
   backup: {
-    sheets: () => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean }>('/backup/sheets', { cache: 'no-store' } as any),
-    setSheets: (enabled: boolean) => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean }>('/backup/sheets', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    sheets: () => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean; folder?: string }>('/backup/sheets', { cache: 'no-store' } as any),
+    setSheets: (enabled: boolean) => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean; folder?: string }>('/backup/sheets', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    /** Drive folder for the sheet, inside the project folder (Nov 13); blank = the project folder. */
+    setSheetsFolder: (folder: string) => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean; folder?: string }>('/backup/sheets', { method: 'PUT', body: JSON.stringify({ folder }) }),
     runSheets: (projectId?: number) => request<{ at: string; projects: number; failed: { project: string; error?: string }[] }>('/backup/sheets/run', { method: 'POST', body: JSON.stringify({ projectId }) }),
   },
   /** The shared tag bank (Oct 30 sync): standard tags plus everyone's custom ones. */

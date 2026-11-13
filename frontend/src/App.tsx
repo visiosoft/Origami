@@ -26,6 +26,7 @@ const People = page(() => import('./pages/People'), 'People');
 const Tasks = page(() => import('./pages/Tasks'), 'Tasks');
 const SuperintendentTasks = page(() => import('./pages/SuperintendentHome'), 'SuperintendentTasks');
 const ModuleSpec = page(() => import('./pages/ModuleSpec'), 'ModuleSpec');
+const QaQc = page(() => import('./pages/QaQc'), 'QaQc');
 const TabHub = page(() => import('./pages/TabHub'), 'TabHub');
 const ProgressPhotos = page(() => import('./pages/ProgressPhotos'), 'ProgressPhotos');
 const PublicPage = page(() => import('./pages/PublicPage'), 'PublicPage');
@@ -173,7 +174,7 @@ export default function App() {
           { key: 'manpower', label: 'Manpower', perm: 'manpower_con', render: () => <Manpower /> },
         ]} />} />
         <Route path="/quality" element={<TabHub title="QA/QC & Safety" tabs={[
-          { key: 'quality', label: 'QA/QC', perm: 'quality', render: () => <ModuleSpec slug="quality" /> },
+          { key: 'quality', label: 'QA/QC', perm: 'quality', render: () => <QaQc /> },
           { key: 'safety', label: 'Safety', perm: 'safety', render: () => <ModuleSpec slug="safety" /> },
         ]} />} />
         <Route path="/:slug" element={<ModuleSpec />} />
