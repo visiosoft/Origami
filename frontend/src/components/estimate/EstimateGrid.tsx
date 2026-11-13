@@ -6,7 +6,7 @@ import { useCsiCodes } from '../CsiSelect';
 import { autoStrategy, computeEstimate, explainTotal, FORMULAS, money, NOTE_LABEL, type EstSettings, type FormulaId } from '../../data/estimateCalc';
 import { evaluateRow, formulaProblem, type Value } from '../../data/estimateFormula';
 import {
-  BANDS, cellText, columnDefs, COLUMN_TYPES, customKey, effectiveColumns, History, LINE_COLS, lineNumbers, moveLine, newGr, newLine, newScope, parseTsv, pasteBlock, setCell, toTsv,
+  BANDS, cellText, columnDefs, COLUMN_TYPES, customKey, effectiveColumns, History, insertStatements, LINE_COLS, lineNumbers, moveLine, newGr, newLine, newScope, parseTsv, pasteBlock, setCell, toTsv,
   type Band, type ColumnDef, type EstGr, type EstLine, type EstScope, type GridCol, type Sheet,
 } from '../../data/estimateGrid';
 import { SourcePicker } from './SourcePicker';
@@ -514,8 +514,8 @@ export function EstimateGrid({ projectId, estimateId, onChanged, controlRef }: {
       if (line && line.kind !== 'item' && col.key === 'description') {
         const scope = sheetRef.current.scopes.find((x) => x.id === line.scopeId);
         input = <>{input}<StatementPicker csiCodeId={scope?.csiCodeId || null} kind={line.kind} text={editing.value} canSave={canEdit}
-          onPick={(st) => {
-            updateLines((ls) => ls.map((l) => (l.id === line.id ? { ...l, description: st.text, statementId: st.statementId } : l)));
+          onPick={(picks) => {
+            updateLines((ls) => insertStatements(ls, line.id, picks));
             setEditing(null);
             window.setTimeout(() => wrapRef.current?.focus(), 0);
           }} /></>;

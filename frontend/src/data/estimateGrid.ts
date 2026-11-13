@@ -333,3 +333,17 @@ export class History<T> {
   get canUndo() { return this.past.length > 0; }
   get canRedo() { return this.future.length > 0; }
 }
+
+/**
+ * Several standard statements picked at once (Nov 13): the first fills the
+ * note row being edited, the rest become new note rows of the same kind just
+ * below it, in the order picked.
+ */
+export function insertStatements(lines: EstLine[], lineId: string, picks: { text: string; statementId: string | null }[]): EstLine[] {
+  const i = lines.findIndex((l) => l.id === lineId);
+  if (i < 0 || !picks.length) return lines;
+  const at = lines[i];
+  const first = { ...at, description: picks[0].text, statementId: picks[0].statementId };
+  const rest = picks.slice(1).map((p) => ({ ...newLine(at.scopeId, at.kind), indent: at.indent, description: p.text, statementId: p.statementId }));
+  return [...lines.slice(0, i), first, ...rest, ...lines.slice(i + 1)];
+}

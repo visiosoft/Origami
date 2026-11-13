@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellText, columnDefs, effectiveColumns, History, LINE_COLS, lineNumbers, matchChoice, moveLine, newLine, parseDate, parseMoney, parsePct, parseTsv, pasteBlock, PRICING_OPTIONS, setCell, toTsv, type EstLine } from './estimateGrid';
+import { cellText, columnDefs, effectiveColumns, History, insertStatements, LINE_COLS, lineNumbers, matchChoice, moveLine, newLine, parseDate, parseMoney, parsePct, parseTsv, pasteBlock, PRICING_OPTIONS, setCell, toTsv, type EstLine } from './estimateGrid';
 
 const col = (k: string) => LINE_COLS.find((c) => c.key === k)!;
 const L = (id: string, scopeId: string, kind = 'item'): EstLine => ({ ...newLine(scopeId, kind), id });
@@ -42,6 +42,14 @@ describe('estimate grid', () => {
     expect(l.strategy).toBe('self_perform');
     l = (setCell(l, col('pricing'), 'OFCI') as any).line;
     expect(l.strategy).toBe('ofci');
+  });
+
+  it('several statements: the first fills the row, the rest go just below in order', () => {
+    const ls = [L('1', 'a', 'inclusion'), L('2', 'a', 'exclusion')];
+    const out = insertStatements(ls, '1', [{ text: 'Floors protected', statementId: 's1' }, { text: 'Daily clean-up', statementId: 's2' }, { text: 'Haul-off', statementId: null }]);
+    expect(out.map((l) => [l.kind, l.description, l.statementId])).toEqual([['inclusion', 'Floors protected', 's1'], ['inclusion', 'Daily clean-up', 's2'], ['inclusion', 'Haul-off', null], ['exclusion', '', undefined]]);
+    expect(out[0].id).toBe('1');
+    expect(new Set(out.map((l) => l.id)).size).toBe(4);
   });
 
   it('typing a markup % switches the line to % mode; typing $ switches back', () => {

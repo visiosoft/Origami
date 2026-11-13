@@ -254,3 +254,4 @@ Order agreed (Oct 31): G priorities → F drawings → H templates.
 | # | Item | Status |
 |---|------|--------|
 | O1 | Performing strategies (Edward's list) with automatic Subcontract used / required and OFCI; old lines listed with where each goes, "Update strategies" moves them (Owner → OFCI, Other → blank) | ✅ built — press it on staging |
+| O2 | Standard statements: tick several, "Insert N" adds them below in order (one undo) | ✅ |
