@@ -356,6 +356,14 @@ export interface SubInvoice {
   status: 'submitted' | 'approved' | 'paid' | 'returned'; gross: number; retentionPct: number; retention: number; net: number; lineIds: string[]; paidDate: string | null;
   releases: LienRelease[]; payBlock: string | null; waitingUnconditional: boolean;
 }
+/** Funding sources on a project (Batch 6). */
+export interface FundingView {
+  canManage: boolean; kinds: { key: string; label: string }[];
+  sources: { id: string; kind: string; kindLabel: string; name: string; notes: string | null; approved: number; invoiced: number; paid: number; left: number; changeOrders: number; over: boolean }[];
+  approved: number; revisedContract: number; gap: number; unassignedInvoiced: number; unassignedCount: number;
+  invoices: { id: string; number: string | null; date: string; total: number | null; fundingSourceId: string | null }[];
+  changeOrders: { id: string; number: string; title: string; amount: number | null; fundingSourceId: string | null }[];
+}
 export interface PortalRetention { commitmentId: string; number: string; vendorName?: string; held: number; paidDate: string | null; paymentRef: string | null; block: string | null; waitingUnconditional: boolean; releases: LienRelease[] }
 
 export const api = {
@@ -1162,6 +1170,10 @@ export const api = {
     project: (projectId: number) => request<AuditRow[]>(`/audit-project/${projectId}`),
   },
   finance: {
+    funding: (projectId: number) => request<FundingView>(`/finance/projects/${projectId}/funding`),
+    saveFunding: (projectId: number, d: { id?: string; kind: string; name: string; approvedAmount: number; notes?: string }) => request<FundingView>(`/finance/projects/${projectId}/funding`, { method: 'POST', body: JSON.stringify(d) }),
+    removeFunding: (id: string) => request<FundingView>(`/finance/funding/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    assignFunding: (projectId: number, d: { invoiceId?: string; changeOrderId?: string; fundingSourceId: string | null }) => request<FundingView>(`/finance/projects/${projectId}/funding/assign`, { method: 'POST', body: JSON.stringify(d) }),
     subInvoices: (projectId: number) => request<{ invoices: SubInvoice[]; retention: PortalRetention[] }>(`/finance/projects/${projectId}/sub-invoices`),
     markRelease: (id: string, d: { kind: ReleaseKind; amount?: number | null; throughDate?: string | null }) => request(`/finance/lien-releases/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify(d) }),
     releaseFile: (id: string) => requestBytes(`/finance/lien-releases/${encodeURIComponent(id)}/file`),

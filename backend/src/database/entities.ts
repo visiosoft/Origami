@@ -2097,6 +2097,8 @@ export class ProgressUpdateEntity {
 @Index('UQ_project_invoices_number', ['issuedNumber'], { unique: true, where: '[issuedNumber] IS NOT NULL' })
 export class ProjectInvoiceEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
+  /** Which funding source pays it (Batch 6: loan, owner cash...); empty = not assigned. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) fundingSourceId!: string | null;
   /** INV-YYYY-0001, given only when the invoice is issued. */
   @Column({ nullable: true }) issuedNumber!: string;
   @Column('int') projectId!: number;
@@ -2267,6 +2269,8 @@ export class AuditEventEntity {
 @Index('UQ_change_orders_number', ['projectId', 'number'], { unique: true })
 export class ChangeOrderEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
+  /** Which funding source pays for it (Batch 6); empty = not assigned. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) fundingSourceId!: string | null;
   /** Where it came from when it was converted or duplicated from another special action. */
   @Column({ nullable: true }) sourceType!: string;
   @Column({ nullable: true }) sourceId!: string;
@@ -3108,4 +3112,20 @@ export class LienReleaseEntity {
   @Column({ type: 'nvarchar', length: 40 }) uploadedAt!: string;
   @Column({ type: 'nvarchar', length: 200, nullable: true }) checkedBy!: string | null;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) checkedAt!: string | null;
+}
+
+/** Where a project's money comes from (Batch 6): a loan, the owner's cash, or another source, with the amount approved. */
+@Entity('funding_sources')
+export class FundingSourceEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column('int') projectId!: number;
+  /** loan | owner_cash | other */
+  @Column({ type: 'nvarchar', length: 20 }) kind!: string;
+  @Column({ type: 'nvarchar', length: 200 }) name!: string;
+  @Column({ type: 'decimal', precision: 18, scale: 2, transformer: { to: (v: unknown) => v, from: (v: unknown) => (v == null ? 0 : Number(v)) } }) approvedAmount!: number;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) notes!: string | null;
+  @Column({ type: 'int', default: 0 }) sortOrder!: number;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) createdBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
 }

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-14d',
+    date: '2026-11-14',
+    title: 'Funding sources on a project',
+    items: [
+      { area: 'Financials', kind: 'new', text: 'Add where a project’s money comes from — a construction loan, the owner’s cash or another source — with the amount approved. Each shows what’s been invoiced to it, paid and left, and the top line shows the gap still to cover against the contract with approved change orders.', where: 'Project → Financials → Funding' },
+      { area: 'Financials', kind: 'new', text: 'Pick which source pays each owner invoice and approved change order (“Paid from”).', where: 'Project → Financials → Funding' },
+    ],
+  },
+  {
     id: '2026-11-14c',
     date: '2026-11-14',
     title: 'Sub invoices: retention and lien releases',

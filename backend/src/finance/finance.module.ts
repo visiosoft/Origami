@@ -1,5 +1,6 @@
 import { SubInvoicesService } from './sub-invoices.service';
-import { LienReleaseEntity, SubInvoiceEntity } from '../database/entities';
+import { FundingSourceEntity, LienReleaseEntity, SubInvoiceEntity } from '../database/entities';
+import { FundingService } from './funding.service';
 import { ChangeOrderPublicController } from './co-public.controller';
 import { TrackingModule } from '../tracking/tracking.module';
 import { Module } from '@nestjs/common';
@@ -50,7 +51,7 @@ import {
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SubInvoiceEntity, LienReleaseEntity, 
+    TypeOrmModule.forFeature([SubInvoiceEntity, LienReleaseEntity, FundingSourceEntity, 
       ProjectEntity, LeadEntity, ProjectPhaseEntity, ProjectTaskEntity, ProjectSectionEntity, RoleEntity,
       ProjectFinancialEntity, PhaseFinancialEntity, TaskFinancialEntity, ProgressUpdateEntity,
       ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, FinanceSequenceEntity, FinanceActivityEntity,
@@ -68,7 +69,7 @@ import {
   ],
   controllers: [ChangeOrderPublicController, EstimatePublicController, BidPublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService, EstimateLetterService, EstimateSetupService, BidPackagesService, SubInvoicesService],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService, EstimateLetterService, EstimateSetupService, BidPackagesService, SubInvoicesService, FundingService],
   exports: [ChangeOrdersService, FinancialsService],
 })
 export class FinanceModule {}

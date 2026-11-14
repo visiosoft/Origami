@@ -1,3 +1,4 @@
+import { FundingService } from './funding.service';
 import { SubInvoicesService } from './sub-invoices.service';
 import { BadRequestException, Body, ForbiddenException, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -62,6 +63,7 @@ export class FinanceController {
     private readonly authService: AuthService,
     private readonly subInvoices: SubInvoicesService,
     private readonly attachmentsSvc: AttachmentsService,
+    private readonly funding: FundingService,
   ) {}
 
   /** Which projects the caller may read, for copying an estimate from another project. */
@@ -172,6 +174,12 @@ export class FinanceController {
   @Post('projects/:id/commitments') async commitment(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.saveCommitment(Number(id), dto, await this.actor(a)); }
   @Post('commitments/:id/:action') async commitmentStep(@Param('id') id: string, @Param('action') action: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.commitmentStep(id, action, dto || {}, await this.actor(a)); }
   @Post('projects/:id/cost-entries') async costEntry(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.saveEntry(Number(id), dto, await this.actor(a)); }
+  // Funding sources (Batch 6).
+  @Get('projects/:id/funding') async fundingView(@Param('id') id: string, @Headers('authorization') a?: string) { return this.funding.view(Number(id), await this.actor(a)); }
+  @Post('projects/:id/funding') async fundingSave(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.funding.save(Number(id), dto || {}, await this.actor(a)); }
+  @Delete('funding/:id') async fundingRemove(@Param('id') id: string, @Headers('authorization') a?: string) { return this.funding.remove(id, await this.actor(a)); }
+  @Post('projects/:id/funding/assign') async fundingAssign(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.funding.assign(Number(id), dto || {}, await this.actor(a)); }
+
   // Sub invoices and lien releases (Batch 6).
   @Get('projects/:id/sub-invoices') async subInvoiceList(@Param('id') id: string, @Headers('authorization') a?: string) { return this.subInvoices.forProject(Number(id), await this.actor(a)); }
   @Post('lien-releases/:id') async markRelease(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.subInvoices.markRelease(id, dto || {}, await this.actor(a)); }
