@@ -290,3 +290,11 @@ Plan: second emails, project housekeeping, texts opt-out + mass texts, 2-step by
 | Q7 | GC & Sub Prequalify page (/sub_prequal): per contractor licence, insurance, trades, years, references, W-9, files; staff save the form, approve (only with licence + insurance on file and current) or turn down with a note; a private 30-day link for the sub to fill it in and upload files (/prequal); bid invites refuse anyone not approved or with an expired licence / insurance (the picker greys them out with the reason) | ✅ built — no sub is approved yet, so approve them before inviting to bid |
 | Q8 | My Mail: each person connects their own Gmail (gmail.readonly / send / compose; token sealed; any domain); inbox with Gmail search and paging, threads, attachments, reply in thread / new mail with attachments, contact suggestions from People and leads; Link to… a lead, project or task; auto-links by #P-45 / #L-… / #<task number> and by a lead's address (only to records the person can see); linked mail is copied to the record and shown on the project overview, lead drawer and task panel | ✅ built — needs the Google sign-in app to allow the Gmail scopes (see notes) |
 | Q9 | Meeting notes for meetings people attend but don't organise, and on another domain: My Calendar connections may also read Docs shared with the person (drive.readonly); the hourly sweep and “Import from Google” try the attendees' own connections (matched by id or any of their emails) when the workspace account can't see the Doc; personal Google connections aren't locked to one hosted domain. A second shared workspace connection isn't needed for this | ✅ built — everyone presses Reconnect once in Settings → My Calendar |
+
+## R. Batch 6
+
+Plan: My Mail drafts, templates, open tracking and email on contacts; sub line-item invoices with lien releases; funding sources and structures; weekly database copy and uptime check; File Room default layout.
+
+| # | What | Status |
+|---|---|---|
+| R1 | My Mail: Inbox / Sent / Drafts; drafts are Gmail's own (autosave 5s after typing, Save draft, Discard deletes, opening a draft keeps its attachments, sending a draft sends that draft); email templates, shared (administrators) and personal, filled with {{clientFirstName}} / {{clientName}} / {{projectTitle}} / {{senderName}}; unfilled fields asked about before sending | ✅ built |

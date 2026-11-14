@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-14a',
+    date: '2026-11-14',
+    title: 'My Mail: drafts and templates',
+    items: [
+      { area: 'Mail', kind: 'new', text: 'Inbox, Sent and Drafts. What you write saves itself as a Gmail draft a few seconds after you stop typing, so it’s in Gmail too; open it later from Drafts and send it.', where: 'Special Actions → My Mail' },
+      { area: 'Mail', kind: 'new', text: 'Email templates: save your own, or (administrators) share them with everyone. Picking one fills in the person’s name, the project and your name.', where: 'My Mail → Templates' },
+    ],
+  },
+  {
     id: '2026-11-13u',
     date: '2026-11-13',
     title: 'Meeting notes from meetings you attend',

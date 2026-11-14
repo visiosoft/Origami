@@ -35,6 +35,45 @@ export class MailController {
     return this.mail.send(c.sub, { to: body?.to, cc: body?.cc, subject: body?.subject, html: body?.html, threadId: body?.threadId || undefined, inReplyTo: body?.inReplyTo || undefined }, files || []);
   }
 
+  // Drafts (Batch 6): Gmail's own drafts.
+  @Get('drafts')
+  drafts(@Claims() c: SessionClaims) { return this.mail.drafts(c.sub); }
+
+  @Get('drafts/:id')
+  draft(@Claims() c: SessionClaims, @Param('id') id: string) { return this.mail.draft(c.sub, id); }
+
+  @Post('drafts')
+  @UseInterceptors(FilesInterceptor('files', 10, { limits: { fileSize: MAX_FILE_BYTES } }))
+  saveDraft(@Claims() c: SessionClaims, @Body() body: any, @UploadedFiles() files: any[]) {
+    return this.mail.saveDraft(c.sub, body?.id || null, this.input(body), files || []);
+  }
+
+  @Post('drafts/:id/send')
+  @UseInterceptors(FilesInterceptor('files', 10, { limits: { fileSize: MAX_FILE_BYTES } }))
+  sendDraft(@Claims() c: SessionClaims, @Param('id') id: string, @Body() body: any, @UploadedFiles() files: any[]) {
+    return this.mail.sendDraft(c.sub, id, body && Object.keys(body).length ? this.input(body) : null, files || []);
+  }
+
+  @Delete('drafts/:id')
+  discardDraft(@Claims() c: SessionClaims, @Param('id') id: string) { return this.mail.discardDraft(c.sub, id); }
+
+  private input(body: any) {
+    return { to: body?.to || '', cc: body?.cc, subject: body?.subject || '', html: body?.html || '', threadId: body?.threadId || undefined, inReplyTo: body?.inReplyTo || undefined };
+  }
+
+  // Templates (Batch 6): shared (administrators) and personal.
+  @Get('templates')
+  templates(@Claims() c: SessionClaims) { return this.mail.templates(c.sub); }
+
+  @Post('templates')
+  createTemplate(@Claims() c: SessionClaims, @Body() body: any) { return this.mail.saveTemplate(c, null, body); }
+
+  @Post('templates/:id')
+  updateTemplate(@Claims() c: SessionClaims, @Param('id') id: string, @Body() body: any) { return this.mail.saveTemplate(c, id, body); }
+
+  @Delete('templates/:id')
+  removeTemplate(@Claims() c: SessionClaims, @Param('id') id: string) { return this.mail.removeTemplate(c, id); }
+
   @Get('contacts')
   contacts(@Query('q') q: string) { return this.mail.contacts(q); }
 

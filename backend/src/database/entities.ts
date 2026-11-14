@@ -3043,3 +3043,16 @@ export class EmailLinkEntity {
   @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
 }
+
+/** An email template for My Mail (Batch 6): shared (ownerId empty, made by administrators) or one person's own. */
+@Entity('mail_templates')
+export class MailTemplateEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 200 }) name!: string;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) subject!: string | null;
+  @Column({ type: 'nvarchar', length: 'MAX' }) html!: string;
+  /** Empty = shared with everyone. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) ownerId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) ownerName!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) updatedAt!: string;
+}

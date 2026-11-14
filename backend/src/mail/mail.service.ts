@@ -1,8 +1,8 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { EmailLinkEntity, LeadEntity, PersonEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
+import { EmailLinkEntity, LeadEntity, MailTemplateEntity, PersonEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService, buildMime } from '../google/google.service';
 import { openSecret } from '../auth/totp';
@@ -13,6 +13,8 @@ import { addressesIn, headerOf, messageView, tagsIn, type GmailMessage } from '.
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 export type LinkType = 'lead' | 'project' | 'task';
+export interface MailDraftInput { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string }
+type UploadFile = { originalname: string; mimetype: string; buffer: Buffer };
 const now = () => new Date().toISOString();
 
 /**
@@ -38,6 +40,7 @@ export class MailService {
     private readonly settings: SettingsService,
     private readonly google: GoogleService,
     private readonly access: ProjectAccessService,
+    @Optional() @InjectRepository(MailTemplateEntity) private readonly templatesRepo?: Repository<MailTemplateEntity>,
   ) {}
 
   // ------------------------------------------------------------ connection
@@ -103,19 +106,96 @@ export class MailService {
   }
 
   // ------------------------------------------------------------ sending
-  async send(userId: string, dto: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string }, files: { originalname: string; mimetype: string; buffer: Buffer }[] = []) {
+  /** The message as Gmail wants it (base64url RFC 2822). A draft may have no recipient yet. */
+  private async raw(userId: string, dto: MailDraftInput, files: UploadFile[], forDraft = false) {
     const u = await this.users.findOneBy({ id: userId });
     if (!u?.mailEmail) throw new BadRequestException('Connect your Gmail first.');
-    const to = addressesIn(dto.to).join(', ');
-    if (!to) throw new BadRequestException('Who is it to?');
-    const subject = String(dto.subject || '').trim() || '(no subject)';
+    const to = addressesIn(dto.to || '').join(', ');
+    if (!to && !forDraft) throw new BadRequestException('Who is it to?');
+    const subject = String(dto.subject || '').trim() || (forDraft ? '' : '(no subject)');
     let raw = buildMime({ from: u.mailEmail, to, cc: addressesIn(dto.cc || '').join(', ') || undefined, subject, html: String(dto.html || ''), attachments: files.map((f) => ({ filename: f.originalname, mimeType: f.mimetype || 'application/octet-stream', content: f.buffer })) });
     if (dto.inReplyTo) {
-      // A reply: threaded by its headers as well as the thread id.
       const text = Buffer.from(raw.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
       const ref = String(dto.inReplyTo).replace(/[\r\n]/g, '');
       raw = Buffer.from(`In-Reply-To: ${ref}\r\nReferences: ${ref}\r\n${text}`, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     }
+    return raw;
+  }
+
+  // ------------------------------------------------------------ drafts (Batch 6): Gmail's own, so they show in Gmail too
+  async drafts(userId: string) {
+    const list = await this.gmail(userId, '/drafts?maxResults=30');
+    const ids: string[] = (list.drafts || []).map((d: any) => d.id);
+    const full = await Promise.all(ids.map((id) => this.gmail(userId, `/drafts/${id}?format=metadata`).catch(() => null)));
+    return full.filter(Boolean).map((d: any) => ({
+      id: d.id, threadId: d.message?.threadId || null, subject: headerOf(d.message?.payload, 'Subject') || '(no subject)',
+      to: headerOf(d.message?.payload, 'To'), snippet: d.message?.snippet || '', date: d.message?.internalDate ? new Date(Number(d.message.internalDate)).toISOString() : '',
+    }));
+  }
+
+  async draft(userId: string, id: string) {
+    const d = await this.gmail(userId, `/drafts/${encodeURIComponent(id)}?format=full`);
+    const m = messageView(d.message);
+    return { id: d.id, threadId: d.message?.threadId || null, to: m.to, cc: m.cc, subject: m.subject, html: m.html || m.text, messageId: m.id, attachments: m.attachments, inReplyTo: headerOf(d.message?.payload, 'In-Reply-To') || null };
+  }
+
+  /** Create, or replace (Gmail keeps one message per draft). */
+  async saveDraft(userId: string, id: string | null, dto: MailDraftInput, files: UploadFile[] = []) {
+    const raw = await this.raw(userId, dto, files, true);
+    const body = JSON.stringify({ ...(id ? { id } : {}), message: { raw, ...(dto.threadId ? { threadId: dto.threadId } : {}) } });
+    const d = id
+      ? await this.gmail(userId, `/drafts/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body })
+      : await this.gmail(userId, '/drafts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+    return { id: d.id, threadId: d.message?.threadId || null };
+  }
+
+  async sendDraft(userId: string, id: string, dto: MailDraftInput | null, files: UploadFile[] = []) {
+    if (dto) await this.saveDraft(userId, id, dto, files);
+    const d = await this.gmail(userId, '/drafts/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    return { id: d.id, threadId: d.threadId };
+  }
+
+  async discardDraft(userId: string, id: string) {
+    await this.gmail(userId, `/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return { removed: true };
+  }
+
+  // ------------------------------------------------------------ templates (Batch 6)
+  async templates(userId: string) {
+    const rows = (await this.templatesRepo?.find({ order: { name: 'ASC' } })) || [];
+    return rows.filter((t) => !t.ownerId || t.ownerId === userId).map((t) => ({ ...t, shared: !t.ownerId, mine: t.ownerId === userId }));
+  }
+
+  async saveTemplate(claims: SessionClaims, id: string | null, dto: { name?: string; subject?: string; html?: string; shared?: boolean }) {
+    if (!this.templatesRepo) throw new BadRequestException('Templates aren’t available.');
+    const name = String(dto?.name || '').trim().slice(0, 200);
+    if (!name) throw new BadRequestException('Give the template a name.');
+    const existing = id ? await this.templatesRepo.findOneBy({ id }) : null;
+    if (id && !existing) throw new NotFoundException('Template not found.');
+    const shared = existing ? !existing.ownerId : !!dto?.shared;
+    if (shared && claims.roleKey !== 'admin') throw new ForbiddenException('Only administrators change shared templates.');
+    if (existing && existing.ownerId && existing.ownerId !== claims.sub) throw new ForbiddenException('That template is someone else’s.');
+    const row = this.templatesRepo.create({
+      id: existing?.id || 'MTPL-' + randomUUID(), name, subject: String(dto?.subject || '').slice(0, 500) || null, html: String(dto?.html || ''),
+      ownerId: shared ? null : claims.sub, ownerName: shared ? null : claims.name || null, updatedAt: now(),
+    });
+    return this.templatesRepo.save(row);
+  }
+
+  async removeTemplate(claims: SessionClaims, id: string) {
+    const t = await this.templatesRepo?.findOneBy({ id });
+    if (!t) throw new NotFoundException('Template not found.');
+    if (!t.ownerId ? claims.roleKey !== 'admin' : t.ownerId !== claims.sub) throw new ForbiddenException('You can’t delete that template.');
+    await this.templatesRepo!.delete({ id });
+    return { removed: true };
+  }
+
+  async send(userId: string, dto: MailDraftInput, files: UploadFile[] = []) {
+    const u = await this.users.findOneBy({ id: userId });
+    if (!u?.mailEmail) throw new BadRequestException('Connect your Gmail first.');
+    const to = addressesIn(dto.to).join(', ');
+    if (!to) throw new BadRequestException('Who is it to?');
+    const raw = await this.raw(userId, dto, files);
     const sent = await this.gmail(userId, '/messages/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw, ...(dto.threadId ? { threadId: dto.threadId } : {}) }) });
     return { id: sent.id, threadId: sent.threadId };
   }

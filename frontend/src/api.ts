@@ -59,6 +59,7 @@ export type PrequalRow = {
 };
 export type PrequalPublic = { companyName: string; licenseNumber?: string; licenseExpiry?: string; insuranceProvider?: string; insurancePolicyNumber?: string; insuranceExpiry?: string; prequal: PrequalAnswers | null; status: string | null; files: string[] };
 
+export type MailTemplate = { id: string; name: string; subject: string | null; html: string; shared: boolean; mine: boolean; ownerName?: string | null };
 export type MailLink = { id: string; entityType: 'lead' | 'project' | 'task'; entityId: string; label: string | null; auto?: boolean };
 export type MailThreadRow = { id: string; subject: string; from: string; to: string; date: string; snippet: string; count: number; unread: boolean; links: MailLink[] };
 export type MailMessage = { id: string; threadId: string; from: string; to: string; cc: string; subject: string; date: string; messageId: string; unread: boolean; snippet: string; html: string; text: string; attachments: { id: string; filename: string; mimeType: string; size: number }[] };
@@ -1366,7 +1367,25 @@ export const api = {
   },
   /** My mail (Nov 13): the caller's own Gmail, and mail linked to records. */
   mail: {
-    threads: (q = '', page = '') => request<{ threads: MailThreadRow[]; nextPageToken: string | null }>(`/mail/threads?q=${encodeURIComponent(q)}&page=${encodeURIComponent(page)}`, { cache: 'no-store' } as any),
+    threads: (q = '', page = '', label = 'INBOX') => request<{ threads: MailThreadRow[]; nextPageToken: string | null }>(`/mail/threads?q=${encodeURIComponent(q)}&page=${encodeURIComponent(page)}&label=${encodeURIComponent(label)}`, { cache: 'no-store' } as any),
+    /** Drafts (Batch 6): Gmail's own, so they show in Gmail too. */
+    drafts: () => request<{ id: string; threadId: string | null; subject: string; to: string; snippet: string; date: string }[]>('/mail/drafts', { cache: 'no-store' } as any),
+    draft: (id: string) => request<{ id: string; threadId: string | null; to: string; cc: string; subject: string; html: string; messageId: string; attachments: { id: string; filename: string; mimeType: string; size: number }[]; inReplyTo: string | null }>(`/mail/drafts/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
+    saveDraft: (d: { id?: string; to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string }, files: File[] = []) => {
+      const f = filesForm(files);
+      for (const [k, v] of Object.entries(d)) if (v != null && v !== '') f.append(k, String(v));
+      return requestForm<{ id: string; threadId: string | null }>('/mail/drafts', f);
+    },
+    sendDraft: (id: string, d: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string }, files: File[] = []) => {
+      const f = filesForm(files);
+      for (const [k, v] of Object.entries(d)) if (v != null && v !== '') f.append(k, String(v));
+      return requestForm<{ id: string; threadId: string }>(`/mail/drafts/${encodeURIComponent(id)}/send`, f);
+    },
+    discardDraft: (id: string) => request(`/mail/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    /** Templates (Batch 6): shared (administrators) and personal. */
+    templates: () => request<MailTemplate[]>('/mail/templates', { cache: 'no-store' } as any),
+    saveTemplate: (id: string | null, d: { name: string; subject?: string; html: string; shared?: boolean }) => request<MailTemplate>(id ? `/mail/templates/${encodeURIComponent(id)}` : '/mail/templates', { method: 'POST', body: JSON.stringify(d) }),
+    removeTemplate: (id: string) => request(`/mail/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     thread: (id: string) => request<MailThread>(`/mail/threads/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
     attachment: async (mid: string, aid: string, name: string) => new Blob([await requestBytes(`/mail/messages/${encodeURIComponent(mid)}/attachments/${encodeURIComponent(aid)}?name=${encodeURIComponent(name)}`)]),
     send: (d: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string }, files: File[] = []) => {

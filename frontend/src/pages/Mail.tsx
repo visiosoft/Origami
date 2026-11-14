@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { api, type MailThreadRow, type MailThread } from '../api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { fillPlaceholders, unfilled } from '../data/placeholders';
+import { api, type MailThreadRow, type MailThread, type MailTemplate } from '../api';
 import { useApp } from '../AppContext';
 import { sanitizeHtml } from '../data/contracts';
 
@@ -16,14 +17,23 @@ const LINK_LABEL = { lead: 'Lead', project: 'Project', task: 'Task' } as const;
  * tags, and mail from a lead) so the team sees it on the record.
  */
 export function Mail() {
-  const { toast } = useApp();
+  const { toast, authUser } = useApp();
   const [st, setSt] = useState<{ connected: boolean; email: string } | null>(null);
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
   const [list, setList] = useState<{ threads: MailThreadRow[]; nextPageToken: string | null } | null>(null);
   const [pages, setPages] = useState<string[]>(['']);
   const [open, setOpen] = useState<MailThread | null>(null);
-  const [compose, setCompose] = useState<{ to: string; cc: string; subject: string; body: string; threadId?: string; inReplyTo?: string; files: File[] } | null>(null);
+  const [compose, setCompose] = useState<ComposeState | null>(null);
+  // Folders and drafts (Batch 6).
+  const [folder, setFolder] = useState<'INBOX' | 'SENT' | 'DRAFT'>('INBOX');
+  const [drafts, setDrafts] = useState<Awaited<ReturnType<typeof api.mail.drafts>> | null>(null);
+  const [templates, setTemplates] = useState<MailTemplate[]>([]);
+  const [managing, setManaging] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const composeRef = useRef<ComposeState | null>(null);
+  composeRef.current = compose;
+  const lastSaved = useRef('');
   const [linkTo, setLinkTo] = useState(false);
   const [busy, setBusy] = useState(false);
   const params = new URLSearchParams(window.location.search);
@@ -34,11 +44,52 @@ export function Mail() {
     if (params.get('connected')) toast(`Gmail connected — ${params.get('connected')}`);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const page = pages[pages.length - 1];
+  const loadDrafts = () => { setDrafts(null); api.mail.drafts().then(setDrafts).catch((e: Error) => { toast('⚠ ' + e.message); setDrafts([]); }); };
   useEffect(() => {
     if (!st?.connected) return;
+    if (folder === 'DRAFT') { loadDrafts(); return; }
     setList(null);
-    api.mail.threads(search, page).then(setList).catch((e: Error) => { toast('⚠ ' + e.message); setList({ threads: [], nextPageToken: null }); });
-  }, [st?.connected, search, page]); // eslint-disable-line react-hooks/exhaustive-deps
+    api.mail.threads(search, page, folder).then(setList).catch((e: Error) => { toast('⚠ ' + e.message); setList({ threads: [], nextPageToken: null }); });
+  }, [st?.connected, search, page, folder]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (st?.connected) api.mail.templates().then(setTemplates).catch(() => setTemplates([])); }, [st?.connected]);
+
+  // A draft saves itself into Gmail 5 seconds after typing stops (Batch 6).
+  const keyOf = (c: ComposeState) => JSON.stringify({ to: c.to, cc: c.cc, subject: c.subject, body: c.body, files: c.files.map((f) => `${f.name}:${f.size}`) });
+  const saveDraftNow = async () => {
+    const c = composeRef.current;
+    if (!c || !(c.to.trim() || c.subject.trim() || c.body.trim())) return;
+    const key = keyOf(c);
+    if (key === lastSaved.current && c.draftId) return;
+    try {
+      const r = await api.mail.saveDraft({ id: c.draftId, to: c.to, cc: c.cc, subject: c.subject, html: toHtml(c.body), threadId: c.threadId, inReplyTo: c.inReplyTo }, c.files);
+      lastSaved.current = key;
+      setSavedAt(new Date());
+      if (!c.draftId) setCompose((cur) => (cur ? { ...cur, draftId: r.id } : cur));
+    } catch (e) { toast('⚠ Draft not saved: ' + (e as Error).message); }
+  };
+  useEffect(() => {
+    if (!compose || keyOf(compose) === lastSaved.current) return;
+    const t = setTimeout(() => { void saveDraftNow(); }, 5000);
+    return () => clearTimeout(t);
+  }, [compose]); // eslint-disable-line react-hooks/exhaustive-deps
+  const startCompose = (c: ComposeState) => { lastSaved.current = c.draftId ? keyOf(c) : ''; setSavedAt(null); setCompose(c); };
+  const openDraft = async (id: string) => {
+    setOpen(null);
+    try {
+      const d = await api.mail.draft(id);
+      // Its attachments come back as files, so they stay on the draft when it's saved again.
+      const files = await Promise.all(d.attachments.map(async (a) => new File([await api.mail.attachment(d.messageId, a.id, a.filename)], a.filename, { type: a.mimeType })));
+      startCompose({ to: d.to, cc: d.cc, subject: d.subject, body: toText(d.html), threadId: d.threadId || undefined, inReplyTo: d.inReplyTo || undefined, files, draftId: d.id });
+    } catch (e) { toast('⚠ ' + (e as Error).message); }
+  };
+  const closeCompose = async (keep: boolean) => {
+    const c = composeRef.current;
+    if (keep) { await saveDraftNow(); toast('Saved in Drafts'); }
+    else if (c?.draftId && confirm('Delete this draft?')) await api.mail.discardDraft(c.draftId).catch(() => undefined);
+    else if (c?.draftId) return;
+    setCompose(null);
+    if (folder === 'DRAFT') loadDrafts();
+  };
 
   const openThread = async (id: string) => {
     setOpen(null); setCompose(null); setLinkTo(false);
@@ -47,15 +98,19 @@ export function Mail() {
   const reply = () => {
     if (!open) return;
     const last = open.messages[open.messages.length - 1];
-    setCompose({ to: last.from, cc: '', subject: /^re:/i.test(open.subject) ? open.subject : `Re: ${open.subject}`, body: '', threadId: open.id, inReplyTo: last.messageId, files: [] });
+    startCompose({ to: last.from, cc: '', subject: /^re:/i.test(open.subject) ? open.subject : `Re: ${open.subject}`, body: '', threadId: open.id, inReplyTo: last.messageId, files: [], project: open.links.find((l) => l.entityType === 'project')?.label || undefined });
   };
   const send = async () => {
     if (!compose) return;
+    const left = unfilled(compose.subject, compose.body);
+    if (left.length && !confirm(`Still to fill in: ${left.map((p) => p.raw).join(', ')}. Send anyway?`)) return;
     setBusy(true);
     try {
-      const html = compose.body.split('\n').map((l) => `<p>${l.replace(/&/g, '&amp;').replace(/</g, '&lt;') || '&nbsp;'}</p>`).join('');
-      await api.mail.send({ to: compose.to, cc: compose.cc, subject: compose.subject, html, threadId: compose.threadId, inReplyTo: compose.inReplyTo }, compose.files);
+      const d = { to: compose.to, cc: compose.cc, subject: compose.subject, html: toHtml(compose.body), threadId: compose.threadId, inReplyTo: compose.inReplyTo };
+      if (compose.draftId) await api.mail.sendDraft(compose.draftId, d, compose.files);
+      else await api.mail.send(d, compose.files);
       toast('Sent'); setCompose(null);
+      if (folder === 'DRAFT') loadDrafts();
       if (open) await openThread(open.id);
     } catch (e) { toast('⚠ ' + (e as Error).message); } finally { setBusy(false); }
   };
@@ -78,12 +133,23 @@ export function Mail() {
           <input aria-label="Search mail" placeholder="Search mail (Gmail search works: from:, has:attachment…)" value={q} onChange={(e) => setQ(e.target.value)} style={{ ...field, flex: 1 }} />
           <button type="submit" style={btn()}>Search</button>
         </form>
-        <button type="button" style={btn(true)} onClick={() => { setOpen(null); setCompose({ to: '', cc: '', subject: '', body: '', files: [] }); }}>New email</button>
+        <button type="button" style={btn(true)} onClick={() => { setOpen(null); startCompose({ to: '', cc: '', subject: '', body: '', files: [] }); }}>New email</button>
+        <button type="button" style={btn()} onClick={() => setManaging((v) => !v)}>Templates</button>
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>{st.email} · <button type="button" onClick={() => { if (confirm('Disconnect your Gmail?')) void api.google.myMail.disconnect().then(() => setSt({ connected: false, email: '' })); }} style={{ border: 0, background: 'none', color: 'var(--muted)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit', padding: 0 }}>disconnect</button></span>
+      </div>
+      {managing && <TemplateManager templates={templates} onChanged={() => void api.mail.templates().then(setTemplates)} />}
+      <div style={{ display: 'flex', gap: 6 }}>
+        {([['INBOX', 'Inbox'], ['SENT', 'Sent'], ['DRAFT', 'Drafts']] as const).map(([k, l]) => <button key={k} type="button" style={btn(folder === k)} onClick={() => { setFolder(k); setPages(['']); setOpen(null); }}>{l}</button>)}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 0.9fr) minmax(0, 1.4fr)', gap: 12, alignItems: 'start' }} className="mail-grid">
         <div aria-label="Inbox" style={{ background: 'var(--surface)', borderRadius: 16, padding: 6, display: 'grid', gap: 2 }}>
-          {list === null ? <div style={{ padding: 12, color: 'var(--muted)' }}>Loading…</div> : !list.threads.length ? <div style={{ padding: 12, color: 'var(--muted)' }}>Nothing here.</div> : list.threads.map((t) => (
+          {folder === 'DRAFT' ? (drafts === null ? <div style={{ padding: 12, color: 'var(--muted)' }}>Loading…</div> : !drafts.length ? <div style={{ padding: 12, color: 'var(--muted)' }}>No drafts.</div> : drafts.map((d) => (
+            <button key={d.id} type="button" onClick={() => void openDraft(d.id)} style={{ display: 'grid', gap: 2, textAlign: 'left', padding: '9px 10px', borderRadius: 12, border: 0, background: compose?.draftId === d.id ? 'var(--mist)' : 'transparent', font: 'inherit', cursor: 'pointer' }}>
+              <span style={{ display: 'flex', gap: 8 }}><b style={{ flex: 1, fontSize: 13, color: '#8E2E0A' }}>Draft{d.to ? ` to ${nameOf(d.to)}` : ''}</b><span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{when(d.date)}</span></span>
+              <span style={{ fontSize: 12.5, color: 'var(--body)' }}>{d.subject}</span>
+              <span style={{ fontSize: 11.5, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.snippet}</span>
+            </button>
+          ))) : list === null ? <div style={{ padding: 12, color: 'var(--muted)' }}>Loading…</div> : !list.threads.length ? <div style={{ padding: 12, color: 'var(--muted)' }}>Nothing here.</div> : list.threads.map((t) => (
             <button key={t.id} type="button" onClick={() => void openThread(t.id)} style={{ display: 'grid', gap: 2, textAlign: 'left', padding: '9px 10px', borderRadius: 12, border: 0, background: open?.id === t.id ? 'var(--mist)' : 'transparent', font: 'inherit', cursor: 'pointer' }}>
               <span style={{ display: 'flex', gap: 8 }}><b style={{ flex: 1, fontSize: 13, color: 'var(--ink)', fontWeight: t.unread ? 800 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameOf(t.from)}{t.count > 1 ? ` (${t.count})` : ''}</b><span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{when(t.date)}</span></span>
               <span style={{ fontSize: 12.5, color: 'var(--body)', fontWeight: t.unread ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</span>
@@ -96,7 +162,7 @@ export function Mail() {
           </div>
         </div>
         <div style={{ display: 'grid', gap: 10 }}>
-          {compose && <Compose c={compose} setC={setCompose} busy={busy} onSend={() => void send()} />}
+          {compose && <Compose c={compose} setC={setCompose} busy={busy} onSend={() => void send()} templates={templates} myName={authUser?.name || st.email} savedAt={savedAt} onClose={(keep) => void closeCompose(keep)} />}
           {open && (
             <div aria-label="Thread" style={{ background: 'var(--surface)', borderRadius: 16, padding: 16, display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -129,22 +195,37 @@ export function Mail() {
   );
 }
 
-function Compose({ c, setC, busy, onSend }: { c: { to: string; cc: string; subject: string; body: string; files: File[] }; setC: (c: any) => void; busy: boolean; onSend: () => void }) {
+type ComposeState = { to: string; cc: string; subject: string; body: string; threadId?: string; inReplyTo?: string; files: File[]; draftId?: string; toName?: string; project?: string };
+const toHtml = (body: string) => body.split('\n').map((l) => `<p>${l.replace(/&/g, '&amp;').replace(/</g, '&lt;') || '&nbsp;'}</p>`).join('');
+const toText = (html: string) => String(html || '').replace(/<\/(p|div)>/gi, '\n').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\n{3,}/g, '\n\n').trim();
+
+function Compose({ c, setC, busy, onSend, templates, myName, savedAt, onClose }: { c: ComposeState; setC: (c: any) => void; busy: boolean; onSend: () => void; templates: MailTemplate[]; myName: string; savedAt: Date | null; onClose: (keep: boolean) => void }) {
   const [hits, setHits] = useState<{ name: string; email: string; kind: string }[]>([]);
+  /** A template, filled from who it's to (Batch 6): {{clientFirstName}}, {{clientName}}, {{projectTitle}}, {{senderName}}. */
+  const applyTemplate = (t: MailTemplate) => {
+    const name = c.toName || (c.to.match(/^\s*"?([^"<,]+?)"?\s*</)?.[1] || '').trim();
+    const values = { clientName: name, clientFirstName: name.split(/\s+/)[0] || '', projectTitle: c.project || '', senderName: myName };
+    setC({ ...c, subject: c.subject || fillPlaceholders(t.subject || '', values), body: fillPlaceholders(toText(t.html), values) + (c.body ? `\n\n${c.body}` : '') });
+  };
   const last = c.to.split(/[,;]/).pop()?.trim() || '';
   useEffect(() => { if (last.length < 2 || /@.+\./.test(last)) { setHits([]); return; } const t = setTimeout(() => { api.mail.contacts(last).then(setHits).catch(() => setHits([])); }, 250); return () => clearTimeout(t); }, [last]);
   return (
     <div aria-label="Compose" style={{ background: 'var(--surface)', borderRadius: 16, padding: 16, display: 'grid', gap: 8 }}>
       <input aria-label="To" placeholder="To" value={c.to} onChange={(e) => setC({ ...c, to: e.target.value })} style={field} />
-      {hits.length > 0 && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{hits.map((h) => <button key={h.email} type="button" style={btn()} onClick={() => setC({ ...c, to: [...c.to.split(/[,;]/).slice(0, -1).map((x) => x.trim()).filter(Boolean), `${h.name} <${h.email}>`].join(', ') + ', ' })}>{h.name} · {h.email}</button>)}</div>}
+      {hits.length > 0 && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{hits.map((h) => <button key={h.email} type="button" style={btn()} onClick={() => setC({ ...c, toName: c.toName || h.name, to: [...c.to.split(/[,;]/).slice(0, -1).map((x) => x.trim()).filter(Boolean), `${h.name} <${h.email}>`].join(', ') + ', ' })}>{h.name} · {h.email}</button>)}</div>}
       <input aria-label="Cc" placeholder="Cc" value={c.cc} onChange={(e) => setC({ ...c, cc: e.target.value })} style={field} />
-      <input aria-label="Subject" placeholder="Subject" value={c.subject} onChange={(e) => setC({ ...c, subject: e.target.value })} style={field} />
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input aria-label="Subject" placeholder="Subject" value={c.subject} onChange={(e) => setC({ ...c, subject: e.target.value })} style={{ ...field, flex: 1 }} />
+        {templates.length > 0 && <select aria-label="Use a template" value="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) applyTemplate(t); }} style={field}><option value="">Template…</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.name}{t.shared ? '' : ' (mine)'}</option>)}</select>}
+      </div>
       <textarea aria-label="Message" rows={8} value={c.body} onChange={(e) => setC({ ...c, body: e.target.value })} style={{ ...field, fontSize: 14 }} />
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <label style={{ ...btn(), cursor: 'pointer' }}>📎 Attach<input type="file" multiple hidden onChange={(e) => setC({ ...c, files: [...c.files, ...Array.from(e.target.files || [])] })} /></label>
         {c.files.map((f, i) => <span key={i} style={{ fontSize: 12 }}>{f.name} <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setC({ ...c, files: c.files.filter((_, j) => j !== i) })} style={{ border: 0, background: 'none', color: '#8E2E0A', cursor: 'pointer' }}>×</button></span>)}
         <span style={{ flex: 1 }} />
-        <button type="button" style={btn()} onClick={() => setC(null)}>Discard</button>
+        {savedAt && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Draft saved {savedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}
+        <button type="button" style={btn()} onClick={() => onClose(true)}>Save draft</button>
+        <button type="button" style={btn()} onClick={() => onClose(false)}>Discard</button>
         <button type="button" disabled={busy || !c.to.trim()} style={btn(true)} onClick={onSend}>{busy ? 'Sending…' : 'Send'}</button>
       </div>
     </div>
@@ -170,6 +251,45 @@ function LinkPicker({ onPick }: { onPick: (type: 'lead' | 'project' | 'task', id
         <input aria-label="Find a record" placeholder="Find…" value={q} onChange={(e) => setQ(e.target.value)} style={{ ...field, flex: 1 }} />
       </div>
       <div style={{ maxHeight: 200, overflow: 'auto', display: 'grid', gap: 2 }}>{shown.map((r) => <button key={r.id} type="button" onClick={() => onPick(type, r.id)} style={{ textAlign: 'left', border: 0, background: 'var(--surface)', borderRadius: 8, padding: '6px 10px', font: 'inherit', fontSize: 13, cursor: 'pointer' }}>{r.label}</button>)}</div>
+    </div>
+  );
+}
+
+/** Email templates (Batch 6): your own, and shared ones that administrators make. */
+function TemplateManager({ templates, onChanged }: { templates: MailTemplate[]; onChanged: () => void }) {
+  const { toast, authUser } = useApp();
+  const admin = authUser?.roleKey === 'admin';
+  const [edit, setEdit] = useState<{ id: string | null; name: string; subject: string; body: string; shared: boolean } | null>(null);
+  const save = async () => {
+    if (!edit) return;
+    try { await api.mail.saveTemplate(edit.id, { name: edit.name, subject: edit.subject, html: toHtml(edit.body), shared: edit.shared }); toast('Template saved'); setEdit(null); onChanged(); }
+    catch (e) { toast('⚠ ' + (e as Error).message); }
+  };
+  return (
+    <div aria-label="Email templates" style={{ background: 'var(--surface)', borderRadius: 16, padding: 14, display: 'grid', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <b style={{ flex: 1, color: 'var(--ink)' }}>Email templates</b>
+        <button type="button" style={btn(true)} onClick={() => setEdit({ id: null, name: '', subject: '', body: '', shared: false })}>+ New template</button>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--muted)' }}>Fields fill in when you use one: {'{{clientFirstName}}'}, {'{{clientName}}'}, {'{{projectTitle}}'}, {'{{senderName}}'}.</div>
+      {templates.map((t) => (
+        <div key={t.id} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+          <span style={{ flex: 1 }}><b>{t.name}</b> <span style={{ color: 'var(--muted)', fontSize: 12 }}>{t.shared ? 'shared' : 'mine'}{t.subject ? ` · ${t.subject}` : ''}</span></span>
+          {(t.mine || (t.shared && admin)) && <>
+            <button type="button" style={btn()} onClick={() => setEdit({ id: t.id, name: t.name, subject: t.subject || '', body: toText(t.html), shared: t.shared })}>Edit</button>
+            <button type="button" style={{ ...btn(), color: '#8E2E0A' }} onClick={() => { if (confirm(`Delete “${t.name}”?`)) void api.mail.removeTemplate(t.id).then(onChanged).catch((e: Error) => toast('⚠ ' + e.message)); }}>Delete</button>
+          </>}
+        </div>
+      ))}
+      {edit && (
+        <div style={{ display: 'grid', gap: 6, padding: 10, borderRadius: 12, background: 'var(--mist)' }}>
+          <input aria-label="Template name" placeholder="Name" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} style={field} />
+          <input aria-label="Template subject" placeholder="Subject" value={edit.subject} onChange={(e) => setEdit({ ...edit, subject: e.target.value })} style={field} />
+          <textarea aria-label="Template text" rows={6} value={edit.body} onChange={(e) => setEdit({ ...edit, body: e.target.value })} style={{ ...field, fontSize: 14 }} />
+          {admin && !edit.id && <label style={{ fontSize: 12.5, display: 'flex', gap: 6 }}><input type="checkbox" checked={edit.shared} onChange={(e) => setEdit({ ...edit, shared: e.target.checked })} /> Shared with everyone</label>}
+          <div style={{ display: 'flex', gap: 6 }}><button type="button" style={btn(true)} onClick={() => void save()}>Save</button><button type="button" style={btn()} onClick={() => setEdit(null)}>Cancel</button></div>
+        </div>
+      )}
     </div>
   );
 }
