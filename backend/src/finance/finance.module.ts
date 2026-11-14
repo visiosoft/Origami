@@ -1,3 +1,5 @@
+import { SubInvoicesService } from './sub-invoices.service';
+import { LienReleaseEntity, SubInvoiceEntity } from '../database/entities';
 import { ChangeOrderPublicController } from './co-public.controller';
 import { TrackingModule } from '../tracking/tracking.module';
 import { Module } from '@nestjs/common';
@@ -48,7 +50,7 @@ import {
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
+    TypeOrmModule.forFeature([SubInvoiceEntity, LienReleaseEntity, 
       ProjectEntity, LeadEntity, ProjectPhaseEntity, ProjectTaskEntity, ProjectSectionEntity, RoleEntity,
       ProjectFinancialEntity, PhaseFinancialEntity, TaskFinancialEntity, ProgressUpdateEntity,
       ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, FinanceSequenceEntity, FinanceActivityEntity,
@@ -66,7 +68,7 @@ import {
   ],
   controllers: [ChangeOrderPublicController, EstimatePublicController, BidPublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService, EstimateLetterService, EstimateSetupService, BidPackagesService],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService, EstimateLetterService, EstimateSetupService, BidPackagesService, SubInvoicesService],
   exports: [ChangeOrdersService, FinancialsService],
 })
 export class FinanceModule {}

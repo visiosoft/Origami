@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '../../api';
+import { RELEASE_KINDS, api, type PortalRetention, type ReleaseKind, type SubInvoice } from '../../api';
 import { useApp } from '../../AppContext';
 import { Attachments } from '../Attachments';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input, todayISO } from '../manpowerUi';
@@ -111,7 +111,7 @@ function SpendBar({ budget, committed, paid, unpaid, open, other }: { budget: nu
 
 // ------------------------------------------------------------------ job cost panel
 
-type Sub = 'codes' | 'budget' | 'commitments' | 'costs' | 'labor';
+type Sub = 'codes' | 'budget' | 'commitments' | 'costs' | 'subinv' | 'labor';
 
 /**
  * Job cost for one project: budget by cost code against what's committed and
@@ -130,7 +130,7 @@ export function JobCostPanel({ projectId, overview, initialSub }: { projectId: n
   const paidOut = v.entries.filter((e) => e.status === 'paid').reduce((a, e) => a + e.amount, 0);
   const unpaidBills = v.entries.filter((e) => e.status === 'recorded' || e.status === 'approved').reduce((a, e) => a + e.amount, 0);
   const stillToPay = unpaidBills + t.open;
-  const tabs: [Sub, string][] = [['codes', 'By cost code'], ['budget', `Budget (${v.budgetLines.length})`], ['commitments', `Subcontracts & POs (${v.commitments.length})`], ['costs', `Costs (${v.entries.filter((e) => e.status !== 'void').length})`], ['labor', 'Labor']];
+  const tabs: [Sub, string][] = [['codes', 'By cost code'], ['budget', `Budget (${v.budgetLines.length})`], ['commitments', `Subcontracts & POs (${v.commitments.length})`], ['costs', `Costs (${v.entries.filter((e) => e.status !== 'void').length})`], ['subinv', 'Sub invoices'], ['labor', 'Labor']];
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
@@ -154,6 +154,7 @@ export function JobCostPanel({ projectId, overview, initialSub }: { projectId: n
       {sub === 'budget' && <Budget v={v} projectId={projectId} pick={pick} onChanged={setV} />}
       {sub === 'commitments' && <Commitments v={v} projectId={projectId} pick={pick} onChanged={setV} />}
       {sub === 'costs' && <Costs v={v} projectId={projectId} pick={pick} onChanged={setV} />}
+      {sub === 'subinv' && <SubInvoices projectId={projectId} onPaid={load} />}
       {sub === 'labor' && <Labor v={v} />}
     </div>
   );
@@ -525,6 +526,153 @@ function CostDrawer({ e, v, projectId, pick, onClose, onChanged }: {
 }
 
 // ------------------------------------------------------------------ labor
+
+// ------------------------------------------------------------------ sub invoices (Batch 6)
+
+const INV_TONE: Record<SubInvoice['status'], string> = { submitted: 'var(--c-8a6d12)', approved: ACCENT, paid: 'var(--c-1e6b36)', returned: MUTED };
+
+/** Open a lien release PDF (signed in) in a new tab. */
+async function openRelease(id: string, toast: (m: string) => void) {
+  try {
+    const bytes = await api.finance.releaseFile(id);
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) { failed(toast, e); }
+}
+
+/**
+ * Sub invoices sent through the portal: gross, retention held and net, the
+ * lien releases the sub uploaded (the bookkeeper marks each one's kind), why
+ * one can't be paid yet, and the retention payout per subcontract.
+ */
+function SubInvoices({ projectId, onPaid }: { projectId: number; onPaid: () => void }) {
+  const { toast } = useApp();
+  const [d, setD] = useState<{ invoices: SubInvoice[]; retention: PortalRetention[] } | null>(null);
+  const [mark, setMark] = useState<{ id: string; kind: ReleaseKind | ''; amount: string; throughDate: string } | null>(null);
+  const [pay, setPay] = useState<{ id: string; paidDate: string; paymentRef: string } | null>(null);
+  const [filter, setFilter] = useState<'all' | 'blocked' | 'waiting' | SubInvoice['status']>('all');
+  const load = () => api.finance.subInvoices(projectId).then(setD).catch((e) => { failed(toast, e); setD({ invoices: [], retention: [] }); });
+  useEffect(() => { load(); }, [projectId]);
+  if (!d) return <Skeleton label="Loading sub invoices…" />;
+  const counts = {
+    all: d.invoices.length,
+    blocked: d.invoices.filter((i) => i.status !== 'paid' && i.status !== 'returned' && i.payBlock).length,
+    waiting: d.invoices.filter((i) => i.waitingUnconditional).length,
+  };
+  const shown = d.invoices.filter((i) => filter === 'all' ? true : filter === 'blocked' ? i.status !== 'paid' && i.status !== 'returned' && !!i.payBlock : filter === 'waiting' ? i.waitingUnconditional : i.status === filter);
+  const saveMark = async () => {
+    if (!mark) return;
+    if (!mark.kind) { toast('Pick which kind of release it is'); return; }
+    try { await api.finance.markRelease(mark.id, { kind: mark.kind, amount: mark.amount === '' ? null : Number(mark.amount), throughDate: mark.throughDate || null }); setMark(null); toast('Release checked'); load(); }
+    catch (e) { failed(toast, e); }
+  };
+  const setPct = async (inv: SubInvoice) => {
+    const v = window.prompt(`Retention % held on invoice ${inv.reference || ''}`, String(inv.retentionPct));
+    if (v == null) return;
+    try { await api.finance.setSubInvoiceRetention(inv.id, Number(v)); load(); } catch (e) { failed(toast, e); }
+  };
+  const payRetention = async () => {
+    if (!pay) return;
+    try { await api.finance.releaseRetention(pay.id, { paidDate: pay.paidDate, paymentRef: pay.paymentRef }); setPay(null); toast('Retention paid'); load(); onPaid(); }
+    catch (e) { failed(toast, e); }
+  };
+  const chips: [typeof filter, string][] = [['all', `All · ${counts.all}`], ['blocked', `Waiting for a conditional release · ${counts.blocked}`], ['waiting', `Paid, unconditional to come · ${counts.waiting}`], ['submitted', 'Submitted'], ['approved', 'Approved'], ['paid', 'Paid']];
+  return (
+    <div style={{ display: 'grid', gap: 12 }} aria-label="Sub invoices">
+      <div style={{ fontSize: 11.5, color: MUTED }}>Invoices subs sent through the portal. Approve and pay each line on the Costs tab; a line can’t be marked paid until a conditional lien release is checked here.</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {chips.map(([k, l]) => <div key={k} onClick={() => setFilter(k)} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: filter === k ? ACCENT : 'var(--surface)', color: filter === k ? '#fff' : ACCENT, border: '1px solid ' + (filter === k ? ACCENT : LINE) }}>{l}</div>)}
+      </div>
+      {!shown.length ? <div style={{ ...card, padding: 16, fontSize: 12.5, color: MUTED }}>No sub invoices here.</div> : (
+        <div style={{ ...card, overflow: 'hidden' }}>
+          {shown.map((inv, i) => (
+            <div key={inv.id} style={{ padding: '12px 16px', borderTop: i ? '1px solid ' + LINE : 'none', display: 'grid', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 220px' }}>
+                  <b style={{ fontSize: 13.5 }}>{inv.vendorName} · invoice {inv.reference || '—'}</b>
+                  <div style={{ fontSize: 11.5, color: MUTED }}>{[inv.commitmentNumber, inv.date && fmtDate(inv.date)].filter(Boolean).join(' · ')}</div>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: INV_TONE[inv.status], textTransform: 'capitalize' }}>{inv.status}</span>
+                <span style={{ fontSize: 12, color: MUTED }}>Gross <b style={{ color: INK }}>{usd(inv.gross)}</b></span>
+                <span style={{ fontSize: 12, color: MUTED, cursor: 'pointer' }} title="Change the retention %" onClick={() => setPct(inv)}>Retention {inv.retentionPct}% <b style={{ color: INK }}>{usd(inv.retention)}</b> ✎</span>
+                <span style={{ fontSize: 12, color: MUTED }}>Net <b style={{ color: INK }}>{usd(inv.net)}</b></span>
+              </div>
+              {inv.status !== 'returned' && inv.status !== 'paid' && inv.payBlock && <div style={{ fontSize: 12, color: 'var(--c-8a6d12)' }}>Can’t be paid yet: {inv.payBlock}</div>}
+              {inv.waitingUnconditional && <div style={{ fontSize: 12, color: 'var(--c-8a6d12)' }}>Paid{inv.paidDate ? ` ${fmtDate(inv.paidDate)}` : ''} — waiting for the sub’s unconditional release.</div>}
+              {inv.releases.map((r) => (
+                <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12 }}>
+                  <span onClick={() => openRelease(r.id, toast)} style={{ color: ACCENT, fontWeight: 700, cursor: 'pointer' }}>📄 {r.name || 'Release'}</span>
+                  <span style={{ color: r.checked ? 'var(--c-1e6b36)' : 'var(--c-8a6d12)' }}>{r.checked ? `✓ ${r.label}` : r.kind ? `Sub says: ${r.label} — not checked` : 'Type not marked yet'}</span>
+                  {r.amount != null && <span style={{ color: MUTED }}>{usd(r.amount)}</span>}
+                  {r.throughDate && <span style={{ color: MUTED }}>through {fmtDate(r.throughDate)}</span>}
+                  <div onClick={() => setMark({ id: r.id, kind: r.kind || '', amount: r.amount != null ? String(r.amount) : '', throughDate: r.throughDate || '' })} style={btn()}>{r.checked ? 'Change' : 'Mark type'}</div>
+                </div>
+              ))}
+              {!inv.releases.length && inv.status !== 'returned' && <div style={{ fontSize: 12, color: MUTED }}>No lien release uploaded yet.</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      {d.retention.length > 0 && (
+        <div style={{ display: 'grid', gap: 8 }} aria-label="Retention by subcontract">
+          <h3 style={{ fontFamily: BG, fontSize: 16, margin: '6px 0 0' }}>Retention held</h3>
+          <div style={{ ...card, overflow: 'hidden' }}>
+            {d.retention.map((r, i) => (
+              <div key={r.commitmentId} style={{ padding: '12px 16px', borderTop: i ? '1px solid ' + LINE : 'none', display: 'grid', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <b style={{ flex: 1, fontSize: 13.5 }}>{r.vendorName} · {r.number}</b>
+                  <span style={{ fontSize: 12, color: MUTED }}>Held <b style={{ color: INK }}>{usd(r.held)}</b></span>
+                  {r.paidDate ? <span style={{ fontSize: 12, color: 'var(--c-1e6b36)', fontWeight: 700 }}>Paid {fmtDate(r.paidDate)}{r.paymentRef ? ` · ${r.paymentRef}` : ''}</span>
+                    : <div onClick={() => r.block ? toast(r.block) : setPay({ id: r.commitmentId, paidDate: todayISO(), paymentRef: '' })} style={{ ...btn(!r.block), opacity: r.block ? 0.55 : 1 }} title={r.block || ''}>Release retention</div>}
+                </div>
+                {!r.paidDate && r.block && <div style={{ fontSize: 12, color: 'var(--c-8a6d12)' }}>{r.block}</div>}
+                {r.waitingUnconditional && <div style={{ fontSize: 12, color: 'var(--c-8a6d12)' }}>Waiting for the sub’s unconditional final release.</div>}
+                {r.releases.map((x) => (
+                  <div key={x.id} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12 }}>
+                    <span onClick={() => openRelease(x.id, toast)} style={{ color: ACCENT, fontWeight: 700, cursor: 'pointer' }}>📄 {x.name || 'Release'}</span>
+                    <span style={{ color: x.checked ? 'var(--c-1e6b36)' : 'var(--c-8a6d12)' }}>{x.checked ? `✓ ${x.label}` : x.kind ? `Sub says: ${x.label} — not checked` : 'Type not marked yet'}</span>
+                    <div onClick={() => setMark({ id: x.id, kind: x.kind || '', amount: '', throughDate: '' })} style={btn()}>{x.checked ? 'Change' : 'Mark type'}</div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {mark && (
+        <Drawer title="Check the lien release" onClose={() => setMark(null)}>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div style={{ fontSize: 12, color: MUTED }}>Open the PDF, then say which statutory form it is. Only checked releases count.</div>
+            <div onClick={() => openRelease(mark.id, toast)} style={btn()}>Open the release</div>
+            <Label text="Kind" />
+            <select aria-label="Release kind" value={mark.kind} onChange={(e) => setMark({ ...mark, kind: e.target.value as ReleaseKind })} style={input}>
+              <option value="">Pick one…</option>
+              {RELEASE_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
+            </select>
+            <Label text="Amount on the release (optional)" />
+            <input aria-label="Release amount" type="number" value={mark.amount} onChange={(e) => setMark({ ...mark, amount: e.target.value })} style={input} />
+            <Label text="Through date (optional)" />
+            <input aria-label="Through date" type="date" value={mark.throughDate} onChange={(e) => setMark({ ...mark, throughDate: e.target.value })} style={input} />
+            <div onClick={saveMark} style={btn(true)}>Save</div>
+          </div>
+        </Drawer>
+      )}
+      {pay && (
+        <Drawer title="Release retention" onClose={() => setPay(null)}>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div style={{ fontSize: 12, color: MUTED }}>Records the retention held as paid, against the checked conditional final release. The sub is then asked for the unconditional final.</div>
+            <Label text="Paid on" />
+            <input aria-label="Paid on" type="date" value={pay.paidDate} onChange={(e) => setPay({ ...pay, paidDate: e.target.value })} style={input} />
+            <Label text="Payment reference" />
+            <input aria-label="Payment reference" value={pay.paymentRef} onChange={(e) => setPay({ ...pay, paymentRef: e.target.value })} style={input} placeholder="Check no. or transfer ref" />
+            <div onClick={payRetention} style={btn(true)}>Record payment</div>
+          </div>
+        </Drawer>
+      )}
+    </div>
+  );
+}
 
 function Labor({ v }: { v: CostsView }) {
   const l = v.labor;

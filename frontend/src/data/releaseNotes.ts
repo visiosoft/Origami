@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-14c',
+    date: '2026-11-14',
+    title: 'Sub invoices: retention and lien releases',
+    items: [
+      { area: 'Vendor portal', kind: 'new', text: 'Each invoice a sub sends shows the total, the retention held (10% unless set) and what’s payable now. Subs upload their signed lien release on the invoice, and a final release to have retention paid.', where: 'Portal → Invoices' },
+      { area: 'Job cost', kind: 'new', text: 'A Sub invoices tab lists portal invoices with retention and the releases uploaded. Mark each release’s type after opening it; a sub’s invoice can’t be marked paid until a conditional release is checked.', where: 'Project → Financials → Job cost → Sub invoices' },
+      { area: 'Job cost', kind: 'new', text: 'Release retention records the payout on a subcontract once its conditional final release is checked, then shows it waiting for the unconditional final.' },
+    ],
+  },
+  {
     id: '2026-11-14b',
     date: '2026-11-14',
     title: 'See when email is opened; email from People and leads',

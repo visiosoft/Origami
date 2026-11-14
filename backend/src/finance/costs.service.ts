@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { SubInvoicesService } from './sub-invoices.service';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import {
@@ -58,6 +59,7 @@ export class CostsService {
     @InjectRepository(ContractorEntity) private readonly contractors: Repository<ContractorEntity>,
     private readonly attachments?: AttachmentsService,
     private readonly portal?: PortalService,
+    @Optional() private readonly subInvoices?: SubInvoicesService,
   ) {}
 
   private async canSee(actor: Actor) {
@@ -390,6 +392,8 @@ export class CostsService {
     } else if (action === 'pay') {
       await this.fin.need(actor, 'approveCosts');
       if (e.status !== 'approved') throw new BadRequestException('Approve the cost before marking it paid.');
+      // A sub's portal invoice is paid only with a conditional lien release on file (Batch 6).
+      await this.subInvoices?.assertPayable(e);
       const d = dto.paidDate || todayISO();
       if (!ISO.test(d)) throw new BadRequestException('Give the payment date.');
       Object.assign(e, { status: 'paid', paidDate: d, paymentRef: dto.paymentRef?.trim() || null });

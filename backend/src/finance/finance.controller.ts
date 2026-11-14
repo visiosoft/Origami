@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { SubInvoicesService } from './sub-invoices.service';
+import { BadRequestException, Body, ForbiddenException, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Readable } from 'stream';
@@ -59,6 +60,8 @@ export class FinanceController {
     private readonly bidPackages: BidPackagesService,
     private readonly projectAccess: ProjectAccessService,
     private readonly authService: AuthService,
+    private readonly subInvoices: SubInvoicesService,
+    private readonly attachmentsSvc: AttachmentsService,
   ) {}
 
   /** Which projects the caller may read, for copying an estimate from another project. */
@@ -169,6 +172,21 @@ export class FinanceController {
   @Post('projects/:id/commitments') async commitment(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.saveCommitment(Number(id), dto, await this.actor(a)); }
   @Post('commitments/:id/:action') async commitmentStep(@Param('id') id: string, @Param('action') action: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.commitmentStep(id, action, dto || {}, await this.actor(a)); }
   @Post('projects/:id/cost-entries') async costEntry(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.saveEntry(Number(id), dto, await this.actor(a)); }
+  // Sub invoices and lien releases (Batch 6).
+  @Get('projects/:id/sub-invoices') async subInvoiceList(@Param('id') id: string, @Headers('authorization') a?: string) { return this.subInvoices.forProject(Number(id), await this.actor(a)); }
+  @Post('lien-releases/:id') async markRelease(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.subInvoices.markRelease(id, dto || {}, await this.actor(a)); }
+  @Get('lien-releases/:id/file') async releaseFile(@Param('id') id: string, @Res() res: Response, @Headers('authorization') a?: string) {
+    const r = await this.fin.rights(await this.actor(a));
+    if (!r.viewProfitability && !r.manageCosts && !r.approveCosts) throw new ForbiddenException('Your role can’t open lien releases.');
+    const att = await this.subInvoices.releaseFile(id);
+    const file = await this.attachmentsSvc.download(att, false);
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(att.name)}"`);
+    Readable.fromWeb(file.body as any).pipe(res);
+  }
+  @Post('sub-invoices/:id/retention') async subInvoiceRetention(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.subInvoices.setRetention(id, Number(dto?.pct), await this.actor(a)); }
+  @Post('commitments/:id/release-retention') async releaseRetention(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.subInvoices.releaseRetention(id, dto || {}, await this.actor(a)); }
+
   @Post('cost-entries/:id/:action') async costEntryStep(@Param('id') id: string, @Param('action') action: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.entryStep(id, action, dto || {}, await this.actor(a)); }
 
   // --- reports

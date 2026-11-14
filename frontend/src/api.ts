@@ -342,6 +342,22 @@ export const attachmentUrl = (
 
 const qs = (o?: Record<string, unknown>) => { const q = new URLSearchParams(); Object.entries(o || {}).forEach(([k, v]) => { if (v != null && v !== '') q.set(k, String(v)); }); const t = q.toString(); return t ? `?${t}` : ''; };
 
+/** Sub invoices and lien releases (Batch 6). */
+export type ReleaseKind = 'conditional_progress' | 'unconditional_progress' | 'conditional_final' | 'unconditional_final';
+export const RELEASE_KINDS: { key: ReleaseKind; label: string }[] = [
+  { key: 'conditional_progress', label: 'Conditional — progress payment' },
+  { key: 'unconditional_progress', label: 'Unconditional — progress payment' },
+  { key: 'conditional_final', label: 'Conditional — final payment' },
+  { key: 'unconditional_final', label: 'Unconditional — final payment' },
+];
+export interface LienRelease { id: string; kind: ReleaseKind | null; label: string; name?: string; amount?: number | null; throughDate?: string | null; uploadedAt: string; checked: boolean }
+export interface SubInvoice {
+  id: string; reference: string | null; commitmentId: string; commitmentNumber?: string; contractorId: string; vendorName?: string; date: string | null;
+  status: 'submitted' | 'approved' | 'paid' | 'returned'; gross: number; retentionPct: number; retention: number; net: number; lineIds: string[]; paidDate: string | null;
+  releases: LienRelease[]; payBlock: string | null; waitingUnconditional: boolean;
+}
+export interface PortalRetention { commitmentId: string; number: string; vendorName?: string; held: number; paidDate: string | null; paymentRef: string | null; block: string | null; waitingUnconditional: boolean; releases: LienRelease[] }
+
 export const api = {
   auth: {
     /** A session, or -- for staff (Nov 13) -- a ticket for the second step. */
@@ -1146,6 +1162,11 @@ export const api = {
     project: (projectId: number) => request<AuditRow[]>(`/audit-project/${projectId}`),
   },
   finance: {
+    subInvoices: (projectId: number) => request<{ invoices: SubInvoice[]; retention: PortalRetention[] }>(`/finance/projects/${projectId}/sub-invoices`),
+    markRelease: (id: string, d: { kind: ReleaseKind; amount?: number | null; throughDate?: string | null }) => request(`/finance/lien-releases/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify(d) }),
+    releaseFile: (id: string) => requestBytes(`/finance/lien-releases/${encodeURIComponent(id)}/file`),
+    setSubInvoiceRetention: (id: string, pct: number) => request(`/finance/sub-invoices/${encodeURIComponent(id)}/retention`, { method: 'POST', body: JSON.stringify({ pct }) }),
+    releaseRetention: (commitmentId: string, d: { paidDate?: string; paymentRef?: string }) => request(`/finance/commitments/${encodeURIComponent(commitmentId)}/release-retention`, { method: 'POST', body: JSON.stringify(d) }),
     access: () => request('/finance/access'),
     brand: () => request('/finance/brand'),
     overview: (projectId: number) => request(`/finance/projects/${projectId}`),
@@ -1315,6 +1336,10 @@ export const api = {
     invoices: () => request('/portal/invoices'),
     submit: (d: unknown) => request('/portal/invoices', { method: 'POST', body: JSON.stringify(d) }),
     attach: (batchId: string, files: File[] | FileList) => requestForm(`/portal/invoices/${encodeURIComponent(batchId)}/attachments`, filesForm(files)),
+    /** Lien releases (Batch 6): on an invoice, or a final one on the subcontract; the retention held. */
+    invoiceRelease: (batchId: string, file: File, kind?: string) => { const fd = filesForm([file]); if (kind) fd.append('kind', kind); return requestForm(`/portal/invoices/${encodeURIComponent(batchId)}/releases`, fd); },
+    finalRelease: (subcontractId: string, file: File, kind?: string) => { const fd = filesForm([file]); if (kind) fd.append('kind', kind); return requestForm(`/portal/subcontracts/${encodeURIComponent(subcontractId)}/releases`, fd); },
+    retention: () => request<PortalRetention[]>('/portal/retention'),
     billFileUrl: (entryId: string, attId: string) => `${API_BASE}/portal/bills/${encodeURIComponent(entryId)}/files/${encodeURIComponent(attId)}`,
     sharedFileUrl: (subcontractId: string, attId: string) => `${API_BASE}/portal/subcontracts/${encodeURIComponent(subcontractId)}/files/${encodeURIComponent(attId)}`,
   },

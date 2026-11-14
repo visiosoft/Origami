@@ -2555,6 +2555,11 @@ export class CommitmentEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
   @Column('int') projectId!: number;
   /** SC-001 for subcontracts, PO-001 for purchase orders and service agreements. */
+  /** Retention held on each sub invoice (Batch 6); empty = 10%. */
+  @Column({ type: 'decimal', precision: 7, scale: 4, nullable: true, transformer: { to: (v: unknown) => v, from: (v: unknown) => (v == null ? null : Number(v)) } }) retentionPct!: number | null;
+  /** When the retention held was paid out, and the payment reference. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) retentionPaidDate!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) retentionPaymentRef!: string | null;
   @Column() number!: string;
   /** subcontract | purchase_order | service */
   @Column({ default: 'subcontract' }) type!: string;
@@ -3071,4 +3076,36 @@ export class MailSendEntity {
   @Column({ type: 'nvarchar', length: 500, nullable: true }) subject!: string | null;
   @Column({ type: 'nvarchar', length: 40 }) sentAt!: string;
   @Column({ type: 'simple-json', nullable: true }) opens!: string[] | null;
+}
+
+/** A sub's invoice (Batch 6): the header over the cost lines they billed together (id = their batchId), with its retention. */
+@Entity('sub_invoices')
+export class SubInvoiceEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column('int') projectId!: number;
+  @Column({ type: 'nvarchar', length: 64 }) commitmentId!: string;
+  @Column({ type: 'nvarchar', length: 64 }) contractorId!: string;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) reference!: string | null;
+  @Column({ type: 'decimal', precision: 7, scale: 4, transformer: { to: (v: unknown) => v, from: (v: unknown) => Number(v) } }) retentionPct!: number;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+}
+
+/** A lien release the sub uploaded (Batch 6); the bookkeeper marks its kind. invoiceId empty = a final release on the subcontract. */
+@Entity('lien_releases')
+export class LienReleaseEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column('int') projectId!: number;
+  @Column({ type: 'nvarchar', length: 64 }) commitmentId!: string;
+  @Column({ type: 'nvarchar', length: 64 }) contractorId!: string;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) invoiceId!: string | null;
+  /** conditional_progress | unconditional_progress | conditional_final | unconditional_final; empty until marked. */
+  @Column({ type: 'nvarchar', length: 30, nullable: true }) kind!: string | null;
+  @Column({ type: 'decimal', precision: 18, scale: 2, nullable: true, transformer: { to: (v: unknown) => v, from: (v: unknown) => (v == null ? null : Number(v)) } }) amount!: number | null;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) throughDate!: string | null;
+  @Column({ type: 'simple-json' }) file!: TaskAttachment;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) uploadedBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) uploadedAt!: string;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) checkedBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) checkedAt!: string | null;
 }
