@@ -180,6 +180,7 @@ export function GoogleSettings() {
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>{saving ? 'Saving…' : 'Save settings'}</div>
         </div>
+        <ExistingProjectFolders />
       </div>
 
       {/* ---------------------------------------------------- standard folders */}
@@ -188,10 +189,12 @@ export function GoogleSettings() {
         <div style={{ fontSize: 12, color: 'var(--c-5c6b65)', marginBottom: 10, maxWidth: 640, lineHeight: 1.55 }}>
           The folders every project’s File Room starts with, created in its Google Drive folder the first time the project is
           synced. One folder per line; use <b>/</b> for a folder inside another (e.g. <i>02 Drawings/Architectural</i>). For an
-          existing project, open it in All Files and click <b>Standard folders</b>.
+          existing project, open it in All Files and click <b>Standard folders</b>. Left empty, the default below is used:
+          saved markup copies go to <i>Drawings &amp; Plans/Markups</i> and task photos to <i>Photos/Tasks</i> or <i>Photos/FOR RECORD</i>.
+          Name drawings like <i>A-101 Floor Plan</i> (sheet number, then title) so they sort and read well.
         </div>
         <textarea value={form['fileRoom.folderTemplate']} onChange={(e) => set('fileRoom.folderTemplate', e.target.value)} rows={8}
-          placeholder={'01 Contracts & Permits\n02 Drawings/Architectural\n02 Drawings/Structural\n03 Photos\n04 Correspondence'}
+          placeholder={'Drawings & Plans/Base sets\nDrawings & Plans/Markups\nPhotos/Tasks\nPhotos/FOR RECORD'}
           style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6, fontFamily: 'inherit' }} />
         <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
           <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>{saving ? 'Saving…' : 'Save settings'}</div>
@@ -469,6 +472,57 @@ function DatabaseCopyPanel() {
             : `Last try ${new Date(r.at).toLocaleString()} failed: ${r.error}`}
         </span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Lay the standard folders out in existing projects (Batch 6): a preview of
+ * what each open project is missing first, then Apply. Nothing is moved or
+ * removed. Administrators.
+ */
+function ExistingProjectFolders() {
+  const { toast, authUser } = useApp();
+  const [pv, setPv] = useState<{ template: string[]; projects: { projectId: number; name: string; missing: string[] }[]; folders: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (authUser?.roleKey !== 'admin') return null;
+  const preview = async () => {
+    setBusy(true);
+    try { setPv(await api.fileRoom.templatePreview()); } catch (e) { toast('⚠ ' + (e as Error).message); } finally { setBusy(false); }
+  };
+  const apply = async () => {
+    if (!pv) return;
+    setBusy(true);
+    try {
+      const r = await api.fileRoom.templateApplyAll(pv.projects.map((p) => p.projectId));
+      toast(`${r.created} folder${r.created === 1 ? '' : 's'} added in ${r.projects} project${r.projects === 1 ? '' : 's'}${r.failed.length ? ` — ${r.failed.length} failed` : ''}`);
+      setPv(await api.fileRoom.templatePreview());
+    } catch (e) { toast('⚠ ' + (e as Error).message); } finally { setBusy(false); }
+  };
+  const pill = (primary: boolean) => ({ padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', background: primary ? 'var(--forest)' : 'var(--mist)', color: primary ? '#fff' : 'var(--forest)', opacity: busy ? 0.6 : 1 } as const);
+  return (
+    <div aria-label="Existing projects" style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <b style={{ fontSize: 12.5 }}>Existing projects</b>
+        <span style={{ fontSize: 12, color: 'var(--muted)', flex: 1 }}>Add the standard folders to open projects that don’t have them yet. Save the list above first.</span>
+        <div onClick={() => !busy && void preview()} style={pill(false)}>{busy && !pv ? 'Checking…' : 'Preview'}</div>
+      </div>
+      {pv && (
+        <div style={{ marginTop: 10 }}>
+          {!pv.projects.length ? <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Every open project already has the standard folders.</div> : (
+            <>
+              <div style={{ fontSize: 12.5, marginBottom: 6 }}>{pv.folders} folder{pv.folders === 1 ? '' : 's'} to add in {pv.projects.length} project{pv.projects.length === 1 ? '' : 's'}:</div>
+              <div style={{ maxHeight: 220, overflowY: 'auto', fontSize: 12, lineHeight: 1.6, background: 'var(--c-efede8)', borderRadius: 10, padding: '8px 12px' }}>
+                {pv.projects.map((p) => <div key={p.projectId}><b>{p.name}</b>: {p.missing.join(', ')}</div>)}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <div onClick={() => !busy && void apply()} style={pill(true)}>{busy ? 'Adding…' : `Apply to ${pv.projects.length} project${pv.projects.length === 1 ? '' : 's'}`}</div>
+                <div onClick={() => setPv(null)} style={pill(false)}>Cancel</div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

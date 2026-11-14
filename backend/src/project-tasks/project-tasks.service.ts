@@ -1,3 +1,4 @@
+import { isPhoto, photoPlace } from '../file-room/layout';
 import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { activityPage } from '../common/activity-page';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -632,13 +633,26 @@ export class ProjectTasksService implements OnApplicationBootstrap {
 
   // ------------------------------------------------------------- attachments
 
+  /** Photos on a project's task go to its File Room "Photos / Tasks" folder (Batch 6); other files as before. */
+  private async uploadSorted(files: any[], scope: string, actor: UploadActor, projectId: number | null) {
+    const project = projectId != null && this.projects ? await this.projects.findOneBy({ id: Number(projectId) }) : null;
+    const photos = project ? (files || []).filter(isPhoto) : [];
+    const rest = (files || []).filter((f) => !photos.includes(f));
+    if (!photos.length) return this.attachments.upload(files, scope, actor);
+    if (rest.length) this.attachments.assertCount(files);
+    return [
+      ...(await this.attachments.upload(photos, scope, actor, photoPlace(project!.name, false))),
+      ...(rest.length ? await this.attachments.upload(rest, scope, actor) : []),
+    ];
+  }
+
   private scopeFor(task: ProjectTaskEntity) {
     return task.projectId == null ? 'General Tasks' : `Project ${task.projectId}`;
   }
 
   async addAttachments(id: string, files: any[], actor: UploadActor) {
     const task = await this.load(id);
-    const added = await this.attachments.upload(files, this.scopeFor(task), actor);
+    const added = await this.uploadSorted(files, this.scopeFor(task), actor, task.projectId);
     task.attachments = [...normalizeAttachments(task.attachments), ...added];
     task.activity = [
       ...normalizeList<ActivityEvent>(task.activity),

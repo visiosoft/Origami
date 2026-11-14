@@ -84,8 +84,10 @@ describe('MarkupsService', () => {
     const fileRow: any = { id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'], sheetNames: null };
     const files = { findOneBy: async () => fileRow, update: async (_w: any, patch: any) => Object.assign(fileRow, patch) };
     const uploads: any[] = [];
+    const ensured: any[] = [];
     const fileRoom = {
       content: async () => ({ file: { id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'] }, body: new Blob([await twoPages()]).stream() }),
+      ensurePath: async (pid: number, path: string[]) => { ensured.push([pid, path]); },
       upload: async (...a: any[]) => { uploads.push(a); return [{ id: 'F2', name: a[2][0].originalname }]; },
     };
     const symRows: any[] = [];
@@ -94,7 +96,7 @@ describe('MarkupsService', () => {
       save: async (x: any) => { const i = symRows.findIndex((r) => r.id === x.id); if (i >= 0) symRows[i] = x; else symRows.push(x); return x; },
       delete: async (w: any) => { const i = symRows.findIndex((r) => r.id === w.id); if (i >= 0) symRows.splice(i, 1); },
     };
-    return { svc: new MarkupsService(repo as any, files as any, fileRoom as any, undefined, symbolRepo as any), rows, uploads, symRows };
+    return { svc: new MarkupsService(repo as any, files as any, fileRoom as any, undefined, symbolRepo as any), rows, uploads, symRows, ensured };
   };
   const ed = { sub: 'U-1', name: 'Edward', roleKey: 'admin', tier: 'internal' } as any;
   const an = { sub: 'U-2', name: 'Andrea', roleKey: 'staff', tier: 'internal' } as any;
@@ -129,12 +131,13 @@ describe('MarkupsService', () => {
     expect((await svc.update(m.id, { linkType: 'invoice', linkId: 'X' } as any, an)).linkType).toBeNull();
   });
 
-  it('saves a marked-up copy beside the drawing, named so the drawing stays Current', async () => {
-    const { svc, uploads } = setup();
+  it('saves a marked-up copy in the project’s Markups folder, named so the drawing stays Current', async () => {
+    const { svc, uploads, ensured } = setup();
     await svc.create('F1', { kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.3, 0.3]] } }, an);
     await svc.saveCopy('F1', an);
     expect(uploads[0][0]).toBe(3);
-    expect(uploads[0][1]).toEqual(['Drawings']);
+    expect(uploads[0][1]).toEqual(['Drawings & Plans', 'Markups']);
+    expect(ensured).toEqual([[3, ['Drawings & Plans', 'Markups']]]);
     expect(uploads[0][2][0].originalname).toMatch(/^A-201 — markup \d{4}-\d{2}-\d{2}\.pdf$/);
   });
 

@@ -1,3 +1,4 @@
+import { isPhoto, photoPlace } from '../file-room/layout';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { cleanTags } from '../database/task.types';
 import { TagsService } from '../tags/tags.service';
@@ -595,7 +596,15 @@ export class TasksService implements OnApplicationBootstrap {
 
   async addAttachments(id: string, files: any[], actor: UploadActor) {
     const task = await this.load(id);
-    const added = await this.attachments.upload(files, SCOPE, actor);
+    // Photos on a project's Request Log entry go to its File Room photos (Batch 6): FOR RECORD ones apart.
+    const project = task.project && this.projects ? await this.projects.findOneBy({ name: task.project }) : null;
+    const photos = project ? (files || []).filter(isPhoto) : [];
+    const rest = (files || []).filter((f) => !photos.includes(f));
+    if (photos.length && rest.length) this.attachments.assertCount(files);
+    const added = !photos.length ? await this.attachments.upload(files, SCOPE, actor) : [
+      ...(await this.attachments.upload(photos, SCOPE, actor, photoPlace(project!.name, logSerialKind(task.topicType) === 'record'))),
+      ...(rest.length ? await this.attachments.upload(rest, SCOPE, actor) : []),
+    ];
     task.attachments = [...normalizeAttachments(task.attachments), ...added];
     task.activity = [
       ...normalizeList<ActivityEvent>(task.activity),

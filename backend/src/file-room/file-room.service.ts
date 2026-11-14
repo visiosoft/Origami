@@ -1,3 +1,4 @@
+import { DEFAULT_FOLDER_TEMPLATE, FILE_ROOM_ROOT } from './layout';
 import { pageArgs, pageOf } from '../common/paging';
 import { TrackingService, type OpenSummary } from '../tracking/tracking.service';
 import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
@@ -24,6 +25,21 @@ const uniqueIds = (ids: unknown) => Array.from(new Set((Array.isArray(ids) ? ids
 
 export const FOLDER_TEMPLATE_KEY = 'fileRoom.folderTemplate';
 
+export { MARKUPS_PATH, TASK_PHOTOS_PATH, RECORD_PHOTOS_PATH, DEFAULT_FOLDER_TEMPLATE } from './layout';
+
+/** The template folders a project hasn't got yet (each path and its parents), from its folder list. */
+export function missingFolders(template: string[][], have: string[][]): string[][] {
+  const has = new Set(have.map((p) => p.join('>').toLowerCase()));
+  const out: string[][] = [];
+  for (const path of template) {
+    for (let i = 1; i <= path.length; i++) {
+      const k = path.slice(0, i).join('>').toLowerCase();
+      if (!has.has(k)) { has.add(k); out.push(path.slice(0, i)); }
+    }
+  }
+  return out;
+}
+
 /** "Drawings/Architectural" per line -> [['Drawings', 'Architectural'], ...]; blanks and duplicates dropped. */
 export function parseFolderTemplate(text: string): string[][] {
   const seen = new Set<string>();
@@ -39,7 +55,7 @@ export function parseFolderTemplate(text: string): string[][] {
 }
 
 /** Where the File Room keeps everything inside the connected account's Drive. */
-export const DRIVE_ROOT = 'Origami File Room';
+export const DRIVE_ROOT = FILE_ROOM_ROOT;
 
 /** The standard folders every project starts with; empty ones stay hidden. */
 export const DEFAULT_CATEGORIES = [
@@ -115,7 +131,8 @@ export class FileRoomService {
 
   /** The standard folders every project gets: one path per line, '/' for subfolders. */
   async folderTemplate(): Promise<string[][]> {
-    return parseFolderTemplate((await this.settings.get(FOLDER_TEMPLATE_KEY)) || '');
+    const saved = await this.settings.get(FOLDER_TEMPLATE_KEY);
+    return parseFolderTemplate(saved && saved.trim() ? saved : DEFAULT_FOLDER_TEMPLATE);
   }
 
   /**
@@ -134,6 +151,37 @@ export class FileRoomService {
     }
     const after = (await this.folders.find()).filter((f) => Number(f.projectId) === projectId).length;
     return { created: after - before, template: template.length };
+  }
+
+  /** Make sure a folder path exists for a project (File Room rows; Drive folders are made on upload). */
+  async ensurePath(projectId: number, path: string[]) {
+    for (let i = 1; i <= path.length; i++) await this.createFolder(projectId, path.slice(0, i - 1), path[i - 1]);
+  }
+
+  /**
+   * Existing projects and the template folders each is missing (Batch 6),
+   * shown before anything is made. Closed projects are left out.
+   */
+  async templatePreview() {
+    const template = await this.folderTemplate();
+    const [projects, folders] = await Promise.all([this.projects.find(), this.folders.find()]);
+    const rows = projects
+      .filter((p) => !/closed|cancel|lost|archiv/i.test(String(p.stage || '')))
+      .map((p) => ({ projectId: p.id, name: p.name, missing: missingFolders(template, folders.filter((f) => Number(f.projectId) === p.id).map((f) => (Array.isArray(f.path) ? f.path : []))).map((x) => x.join(' / ')) }))
+      .filter((r) => r.missing.length);
+    return { template: template.map((t) => t.join(' / ')), projects: rows, folders: rows.reduce((a, r) => a + r.missing.length, 0) };
+  }
+
+  /** Apply the template to the projects the preview listed (or the ones named). */
+  async templateApplyAll(projectIds?: number[]) {
+    const preview = await this.templatePreview();
+    const ids = preview.projects.map((p) => p.projectId).filter((id) => !projectIds?.length || projectIds.includes(id));
+    const done: { projectId: number; created: number; error?: string }[] = [];
+    for (const id of ids) {
+      try { const r = await this.applyTemplate(id); done.push({ projectId: id, created: r.created }); }
+      catch (e) { done.push({ projectId: id, created: 0, error: (e as Error).message.slice(0, 200) }); }
+    }
+    return { projects: done.length, created: done.reduce((a, d) => a + d.created, 0), failed: done.filter((d) => d.error) };
   }
 
   private hydrate(f: FileRoomFileEntity): FileRoomFileEntity {

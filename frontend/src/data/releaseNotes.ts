@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-14g',
+    date: '2026-11-14',
+    title: 'File Room: standard folders for drawings and photos',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'Projects start with Drawings & Plans / Base sets and Markups, and Photos / Tasks and FOR RECORD, unless Settings lists your own folders. Administrators can preview which open projects are missing them and add them in one go.', where: 'Settings → Google Workspace → Standard project folders → Existing projects' },
+      { area: 'Markups', kind: 'improved', text: 'A saved marked-up copy now goes into the project’s Drawings & Plans / Markups folder instead of next to the drawing.' },
+      { area: 'Tasks', kind: 'improved', text: 'Photos added to a project’s task go into its File Room under Photos / Tasks (FOR RECORD entries: Photos / FOR RECORD). Other files, and photos already uploaded, stay where they are.' },
+    ],
+  },
+  {
     id: '2026-11-14f',
     date: '2026-11-14',
     title: 'Weekly database copy and an uptime check',

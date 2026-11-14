@@ -372,6 +372,21 @@ export class FileRoomController {
     return this.service.setBuildSet(Number(pid), body?.folders);
   }
 
+  /** Existing projects (Batch 6): which template folders each lacks -- preview, then apply. Administrators. */
+  @Tiers('internal')
+  @Get('template/preview')
+  async templatePreview(@Claims() claims?: SessionClaims | null) {
+    if (claims?.roleKey !== 'admin') throw new ForbiddenException('Only administrators can lay out folders for every project.');
+    return this.service.templatePreview();
+  }
+
+  @Tiers('internal')
+  @Post('template/apply-all')
+  async templateApplyAll(@Body() body: { projectIds?: number[] }, @Claims() claims?: SessionClaims | null) {
+    if (claims?.roleKey !== 'admin') throw new ForbiddenException('Only administrators can lay out folders for every project.');
+    return this.service.templateApplyAll(Array.isArray(body?.projectIds) ? body.projectIds.map(Number) : undefined);
+  }
+
   @Tiers('internal')
   @Post('template')
   async template(@Query('projectId') projectId: string, @Claims() claims?: SessionClaims | null) {

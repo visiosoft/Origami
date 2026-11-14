@@ -1042,6 +1042,9 @@ export const api = {
     moveMany: (ids: string[], folderPath: string[]) => request<{ moved: number }>('/file-room/files/move', { method: 'PUT', body: JSON.stringify({ ids, folderPath }) }),
     move: (id: string, folderPath: string[]) => request(`/file-room/files/${id}/move`, { method: 'PUT', body: JSON.stringify({ folderPath }) }),
     applyTemplate: (projectId: number) => request<{ created: number; template: number }>(`/file-room/template?projectId=${projectId}`, { method: 'POST' }),
+    /** Existing projects (Batch 6, administrators): which standard folders each lacks, then lay them out. */
+    templatePreview: () => request<{ template: string[]; projects: { projectId: number; name: string; missing: string[] }[]; folders: number }>('/file-room/template/preview', { cache: 'no-store' } as any),
+    templateApplyAll: (projectIds?: number[]) => request<{ projects: number; created: number; failed: { projectId: number; error?: string }[] }>('/file-room/template/apply-all', { method: 'POST', body: JSON.stringify({ projectIds }) }),
     /** A file the browser can show: Office and Google documents arrive as PDF. */
     previewUrl: (id: string) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/preview`,
     share: (id: string) => request<{ url: string; name: string }>(`/file-room/files/${id}/share`, { method: 'POST' }),

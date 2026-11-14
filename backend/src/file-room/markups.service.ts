@@ -1,3 +1,4 @@
+import { MARKUPS_PATH } from './file-room.service';
 import { GoogleService } from '../google/google.service';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { SettingsService } from '../settings/settings.service';
@@ -297,7 +298,9 @@ export class MarkupsService {
     if (!count) throw new BadRequestException('There are no markups to save.');
     const base = file.name.replace(/\.(pdf|jpe?g|png|webp|gif)$/i, '');
     const name = `${base} — markup ${new Date().toISOString().slice(0, 10)}.pdf`;
-    const [saved] = await this.fileRoom.upload(Number(file.projectId), file.folderPath || [], [{ originalname: name, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], { name: claims!.name, id: claims!.sub });
+    // Saved copies go in the project's markups folder (Batch 6), not next to the drawing.
+    await this.fileRoom.ensurePath(Number(file.projectId), MARKUPS_PATH);
+    const [saved] = await this.fileRoom.upload(Number(file.projectId), MARKUPS_PATH, [{ originalname: name, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], { name: claims!.name, id: claims!.sub });
     return saved;
   }
 }
