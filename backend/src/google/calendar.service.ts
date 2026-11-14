@@ -72,6 +72,24 @@ export class CalendarService {
     return token.value;
   }
 
+  /** Gemini notes Docs visible to this person (their own Drive and shared with them). Null when their connection can't read Drive (connected before Nov 13). */
+  async findDocsAs(userId: string, refreshToken: string, query: string): Promise<{ id: string; name: string }[] | null> {
+    const token = await this.userToken(userId, refreshToken);
+    const params = new URLSearchParams({ pageSize: '5', orderBy: 'modifiedTime desc', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true', fields: 'files(id,name)', q: `${query} and mimeType = 'application/vnd.google-apps.document' and trashed = false` });
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.status === 403 || res.status === 401) return null;
+    const body: any = await res.json().catch(() => ({}));
+    if (!res.ok) throw new BadRequestException(body?.error?.message || 'Drive search failed.');
+    return body.files || [];
+  }
+
+  async docTextAs(userId: string, refreshToken: string, id: string): Promise<{ text: string; link: string }> {
+    const token = await this.userToken(userId, refreshToken);
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}/export?mimeType=text/plain`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new BadRequestException('Could not read the Doc.');
+    return { text: (await res.text()).replace(/^\uFEFF/, ''), link: `https://docs.google.com/document/d/${id}` };
+  }
+
   /**
    * One person's own events for a window -- their real calendar, not a
    * busy/free strip. Read-only: this never writes anything to their calendar.

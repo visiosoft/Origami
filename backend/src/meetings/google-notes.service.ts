@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { MeetingEntity } from '../database/entities';
+import { MeetingEntity, UserEntity } from '../database/entities';
+import { CalendarService } from '../google/calendar.service';
+import { emailsOf } from '../common/emails';
 import { GoogleService } from '../google/google.service';
 import { docIdFrom, endedBefore, notesQuery, parseNotesDocName, sameMeeting, splitGeminiDoc } from './google-notes';
 import { MeetingsService } from './meetings.service';
@@ -23,6 +25,8 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     @InjectRepository(MeetingEntity) private readonly meetings: Repository<MeetingEntity>,
     @Optional() private readonly google?: GoogleService,
     @Optional() private readonly meetingsService?: MeetingsService,
+    @Optional() private readonly calendar?: CalendarService,
+    @Optional() @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
   ) {}
 
   onApplicationBootstrap() {
@@ -33,12 +37,13 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
 
   /** Meetings that ended in the last 3 days with no notes yet: look for their Doc. */
   async sweep(now = new Date()) {
-    if (!this.google || !(await this.google.isConnected().catch(() => false))) return { checked: 0, imported: 0 };
+    const workspace = !!this.google && (await this.google.isConnected().catch(() => false));
+    if (!workspace && !this.calendar) return { checked: 0, imported: 0 };
     const since = new Date(now.getTime() - 3 * 864e5).toISOString().slice(0, 10);
     const due = (await this.meetings.find()).filter((m) => !m.notesDocId && !String(m.minutes || '').trim() && (m.date || '') >= since && endedBefore(m.date, m.time, now));
     let imported = 0;
     for (const m of due) {
-      try { if (await this.importFor(m)) imported++; }
+      try { if ((workspace && (await this.importFor(m))) || (await this.importViaAttendees(m))) imported++; }
       catch (e) { this.log.warn(`Notes for ${m.id}: ${(e as Error).message}`); }
     }
     return { checked: due.length, imported };
@@ -68,12 +73,45 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     return this.meetings.save(m);
   }
 
+  /**
+   * Nov 13: the Doc is in the organiser's Drive and shared with the guests.
+   * When the workspace account can't see it (not invited, or another domain
+   * such as apogeec.com), look through the attendees' own Google connections
+   * (My Calendar), on any of their addresses.
+   */
+  async importViaAttendees(m: MeetingEntity): Promise<MeetingEntity | null> {
+    if (!this.calendar || !this.users) return null;
+    const ids = (m.attendees || []).map((a) => a.id).filter((x): x is string => !!x);
+    const emails = new Set((m.attendees || []).map((a) => String(a.email || '').toLowerCase()).filter(Boolean));
+    if (m.createdById) ids.push(m.createdById);
+    const candidates = (await this.users.find()).filter((u) => u.calendarRefreshToken && (ids.includes(u.id) || emailsOf(u).some((e) => emails.has(e)) || emails.has(String(u.calendarEmail || '').toLowerCase())));
+    for (const u of candidates) {
+      const found = await this.calendar.findDocsAs(u.id, u.calendarRefreshToken, notesQuery(m.title, m.date)).catch(() => null);
+      if (!found?.length) continue;
+      const doc = await this.calendar.docTextAs(u.id, u.calendarRefreshToken, found[0].id).catch(() => null);
+      if (!doc) continue;
+      const { notes, transcript } = splitGeminiDoc(doc.text);
+      if (!notes) continue;
+      m.minutes = notes;
+      if (transcript && !String(m.transcript || '').trim()) m.transcript = transcript;
+      if (!String(m.transcriptUrl || '').trim()) m.transcriptUrl = doc.link;
+      m.notesDocId = found[0].id;
+      m.notesImportedAt = new Date().toISOString();
+      if (['scheduled', 'rescheduled', '', undefined, null].includes(m.status as any)) m.status = 'occurred';
+      m.updatedAt = m.notesImportedAt;
+      this.log.log(`Notes for ${m.id} found through ${u.name}'s Google`);
+      return this.meetings.save(m);
+    }
+    return null;
+  }
+
   /** "Import from Google" on one meeting: a pasted link, or a search by title and date. */
   async importOne(meetingId: string, link?: string) {
     const m = await this.meetings.findOneBy({ id: meetingId });
     if (!m) throw new NotFoundException('Meeting not found');
-    if (!this.google || !(await this.google.isConnected())) throw new BadRequestException('Connect Google Workspace first (Settings → Google).');
-    const saved = await this.importFor(m, link);
+    const workspace = !!this.google && (await this.google.isConnected().catch(() => false));
+    if (!workspace && !this.calendar) throw new BadRequestException('Connect Google Workspace first (Settings → Google).');
+    const saved = (workspace ? await this.importFor(m, link) : null) || (link ? null : await this.importViaAttendees(m));
     if (!saved) throw new NotFoundException(`No “Notes by Gemini” Doc for “${m.title}” on ${m.date} is shared with the connected Google account. Paste the Doc’s link instead, or invite that account to the meeting so the notes are shared with it.`);
     return saved;
   }

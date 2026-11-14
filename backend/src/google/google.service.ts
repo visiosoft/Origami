@@ -61,6 +61,9 @@ export const MY_CALENDAR_SCOPES = [
   'email',
   'profile',
   'https://www.googleapis.com/auth/calendar.events',
+  // Nov 13: read the "Notes by Gemini" Docs shared with them, so notes of meetings they attend (not organise),
+  // and on another domain (apogeec.com), still reach Origami.
+  'https://www.googleapis.com/auth/drive.readonly',
 ];
 
 export interface GoogleProfile {

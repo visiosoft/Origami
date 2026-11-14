@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13u',
+    date: '2026-11-13',
+    title: 'Meeting notes from meetings you attend',
+    items: [
+      { area: 'Meetings', kind: 'improved', text: 'Gemini notes now come in for meetings you attend but don’t organise, and for meetings on an apogeec.com calendar: Origami looks through the attendees’ own Google connections when the office account can’t see the notes.', where: 'Settings → My Calendar → Reconnect (once)' },
+      { area: 'Sign-in', kind: 'improved', text: 'Your own calendar and mail can be on any Google domain (Origami or Apogee).' },
+    ],
+  },
+  {
     id: '2026-11-13t',
     date: '2026-11-13',
     title: 'My Mail: your Gmail in Origami',
