@@ -705,7 +705,8 @@ export class AuthService {
     const rows = await this.users
       .createQueryBuilder('u')
       .where('LOWER(u.email) = :email', { email: e })
-      .orWhere('LOWER(u.altEmails) LIKE :like', { like: `%"${e.replace(/[%_[\]]/g, (c) => `[${c}]`)}"%` })
+      // altEmails is simple-json, which SQL Server stores as ntext: LOWER() refuses ntext, so cast it first.
+      .orWhere('LOWER(CAST(u.altEmails AS NVARCHAR(MAX))) LIKE :like', { like: `%"${e.replace(/[%_[\]]/g, (c) => `[${c}]`)}"%` })
       .getMany();
     return rows.find((u) => normEmail(u.email) === e) || rows.find((u) => emailsOf(u).includes(e)) || null;
   }

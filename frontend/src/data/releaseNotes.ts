@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-14h',
+    date: '2026-11-14',
+    title: 'Fix: signing in by email failed',
+    items: [
+      { area: 'Sign-in', kind: 'fixed', text: 'Signing in (and anything that looks a person up by email) failed with a database error after second emails were added. It works again, for main and second emails.' },
+    ],
+  },
+  {
     id: '2026-11-14g',
     date: '2026-11-14',
     title: 'File Room: standard folders for drawings and photos',
