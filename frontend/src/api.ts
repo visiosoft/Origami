@@ -1090,6 +1090,10 @@ export const api = {
     create: (data: unknown) => request('/project-phases', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-phases/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-phases/${id}`, { method: 'DELETE' }),
+    /** Structures on the lot (Batch 6): adding one copies the programme's phases for it. */
+    addStructure: (projectId: number, name: string, mainName?: string) => request<{ structures: { key: string; name: string }[]; phasesAdded: number }>('/project-phases/structures', { method: 'POST', body: JSON.stringify({ projectId, name, mainName }) }),
+    renameStructure: (projectId: number, key: string, name: string) => request<{ structures: { key: string; name: string }[] }>(`/project-phases/structures/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify({ projectId, name }) }),
+    removeStructure: (projectId: number, key: string) => request<{ structures: { key: string; name: string }[] }>(`/project-phases/structures/${encodeURIComponent(key)}?projectId=${projectId}`, { method: 'DELETE' }),
     /** Give a project a phase (and its template tasks) it doesn't have yet -- e.g. dropping it onto a board column from a different template. */
     adopt: (projectId: number, key: string) =>
       request(`/project-phases/adopt`, { method: 'POST', body: JSON.stringify({ projectId, key }) }),

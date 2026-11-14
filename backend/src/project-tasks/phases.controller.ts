@@ -96,6 +96,33 @@ export class PhasesController {
     return this.service.create(dto);
   }
 
+  /** Structures on the lot (Batch 6): add one (its phases are copied from the programme), rename, remove. */
+  @Tiers('internal')
+  @Post('structures')
+  async addStructure(@Body() body: { projectId: number; name: string; mainName?: string }, @Claims() claims: SessionClaims | null) {
+    await this.structureAccess(claims, Number(body?.projectId));
+    return this.service.addStructure(Number(body?.projectId), body?.name, body?.mainName);
+  }
+
+  @Tiers('internal')
+  @Put('structures/:key')
+  async renameStructure(@Param('key') key: string, @Body() body: { projectId: number; name: string }, @Claims() claims: SessionClaims | null) {
+    await this.structureAccess(claims, Number(body?.projectId));
+    return this.service.renameStructure(Number(body?.projectId), key, body?.name);
+  }
+
+  @Tiers('internal')
+  @Delete('structures/:key')
+  async removeStructure(@Param('key') key: string, @Query('projectId') projectId: string, @Claims() claims: SessionClaims | null) {
+    await this.structureAccess(claims, Number(projectId));
+    return this.service.removeStructure(Number(projectId), key);
+  }
+
+  private async structureAccess(claims: SessionClaims | null, projectId: number) {
+    await this.access.assert(claims ?? null, projectId);
+    if (!(await this.access.canManage(claims ?? null, 'projects', 'pm'))) throw new ForbiddenException('Your role doesn’t allow changing the project’s structures.');
+  }
+
   /** Give a project a phase (and its template tasks) it doesn't have yet. */
   @Tiers('internal')
   @Post('adopt')

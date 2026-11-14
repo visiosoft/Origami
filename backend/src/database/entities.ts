@@ -7,6 +7,8 @@ const TEXT = { type: 'nvarchar', length: 'MAX' } as const;
 @Entity('projects')
 export class ProjectEntity {
   @PrimaryColumn('int') id!: number;
+  /** Buildings on the lot (Batch 6), e.g. Main house and ADU, each with its own phases; empty = one building. */
+  @Column({ type: 'simple-json', nullable: true }) structures!: { key: string; name: string }[] | null;
   @Column() priority!: string;
   @Column() name!: string;
   @Column() location!: string;
@@ -916,6 +918,8 @@ export class ProjectPhaseEntity {
    * row stays so the template never re-adds them.
    */
   @Column({ nullable: true }) hiddenAt!: string;
+  /** Which structure it belongs to (Batch 6); empty = the main one. */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) structureKey!: string | null;
 }
 
 /**

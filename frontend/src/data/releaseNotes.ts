@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-14e',
+    date: '2026-11-14',
+    title: 'More than one building on a lot (Main house + ADU)',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Add a structure such as an ADU to a project. It gets its own copy of the programme’s phases and tasks, and the phase board has a picker to switch between buildings (double-click a name to rename it, or remove it before its work starts).', where: 'Project → Design / Build → + Structure' },
+      { area: 'Schedule', kind: 'new', text: 'Projects with more than one structure show one lane per building, or every phase merged in date order.', where: 'Schedule → Structures side by side / Merged' },
+    ],
+  },
+  {
     id: '2026-11-14d',
     date: '2026-11-14',
     title: 'Funding sources on a project',

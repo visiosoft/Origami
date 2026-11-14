@@ -182,6 +182,9 @@ export function Projects() {
   // The Phase Board reads the project's own phases and tasks, so it shows what
   // the programme template actually put there.
   const [boardPhases, setBoardPhases] = useState<BoardPhase[]>([]);
+  // Structures on the lot (Batch 6): Main house, ADU... each with its own phases; the board shows one at a time.
+  const [structures, setStructures] = useState<{ key: string; name: string }[]>([]);
+  const [structure, setStructure] = useState('main');
   const [boardTasks, setBoardTasks] = useState<BoardTask[]>([]);
   const [applying, setApplying] = useState(false);
   // Phases a project doesn't use (hidden from its board) stay out of the board and its progress until shown again.
@@ -189,7 +192,7 @@ export function Projects() {
   const hiddenPhaseCount = boardPhases.filter((p) => p.hiddenAt && (p.category === 'construction') === (tab === 'build')).length;
   // Design shows the design phases, Build the construction ones (from the programme template's category).
   const boardCat: 'design' | 'construction' = tab === 'build' ? 'construction' : 'design';
-  const catPhases = boardPhases.filter((p) => (p.category === 'construction') === (boardCat === 'construction'));
+  const catPhases = boardPhases.filter((p) => (p.category === 'construction') === (boardCat === 'construction') && (structures.length < 2 || (p.structureKey || 'main') === structure));
   const workflow = computeWorkflow(showHiddenPhases ? catPhases : catPhases.filter((p) => !p.hiddenAt), boardTasks);
   const setPhaseHidden = (phaseId: string, hidden: boolean) => {
     const hiddenAt = hidden ? new Date().toISOString() : null;
@@ -205,8 +208,12 @@ export function Projects() {
 
   const loadBoard = (projectId: number) => {
     api.projectPhases.board(projectId)
-      .then((res: any) => { setBoardPhases((res?.phases || []) as BoardPhase[]); setBoardTasks((res?.tasks || []) as BoardTask[]); })
-      .catch(() => { setBoardPhases([]); setBoardTasks([]); });
+      .then((res: any) => {
+        setBoardPhases((res?.phases || []) as BoardPhase[]); setBoardTasks((res?.tasks || []) as BoardTask[]);
+        const ss = Array.isArray(res?.structures) ? res.structures : [];
+        setStructures(ss); setStructure((cur) => (ss.some((s: any) => s.key === cur) ? cur : 'main'));
+      })
+      .catch(() => { setBoardPhases([]); setBoardTasks([]); setStructures([]); });
   };
 
   // A phase card is a real task row, so the panel edits it in place rather
@@ -267,6 +274,31 @@ export function Projects() {
     const step = stepForTaskId(pt?.id);
     if (step && !sel?.programOff) { setProgramStep(step); setTab('program'); return; }
     setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color });
+  };
+
+  const addStructure = async () => {
+    if (!sel) return;
+    const name = window.prompt('Add a structure on this lot — e.g. “ADU”. It gets its own copy of the programme’s phases and tasks.', 'ADU');
+    if (!name?.trim()) return;
+    const mainName = structures.length ? undefined : window.prompt('And what should the existing phases’ building be called?', 'Main house') || undefined;
+    try {
+      const r = await api.projectPhases.addStructure(sel.id, name.trim(), mainName);
+      toast(`${name.trim()} added — ${r.phasesAdded} phases`);
+      const added = r.structures[r.structures.length - 1];
+      setStructure(added.key);
+      loadBoard(sel.id);
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the structure')); }
+  };
+  const editStructure = async (key: string) => {
+    if (!sel) return;
+    const cur = structures.find((s) => s.key === key);
+    const name = window.prompt(`Rename ${cur?.name || 'structure'} (leave empty to remove it — only while none of its work has started)`, cur?.name || '');
+    if (name === null) return;
+    try {
+      if (name.trim()) await api.projectPhases.renameStructure(sel.id, key, name.trim());
+      else { await api.projectPhases.removeStructure(sel.id, key); setStructure('main'); }
+      loadBoard(sel.id);
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not change the structure')); }
   };
 
   const applyProgramme = (projectId: number) => {
@@ -943,6 +975,17 @@ export function Projects() {
                       {showHiddenPhases ? `Hide the ${hiddenPhaseCount} hidden phase${hiddenPhaseCount > 1 ? 's' : ''}` : `${hiddenPhaseCount} hidden phase${hiddenPhaseCount > 1 ? 's' : ''} · Show`}
                     </span>
                   )}
+                  {structures.length > 1 && (
+                    <div aria-label="Structure" style={{ display: 'flex', gap: 3, padding: 3, background: 'var(--c-efede8)', borderRadius: 999 }}>
+                      {structures.map((st) => (
+                        <div key={st.key} onClick={() => setStructure(st.key)} onDoubleClick={() => editStructure(st.key)} title="Double-click to rename or remove"
+                          style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: structure === st.key ? 'var(--seg-on)' : 'transparent', color: structure === st.key ? 'var(--ink)' : 'var(--muted)' }}>
+                          {st.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <span onClick={addStructure} title="A second building on the lot, e.g. an ADU, with its own phases" style={{ fontSize: 11.5, color: 'var(--forest)', fontWeight: 700, cursor: 'pointer' }}>+ Structure</span>
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 3, padding: 3, background: 'var(--c-efede8)', borderRadius: 999 }}>
                     {(['board', 'list'] as const).map((v) => (
                       <div
