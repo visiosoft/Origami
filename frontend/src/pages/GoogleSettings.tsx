@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, type GoogleStatus, type DriveFile } from '../api';
+import { type DbBackupStatus, api, type GoogleStatus, type DriveFile } from '../api';
 import { useApp } from '../AppContext';
 import { Skeleton } from '../components/Skeleton';
 
@@ -322,6 +322,7 @@ export function GoogleSettings() {
 
       {status?.connected && <DrivePanel />}
       {status?.connected && <BackupSheetsPanel />}
+      {status?.connected && <DatabaseCopyPanel />}
     </div>
   );
 }
@@ -423,6 +424,51 @@ function BackupSheetsPanel() {
       {!!st.lastResult?.failed?.length && (
         <div style={{ marginTop: 10, fontSize: 12, color: '#8E2E0A' }}>{st.lastResult.failed.map((f) => `${f.project}: ${f.error || 'failed'}`).join(' · ')}</div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Weekly database copy (Batch 6): every table as JSON in one zip, secrets
+ * left out, in the admin-only "Origami System Backups" Drive folder; the last
+ * 8 are kept.
+ */
+function DatabaseCopyPanel() {
+  const { toast, authUser } = useApp();
+  const [st, setSt] = useState<DbBackupStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const isAdmin = authUser?.roleKey === 'admin';
+  useEffect(() => { if (isAdmin) api.backup.database().then(setSt).catch(() => undefined); }, [isAdmin]);
+  if (!isAdmin || !st) return null;
+  const run = async () => {
+    setBusy(true);
+    try { const r = await api.backup.runDatabase(); toast(`Database copy saved — ${r.tables} tables, ${(r.bytes / 1048576).toFixed(1)} MB`); setSt(await api.backup.database()); }
+    catch (e) { toast('⚠ ' + (e as Error).message); setSt(await api.backup.database().catch(() => st)); }
+    finally { setBusy(false); }
+  };
+  const toggle = async () => {
+    setBusy(true);
+    try { setSt(await api.backup.setDatabase(!st.enabled)); } catch (e) { toast('⚠ ' + (e as Error).message); } finally { setBusy(false); }
+  };
+  const r = st.lastResult;
+  return (
+    <div style={card} aria-label="Database copy">
+      <SectionTitle>Database copy</SectionTitle>
+      <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginBottom: 12, lineHeight: 1.55 }}>
+        Every Sunday at 3am, a copy of the whole database — every table as a JSON file, in one zip — goes to the Drive folder “{st.folder}”. The last {st.keep} are kept. Passwords, sign-in secrets and tokens are left out. The folder isn’t inside the File Room and isn’t shared; keep it to administrators in Drive.
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+          <input type="checkbox" checked={st.enabled} disabled={busy} onChange={() => void toggle()} /> Every week
+        </label>
+        <div onClick={() => !busy && void run()} role="button" aria-disabled={busy}
+          style={{ padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', background: 'var(--mist)', color: 'var(--forest)', opacity: busy ? 0.6 : 1 }}>{busy ? 'Copying…' : 'Back up now'}</div>
+        <span style={{ fontSize: 12, color: r && !r.ok ? '#8E2E0A' : 'var(--muted)' }}>
+          {!r ? 'No copy yet' : r.ok
+            ? <>Last copy {new Date(r.at).toLocaleString()} — {r.tables} tables, {((r.bytes || 0) / 1048576).toFixed(1)} MB{r.link ? <> · <a href={r.link} target="_blank" rel="noreferrer" style={{ color: 'var(--forest)', fontWeight: 700 }}>Open in Drive</a></> : null}</>
+            : `Last try ${new Date(r.at).toLocaleString()} failed: ${r.error}`}
+        </span>
+      </div>
     </div>
   );
 }

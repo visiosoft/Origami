@@ -1,4 +1,5 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { Public } from '../auth/guards/public.decorator';
@@ -22,12 +23,30 @@ const BUILD = servedBuild();
 @Public()
 @Controller('status')
 export class StatusController {
-  constructor(private readonly settings: SettingsService) {}
+  constructor(private readonly settings: SettingsService, private readonly data: DataSource) {}
 
   @Get()
   async status() {
     const s = await this.settings.getMany(['app.noticeActive', 'app.notice']);
     const on = s['app.noticeActive'] === 'true' && !!(s['app.notice'] || '').trim();
     return { build: BUILD, notice: on ? s['app.notice'].trim() : null };
+  }
+
+  /**
+   * For the uptime check (Batch 6): the server answers and the database
+   * does. 503 when the database doesn't, so a monitor sees a failure.
+   */
+  @Get('health')
+  async health() {
+    const time = new Date().toISOString();
+    try {
+      let timer: NodeJS.Timeout | undefined;
+      try {
+        await Promise.race([this.data.query('SELECT 1 AS ok'), new Promise((_, no) => { timer = setTimeout(() => no(new Error('timed out')), 10_000); })]);
+      } finally { if (timer) clearTimeout(timer); }
+      return { ok: true, db: 'ok', build: BUILD, time };
+    } catch (e) {
+      throw new HttpException({ ok: false, db: 'down', error: (e as Error).message.slice(0, 200), build: BUILD, time }, HttpStatus.SERVICE_UNAVAILABLE);
+    }
   }
 }

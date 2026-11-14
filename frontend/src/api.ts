@@ -366,6 +366,11 @@ export interface FundingView {
 }
 export interface PortalRetention { commitmentId: string; number: string; vendorName?: string; held: number; paidDate: string | null; paymentRef: string | null; block: string | null; waitingUnconditional: boolean; releases: LienRelease[] }
 
+export interface DbBackupStatus {
+  enabled: boolean; lastRun: string | null; folder: string; keep: number; connected: boolean;
+  lastResult: { at: string; ok: boolean; name?: string; bytes?: number; tables?: number; rows?: number; removed?: number; link?: string | null; error?: string } | null;
+}
+
 export const api = {
   auth: {
     /** A session, or -- for staff (Nov 13) -- a ticket for the second step. */
@@ -755,6 +760,10 @@ export const api = {
     setSheets: (enabled: boolean) => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean; folder?: string }>('/backup/sheets', { method: 'PUT', body: JSON.stringify({ enabled }) }),
     /** Drive folder for the sheet, inside the project folder (Nov 13); blank = the project folder. */
     setSheetsFolder: (folder: string) => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean; folder?: string }>('/backup/sheets', { method: 'PUT', body: JSON.stringify({ folder }) }),
+    /** Weekly database copy (Batch 6; admins): zipped JSON in Drive, last 8 kept. */
+    database: () => request<DbBackupStatus>('/backup/database', { cache: 'no-store' } as any),
+    setDatabase: (enabled: boolean) => request<DbBackupStatus>('/backup/database', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    runDatabase: () => request<{ ok: boolean; name: string; bytes: number; tables: number; rows: number; removed: number }>('/backup/database/run', { method: 'POST' }),
     runSheets: (projectId?: number) => request<{ at: string; projects: number; failed: { project: string; error?: string }[] }>('/backup/sheets/run', { method: 'POST', body: JSON.stringify({ projectId }) }),
   },
   /** The shared tag bank (Oct 30 sync): standard tags plus everyone's custom ones. */

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-14f',
+    date: '2026-11-14',
+    title: 'Weekly database copy and an uptime check',
+    items: [
+      { area: 'Settings', kind: 'new', text: 'Every Sunday at 3am a copy of the whole database (each table as JSON, zipped) goes to the “Origami System Backups” folder in Drive; the last 8 are kept and passwords and sign-in secrets are left out. Administrators can switch it off or press Back up now.', where: 'Settings → Google Workspace → Database copy' },
+      { area: 'System', kind: 'new', text: 'The app is checked every 15 minutes. If it doesn’t answer twice in a row, the repository admins get GitHub’s failure email (and IT gets a text once the Quo details are added).' },
+    ],
+  },
+  {
     id: '2026-11-14e',
     date: '2026-11-14',
     title: 'More than one building on a lot (Main house + ADU)',
