@@ -1,3 +1,4 @@
+import { ContactEmail } from '../components/ContactEmail';
 import { LinkedMail } from '../components/LinkedMail';
 import { stageLabel } from '../data/projects';
 import { createContext, useContext, useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -2417,6 +2418,7 @@ export function Pipeline() {
                 <TextClient entityType="lead" entityId={selected.id} phone={leadDetails[selected.id]?.phone || selected.phone}
                   clientName={leadDetails[selected.id]?.goByName || leadDetails[selected.id]?.firstName || selected.client} projectTitle={selected.name} />
               </div>
+              <div style={{ flex: '1 1 100%' }}><ContactEmail email={leadDetails[selected.id]?.email || (selected as any).email} name={leadDetails[selected.id]?.goByName || selected.client} /></div>
               <div style={{ flex: '1 1 100%' }}><LinkedMail entityType="lead" entityId={selected.id} /></div>
               <div onClick={() => openEdit(selected)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: 'var(--success)' }}>Edit Lead</div>
               <div onClick={() => deleteLead(selected.id)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: '#8E2E0A' }}>Delete</div>

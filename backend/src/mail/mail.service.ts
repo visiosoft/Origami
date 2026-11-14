@@ -1,8 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { randomUUID } from 'crypto';
-import { EmailLinkEntity, LeadEntity, MailTemplateEntity, PersonEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
+import { randomBytes, randomUUID } from 'crypto';
+import { EmailLinkEntity, LeadEntity, MailSendEntity, MailTemplateEntity, PersonEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService, buildMime } from '../google/google.service';
 import { openSecret } from '../auth/totp';
@@ -13,7 +13,7 @@ import { addressesIn, headerOf, messageView, tagsIn, type GmailMessage } from '.
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 export type LinkType = 'lead' | 'project' | 'task';
-export interface MailDraftInput { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string }
+export interface MailDraftInput { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string; /** Open tracking; on unless false. */ track?: boolean }
 type UploadFile = { originalname: string; mimetype: string; buffer: Buffer };
 const now = () => new Date().toISOString();
 
@@ -41,7 +41,47 @@ export class MailService {
     private readonly google: GoogleService,
     private readonly access: ProjectAccessService,
     @Optional() @InjectRepository(MailTemplateEntity) private readonly templatesRepo?: Repository<MailTemplateEntity>,
+    @Optional() @InjectRepository(MailSendEntity) private readonly sends?: Repository<MailSendEntity>,
   ) {}
+
+  // ------------------------------------------------------------ open tracking (Batch 6)
+  /** A tiny image at the end of the message; each load is an open. Its id is random, so it can't be guessed. */
+  private async tracked(userId: string, dto: MailDraftInput): Promise<{ dto: MailDraftInput; id: string | null }> {
+    if (!this.sends || dto.track === false || !String(dto.html || '').trim()) return { dto, id: null };
+    const id = randomBytes(12).toString('hex');
+    await this.sends.save({ id, ownerId: userId, gmailId: null, threadId: dto.threadId || null, to: String(dto.to || '').slice(0, 500), subject: String(dto.subject || '').slice(0, 500), sentAt: now(), opens: [] });
+    const base = (await this.settings.baseUrl()) || '';
+    return { id, dto: { ...dto, html: `${dto.html}<img src="${base}/api/mail-open/${id}.gif" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">` } };
+  }
+  private async sentAs(trackId: string | null, sent: { id?: string; threadId?: string }) {
+    if (trackId && this.sends) await this.sends.update({ id: trackId }, { gmailId: sent.id || null, threadId: sent.threadId || null });
+  }
+
+  /** The image was loaded: count an open (at most 200 kept). */
+  async opened(id: string) {
+    if (!this.sends || !/^[a-f0-9]{24}$/.test(id)) return;
+    const row = await this.sends.findOneBy({ id });
+    if (!row) return;
+    row.opens = [...(row.opens || []), now()].slice(-200);
+    await this.sends.save(row);
+  }
+
+  /** Opens of the caller's own tracked messages in a thread, by Gmail message id. */
+  private async opensFor(userId: string, gmailIds: string[]) {
+    if (!this.sends || !gmailIds.length) return new Map<string, { count: number; last: string | null }>();
+    const rows = await this.sends.find({ where: { gmailId: In(gmailIds), ownerId: userId } });
+    return new Map(rows.map((r) => [r.gmailId!, { count: (r.opens || []).length, last: (r.opens || []).slice(-1)[0] || null }]));
+  }
+
+  /** Mail with one address (Batch 6: a person's or lead's page), from the caller's own mailbox. */
+  async withAddress(userId: string, email: string) {
+    const e = String(email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return { connected: true, threads: [] };
+    const u = await this.users.findOneBy({ id: userId });
+    if (!u?.mailRefreshToken) return { connected: false, threads: [] };
+    const r = await this.threads(userId, `from:${e} OR to:${e} OR cc:${e}`, '', '');
+    return { connected: true, threads: r.threads.slice(0, 15) };
+  }
 
   // ------------------------------------------------------------ connection
   private async token(userId: string) {
@@ -93,7 +133,10 @@ export class MailService {
   /** One thread, every message; also links it by its #tags or a lead's address, and refreshes linked copies. */
   async thread(userId: string, id: string) {
     const t = await this.gmail(userId, `/threads/${encodeURIComponent(id)}?format=full`);
-    const messages = (t.messages || []).map((m: GmailMessage) => messageView(m));
+    const views = (t.messages || []).map((m: GmailMessage) => messageView(m));
+    const opens = await this.opensFor(userId, views.map((m: { id: string }) => m.id));
+    // The tracking image is ours: not shown in the app.
+    const messages = views.map((m: ReturnType<typeof messageView>) => ({ ...m, html: m.html.replace(/<img[^>]+\/api\/mail-open\/[a-f0-9]+\.gif[^>]*>/g, ''), opens: opens.get(m.id) || null }));
     await this.autoLink(userId, id, messages).catch((e: Error) => this.log.warn(`Auto-link ${id}: ${e.message}`));
     const links = await this.links.find({ where: { threadId: id } });
     for (const l of links.filter((x) => x.ownerId === userId)) { l.messages = this.snapshot(messages); l.lastAt = messages[messages.length - 1]?.date || l.lastAt; l.updatedAt = now(); await this.links.save(l); }
@@ -150,8 +193,10 @@ export class MailService {
   }
 
   async sendDraft(userId: string, id: string, dto: MailDraftInput | null, files: UploadFile[] = []) {
-    if (dto) await this.saveDraft(userId, id, dto, files);
+    const t = dto ? await this.tracked(userId, dto) : { dto: null, id: null };
+    if (t.dto) await this.saveDraft(userId, id, t.dto, files);
     const d = await this.gmail(userId, '/drafts/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    await this.sentAs(t.id, d);
     return { id: d.id, threadId: d.threadId };
   }
 
@@ -195,8 +240,10 @@ export class MailService {
     if (!u?.mailEmail) throw new BadRequestException('Connect your Gmail first.');
     const to = addressesIn(dto.to).join(', ');
     if (!to) throw new BadRequestException('Who is it to?');
-    const raw = await this.raw(userId, dto, files);
+    const t = await this.tracked(userId, dto);
+    const raw = await this.raw(userId, t.dto, files);
     const sent = await this.gmail(userId, '/messages/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw, ...(dto.threadId ? { threadId: dto.threadId } : {}) }) });
+    await this.sentAs(t.id, sent);
     return { id: sent.id, threadId: sent.threadId };
   }
 

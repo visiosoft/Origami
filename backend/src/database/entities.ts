@@ -3056,3 +3056,19 @@ export class MailTemplateEntity {
   @Column({ type: 'nvarchar', length: 200, nullable: true }) ownerName!: string | null;
   @Column({ type: 'nvarchar', length: 40 }) updatedAt!: string;
 }
+
+/**
+ * An email sent from My Mail with open tracking (Batch 6): the tiny image's
+ * id (random, unguessable), the Gmail message, and each time it was loaded.
+ */
+@Entity('mail_sends')
+export class MailSendEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 64 }) ownerId!: string;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) gmailId!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) threadId!: string | null;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) to!: string | null;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) subject!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) sentAt!: string;
+  @Column({ type: 'simple-json', nullable: true }) opens!: string[] | null;
+}

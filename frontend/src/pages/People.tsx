@@ -1,3 +1,4 @@
+import { ContactEmail } from '../components/ContactEmail';
 import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -704,6 +705,7 @@ export function People() {
                 <TextClient entityType="person" entityId={String(sel.id)} phone={sel.phone} clientName={sel.contact || sel.name} label="Text" />
               </div>
             )}
+            {sel.email && sel.email !== '—' && <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}><ContactEmail email={sel.email} name={sel.contact || sel.name} /></div>}
             {!!(sel.businessCards?.front || sel.businessCards?.back) && (
               <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Business card</div>

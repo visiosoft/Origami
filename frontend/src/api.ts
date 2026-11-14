@@ -62,7 +62,7 @@ export type PrequalPublic = { companyName: string; licenseNumber?: string; licen
 export type MailTemplate = { id: string; name: string; subject: string | null; html: string; shared: boolean; mine: boolean; ownerName?: string | null };
 export type MailLink = { id: string; entityType: 'lead' | 'project' | 'task'; entityId: string; label: string | null; auto?: boolean };
 export type MailThreadRow = { id: string; subject: string; from: string; to: string; date: string; snippet: string; count: number; unread: boolean; links: MailLink[] };
-export type MailMessage = { id: string; threadId: string; from: string; to: string; cc: string; subject: string; date: string; messageId: string; unread: boolean; snippet: string; html: string; text: string; attachments: { id: string; filename: string; mimeType: string; size: number }[] };
+export type MailMessage = { id: string; threadId: string; from: string; to: string; cc: string; subject: string; date: string; messageId: string; unread: boolean; snippet: string; html: string; text: string; attachments: { id: string; filename: string; mimeType: string; size: number }[]; /** Opens of a tracked email you sent (Batch 6). */ opens?: { count: number; last: string | null } | null };
 export type MailThread = { id: string; subject: string; messages: MailMessage[]; links: MailLink[] };
 export type LinkedMailRow = { id: string; threadId: string; subject: string | null; ownerName: string | null; mine: boolean; auto: boolean; lastAt: string | null; messages: { from: string; to: string; date: string; subject: string; text: string; attachments: string[] }[] };
 
@@ -1376,7 +1376,7 @@ export const api = {
       for (const [k, v] of Object.entries(d)) if (v != null && v !== '') f.append(k, String(v));
       return requestForm<{ id: string; threadId: string | null }>('/mail/drafts', f);
     },
-    sendDraft: (id: string, d: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string }, files: File[] = []) => {
+    sendDraft: (id: string, d: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string; track?: boolean }, files: File[] = []) => {
       const f = filesForm(files);
       for (const [k, v] of Object.entries(d)) if (v != null && v !== '') f.append(k, String(v));
       return requestForm<{ id: string; threadId: string }>(`/mail/drafts/${encodeURIComponent(id)}/send`, f);
@@ -1388,12 +1388,14 @@ export const api = {
     removeTemplate: (id: string) => request(`/mail/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     thread: (id: string) => request<MailThread>(`/mail/threads/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
     attachment: async (mid: string, aid: string, name: string) => new Blob([await requestBytes(`/mail/messages/${encodeURIComponent(mid)}/attachments/${encodeURIComponent(aid)}?name=${encodeURIComponent(name)}`)]),
-    send: (d: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string }, files: File[] = []) => {
+    send: (d: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string; track?: boolean }, files: File[] = []) => {
       const f = filesForm(files);
       for (const [k, v] of Object.entries(d)) if (v != null && v !== '') f.append(k, String(v));
       return requestForm<{ id: string; threadId: string }>('/mail/send', f);
     },
     contacts: (q: string) => request<{ name: string; email: string; kind: string }[]>(`/mail/contacts?q=${encodeURIComponent(q)}`, { cache: 'no-store' } as any),
+    /** Mail with one address, from your own mailbox (Batch 6). */
+    withAddress: (email: string) => request<{ connected: boolean; threads: MailThreadRow[] }>(`/mail/with?email=${encodeURIComponent(email)}`, { cache: 'no-store' } as any),
     link: (threadId: string, entityType: 'lead' | 'project' | 'task', entityId: string) => request(`/mail/threads/${encodeURIComponent(threadId)}/link`, { method: 'POST', body: JSON.stringify({ entityType, entityId }) }),
     unlink: (id: string) => request(`/mail/links/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     linked: (entityType: 'lead' | 'project' | 'task', entityId: string) => request<LinkedMailRow[]>(`/mail/linked?entityType=${entityType}&entityId=${encodeURIComponent(entityId)}`, { cache: 'no-store' } as any),

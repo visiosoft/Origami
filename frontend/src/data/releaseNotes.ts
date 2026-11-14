@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-14b',
+    date: '2026-11-14',
+    title: 'See when email is opened; email from People and leads',
+    items: [
+      { area: 'Mail', kind: 'new', text: 'Email you send from My Mail shows when it was opened (“Opened 3× · last Tue”). Untick “Track opens” for one you’d rather not track. It counts when the email’s images load, so treat it as a guide.' },
+      { area: 'People', kind: 'new', text: 'A person’s page and a lead show your emails with them, newest first, and an Email button that starts one.', where: 'People → a person; CRM → a lead' },
+    ],
+  },
+  {
     id: '2026-11-14a',
     date: '2026-11-14',
     title: 'My Mail: drafts and templates',

@@ -42,6 +42,9 @@ export function Mail() {
     api.google.myMail.status().then(setSt).catch(() => setSt({ connected: false, email: '' }));
     if (params.get('error')) toast('⚠ ' + params.get('error'));
     if (params.get('connected')) toast(`Gmail connected — ${params.get('connected')}`);
+    // From a person's or lead's Email section (Batch 6).
+    if (params.get('thread')) void openThread(params.get('thread')!);
+    if (params.get('to')) startCompose({ to: params.get('to')! + ', ', cc: '', subject: '', body: '', files: [], toName: (params.get('to')!.match(/^([^<]+)</)?.[1] || '').trim() || undefined });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const page = pages[pages.length - 1];
   const loadDrafts = () => { setDrafts(null); api.mail.drafts().then(setDrafts).catch((e: Error) => { toast('⚠ ' + e.message); setDrafts([]); }); };
@@ -106,7 +109,7 @@ export function Mail() {
     if (left.length && !confirm(`Still to fill in: ${left.map((p) => p.raw).join(', ')}. Send anyway?`)) return;
     setBusy(true);
     try {
-      const d = { to: compose.to, cc: compose.cc, subject: compose.subject, html: toHtml(compose.body), threadId: compose.threadId, inReplyTo: compose.inReplyTo };
+      const d = { to: compose.to, cc: compose.cc, subject: compose.subject, html: toHtml(compose.body), threadId: compose.threadId, inReplyTo: compose.inReplyTo, track: !compose.noTrack };
       if (compose.draftId) await api.mail.sendDraft(compose.draftId, d, compose.files);
       else await api.mail.send(d, compose.files);
       toast('Sent'); setCompose(null);
@@ -179,7 +182,7 @@ export function Mail() {
               {linkTo && <LinkPicker onPick={(type, id) => void api.mail.link(open.id, type, id).then(() => { setLinkTo(false); toast('Linked'); return openThread(open.id); }).catch((e: Error) => toast('⚠ ' + e.message))} />}
               {open.messages.map((m) => (
                 <div key={m.id} style={{ borderTop: '1px solid rgba(var(--rgb-shade), 0.08)', paddingTop: 10, display: 'grid', gap: 6 }}>
-                  <div style={{ fontSize: 12.5, color: 'var(--body)' }}><b>{nameOf(m.from)}</b> <span style={{ color: 'var(--muted)' }}>to {m.to} · {when(m.date)}</span></div>
+                  <div style={{ fontSize: 12.5, color: 'var(--body)' }}><b>{nameOf(m.from)}</b> <span style={{ color: 'var(--muted)' }}>to {m.to} · {when(m.date)}</span>{m.opens && <span title="Counted when the email’s images load; a guide, not proof" style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 700, color: m.opens.count ? 'var(--forest)' : 'var(--muted)' }}>{m.opens.count ? `Opened ${m.opens.count}× · last ${when(m.opens.last || '')}` : 'Not opened yet'}</span>}</div>
                   {m.html ? <div style={{ fontSize: 13.5, lineHeight: 1.55, overflowX: 'auto', maxWidth: '100%' }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(m.html) }} /> : <div style={{ fontSize: 13.5, whiteSpace: 'pre-wrap' }}>{m.text}</div>}
                   {m.attachments.length > 0 && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{m.attachments.map((a) => (
                     <button key={a.id} type="button" style={btn()} onClick={() => void api.mail.attachment(m.id, a.id, a.filename).then((blob) => { const u = URL.createObjectURL(blob); const el = document.createElement('a'); el.href = u; el.download = a.filename; el.click(); setTimeout(() => URL.revokeObjectURL(u), 5000); })}>📎 {a.filename}</button>
@@ -195,7 +198,7 @@ export function Mail() {
   );
 }
 
-type ComposeState = { to: string; cc: string; subject: string; body: string; threadId?: string; inReplyTo?: string; files: File[]; draftId?: string; toName?: string; project?: string };
+type ComposeState = { to: string; cc: string; subject: string; body: string; threadId?: string; inReplyTo?: string; files: File[]; draftId?: string; toName?: string; project?: string; noTrack?: boolean };
 const toHtml = (body: string) => body.split('\n').map((l) => `<p>${l.replace(/&/g, '&amp;').replace(/</g, '&lt;') || '&nbsp;'}</p>`).join('');
 const toText = (html: string) => String(html || '').replace(/<\/(p|div)>/gi, '\n').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\n{3,}/g, '\n\n').trim();
 
@@ -223,6 +226,7 @@ function Compose({ c, setC, busy, onSend, templates, myName, savedAt, onClose }:
         <label style={{ ...btn(), cursor: 'pointer' }}>📎 Attach<input type="file" multiple hidden onChange={(e) => setC({ ...c, files: [...c.files, ...Array.from(e.target.files || [])] })} /></label>
         {c.files.map((f, i) => <span key={i} style={{ fontSize: 12 }}>{f.name} <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setC({ ...c, files: c.files.filter((_, j) => j !== i) })} style={{ border: 0, background: 'none', color: '#8E2E0A', cursor: 'pointer' }}>×</button></span>)}
         <span style={{ flex: 1 }} />
+        <label style={{ fontSize: 12, display: 'flex', gap: 5, alignItems: 'center' }} title="Shows when they open it. Some mail apps block images, and Gmail may load it for them, so treat it as a guide."><input type="checkbox" checked={!c.noTrack} onChange={(e) => setC({ ...c, noTrack: !e.target.checked })} /> Track opens</label>
         {savedAt && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Draft saved {savedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}
         <button type="button" style={btn()} onClick={() => onClose(true)}>Save draft</button>
         <button type="button" style={btn()} onClick={() => onClose(false)}>Discard</button>

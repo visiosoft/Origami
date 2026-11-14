@@ -298,3 +298,4 @@ Plan: My Mail drafts, templates, open tracking and email on contacts; sub line-i
 | # | What | Status |
 |---|---|---|
 | R1 | My Mail: Inbox / Sent / Drafts; drafts are Gmail's own (autosave 5s after typing, Save draft, Discard deletes, opening a draft keeps its attachments, sending a draft sends that draft); email templates, shared (administrators) and personal, filled with {{clientFirstName}} / {{clientName}} / {{projectTitle}} / {{senderName}}; unfilled fields asked about before sending | ✅ built |
+| R2 | Open tracking (mail_sends): a 1×1 image /api/mail-open/<random id>.gif on mail sent from My Mail (on unless “Track opens” is unticked), each load counted; the app hides the image and shows “Opened 3× · last …” on your sent messages. Email with a person or lead: People profile and lead drawer list your Gmail threads with their address (/mail/with) and an Email button that opens My Mail to them | ✅ built |
