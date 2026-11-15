@@ -28,6 +28,30 @@ const now = () => new Date().toISOString();
 export class MailService {
   private readonly log = new Logger('MailService');
   private tokens = new Map<string, { value: string; expiresAt: number }>();
+  /**
+   * What we already fetched from Gmail, per user, by thread id and Gmail's
+   * historyId (which changes whenever anything in the thread does): the list
+   * row's details and opened threads. Only new or changed threads are asked
+   * for again. In memory only; nothing is written anywhere.
+   */
+  private metaCache = new Map<string, Map<string, { historyId: string; meta: any }>>();
+  private fullCache = new Map<string, Map<string, { historyId: string; t: any }>>();
+  private static readonly CACHE_MAX = 2000;
+  private cacheOf<T>(store: Map<string, Map<string, T>>, userId: string) {
+    let m = store.get(userId);
+    if (!m) { m = new Map(); store.set(userId, m); }
+    return m;
+  }
+  private remember<T>(m: Map<string, T>, id: string, v: T) {
+    m.delete(id); m.set(id, v);
+    while (m.size > MailService.CACHE_MAX) m.delete(m.keys().next().value as string);
+  }
+  /** Forget a thread (after sending into it), so its next view is fresh. */
+  private forget(userId: string, threadId?: string | null) {
+    if (!threadId) return;
+    this.metaCache.get(userId)?.delete(threadId);
+    this.fullCache.get(userId)?.delete(threadId);
+  }
 
   constructor(
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
@@ -113,8 +137,17 @@ export class MailService {
     if (pageToken) params.set('pageToken', pageToken);
     if (label && !q) params.set('labelIds', label);
     const list = await this.gmail(userId, `/threads?${params}`);
-    const ids: string[] = (list.threads || []).map((t: any) => t.id);
-    const metas = await Promise.all(ids.map((id) => this.gmail(userId, `/threads/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`).catch(() => null)));
+    const listed: { id: string; historyId?: string }[] = list.threads || [];
+    const ids: string[] = listed.map((t) => t.id);
+    // Only threads that are new or changed since we last saw them are fetched again.
+    const cache = this.cacheOf(this.metaCache, userId);
+    const metas = await Promise.all(listed.map(async (l) => {
+      const hit = cache.get(l.id);
+      if (hit && l.historyId && hit.historyId === l.historyId) return hit.meta;
+      const meta = await this.gmail(userId, `/threads/${l.id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`).catch(() => null);
+      if (meta && (meta.historyId || l.historyId)) this.remember(cache, l.id, { historyId: String(meta.historyId || l.historyId), meta });
+      return meta;
+    }));
     const linked = ids.length ? await this.links.find({ where: { threadId: In(ids) } }) : [];
     const rows = metas.filter(Boolean).map((t: any) => {
       const msgs: GmailMessage[] = t.messages || [];
@@ -132,7 +165,18 @@ export class MailService {
 
   /** One thread, every message; also links it by its #tags or a lead's address, and refreshes linked copies. */
   async thread(userId: string, id: string) {
-    const t = await this.gmail(userId, `/threads/${encodeURIComponent(id)}?format=full`);
+    // A tiny request says whether the thread changed; the full one only when it did.
+    const cache = this.cacheOf(this.fullCache, userId);
+    const hit = cache.get(id);
+    let t: any;
+    if (hit) {
+      const head = await this.gmail(userId, `/threads/${encodeURIComponent(id)}?format=minimal`);
+      if (head?.historyId && String(head.historyId) === hit.historyId) t = hit.t;
+    }
+    if (!t) {
+      t = await this.gmail(userId, `/threads/${encodeURIComponent(id)}?format=full`);
+      if (t?.historyId) this.remember(cache, id, { historyId: String(t.historyId), t });
+    }
     const views = (t.messages || []).map((m: GmailMessage) => messageView(m));
     const opens = await this.opensFor(userId, views.map((m: { id: string }) => m.id));
     // The tracking image is ours: not shown in the app.
@@ -189,6 +233,7 @@ export class MailService {
     const d = id
       ? await this.gmail(userId, `/drafts/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body })
       : await this.gmail(userId, '/drafts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+    this.forget(userId, d.message?.threadId || dto.threadId);
     return { id: d.id, threadId: d.message?.threadId || null };
   }
 
@@ -197,6 +242,7 @@ export class MailService {
     if (t.dto) await this.saveDraft(userId, id, t.dto, files);
     const d = await this.gmail(userId, '/drafts/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
     await this.sentAs(t.id, d);
+    this.forget(userId, d.threadId);
     return { id: d.id, threadId: d.threadId };
   }
 
@@ -244,6 +290,7 @@ export class MailService {
     const raw = await this.raw(userId, t.dto, files);
     const sent = await this.gmail(userId, '/messages/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw, ...(dto.threadId ? { threadId: dto.threadId } : {}) }) });
     await this.sentAs(t.id, sent);
+    this.forget(userId, sent.threadId);
     return { id: sent.id, threadId: sent.threadId };
   }
 

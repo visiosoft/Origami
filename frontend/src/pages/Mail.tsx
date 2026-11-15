@@ -11,6 +11,26 @@ const when = (iso: string) => { const d = new Date(iso); return isNaN(+d) ? '' :
 const LINK_LABEL = { lead: 'Lead', project: 'Project', task: 'Task' } as const;
 
 /**
+ * What My Mail already loaded (Nov 15), kept in memory while the tab is
+ * open: coming back shows it at once, then only new mail is fetched. Nothing
+ * is stored in the browser; a different signed-in user starts empty.
+ */
+type ListPage = { threads: MailThreadRow[]; nextPageToken: string | null };
+const mailCache = {
+  user: '',
+  status: null as { connected: boolean; email: string } | null,
+  lists: new Map<string, ListPage>(),
+  threads: new Map<string, MailThread>(),
+  drafts: null as Awaited<ReturnType<typeof api.mail.drafts>> | null,
+};
+const cacheFor = (userId: string) => {
+  if (mailCache.user !== userId) Object.assign(mailCache, { user: userId, status: null, lists: new Map(), threads: new Map(), drafts: null });
+  return mailCache;
+};
+/** For tests. */
+export const resetMailCache = () => cacheFor('');
+
+/**
  * My mail (Nov 13 sync): your own Gmail in the app -- inbox and search,
  * threads, reply or write with attachments, and link a thread to a lead,
  * project or task (also done on its own for #P-45 / #L-… / #<task number>
@@ -18,16 +38,20 @@ const LINK_LABEL = { lead: 'Lead', project: 'Project', task: 'Task' } as const;
  */
 export function Mail() {
   const { toast, authUser } = useApp();
-  const [st, setSt] = useState<{ connected: boolean; email: string } | null>(null);
+  const cache = cacheFor(String(authUser?.id || ''));
+  const [st, setSt] = useState<{ connected: boolean; email: string } | null>(cache.status);
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
-  const [list, setList] = useState<{ threads: MailThreadRow[]; nextPageToken: string | null } | null>(null);
+  const [list, setList] = useState<ListPage | null>(cache.lists.get('INBOX||') || null);
+  // Checking Gmail for new mail behind what's already shown; Refresh asks again.
+  const [checking, setChecking] = useState(false);
+  const [tick, setTick] = useState(0);
   const [pages, setPages] = useState<string[]>(['']);
   const [open, setOpen] = useState<MailThread | null>(null);
   const [compose, setCompose] = useState<ComposeState | null>(null);
   // Folders and drafts (Batch 6).
   const [folder, setFolder] = useState<'INBOX' | 'SENT' | 'DRAFT'>('INBOX');
-  const [drafts, setDrafts] = useState<Awaited<ReturnType<typeof api.mail.drafts>> | null>(null);
+  const [drafts, setDrafts] = useState<Awaited<ReturnType<typeof api.mail.drafts>> | null>(cache.drafts);
   const [templates, setTemplates] = useState<MailTemplate[]>([]);
   const [managing, setManaging] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -39,7 +63,7 @@ export function Mail() {
   const params = new URLSearchParams(window.location.search);
 
   useEffect(() => {
-    api.google.myMail.status().then(setSt).catch(() => setSt({ connected: false, email: '' }));
+    api.google.myMail.status().then((r) => { cache.status = r; setSt(r); }).catch(() => { if (!cache.status) setSt({ connected: false, email: '' }); });
     if (params.get('error')) toast('⚠ ' + params.get('error'));
     if (params.get('connected')) toast(`Gmail connected — ${params.get('connected')}`);
     // From a person's or lead's Email section (Batch 6).
@@ -47,13 +71,25 @@ export function Mail() {
     if (params.get('to')) startCompose({ to: params.get('to')! + ', ', cc: '', subject: '', body: '', files: [], toName: (params.get('to')!.match(/^([^<]+)</)?.[1] || '').trim() || undefined });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const page = pages[pages.length - 1];
-  const loadDrafts = () => { setDrafts(null); api.mail.drafts().then(setDrafts).catch((e: Error) => { toast('⚠ ' + e.message); setDrafts([]); }); };
+  const loadDrafts = () => {
+    setDrafts(cache.drafts);
+    setChecking(true);
+    api.mail.drafts().then((r) => { cache.drafts = r; setDrafts(r); }).catch((e: Error) => { toast('⚠ ' + e.message); if (!cache.drafts) setDrafts([]); }).finally(() => setChecking(false));
+  };
   useEffect(() => {
     if (!st?.connected) return;
     if (folder === 'DRAFT') { loadDrafts(); return; }
-    setList(null);
-    api.mail.threads(search, page, folder).then(setList).catch((e: Error) => { toast('⚠ ' + e.message); setList({ threads: [], nextPageToken: null }); });
-  }, [st?.connected, search, page, folder]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Show what we already have, then ask the server; it only goes back to Gmail for new or changed threads.
+    const key = `${folder}|${search}|${page}`;
+    setList(cache.lists.get(key) || null);
+    setChecking(true);
+    let live = true;
+    api.mail.threads(search, page, folder)
+      .then((r) => { cache.lists.set(key, r); if (live) setList(r); })
+      .catch((e: Error) => { toast('⚠ ' + e.message); if (live && !cache.lists.get(key)) setList({ threads: [], nextPageToken: null }); })
+      .finally(() => { if (live) setChecking(false); });
+    return () => { live = false; };
+  }, [st?.connected, search, page, folder, tick]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (st?.connected) api.mail.templates().then(setTemplates).catch(() => setTemplates([])); }, [st?.connected]);
 
   // A draft saves itself into Gmail 5 seconds after typing stops (Batch 6).
@@ -95,8 +131,8 @@ export function Mail() {
   };
 
   const openThread = async (id: string) => {
-    setOpen(null); setCompose(null); setLinkTo(false);
-    try { setOpen(await api.mail.thread(id)); } catch (e) { toast('⚠ ' + (e as Error).message); }
+    setOpen(cache.threads.get(id) || null); setCompose(null); setLinkTo(false);
+    try { const t = await api.mail.thread(id); cache.threads.set(id, t); setOpen((cur) => (cur && cur.id !== id ? cur : t)); } catch (e) { toast('⚠ ' + (e as Error).message); }
   };
   const reply = () => {
     if (!open) return;
@@ -143,6 +179,8 @@ export function Mail() {
       {managing && <TemplateManager templates={templates} onChanged={() => void api.mail.templates().then(setTemplates)} />}
       <div style={{ display: 'flex', gap: 6 }}>
         {([['INBOX', 'Inbox'], ['SENT', 'Sent'], ['DRAFT', 'Drafts']] as const).map(([k, l]) => <button key={k} type="button" style={btn(folder === k)} onClick={() => { setFolder(k); setPages(['']); setOpen(null); }}>{l}</button>)}
+        <button type="button" style={btn()} disabled={checking} onClick={() => setTick((n) => n + 1)} title="Check Gmail for new mail">{checking ? 'Checking…' : 'Refresh'}</button>
+        {checking && (list || drafts) && <span aria-live="polite" style={{ fontSize: 12, color: 'var(--muted)', alignSelf: 'center' }}>Checking for new mail…</span>}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 0.9fr) minmax(0, 1.4fr)', gap: 12, alignItems: 'start' }} className="mail-grid">
         <div aria-label="Inbox" style={{ background: 'var(--surface)', borderRadius: 16, padding: 6, display: 'grid', gap: 2 }}>

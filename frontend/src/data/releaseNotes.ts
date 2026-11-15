@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-15a',
+    date: '2026-11-15',
+    title: 'My Mail opens straight away',
+    items: [
+      { area: 'Mail', kind: 'improved', text: 'My Mail shows the email it already loaded as soon as you open it, then checks Gmail for new mail (“Checking for new mail…”). Only new or changed conversations are fetched again, and a conversation you already opened shows at once. Press Refresh to check again.', where: 'Special Actions → My Mail' },
+    ],
+  },
+  {
     id: '2026-11-14h',
     date: '2026-11-14',
     title: 'Fix: signing in by email failed',
