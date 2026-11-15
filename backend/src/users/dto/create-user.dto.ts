@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray } from 'class-validator';
 
 export enum UserTier {
   Internal = 'internal',
@@ -20,4 +20,6 @@ export class CreateUserDto {
   @IsString() roleKey: string;
   @IsEnum(UserStatus) @IsOptional() status?: UserStatus;
   @IsString() @IsOptional() lastLogin?: string;
+  /** Other addresses that are also this person (Nov 13). */
+  @IsArray() @IsString({ each: true }) @IsOptional() altEmails?: string[];
 }

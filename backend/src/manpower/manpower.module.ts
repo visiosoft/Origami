@@ -35,6 +35,8 @@ import { AssignmentsService } from './assignments.service';
 import { WorkforceRequestsController } from './workforce-requests.controller';
 import { WorkforceRequestsService } from './workforce-requests.service';
 import { ContractorsController } from './contractors.controller';
+import { PrequalController, PrequalPublicController } from './prequal.controller';
+import { PrequalService } from './prequal.service';
 import { ContractorBidsService } from './contractor-bids.service';
 import { ContractorsService } from './contractors.service';
 import { PayrollSetupService } from './payroll-setup.service';
@@ -77,13 +79,13 @@ import { SampleDataController } from './sample-data.controller';
   ],
   controllers: [PicklistsController, 
     EmployeesController, CsiCodesController, DailyLogsController, TimesheetsController,
-    SubcontractorTradesController, EmployeeRecordsController, AssignmentsController, WorkforceRequestsController, ContractorsController,
+    SubcontractorTradesController, EmployeeRecordsController, AssignmentsController, WorkforceRequestsController, ContractorsController, PrequalController, PrequalPublicController,
     PayrollController, OvertimeController, AdvancesController,
     LeaveController, ShiftsController, AssetsController, AccommodationController, TransportController, SampleDataController, WeeklyTimesheetsController,
   ],
   providers: [DailyLogBackupService, WeeklyReportService, DailyReportAutomationService,
     ManpowerAccess, PicklistsService, EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService,
-    SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService, ContractorBidsService,
+    SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService, ContractorBidsService, PrequalService,
     PayrollSetupService, PayrollService, OvertimeService, AdvancesService,
     LeaveService, ShiftsService, AssetsService, AccommodationService, TransportService, SampleDataService, WeeklyTimesheetsService,
   ],

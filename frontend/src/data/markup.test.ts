@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FILLABLE, sheetNameFrom, dedupePoints, pathLengthPts, trianglePts, wrapLines } from './markup';
+import { FILLABLE, sheetNameFrom, sheetNameFromLines, sheetNumberOf, dedupePoints, simplifyStroke, SCALE_KINDS, pathLengthPts, trianglePts, wrapLines, labelLayout, markupsBrief } from './markup';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
 import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, pasteCopy, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
@@ -149,8 +149,106 @@ describe('sheetNameFrom', () => {
     expect(sheetNameFrom([run('E103', 0.92, 0.2, 0.02)])).toBe('E103');
     expect(sheetNameFrom([run('S2.1', 0.7, 0.7)])).toBe('S2.1');
   });
+  it('adds the sheet title from the same title block (Nov 3 sync)', () => {
+    const block = [run('ORIGAMI DESIGN + BUILD', 0.8, 0.8, 0.011), run('COLE VALLEY RESIDENCE', 0.8, 0.82, 0.011), run('FLOOR PLAN', 0.8, 0.86, 0.018), run('SCALE', 0.8, 0.9), run('1/4" = 1\'-0"', 0.85, 0.9), run('A-201', 0.8, 0.93, 0.035), run('NOTES', 0.1, 0.1, 0.03)];
+    expect(sheetNameFrom(block)).toBe('A-201 — FLOOR PLAN');
+    expect(sheetNumberOf('A-201 — FLOOR PLAN')).toBe('A-201');
+    expect(linkLabel({ type: 'page', page: 2 }, () => 'A-201 — FLOOR PLAN')).toBe('→ A-201');
+  });
+  it('reads a scanned title block (OCR text)', () => {
+    expect(sheetNameFromLines('ORIGAMI DESIGN + BUILD\nPROJECT: COLE VALLEY\nROOF PLAN\nSCALE: 1/8" = 1\'-0"\nDATE 10/12/2026\nSHEET\nA-501\n')).toBe('A-501 — ROOF PLAN');
+    expect(sheetNameFromLines('nothing useful here')).toBeNull();
+  });
   it('finds nothing in a page without one', () => {
     expect(sheetNameFrom([run('FLOOR PLAN', 0.8, 0.9), run('1/4" = 1\'-0"', 0.8, 0.95), run('2026', 0.9, 0.9)])).toBeNull();
     expect(sheetNameFrom([])).toBeNull();
+  });
+});
+
+describe('phones and tablets (Nov 4)', async () => {
+  const { TOOL_GROUPS, groupOfTool, isDoubleTap, capRenderScale, PHONE_RENDER_PIXELS } = await import('./markup');
+  const ALL = ['select', 'pan', 'pen', 'highlight', 'text', 'pin', 'link', 'line', 'polyline', 'arrow', 'rect', 'ellipse', 'triangle', 'polygon', 'cloud', 'symbol', 'stamp', 'scale', 'measure_len', 'measure_path', 'measure_area'];
+  it('puts every tool in exactly one group', () => {
+    const listed = TOOL_GROUPS.flatMap((g) => g.tools);
+    expect([...listed].sort()).toEqual([...ALL].sort());
+    expect(new Set(listed).size).toBe(listed.length);
+    expect(groupOfTool('measure_area')).toBe('measure');
+  });
+  it('knows a double tap', () => {
+    expect(isDoubleTap({ t: 1000, x: 100, y: 100 }, { t: 1250, x: 110, y: 105 })).toBe(true);
+    expect(isDoubleTap({ t: 1000, x: 100, y: 100 }, { t: 1500, x: 100, y: 100 })).toBe(false);
+    expect(isDoubleTap({ t: 1000, x: 100, y: 100 }, { t: 1100, x: 200, y: 100 })).toBe(false);
+    expect(isDoubleTap(null, { t: 1, x: 0, y: 0 })).toBe(false);
+  });
+  it('keeps a phone’s page picture smaller', () => {
+    const s = capRenderScale(3456, 2592, 8, 3, PHONE_RENDER_PIXELS);
+    expect(3456 * s * 2592 * s).toBeLessThanOrEqual(PHONE_RENDER_PIXELS + 1);
+  });
+});
+
+describe('labelLayout (Nov 10: labels on phones)', () => {
+  const measure = (fs: number) => (s: string) => s.length * fs * 0.5;
+  it('keeps the same size on screen at any zoom', () => {
+    expect(labelLayout('12 ft', [100, 100], { w: 800, h: 600 }, 2, measure).fs).toBe(6);
+    expect(labelLayout('12 ft', [100, 100], { w: 800, h: 600 }, 0.5, measure).fs).toBe(24);
+  });
+  it('wraps a long label and moves it back inside the page', () => {
+    const out = labelLayout('Area: 1,234.5 sq ft (living room and hallway, measured from plans)', [780, 5], { w: 800, h: 600 }, 1, measure);
+    expect(out.lines.length).toBeGreaterThan(1);
+    expect(out.x + out.w).toBeLessThanOrEqual(800);
+    expect(out.y - out.fs).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('markupsBrief (Nov 10: several markups → one RFI or task)', () => {
+  const mk = (id: string, page: number, kind: any, data: any) => ({ id, page, kind, data: { points: [], color: '#000', width: 1, ...data } });
+  it('lists every markup with a link back, page order, and the pages', () => {
+    const b = markupsBrief([mk('m2', 3, 'cloud', { text: 'Check header size' }), mk('m1', 1, 'measure_len', { label: "12'-6\"" })], { id: 'f1', name: 'A-Set.pdf' }, 'https://x.test');
+    expect(b.subject).toBe('2 markups on A-Set.pdf');
+    expect(b.body.split('\n')[1]).toMatch(/^1\. .*12'-6" \(p\. 1\): https:\/\/x\.test\/planroom\?file=f1&markup=m1$/);
+    expect(b.body.split('\n')[2]).toMatch(/^2\. .*Check header size \(p\. 3\)/);
+    expect(b.drawingRef).toBe('A-Set.pdf, p. 1, p. 3');
+    expect(b.question).toBe('Check header size');
+  });
+  it('one markup with text uses that text as the subject', () => {
+    expect(markupsBrief([mk('m1', 2, 'text', { text: 'Verify beam\nmore' })], { id: 'f', name: 'S.pdf' }, '').subject).toBe('Verify beam');
+  });
+});
+
+describe('simplifyStroke (faster drawing, Nov 12)', () => {
+  const dist = (p: [number, number], a: [number, number], b: [number, number]) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
+    const t = l ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (l * l))) : 0;
+    return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+  };
+  it('keeps short strokes and the two ends', () => {
+    expect(simplifyStroke([[0, 0], [1, 1]], 1)).toEqual([[0, 0], [1, 1]]);
+    const s = simplifyStroke([[0, 0], [0.5, 0.0001], [1, 0]], 1, 100, 100);
+    expect(s).toEqual([[0, 0], [1, 0]]);
+  });
+  it('drops most points of a smooth stroke and stays within the tolerance', () => {
+    const pts: [number, number][] = [];
+    for (let i = 0; i <= 300; i++) pts.push([0.2 + i * 0.002, 0.5 + Math.sin(i / 15) * 0.1]);
+    const W = 1224, H = 792, tol = 0.6;
+    const s = simplifyStroke(pts, tol, W, H);
+    expect(s.length).toBeLessThan(80);
+    expect(s[0]).toEqual(pts[0]);
+    expect(s[s.length - 1]).toEqual(pts[pts.length - 1]);
+    // Every original point lies within the tolerance of the simplified line.
+    const P = (p: [number, number]): [number, number] => [p[0] * W, p[1] * H];
+    for (const p of pts) {
+      let best = Infinity;
+      for (let i = 1; i < s.length; i++) best = Math.min(best, dist(P(p), P(s[i - 1]), P(s[i])));
+      expect(best).toBeLessThanOrEqual(tol + 1e-9);
+    }
+  });
+  it('keeps a sharp corner', () => {
+    const s = simplifyStroke([[0, 0], [0.25, 0], [0.5, 0], [0.5, 0.25], [0.5, 0.5]], 0.5, 100, 100);
+    expect(s).toEqual([[0, 0], [0.5, 0], [0.5, 0.5]]);
+  });
+  it('lists the kinds that redraw on zoom', () => {
+    expect(SCALE_KINDS.has('pin')).toBe(true);
+    expect(SCALE_KINDS.has('pen')).toBe(false);
+    expect(SCALE_KINDS.has('cloud')).toBe(false);
   });
 });

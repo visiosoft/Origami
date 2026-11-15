@@ -46,7 +46,7 @@ export class RfisController {
     const id = Number(q.projectId);
     const rows = await this.rfis.list(await this.actor(a), Number.isFinite(id) && id > 0 ? id : undefined);
     const today = /^\d{4}-\d{2}-\d{2}$/.test(q.today || '') ? q.today : new Date().toISOString().slice(0, 10);
-    return queryRfis(rows, { status: q.status, q: q.q, sort: q.sort, dir: q.dir === 'desc' ? 'desc' : 'asc', page: q.page, size: q.size, today });
+    return queryRfis(rows, { status: q.status, q: q.q, csi: q.csi || undefined, sort: q.sort, dir: q.dir === 'desc' ? 'desc' : 'asc', page: q.page, size: q.size, today });
   }
 
   @Get(':id')

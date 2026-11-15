@@ -1,3 +1,4 @@
+import { checkDraws, cleanDraws, fillLive, parsePrice } from './california';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
@@ -12,7 +13,7 @@ import { FileRoomService } from '../file-room/file-room.service';
 import { ChangeOrdersService } from '../finance/change-orders.service';
 import { BRAND_KEYS, brandingFrom, buildLetterHtml, safeFilename } from '../documents/letterhead';
 import {
-  CONTRACT_TYPES, DEFAULT_TEMPLATES, countInitials, initialsOf, isContractType, mergeContract, renderSigned, statusFromParties, typeOf, unfilledFields,
+  CONTRACT_TYPES, DEFAULT_TEMPLATES, SAMPLE_MERGE, countInitials, initialsOf, isContractType, mergeContract, renderSigned, statusFromParties, typeOf, unfilledFields,
   type ContractAttachment, type ContractParty, type ContractType,
 } from './contract-types';
 
@@ -113,7 +114,9 @@ export class ContractsService implements OnApplicationBootstrap {
     const row = await this.contracts.findOneBy({ id });
     if (!row) throw new NotFoundException('Contract not found.');
     const project = row.projectId ? await this.projects.findOneBy({ id: row.projectId }) : null;
-    return { ...row, projectName: project?.name || null, initialsNeeded: countInitials(row.html), unfilled: unfilledFields(row.html) };
+    // California rules (Nov 13): the draw schedule checked against the price, and the contract as the owner will see it.
+    const draws = (row.drawSchedule || []).length ? checkDraws(row.drawSchedule || [], parsePrice(row.amount)) : null;
+    return { ...row, projectName: project?.name || null, initialsNeeded: countInitials(row.html), unfilled: unfilledFields(row.html), draws, rendered: fillLive(row.html, row) };
   }
 
   /** The merge data for a contract: project, owner, other party, change order, subcontract and our own details. */
@@ -199,6 +202,7 @@ export class ContractsService implements OnApplicationBootstrap {
       row.parties = parties;
     }
     if (dto.attachments !== undefined) row.attachments = this.cleanAttachments(dto.attachments);
+    if (dto.drawSchedule !== undefined) row.drawSchedule = cleanDraws(dto.drawSchedule);
     if (dto.remerge) row.html = mergeContract(row.html, await this.mergeData(row, row.parties.find((p) => !p.internal)));
     row.updatedAt = now();
     return this.contracts.save(row);
@@ -245,6 +249,12 @@ export class ContractsService implements OnApplicationBootstrap {
     if (row.status === 'void' || row.status === 'signed') throw new BadRequestException(`This contract is ${row.status}.`);
     const open = unfilledFields(row.html);
     if (open.length) throw new BadRequestException(`Fill in ${open.map((f) => `{{${f}}}`).join(', ')} before sending.`);
+    // California rules (Nov 13): a schedule the contract shows must follow them.
+    if (/\{\{\s*draw_schedule\s*\}\}/.test(row.html) && !(row.drawSchedule || []).length) throw new BadRequestException('Add the draw schedule before sending (the contract shows it).');
+    if ((row.drawSchedule || []).length) {
+      const bad = checkDraws(row.drawSchedule || [], parsePrice(row.amount)).errors;
+      if (bad.length) throw new BadRequestException(bad.join(' '));
+    }
     const outside = row.parties.filter((p) => !p.internal && p.role !== 'copy');
     if (!outside.length) throw new BadRequestException('Add who signs for the other side.');
     for (const p of outside) if (!p.name || !isEmail(p.email)) throw new BadRequestException(`${p.label} needs a name and an email address.`);
@@ -283,7 +293,7 @@ export class ContractsService implements OnApplicationBootstrap {
     party.views = (party.views || 0) + 1;
     await this.contracts.save(row);
     return {
-      number: row.number, title: row.title, amount: row.amount, status: row.status, html: row.html, initialsNeeded: countInitials(row.html),
+      number: row.number, title: row.title, amount: row.amount, status: row.status, html: fillLive(row.html, row), initialsNeeded: countInitials(row.html),
       attachments: (row.attachments || []).map((a) => ({ fileId: a.fileId, name: a.name, kind: a.kind })),
       you: { key: party.key, label: party.label, name: party.name, email: party.email, signedAt: party.signedAt || null, suggestedInitials: initialsOf(party.name) },
       parties: row.parties.filter((p) => p.role !== 'copy').map((p) => ({ label: p.label, name: p.name, signedAt: p.signedAt || null })),
@@ -352,6 +362,9 @@ export class ContractsService implements OnApplicationBootstrap {
         const { pdf, filename } = await this.pdf(row);
         const [saved] = await this.fileRoom.upload(row.projectId, ['Contracts'], [{ originalname: filename, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], { id: actor.id || '', name: actor.name || 'Origami' } as any);
         if (saved?.id) { row.signedFileId = saved.id; await this.contracts.save(row); }
+        // And a numbered copy in the project's "Backups of record" (Oct 30 sync: Drive is the backup of record).
+        await this.fileRoom.saveBackupOfRecord(row.projectId, `${row.number} ${row.title || ''}`.trim(), pdf, { id: actor.id || '', name: actor.name || 'Origami' } as any)
+          .catch((e) => this.log.warn(`Backup of ${row.number} not saved: ${(e as Error).message}`));
       }
     } catch (e) {
       this.log.warn(`Signed ${row.number} not filed: ${(e as Error).message}`);
@@ -366,12 +379,44 @@ export class ContractsService implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * Email yourself a template filled with sample details (Oct 30 sync): the
+   * wording as the client reads it on the signing page, and the PDF that gets
+   * filed once it's signed -- so it's never sent out unseen.
+   */
+  async previewTemplate(dto: { name?: string; type?: string; html?: string }, actor: ContractActor) {
+    const to = String(actor.email || '').trim();
+    if (!to) throw new BadRequestException('Your account has no email to send the preview to.');
+    if (!String(dto?.html || '').replace(/<[^>]+>/g, '').trim()) throw new BadRequestException('The template is empty.');
+    if (!(await this.google.isConnected())) throw new BadRequestException('Connect Google Workspace (Settings) to email a preview.');
+    const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
+    const lic = (await this.settings.get('brand.license').catch(() => null)) || '';
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const merged = mergeContract(String(dto.html), { ...SAMPLE_MERGE, 'contract.date': today, 'company.name': brand.companyName || 'Origami Design + Build', 'company.address': brand.address || '', 'company.license': lic });
+    const type = typeOf(String(dto.type || 'owner'));
+    const parties = [
+      { key: 'p1', role: 'signer', label: type.counterpartyLabel, name: SAMPLE_MERGE['party.name'], email: SAMPLE_MERGE['party.email'] },
+      { key: 'p2', role: 'signer', label: brand.companyName || 'Origami', name: actor.name || 'Origami', email: to, internal: true },
+    ] as ContractParty[];
+    const name = String(dto.name || type.label).slice(0, 120);
+    const body = renderSigned(merged, parties, { title: SAMPLE_MERGE['contract.number'] });
+    const html = buildLetterHtml({ brand, title: name, date: today, body });
+    const pdf = await this.google.htmlToPdf(html, safeFilename(`${name} preview`), { footer: 'PREVIEW  ·  sample details, not a contract' });
+    await this.google.sendMail({
+      to,
+      subject: `Preview: ${name}`,
+      html: `<p style="font:13px Helvetica,Arial,sans-serif;color:#555;">This is “${name.replace(/</g, '&lt;')}” as a client would read it, filled in with sample details. The PDF attached is what’s filed once it’s signed.</p><hr/>${body}`,
+      attachments: [{ filename: `${safeFilename(`${name} (preview)`)}.pdf`, mimeType: 'application/pdf', content: pdf }],
+    });
+    return { to };
+  }
+
   /** The contract as a PDF: as it stands (draft or part-signed), or signed. */
   async pdf(rowOrId: ContractEntity | string) {
     const row = typeof rowOrId === 'string' ? await this.contracts.findOneBy({ id: rowOrId }) : rowOrId;
     if (!row) throw new NotFoundException('Contract not found.');
     const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
-    const body = renderSigned(row.html, row.parties, { title: row.number })
+    const body = renderSigned(fillLive(row.html, row), row.parties, { title: row.number })
       + ((row.attachments || []).length ? `<p style="font-size:11px;color:#555;margin-top:18px;"><strong>Attached:</strong> ${(row.attachments || []).map((a) => a.name.replace(/</g, '&lt;')).join(', ')}</p>` : '');
     const html = buildLetterHtml({ brand, title: row.title, date: new Date(row.signedAt || row.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body });
     const footer = [`${row.number}`, row.status === 'signed' ? 'Signed in ODIN' : row.status === 'void' ? 'VOID' : 'Not yet signed'].join('  ·  ');
@@ -394,8 +439,8 @@ export class ContractsService implements OnApplicationBootstrap {
   }
 
   /** The File Room files a contract can attach (estimates, drawings, specs) for its project. */
-  async attachableFiles(projectId: number) {
+  async attachableFiles(projectId: number, folderOk: (projectId: unknown, path?: string[] | null) => boolean = () => true) {
     const rows = await this.files.find({ where: { projectId } as any });
-    return rows.filter((f) => f.isLatest !== false).map((f) => ({ id: f.id, name: f.name, folderPath: f.folderPath || [] })).sort((a, b) => a.name.localeCompare(b.name));
+    return rows.filter((f) => f.isLatest !== false && folderOk(f.projectId, f.folderPath)).map((f) => ({ id: f.id, name: f.name, folderPath: f.folderPath || [] })).sort((a, b) => a.name.localeCompare(b.name));
   }
 }

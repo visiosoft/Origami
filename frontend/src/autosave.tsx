@@ -49,6 +49,19 @@ export function keepEdits<T extends Record<string, any>>(draft: T, server: T, fi
   return next as T;
 }
 
+/**
+ * The record changed outside the editor (a board drag, another save): take its
+ * new values for the fields the person hasn't touched (still as they were in the
+ * old record), keep the ones they have. Without this an open task panel kept the
+ * old status and sent it back after a drag (Nov 10: Assigned <-> In progress).
+ */
+export function rebase<T extends Record<string, any>>(draft: T, before: T | null, after: T, fields: readonly (keyof T)[]): T {
+  const next: Record<string, any> = { ...draft };
+  for (const k of Object.keys(after)) if (!fields.includes(k as keyof T)) next[k] = after[k];
+  for (const k of fields) if (!before || same(draft[k], before[k])) next[k as string] = after[k];
+  return next as T;
+}
+
 // ------------------------------------------------------------------ one editor
 
 export interface AutosaveOptions<T extends Record<string, any>> {
@@ -350,6 +363,14 @@ export function DraftScope<T extends Record<string, any>>({ record, fields, enab
   children: (api: { draft: T; set: (patch: Partial<T>) => void; auto: Autosave; applied: (server: T) => void }) => ReactNode;
 }) {
   const [draft, setDraft] = useState<T>((record || {}) as T);
+  // Follow the record when it changes from outside, without losing what's being typed.
+  const prevRecord = useRef<T | null>(record);
+  useEffect(() => {
+    const before = prevRecord.current;
+    prevRecord.current = record;
+    if (!record || before === record) return;
+    setDraft((cur) => rebase(cur, before, record, fields));
+  }, [record, fields]);
   const auto = useAutosave<T>({
     draft, saved: record, fields, enabled: enabled && !!record, label,
     save: (changes) => save(changes),

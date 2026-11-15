@@ -41,3 +41,13 @@ export function sessionCookieOptions(maxAgeSeconds: number): CookieOptions {
     maxAge: maxAgeSeconds * 1000,
   };
 }
+
+/**
+ * "Remember this device" for two-step sign-in (Nov 13): 30 days. Lax, not
+ * strict, so it also arrives on the redirect back from Google sign-in. It
+ * only says "this browser passed the code before" -- it is not a session.
+ */
+export const DEVICE_COOKIE = 'origami_device';
+export function deviceCookieOptions(): CookieOptions {
+  return { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV !== 'development', path: '/', maxAge: 30 * 86_400_000 };
+}

@@ -1,0 +1,388 @@
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
+import { randomBytes, randomUUID } from 'crypto';
+import { EmailLinkEntity, LeadEntity, MailSendEntity, MailTemplateEntity, PersonEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
+import { SettingsService } from '../settings/settings.service';
+import { GoogleService, buildMime } from '../google/google.service';
+import { openSecret } from '../auth/totp';
+import { ProjectAccessService } from '../auth/project-access.service';
+import type { SessionClaims } from '../auth/crypto.util';
+import { addressesIn, headerOf, messageView, tagsIn, type GmailMessage } from './gmail';
+
+const TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me';
+export type LinkType = 'lead' | 'project' | 'task';
+export interface MailDraftInput { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string; /** Open tracking; on unless false. */ track?: boolean }
+type UploadFile = { originalname: string; mimetype: string; buffer: Buffer };
+const now = () => new Date().toISOString();
+
+/**
+ * Each person's own Gmail in the app (Nov 13 sync): their inbox and threads
+ * (read from Gmail as needed, not copied), replies and new mail with
+ * attachments, and threads linked to a lead, project or task -- by hand, by
+ * a #tag in the mail, or because a lead wrote it. A linked thread keeps a
+ * copy of its messages so everyone who can see that record can read it.
+ */
+@Injectable()
+export class MailService {
+  private readonly log = new Logger('MailService');
+  private tokens = new Map<string, { value: string; expiresAt: number }>();
+  /**
+   * What we already fetched from Gmail, per user, by thread id and Gmail's
+   * historyId (which changes whenever anything in the thread does): the list
+   * row's details and opened threads. Only new or changed threads are asked
+   * for again. In memory only; nothing is written anywhere.
+   */
+  private metaCache = new Map<string, Map<string, { historyId: string; meta: any }>>();
+  private fullCache = new Map<string, Map<string, { historyId: string; t: any }>>();
+  private static readonly CACHE_MAX = 2000;
+  private cacheOf<T>(store: Map<string, Map<string, T>>, userId: string) {
+    let m = store.get(userId);
+    if (!m) { m = new Map(); store.set(userId, m); }
+    return m;
+  }
+  private remember<T>(m: Map<string, T>, id: string, v: T) {
+    m.delete(id); m.set(id, v);
+    while (m.size > MailService.CACHE_MAX) m.delete(m.keys().next().value as string);
+  }
+  /** Forget a thread (after sending into it), so its next view is fresh. */
+  private forget(userId: string, threadId?: string | null) {
+    if (!threadId) return;
+    this.metaCache.get(userId)?.delete(threadId);
+    this.fullCache.get(userId)?.delete(threadId);
+  }
+
+  constructor(
+    @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
+    @InjectRepository(EmailLinkEntity) private readonly links: Repository<EmailLinkEntity>,
+    @InjectRepository(LeadEntity) private readonly leads: Repository<LeadEntity>,
+    @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
+    @InjectRepository(TaskEntity) private readonly tasks: Repository<TaskEntity>,
+    @InjectRepository(ProjectTaskEntity) private readonly projectTasks: Repository<ProjectTaskEntity>,
+    @InjectRepository(PersonEntity) private readonly people: Repository<PersonEntity>,
+    private readonly settings: SettingsService,
+    private readonly google: GoogleService,
+    private readonly access: ProjectAccessService,
+    @Optional() @InjectRepository(MailTemplateEntity) private readonly templatesRepo?: Repository<MailTemplateEntity>,
+    @Optional() @InjectRepository(MailSendEntity) private readonly sends?: Repository<MailSendEntity>,
+  ) {}
+
+  // ------------------------------------------------------------ open tracking (Batch 6)
+  /** A tiny image at the end of the message; each load is an open. Its id is random, so it can't be guessed. */
+  private async tracked(userId: string, dto: MailDraftInput): Promise<{ dto: MailDraftInput; id: string | null }> {
+    if (!this.sends || dto.track === false || !String(dto.html || '').trim()) return { dto, id: null };
+    const id = randomBytes(12).toString('hex');
+    await this.sends.save({ id, ownerId: userId, gmailId: null, threadId: dto.threadId || null, to: String(dto.to || '').slice(0, 500), subject: String(dto.subject || '').slice(0, 500), sentAt: now(), opens: [] });
+    const base = (await this.settings.baseUrl()) || '';
+    return { id, dto: { ...dto, html: `${dto.html}<img src="${base}/api/mail-open/${id}.gif" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">` } };
+  }
+  private async sentAs(trackId: string | null, sent: { id?: string; threadId?: string }) {
+    if (trackId && this.sends) await this.sends.update({ id: trackId }, { gmailId: sent.id || null, threadId: sent.threadId || null });
+  }
+
+  /** The image was loaded: count an open (at most 200 kept). */
+  async opened(id: string) {
+    if (!this.sends || !/^[a-f0-9]{24}$/.test(id)) return;
+    const row = await this.sends.findOneBy({ id });
+    if (!row) return;
+    row.opens = [...(row.opens || []), now()].slice(-200);
+    await this.sends.save(row);
+  }
+
+  /** Opens of the caller's own tracked messages in a thread, by Gmail message id. */
+  private async opensFor(userId: string, gmailIds: string[]) {
+    if (!this.sends || !gmailIds.length) return new Map<string, { count: number; last: string | null }>();
+    const rows = await this.sends.find({ where: { gmailId: In(gmailIds), ownerId: userId } });
+    return new Map(rows.map((r) => [r.gmailId!, { count: (r.opens || []).length, last: (r.opens || []).slice(-1)[0] || null }]));
+  }
+
+  /** Mail with one address (Batch 6: a person's or lead's page), from the caller's own mailbox. */
+  async withAddress(userId: string, email: string) {
+    const e = String(email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return { connected: true, threads: [] };
+    const u = await this.users.findOneBy({ id: userId });
+    if (!u?.mailRefreshToken) return { connected: false, threads: [] };
+    const r = await this.threads(userId, `from:${e} OR to:${e} OR cc:${e}`, '', '');
+    return { connected: true, threads: r.threads.slice(0, 15) };
+  }
+
+  // ------------------------------------------------------------ connection
+  private async token(userId: string) {
+    const hit = this.tokens.get(userId);
+    if (hit && hit.expiresAt > Date.now() + 60_000) return hit.value;
+    const u = await this.users.findOneBy({ id: userId });
+    const refresh = u?.mailRefreshToken ? openSecret(u.mailRefreshToken, await this.settings.jwtSecret()) : null;
+    if (!refresh) throw new BadRequestException('Connect your Gmail first.');
+    const { clientId, clientSecret } = await this.google.credentials();
+    const res = await fetch(TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ refresh_token: refresh, client_id: clientId, client_secret: clientSecret, grant_type: 'refresh_token' }).toString() });
+    const body: any = await res.json().catch(() => ({}));
+    if (!res.ok) { this.log.warn(`Gmail refresh failed for ${userId}: ${body?.error || res.status}`); throw new BadRequestException('Your Gmail connection expired. Connect it again.'); }
+    const t = { value: String(body.access_token), expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000 };
+    this.tokens.set(userId, t);
+    return t.value;
+  }
+  private async gmail(userId: string, path: string, init?: RequestInit) {
+    const res = await fetch(`${GMAIL}${path}`, { ...init, headers: { Authorization: `Bearer ${await this.token(userId)}`, ...(init?.headers || {}) } });
+    const body: any = res.status === 204 ? {} : await res.json().catch(() => ({}));
+    if (!res.ok) throw new BadRequestException(body?.error?.message || `Gmail answered ${res.status}.`);
+    return body;
+  }
+
+  // ------------------------------------------------------------ reading
+  /** A page of threads: newest first, Gmail search syntax in `q`. */
+  async threads(userId: string, q = '', pageToken = '', label = 'INBOX') {
+    const params = new URLSearchParams({ maxResults: '25' });
+    if (q) params.set('q', q);
+    if (pageToken) params.set('pageToken', pageToken);
+    if (label && !q) params.set('labelIds', label);
+    const list = await this.gmail(userId, `/threads?${params}`);
+    const listed: { id: string; historyId?: string }[] = list.threads || [];
+    const ids: string[] = listed.map((t) => t.id);
+    // Only threads that are new or changed since we last saw them are fetched again.
+    const cache = this.cacheOf(this.metaCache, userId);
+    const metas = await Promise.all(listed.map(async (l) => {
+      const hit = cache.get(l.id);
+      if (hit && l.historyId && hit.historyId === l.historyId) return hit.meta;
+      const meta = await this.gmail(userId, `/threads/${l.id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`).catch(() => null);
+      if (meta && (meta.historyId || l.historyId)) this.remember(cache, l.id, { historyId: String(meta.historyId || l.historyId), meta });
+      return meta;
+    }));
+    const linked = ids.length ? await this.links.find({ where: { threadId: In(ids) } }) : [];
+    const rows = metas.filter(Boolean).map((t: any) => {
+      const msgs: GmailMessage[] = t.messages || [];
+      const last = msgs[msgs.length - 1];
+      const first = msgs[0];
+      return {
+        id: t.id, subject: headerOf(first?.payload, 'Subject') || '(no subject)', from: headerOf(last?.payload, 'From'), to: headerOf(last?.payload, 'To'),
+        date: last?.internalDate ? new Date(Number(last.internalDate)).toISOString() : '', snippet: last?.snippet || '', count: msgs.length,
+        unread: msgs.some((m) => (m.labelIds || []).includes('UNREAD')),
+        links: linked.filter((l) => l.threadId === t.id).map((l) => ({ id: l.id, entityType: l.entityType, entityId: l.entityId, label: l.label })),
+      };
+    });
+    return { threads: rows, nextPageToken: list.nextPageToken || null };
+  }
+
+  /** One thread, every message; also links it by its #tags or a lead's address, and refreshes linked copies. */
+  async thread(userId: string, id: string) {
+    // A tiny request says whether the thread changed; the full one only when it did.
+    const cache = this.cacheOf(this.fullCache, userId);
+    const hit = cache.get(id);
+    let t: any;
+    if (hit) {
+      const head = await this.gmail(userId, `/threads/${encodeURIComponent(id)}?format=minimal`);
+      if (head?.historyId && String(head.historyId) === hit.historyId) t = hit.t;
+    }
+    if (!t) {
+      t = await this.gmail(userId, `/threads/${encodeURIComponent(id)}?format=full`);
+      if (t?.historyId) this.remember(cache, id, { historyId: String(t.historyId), t });
+    }
+    const views = (t.messages || []).map((m: GmailMessage) => messageView(m));
+    const opens = await this.opensFor(userId, views.map((m: { id: string }) => m.id));
+    // The tracking image is ours: not shown in the app.
+    const messages = views.map((m: ReturnType<typeof messageView>) => ({ ...m, html: m.html.replace(/<img[^>]+\/api\/mail-open\/[a-f0-9]+\.gif[^>]*>/g, ''), opens: opens.get(m.id) || null }));
+    await this.autoLink(userId, id, messages).catch((e: Error) => this.log.warn(`Auto-link ${id}: ${e.message}`));
+    const links = await this.links.find({ where: { threadId: id } });
+    for (const l of links.filter((x) => x.ownerId === userId)) { l.messages = this.snapshot(messages); l.lastAt = messages[messages.length - 1]?.date || l.lastAt; l.updatedAt = now(); await this.links.save(l); }
+    return { id, subject: messages[0]?.subject || '(no subject)', messages, links: links.map((l) => ({ id: l.id, entityType: l.entityType, entityId: l.entityId, label: l.label, auto: l.auto })) };
+  }
+
+  async attachment(userId: string, messageId: string, attachmentId: string) {
+    const a = await this.gmail(userId, `/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`);
+    return Buffer.from(String(a.data || '').replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+  }
+
+  // ------------------------------------------------------------ sending
+  /** The message as Gmail wants it (base64url RFC 2822). A draft may have no recipient yet. */
+  private async raw(userId: string, dto: MailDraftInput, files: UploadFile[], forDraft = false) {
+    const u = await this.users.findOneBy({ id: userId });
+    if (!u?.mailEmail) throw new BadRequestException('Connect your Gmail first.');
+    const to = addressesIn(dto.to || '').join(', ');
+    if (!to && !forDraft) throw new BadRequestException('Who is it to?');
+    const subject = String(dto.subject || '').trim() || (forDraft ? '' : '(no subject)');
+    let raw = buildMime({ from: u.mailEmail, to, cc: addressesIn(dto.cc || '').join(', ') || undefined, subject, html: String(dto.html || ''), attachments: files.map((f) => ({ filename: f.originalname, mimeType: f.mimetype || 'application/octet-stream', content: f.buffer })) });
+    if (dto.inReplyTo) {
+      const text = Buffer.from(raw.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+      const ref = String(dto.inReplyTo).replace(/[\r\n]/g, '');
+      raw = Buffer.from(`In-Reply-To: ${ref}\r\nReferences: ${ref}\r\n${text}`, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    return raw;
+  }
+
+  // ------------------------------------------------------------ drafts (Batch 6): Gmail's own, so they show in Gmail too
+  async drafts(userId: string) {
+    const list = await this.gmail(userId, '/drafts?maxResults=30');
+    const ids: string[] = (list.drafts || []).map((d: any) => d.id);
+    const full = await Promise.all(ids.map((id) => this.gmail(userId, `/drafts/${id}?format=metadata`).catch(() => null)));
+    return full.filter(Boolean).map((d: any) => ({
+      id: d.id, threadId: d.message?.threadId || null, subject: headerOf(d.message?.payload, 'Subject') || '(no subject)',
+      to: headerOf(d.message?.payload, 'To'), snippet: d.message?.snippet || '', date: d.message?.internalDate ? new Date(Number(d.message.internalDate)).toISOString() : '',
+    }));
+  }
+
+  async draft(userId: string, id: string) {
+    const d = await this.gmail(userId, `/drafts/${encodeURIComponent(id)}?format=full`);
+    const m = messageView(d.message);
+    return { id: d.id, threadId: d.message?.threadId || null, to: m.to, cc: m.cc, subject: m.subject, html: m.html || m.text, messageId: m.id, attachments: m.attachments, inReplyTo: headerOf(d.message?.payload, 'In-Reply-To') || null };
+  }
+
+  /** Create, or replace (Gmail keeps one message per draft). */
+  async saveDraft(userId: string, id: string | null, dto: MailDraftInput, files: UploadFile[] = []) {
+    const raw = await this.raw(userId, dto, files, true);
+    const body = JSON.stringify({ ...(id ? { id } : {}), message: { raw, ...(dto.threadId ? { threadId: dto.threadId } : {}) } });
+    const d = id
+      ? await this.gmail(userId, `/drafts/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body })
+      : await this.gmail(userId, '/drafts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+    this.forget(userId, d.message?.threadId || dto.threadId);
+    return { id: d.id, threadId: d.message?.threadId || null };
+  }
+
+  async sendDraft(userId: string, id: string, dto: MailDraftInput | null, files: UploadFile[] = []) {
+    const t = dto ? await this.tracked(userId, dto) : { dto: null, id: null };
+    if (t.dto) await this.saveDraft(userId, id, t.dto, files);
+    const d = await this.gmail(userId, '/drafts/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    await this.sentAs(t.id, d);
+    this.forget(userId, d.threadId);
+    return { id: d.id, threadId: d.threadId };
+  }
+
+  async discardDraft(userId: string, id: string) {
+    await this.gmail(userId, `/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return { removed: true };
+  }
+
+  // ------------------------------------------------------------ templates (Batch 6)
+  async templates(userId: string) {
+    const rows = (await this.templatesRepo?.find({ order: { name: 'ASC' } })) || [];
+    return rows.filter((t) => !t.ownerId || t.ownerId === userId).map((t) => ({ ...t, shared: !t.ownerId, mine: t.ownerId === userId }));
+  }
+
+  async saveTemplate(claims: SessionClaims, id: string | null, dto: { name?: string; subject?: string; html?: string; shared?: boolean }) {
+    if (!this.templatesRepo) throw new BadRequestException('Templates aren’t available.');
+    const name = String(dto?.name || '').trim().slice(0, 200);
+    if (!name) throw new BadRequestException('Give the template a name.');
+    const existing = id ? await this.templatesRepo.findOneBy({ id }) : null;
+    if (id && !existing) throw new NotFoundException('Template not found.');
+    const shared = existing ? !existing.ownerId : !!dto?.shared;
+    if (shared && claims.roleKey !== 'admin') throw new ForbiddenException('Only administrators change shared templates.');
+    if (existing && existing.ownerId && existing.ownerId !== claims.sub) throw new ForbiddenException('That template is someone else’s.');
+    const row = this.templatesRepo.create({
+      id: existing?.id || 'MTPL-' + randomUUID(), name, subject: String(dto?.subject || '').slice(0, 500) || null, html: String(dto?.html || ''),
+      ownerId: shared ? null : claims.sub, ownerName: shared ? null : claims.name || null, updatedAt: now(),
+    });
+    return this.templatesRepo.save(row);
+  }
+
+  async removeTemplate(claims: SessionClaims, id: string) {
+    const t = await this.templatesRepo?.findOneBy({ id });
+    if (!t) throw new NotFoundException('Template not found.');
+    if (!t.ownerId ? claims.roleKey !== 'admin' : t.ownerId !== claims.sub) throw new ForbiddenException('You can’t delete that template.');
+    await this.templatesRepo!.delete({ id });
+    return { removed: true };
+  }
+
+  async send(userId: string, dto: MailDraftInput, files: UploadFile[] = []) {
+    const u = await this.users.findOneBy({ id: userId });
+    if (!u?.mailEmail) throw new BadRequestException('Connect your Gmail first.');
+    const to = addressesIn(dto.to).join(', ');
+    if (!to) throw new BadRequestException('Who is it to?');
+    const t = await this.tracked(userId, dto);
+    const raw = await this.raw(userId, t.dto, files);
+    const sent = await this.gmail(userId, '/messages/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw, ...(dto.threadId ? { threadId: dto.threadId } : {}) }) });
+    await this.sentAs(t.id, sent);
+    this.forget(userId, sent.threadId);
+    return { id: sent.id, threadId: sent.threadId };
+  }
+
+  /** Addresses to pick from: People and leads with an email (Gmail's own contacts need another permission). */
+  async contacts(q: string) {
+    const s = String(q || '').trim().toLowerCase();
+    if (s.length < 2) return [];
+    const people = await this.people.find();
+    const leads = await this.leads.find();
+    const all = [
+      ...people.filter((p) => /@/.test(p.email || '')).map((p) => ({ name: p.name, email: p.email, kind: p.kind })),
+      ...leads.filter((l) => /@/.test((l as any).email || '')).map((l) => ({ name: l.leadName, email: (l as any).email, kind: 'Lead' })),
+    ];
+    return all.filter((c) => `${c.name} ${c.email}`.toLowerCase().includes(s)).slice(0, 20);
+  }
+
+  // ------------------------------------------------------------ links
+  private snapshot(messages: ReturnType<typeof messageView>[]) {
+    return messages.slice(-30).map((m) => ({ from: m.from, to: m.to, date: m.date, subject: m.subject, text: m.text.slice(0, 8000), attachments: m.attachments.map((a) => a.filename) }));
+  }
+
+  /** May the caller see this record (and so its linked mail)? */
+  async canSeeRecord(claims: SessionClaims | null, type: LinkType, id: string): Promise<{ ok: boolean; label: string }> {
+    if (!claims) return { ok: false, label: '' };
+    if (type === 'project') {
+      const p = await this.projects.findOneBy({ id: Number(id) });
+      return { ok: !!p && (await this.access.canSee(claims, p.id)), label: p?.name || `Project ${id}` };
+    }
+    if (type === 'lead') {
+      const l = await this.leads.findOneBy({ id });
+      return { ok: !!l && this.access.seesClientContacts(claims), label: l?.leadName || id };
+    }
+    const pt = await this.projectTasks.findOneBy({ id });
+    if (pt) return { ok: await this.access.canSee(claims, pt.projectId), label: pt.title };
+    const t = await this.tasks.findOneBy({ id });
+    return { ok: !!t && this.access.isStaff(claims), label: t?.subject || id };
+  }
+
+  async link(claims: SessionClaims, threadId: string, type: LinkType, entityId: string, auto = false) {
+    if (!['lead', 'project', 'task'].includes(type)) throw new BadRequestException('Link to a lead, project or task.');
+    const rec = await this.canSeeRecord(claims, type, entityId);
+    if (!rec.ok) throw new ForbiddenException('You can’t see that record.');
+    const exists = await this.links.findOneBy({ threadId, entityType: type, entityId: String(entityId) });
+    if (exists) return exists;
+    const t = auto ? null : await this.thread(claims.sub, threadId).catch(() => null);
+    const again = await this.links.findOneBy({ threadId, entityType: type, entityId: String(entityId) });
+    if (again) return again;
+    const row = this.links.create({
+      id: 'EML-' + randomUUID(), threadId, ownerId: claims.sub, ownerName: claims.name || '', entityType: type, entityId: String(entityId), label: rec.label,
+      subject: t?.subject || null, messages: t ? this.snapshot(t.messages) : null, lastAt: t?.messages[t.messages.length - 1]?.date || null, auto, createdAt: now(), updatedAt: now(),
+    });
+    return this.links.save(row);
+  }
+
+  async unlink(claims: SessionClaims, id: string) {
+    const l = await this.links.findOneBy({ id });
+    if (!l) throw new NotFoundException('Not linked.');
+    if (l.ownerId !== claims.sub && claims.roleKey !== 'admin') throw new ForbiddenException('Only the person whose mail it is can unlink it.');
+    await this.links.delete({ id });
+    return { removed: true };
+  }
+
+  /** The mail linked to a record, for everyone who can see the record. */
+  async forRecord(claims: SessionClaims | null, type: LinkType, id: string) {
+    const rec = await this.canSeeRecord(claims, type, id);
+    if (!rec.ok) throw new ForbiddenException('You can’t see that record.');
+    const rows = await this.links.find({ where: { entityType: type, entityId: String(id) }, order: { lastAt: 'DESC' } });
+    return rows.map((l) => ({ id: l.id, threadId: l.threadId, subject: l.subject, ownerName: l.ownerName, mine: l.ownerId === claims!.sub, auto: l.auto, lastAt: l.lastAt, messages: l.messages || [] }));
+  }
+
+  /** #P-45 / #L-x / #<task number> in the mail, or a lead writing, links the thread on its own. */
+  private async autoLink(userId: string, threadId: string, messages: ReturnType<typeof messageView>[]) {
+    const user = await this.users.findOneBy({ id: userId });
+    if (!user) return;
+    const claims = { sub: user.id, name: user.name, email: user.email, roleKey: user.roleKey, tier: user.tier } as SessionClaims;
+    const all = messages.map((m) => `${m.subject}\n${m.text}`).join('\n');
+    const tags = tagsIn(all);
+    for (const p of tags.projects) await this.link(claims, threadId, 'project', String(p), true).catch(() => undefined);
+    for (const l of tags.leads) await this.link(claims, threadId, 'lead', l, true).catch(() => undefined);
+    for (const t of tags.tasks) {
+      const serial = t.includes('-T-') ? t.slice(t.indexOf('-T-') + 1) : t;
+      const pt = (await this.projectTasks.findOneBy({ id: t })) || (await this.projectTasks.findOne({ where: { serial } as any }).catch(() => null));
+      const tk = pt ? null : (await this.tasks.findOneBy({ id: t })) || (await this.tasks.findOne({ where: { serial } as any }).catch(() => null));
+      const id = pt?.id || tk?.id;
+      if (id) await this.link(claims, threadId, 'task', id, true).catch(() => undefined);
+    }
+    // A lead's own address on the thread links it to that lead.
+    const addresses = new Set(messages.flatMap((m) => [...addressesIn(m.from), ...addressesIn(m.to), ...addressesIn(m.cc)]));
+    addresses.delete(String(user.mailEmail || '').toLowerCase());
+    if (addresses.size && this.access.seesClientContacts(claims)) {
+      const leads = (await this.leads.find()).filter((l) => addresses.has(String((l as any).email || '').toLowerCase()));
+      for (const l of leads.slice(0, 3)) await this.link(claims, threadId, 'lead', l.id, true).catch(() => undefined);
+    }
+  }
+}

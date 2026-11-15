@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, card, headRow, input } from './manpowerUi';
 import { Skeleton } from './Skeleton';
+import { invalidateCsiCodes } from './CsiSelect';
 
 export interface CostCode { id: string; code: string; division: string; description?: string; active: boolean; order: number }
 
@@ -24,6 +25,8 @@ export function CostCodesSettings({ canManage, onChanged }: { canManage: boolean
 
   const run = async (fn: () => Promise<unknown>, msg?: string) => {
     try { await fn(); if (msg) toast(msg); } catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
+    // Every open CSI picker and the estimating screens pick the change up.
+    invalidateCsiCodes();
     await load();
     onChanged?.();
   };

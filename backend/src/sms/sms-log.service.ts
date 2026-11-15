@@ -3,13 +3,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { SmsMessageEntity } from '../database/entities';
-import { SmsService } from './sms.service';
+import { OptedOutError, SmsService } from './sms.service';
+import type { TextCategory } from './opt-out';
 
 export const SMS_ENTITY_TYPES = ['lead', 'person', 'project'];
 
 export interface TextInput {
   to: string; body: string;
   entityType?: string; entityId?: string; templateKey?: string;
+  /** updates (default) | announcements (mass texts) -- for their opt-out choices. */
+  category?: TextCategory;
 }
 
 /**
@@ -34,12 +37,12 @@ export class SmsLogService {
       byId: by?.id || null, byName: by?.name || null,
     };
     try {
-      const r = await this.sms.send({ to: input.to, body: input.body });
+      const r = await this.sms.send({ to: input.to, body: input.body, category: input.category === 'announcements' ? 'announcements' : 'updates' });
       row.to = r.to; row.providerId = r.sid ? String(r.sid).slice(0, 100) : null;
       await this.repo.save(row);
       return { ...r, message: row };
     } catch (e) {
-      row.status = 'failed'; row.error = (e as Error).message.slice(0, 500);
+      row.status = e instanceof OptedOutError ? 'skipped' : 'failed'; row.error = (e as Error).message.slice(0, 500);
       await this.repo.save(row).catch(() => undefined);
       throw e;
     }

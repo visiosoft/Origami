@@ -1,0 +1,291 @@
+import { EstimateEntity, EstimateGrLineEntity, EstimateLineEntity, EstimateScopeEntity } from '../database/entities';
+import { cleanColumns, EstimatesService } from './estimates.service';
+
+/** A tiny in-memory TypeORM stand-in: equality filters, In([...]) and order by one key. */
+type Row = Record<string, any>;
+const matches = (r: Row, where: Row = {}) => Object.entries(where).every(([k, v]) => (v && typeof v === 'object' && '_value' in v ? (v as any)._value.includes(r[k]) : r[k] === v));
+function store() {
+  const tables = new Map<any, Row[]>();
+  const t = (E: any) => { if (!tables.has(E)) tables.set(E, []); return tables.get(E)!; };
+  const repoFor = (E: any) => ({
+    create: (x: Row) => Object.assign(new E(), x),
+    find: async (o: any = {}) => {
+      let rows = t(E).filter((r) => matches(r, o.where)).map((r) => ({ ...r }));
+      const [key, dir] = Object.entries(o.order || {})[0] || [];
+      if (key) rows = rows.sort((a, b) => (a[key] > b[key] ? 1 : -1) * (dir === 'DESC' ? -1 : 1));
+      return rows.map((r) => Object.assign(new E(), r));
+    },
+    count: async (o: any = {}) => t(E).filter((r) => matches(r, o.where)).length,
+    findOne: async (o: any) => { const r = t(E).find((x) => matches(x, o.where)); return r ? Object.assign(new E(), r) : null; },
+    save: async (x: Row | Row[]) => {
+      for (const r of Array.isArray(x) ? x : [x]) {
+        const rows = t(E); const i = rows.findIndex((y) => y.id === r.id);
+        if (E === EstimateEntity) r.version = (i >= 0 ? rows[i].version : 0) + 1;
+        if (i >= 0) rows[i] = { ...r }; else rows.push({ ...r });
+      }
+      return x;
+    },
+  });
+  const manager = {
+    save: async (x: any) => { const E = (Array.isArray(x) ? x[0] : x)?.constructor; if (E && E !== Object) await repoFor(E).save(x); return x; },
+    delete: async (E: any, where: Row) => { tables.set(E, t(E).filter((r) => !matches(r, where))); },
+    find: async (E: any, o: any) => repoFor(E).find(o),
+    count: async (E: any, o: any) => t(E).filter((r) => matches(r, o.where)).length,
+    getRepository: () => ({ create: (x: Row) => x, save: async (x: Row) => x }),
+  };
+  return { repoFor, t, db: { transaction: async (fn: any) => fn(manager) } };
+}
+
+function setup(perms: any = 'all') {
+  const s = store();
+  const projects = { findOne: async (o: any) => ({ id: o.where.id, name: o.where.id === 7 ? 'Catherine bathrooms' : 'Smith kitchen' }), find: async () => [{ id: 7, name: 'Catherine bathrooms' }, { id: 8, name: 'Smith kitchen' }] };
+  const log: string[] = [];
+  const fin: any = { log: async (_m: any, e: any) => { log.push(e.action); } };
+  const access: any = { permissionsOf: async () => perms };
+  const svc = new EstimatesService(s.repoFor(EstimateEntity) as any, s.repoFor(EstimateScopeEntity) as any, s.repoFor(EstimateLineEntity) as any, s.repoFor(EstimateGrLineEntity) as any, projects as any, fin, access, s.db as any);
+  return { svc, s, log };
+}
+const actor = { name: 'Edward', id: 'u1' };
+
+const sheet = (version: number) => ({
+  version,
+  scopes: [{ id: 'scope-a', title: 'Primary bathroom', csiCodeId: 'csi-99' }],
+  lines: [
+    { id: 'line-1', scopeId: 'scope-a', kind: 'item', description: 'Demolish', cost: 2000, markupAmt: 640, strategy: 'subcontract', subName: 'Ricardo kitchen and bath' },
+    { id: 'line-2', scopeId: 'scope-a', kind: 'item', description: 'Relocate drain', cost: 1040, markupAmt: 6801, pricing: 'nis', strategy: 'not_in_scope' },
+    { id: 'line-3', scopeId: 'scope-a', kind: 'inclusion', description: 'Includes all labor', cost: 500 },
+  ],
+  gr: [{ id: 'gr-1', title: 'Construction Supervision', base: 750, qty: 3, unit: 'Monthly' }, { id: 'gr-2', title: 'Utility Usage', base: 10, qty: 3, included: false }],
+});
+
+describe('estimates', () => {
+  it('a new estimate gets the next number and the standard GR lines', async () => {
+    const { svc } = setup();
+    const a = await svc.create(7, {}, actor);
+    const b = await svc.create(7, { title: 'Option B' }, actor);
+    expect([a.estimate.number, b.estimate.number]).toEqual(['EST-001', 'EST-002']);
+    expect(a.gr.map((g: any) => g.title)).toContain('Construction Supervision');
+    expect(a.estimate.status).toBe('draft');
+  });
+
+  it('saves the whole sheet and returns live totals; note rows carry no money', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    const out = await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    expect(out.lines.map((l: any) => l.id)).toEqual(['line-1', 'line-2', 'line-3']);
+    expect(out.lines[2].cost).toBe(0);
+    // A named sub on an old "Subcontract" line saves as "Subcontract used" (Nov 13).
+    expect(out.lines.map((l: any) => l.strategy)).toEqual(['sub_used', 'not_in_scope', null]);
+    expect(out.result.totals.subtotal).toBe(264000);
+    expect(out.result.totals.grTotal).toBe(225000);
+    // (2,640 + 2,250) / 0.83
+    expect(out.result.totals.totalBuild).toBe(589157);
+  });
+
+  it('Nov 13: a line with Qty and Unit cost saves Qty × Unit cost as its sub cost; square feet give the cost per sq ft', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    const sh: any = sheet(e.estimate.version);
+    sh.lines[0] = { ...sh.lines[0], qty: 3, unit: 'EA', unitCost: 5000, cost: 1 };
+    const out = await svc.saveSheet(7, e.estimate.id, sh, actor);
+    expect(out.lines[0]).toMatchObject({ qty: 3, unit: 'EA', unitCost: 5000, cost: 15000 });
+    expect(out.result.lines[0].cost).toBe(1500000);
+    const withArea = await svc.saveSettings(7, e.estimate.id, { version: out.estimate.version, areas: { total: 2000 } }, actor);
+    expect(withArea.estimate.areas).toEqual({ total: 2000 });
+    expect(withArea.result.totals.costPerSqft).toBe(Math.round(withArea.result.totals.totalProject / 2000));
+  });
+
+  it('rows left out are deleted, and a stale version is refused', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    const first = await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    const smaller = { ...sheet(first.estimate.version), lines: [sheet(0).lines[0]] };
+    const out = await svc.saveSheet(7, e.estimate.id, smaller, actor);
+    expect(out.lines).toHaveLength(1);
+    await expect(svc.saveSheet(7, e.estimate.id, sheet(first.estimate.version), actor)).rejects.toThrow(/changed by Edward/);
+  });
+
+  it('rejects bad input: unknown pricing, a line outside the scopes, negative cost', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    const v = e.estimate.version;
+    await expect(svc.saveSheet(7, e.estimate.id, { ...sheet(v), lines: [{ id: 'line-9', scopeId: 'scope-a', pricing: 'cheap' }] }, actor)).rejects.toThrow(/pricing type/);
+    await expect(svc.saveSheet(7, e.estimate.id, { ...sheet(v), lines: [{ id: 'line-9', scopeId: 'elsewhere' }] }, actor)).rejects.toThrow(/belong to a scope/);
+    await expect(svc.saveSheet(7, e.estimate.id, { ...sheet(v), lines: [{ id: 'line-9', scopeId: 'scope-a', cost: -5 }] }, actor)).rejects.toThrow(/positive/);
+  });
+
+  it('settings: percentages, discount, design cost and payment rows feed the totals', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    const s1 = await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    const out = await svc.saveSettings(7, e.estimate.id, { version: s1.estimate.version, discount: 100, designCost: 1000, payments: [{ label: 'Deposit', mode: 'pct', value: 10 }] }, actor);
+    expect(out.result.totals.totalProject).toBe(589157 - 10000 + 100000);
+    expect(out.result.payments[0].amount).toBe(67916);
+    await expect(svc.saveSettings(7, e.estimate.id, { version: out.estimate.version, profitPct: 'lots' }, actor)).rejects.toThrow(/percentage/);
+  });
+
+  it('sending freezes it; a revision copies everything as Rev 2 and supersedes Rev 1 when sent', async () => {
+    const { svc, log } = setup();
+    const e = await svc.create(7, {}, actor);
+    await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    const sent = await svc.markSent(7, e.estimate.id, actor);
+    expect(sent.locked).toBe(true);
+    await expect(svc.saveSheet(7, e.estimate.id, sheet(sent.estimate.version), actor)).rejects.toThrow(/frozen/);
+    await expect(svc.remove(7, e.estimate.id, actor)).rejects.toThrow(/Only a draft/);
+    const r2 = await svc.revise(7, e.estimate.id, actor);
+    expect(r2.estimate).toMatchObject({ number: 'EST-001', rev: 2, status: 'draft', revisionOf: e.estimate.id });
+    expect(r2.lines).toHaveLength(3);
+    expect(r2.lines.every((l: any) => r2.scopes.some((s: any) => s.id === l.scopeId))).toBe(true);
+    expect(r2.result.totals.totalBuild).toBe(589157);
+    await expect(svc.revise(7, e.estimate.id, actor)).rejects.toThrow(/already has a draft/);
+    await svc.markSent(7, r2.estimate.id, actor);
+    expect((await svc.get(7, e.estimate.id, actor)).estimate.status).toBe('superseded');
+    expect(log).toEqual(['created', 'sent', 'revised', 'sent']);
+  });
+
+  it('an estimate from another project is not found', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    await expect(svc.get(8, e.estimate.id, actor)).rejects.toThrow(/not found/);
+  });
+
+  it('view-only roles can read but not edit; others are refused', async () => {
+    const viewer = setup({ estimating: { view: true } });
+    await expect(viewer.svc.create(7, {}, actor)).rejects.toThrow(/doesn't allow editing/);
+    expect((await viewer.svc.list(7, actor)).rights).toMatchObject({ view: true, edit: false, money: { full: true } });
+    const none = setup({ tasks: { view: true } });
+    await expect(none.svc.list(7, actor)).rejects.toThrow(/doesn't include estimates/);
+  });
+
+  it('custom columns: unique keys, known types, formulas kept as text, internal-only by default', () => {
+    const cols = cleanColumns([{ key: 'waste', label: 'Waste %', type: 'pct' }, { key: 'adj', type: 'formula', formula: '=[cost]*1.1' }]);
+    expect(cols[1]).toMatchObject({ formula: '=[cost]*1.1', showClient: false, showSub: false, table: 'lines' });
+    expect(() => cleanColumns([{ key: 'a', type: 'text' }, { key: 'a', type: 'text' }])).toThrow(/unique/);
+    expect(() => cleanColumns([{ key: 'a', type: 'script' }])).toThrow(/Unknown column type/);
+  });
+
+  it('save as template, then start another project from it: an exact copy with new ids', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    await expect(svc.createTemplate({ fromId: e.estimate.id }, actor, () => true)).rejects.toThrow(/name/);
+    const t = await svc.createTemplate({ title: 'Bathroom remodel', fromId: e.estimate.id }, actor, () => true);
+    expect(t.estimate).toMatchObject({ isTemplate: true, projectId: 0, title: 'Bathroom remodel' });
+    expect(t.lines.map((l: any) => l.description)).toEqual(['Demolish', 'Relocate drain', 'Includes all labor']);
+    expect(t.lines.some((l: any) => l.id === 'line-1')).toBe(false);
+    expect((await svc.templates(actor)).rows).toMatchObject([{ title: 'Bathroom remodel', scopes: 1, lines: 2 }]);
+    // templates aren't listed with a project's estimates, and can't be sent or revised
+    expect((await svc.list(7, actor)).rows).toHaveLength(1);
+    await expect(svc.markSent(0, t.estimate.id, actor)).rejects.toThrow(/template/);
+    const n = await svc.create(8, { fromId: t.estimate.id }, actor, () => true);
+    expect(n.estimate).toMatchObject({ projectId: 8, number: 'EST-001', status: 'draft', isTemplate: false, title: 'Smith kitchen — Bathroom remodel' });
+    expect(n.lines.map((l: any) => [l.description, l.cost, l.subName ?? null])).toEqual([['Demolish', 2000, 'Ricardo kitchen and bath'], ['Relocate drain', 1040, null], ['Includes all labor', 0, null]]);
+    expect(n.result.totals.totalBuild).toBe(589157);
+  });
+
+  it('start from another project’s estimate only when the caller can see that project', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    await expect(svc.create(8, { fromId: e.estimate.id }, actor, (p) => p === 8)).rejects.toThrow(/not found/);
+    const n = await svc.create(8, { fromId: e.estimate.id }, actor, () => true);
+    expect(n.lines).toHaveLength(3);
+    expect((await svc.allEstimates(actor)).rows.map((r: any) => r.projectName).sort()).toEqual(['Catherine bathrooms', 'Smith kitchen']);
+  });
+
+  it('copies chosen scopes, with their lines and notes, onto the end', async () => {
+    const { svc } = setup();
+    const a = await svc.create(7, {}, actor);
+    await svc.saveSheet(7, a.estimate.id, sheet(a.estimate.version), actor);
+    const b = await svc.create(8, {}, actor);
+    const src = await svc.sourceSheet(a.estimate.id, actor, () => true);
+    expect(src.scopes).toMatchObject([{ title: 'Primary bathroom', lines: 3, total: 2640 }]);
+    await expect(svc.copyScopes(8, b.estimate.id, { version: b.estimate.version, fromId: a.estimate.id, scopeIds: [] }, actor, () => true)).rejects.toThrow(/at least one/);
+    const out = await svc.copyScopes(8, b.estimate.id, { version: b.estimate.version, fromId: a.estimate.id, scopeIds: ['scope-a'] }, actor, () => true);
+    expect(out.scopes.map((s: any) => s.title)).toEqual(['Primary bathroom']);
+    expect(out.lines).toHaveLength(3);
+    expect(out.gr).toHaveLength(13); // General Liability is worked out as a rate now (F20), not a GR line
+  });
+
+  it('the company default template: blank estimates take its columns, GR lines and percentages, not its scopes', async () => {
+    const { svc } = setup();
+    const a = await svc.create(7, {}, actor);
+    await svc.saveSheet(7, a.estimate.id, { ...sheet(a.estimate.version), gr: [{ id: 'gr-x', title: 'Permit runner', base: 400, qty: 2 }] }, actor);
+    const t = await svc.createTemplate({ title: 'Company standard', fromId: a.estimate.id }, actor, () => true);
+    const t2 = await svc.saveSettings(0, t.estimate.id, { version: t.estimate.version, profitPct: 15, columns: [{ key: 'c_waste', label: 'Waste %', type: 'pct', band: 'sub' }], isDefaultTemplate: true }, actor);
+    expect(t2.estimate.isDefaultTemplate).toBe(true);
+    expect(t2.estimate.columns![0]).toMatchObject({ key: 'c_waste', band: 'sub', showClient: false });
+    const b = await svc.create(8, {}, actor);
+    expect(b.estimate).toMatchObject({ profitPct: 15, isDefaultTemplate: false, isTemplate: false, projectId: 8 });
+    expect(b.estimate.columns!.map((c: any) => c.key)).toEqual(['c_waste']);
+    expect(b.scopes).toHaveLength(0);
+    expect(b.gr.map((g: any) => g.title)).toEqual(['Permit runner']);
+    // only one default; an estimate can't be one
+    const other = await svc.createTemplate({ title: 'Other' }, actor, () => true);
+    await svc.saveSettings(0, other.estimate.id, { version: other.estimate.version, isDefaultTemplate: true }, actor);
+    expect((await svc.templates(actor)).rows.filter((r: any) => r.isDefault).map((r: any) => r.title)).toEqual(['Other']);
+    await expect(svc.saveSettings(8, b.estimate.id, { version: b.estimate.version, isDefaultTemplate: true }, actor)).rejects.toThrow(/Only a template/);
+  });
+
+  it('lists lines on the old strategies with where they go, and changes nothing until confirmed', async () => {
+    const { svc, s } = setup();
+    s.t(EstimateLineEntity).push(
+      { id: 'o1', estimateId: 'E1', projectId: 7, description: 'Framing', strategy: 'subcontract', subName: 'Bay' },
+      { id: 'o2', estimateId: 'E1', projectId: 7, description: 'Tile', strategy: 'contract_required', subName: null },
+      { id: 'o3', estimateId: 'E2', projectId: 8, description: 'Appliances', strategy: 'owner' },
+      { id: 'o4', estimateId: 'E2', projectId: 8, description: 'Misc', strategy: 'other' },
+      { id: 'o5', estimateId: 'E2', projectId: 8, description: 'Paint', strategy: 'self_perform' },
+    );
+    const plan = await svc.strategyMapPlan(actor);
+    expect(plan.total).toBe(4);
+    expect(plan.estimates).toBe(2);
+    expect(plan.groups.map((g) => [g.from, g.to, g.count]).sort()).toEqual([['contract_required', 'sub_required', 1], ['other', null, 1], ['owner', 'ofci', 1], ['subcontract', 'sub_used', 1]]);
+    expect(await svc.applyStrategyMap(false, actor)).toEqual({ applied: false });
+    expect(s.t(EstimateLineEntity).find((l) => l.id === 'o3')!.strategy).toBe('owner');
+    expect(await svc.applyStrategyMap(true, actor)).toEqual({ applied: true, changed: 4 });
+    expect(s.t(EstimateLineEntity).map((l) => l.strategy)).toEqual(['sub_used', 'sub_required', 'ofci', null, 'self_perform']);
+    expect((await svc.strategyMapPlan(actor)).total).toBe(0);
+    await expect(setup({}).svc.applyStrategyMap(true, actor)).rejects.toThrow(/editing estimates/);
+  });
+
+  it('a revision remembers where its rows came from; compare and restore an older revision', async () => {
+    const { svc, log } = setup();
+    const e = await svc.create(7, {}, actor);
+    const r1 = await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    await svc.markSent(7, e.estimate.id, actor);
+    const r2 = await svc.revise(7, e.estimate.id, actor);
+    expect(r2.lines.map((l: any) => l.originId)).toEqual(r1.lines.map((l: any) => l.id));
+    const edited = { ...sheet(r2.estimate.version), scopes: r2.scopes, lines: r2.lines.map((l: any, i: number) => (i === 0 ? { ...l, cost: 2500 } : l)), gr: r2.gr };
+    const saved = await svc.saveSheet(7, r2.estimate.id, edited, actor);
+    expect(saved.lines[0].originId).toBe('line-1');
+    const cmp = await svc.compare(7, e.estimate.id, r2.estimate.id, actor);
+    expect(cmp.counts).toMatchObject({ added: 0, removed: 0, changed: 1 });
+    expect(cmp.scopes[0].lines[0].fields.find((f: any) => f.field === 'cost')).toMatchObject({ a: 200000, b: 250000 });
+    await svc.markSent(7, r2.estimate.id, actor);
+    const r3 = await svc.revise(7, e.estimate.id, actor);
+    expect(r3.estimate.rev).toBe(3);
+    expect(r3.lines[0].cost).toBe(2000);
+    expect(log).toContain('restored');
+    await expect(svc.revise(7, e.estimate.id, actor)).rejects.toThrow(/already has a draft/);
+  });
+
+  it('K7: a role without markup or totals gets them blanked and cannot overwrite them', async () => {
+    const full = setup();
+    const e = await full.svc.create(7, {}, actor);
+    await full.svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    const superPerms = { estimating: { view: true, manage: true }, 'fin:line_items_amount': { view: true }, 'fin:line_item_total': { view: true }, 'fin:markups': { view: false }, 'fin:total_construction': { view: false } };
+    (full.svc as any).access.permissionsOf = async () => superPerms;
+    const seen = await full.svc.get(7, e.estimate.id, actor);
+    expect(seen.lines[0]).toMatchObject({ cost: 2000, markupAmt: null });
+    expect(seen.result.totals.totalProject).toBeNull();
+    expect((await full.svc.list(7, actor)).rows[0].totalProject).toBeNull();
+    const back = { ...sheet(seen.estimate.version), lines: sheet(0).lines.map((l: any) => ({ ...l, markupAmt: null, cost: 1 })) };
+    await full.svc.saveSheet(7, e.estimate.id, back, actor);
+    (full.svc as any).access.permissionsOf = async () => 'all';
+    const after = await full.svc.get(7, e.estimate.id, actor);
+    expect(after.lines[0]).toMatchObject({ cost: 2000, markupAmt: 640 });
+    (full.svc as any).access.permissionsOf = async () => superPerms;
+    await expect(full.svc.saveSettings(7, e.estimate.id, { version: after.estimate.version, profitPct: 50 }, actor)).rejects.toThrow(/amounts/);
+  });
+});
+

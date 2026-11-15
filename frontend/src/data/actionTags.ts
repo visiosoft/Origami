@@ -10,10 +10,12 @@ export const ACTION_TAGS: [string, string][] = [
 ];
 export const tagLabel = (k: string) => ACTION_TAGS.find(([x]) => x === k)?.[1] || k;
 
-/** Toggle one tag; switching Financial on brings Internal with it. */
+/** Toggle one tag; switching Financial on brings Internal with it, switching Client or External on drops Internal. */
 export function toggleTag(tags: string[], key: string): string[] {
   const on = tags.includes(key);
   const next = on ? tags.filter((t) => t !== key) : [...tags, key];
   if (!on && key === 'financial' && !next.includes('internal')) next.push('internal');
+  // Tagging it Client / External shares it (Oct 30 sync: Internal until someone tags it Client) -- unless it's Financial.
+  if (!on && (key === 'client' || key === 'external') && !next.includes('financial')) return ACTION_TAGS.map(([k]) => k).filter((k) => k !== 'internal' && next.includes(k));
   return ACTION_TAGS.map(([k]) => k).filter((k) => next.includes(k));
 }

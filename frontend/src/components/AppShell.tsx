@@ -7,14 +7,15 @@ import { Logo, LogoMark } from './Logo';
 import { Notifications } from './Notifications';
 import { ThemeToggle } from './ThemeToggle';
 import { GlobalSearch, openGlobalSearch } from './GlobalSearch';
-import { useApp, type ViewMode } from '../AppContext';
-import { NAV_GROUPS, PERSONAL_ROUTES, PERM_BY_ROUTE, permOf } from '../data/nav';
+import { useApp } from '../AppContext';
+import { projectPlace } from '../data/returnToProject';
+import { ANY_OF_BY_ROUTE, NAV_GROUPS, PERSONAL_ROUTES, PERM_BY_ROUTE, permOf } from '../data/nav';
 import { AutosaveIndicator, AutosaveProvider } from '../autosave';
 import { ServerStatusBanner } from './ServerStatusBanner';
 import { SessionExpired } from './SessionExpired';
+import { ViewAsBanner, ViewAsPicker } from './ViewAs';
 import './AppShell.css';
 
-const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
 
 /**
  * TEMPORARY — modules considered ready to test, shown green in the sidebar.
@@ -28,8 +29,13 @@ const initialsOf = (name: string) =>
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { viewMode, setViewMode, toastMsg, can, loadingAccess, currentUser, currentRole, tier, signOut, authUser } = useApp();
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const { toastMsg, can, loadingAccess, currentUser, currentRole, signOut, authUser } = useApp();
+  // Which menu groups are open: what the person chose (kept in this browser), else just Main and the
+  // group holding the page they're on -- so the menu doesn't grow with every group open (Nov 4).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('origami.nav.open') || '{}') || {}; } catch { return {}; }
+  });
+  useEffect(() => { try { localStorage.setItem('origami.nav.open', JSON.stringify(openGroups)); } catch { /* private mode */ } }, [openGroups]);
 
   const slug = location.pathname.slice(1) || 'dashboard';
 
@@ -39,14 +45,19 @@ export function AppShell() {
     // The daily log decides for itself (superintendents only), so it isn't a role permission either.
     if (slug === 'dashboard' || slug === 'help' || slug === 'login' || slug === 'daily-log' || PERSONAL_ROUTES.has(slug)) return;
     // A second menu entry for a module (e.g. Schedule under Construction) checks that module's permission.
+    // A page that brings modules together opens for anyone who sees one of them.
+    if (ANY_OF_BY_ROUTE[slug]) { if (!ANY_OF_BY_ROUTE[slug].some((m) => can(m, 'view'))) navigate('/dashboard', { replace: true }); return; }
     if (!can(PERM_BY_ROUTE[slug] || slug, 'view')) navigate('/dashboard', { replace: true });
   }, [slug, loadingAccess, can, navigate]);
 
   // Only show nav items the current role can view; drop groups left empty.
   // The phone daily log is only for superintendents (whoever runs a site).
   const runsSite = !!authUser?.isSuperintendent;
+  // Pre-construction is for the back office (Oct 30 sync): not for site superintendents or outside accounts.
+  const backOffice = authUser?.roleKey === 'admin' || (!runsSite && currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant');
   const visibleGroups = NAV_GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((it) => !it.hidden && (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(permOf(it), 'view'))) }))
+    .filter((g) => !g.backOffice || backOffice)
+    .map((g) => ({ ...g, items: g.items.filter((it) => !it.hidden && (it.superintendent ? runsSite || authUser?.roleKey === 'admin' : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : it.anyOf ? it.anyOf.some((m) => can(m, 'view')) : can(permOf(it), 'view'))) }))
     .filter((g) => g.items.length > 0);
 
   const searchPages = useMemo(() => visibleGroups.flatMap((g) => g.items.map((it) => ({ label: it.label, route: it.route, icon: it.icon }))),
@@ -63,6 +74,8 @@ export function AppShell() {
   })();
 
   const pageTitle = activeItem?.label ?? 'Module';
+  // Came here from a project's drawer? Offer the way back to it (Nov 3 sync).
+  const backToProject = useMemo(() => projectPlace(), [location.pathname, location.search]); // eslint-disable-line react-hooks/exhaustive-deps
   const pageBadge = activeItem?.badge;
 
   // The sidebar search narrows the menu as you type; Enter opens the first match.
@@ -74,10 +87,10 @@ export function AppShell() {
   const firstMatch = nq ? shownGroups[0]?.items[0] : undefined;
   const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
-  const toggleGroup = (key: string) =>
-    setOpenGroups((prev) => ({ ...prev, [key]: prev[key] === false ? true : false }));
-
-  const isOpen = (key: string) => openGroups[key] !== false;
+  const activeGroup = NAV_GROUPS.find((g) => g.items.some((it) => it.route === slug))?.key;
+  const openByDefault = (key: string) => key === 'main' || key === activeGroup;
+  const isOpen = (key: string) => (key in openGroups ? openGroups[key] : openByDefault(key));
+  const toggleGroup = (key: string) => setOpenGroups((prev) => ({ ...prev, [key]: !(key in prev ? prev[key] : openByDefault(key)) }));
 
   // "New" on Help & Support until the latest release notes have been seen.
   const [seenRelease, setSeenRelease] = useState(releaseSeen());
@@ -123,7 +136,7 @@ export function AppShell() {
         <nav className="nav om-nav-scroll">
           {nq && !shownGroups.length && <div className="nav-search-none">No menu item matches.</div>}
           {shownGroups.map((group) => (
-            <div key={group.key} className="nav-group">
+            <div key={group.key} className={`nav-group${group.parent && shownGroups.some((x) => x.key === group.parent) ? ' is-sub' : ''}`}>
               <div className="nav-group-header" onClick={() => toggleGroup(group.key)} title={group.hint}>
                 <span className="nav-group-label">{group.label}</span>
                 <span
@@ -183,24 +196,12 @@ export function AppShell() {
             )}
             <h1 className="page-title">{pageTitle}</h1>
             {pageBadge && <span className="page-badge">{pageBadge}</span>}
+            {backToProject && slug !== 'projects' && (
+              <button type="button" className="back-to-project" onClick={() => { navigate(backToProject.path); }} title="Back to the project you came from">← Back to {backToProject.label}</button>
+            )}
           </div>
 
-          {tier === 'internal' && currentUser?.roleKey !== 'site_super' && (
-            <div className="view-switch">
-              <span className="view-switch-label">View as:</span>
-              <div className="view-switch-track">
-                {VIEW_MODES.map((m) => (
-                  <div
-                    key={m}
-                    className={`view-switch-pill ${viewMode === m ? 'active' : ''}`}
-                    onClick={() => setViewMode(m)}
-                  >
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {authUser?.roleKey === 'admin' && !authUser?.viewedBy && <ViewAsPicker />}
 
           <AutosaveIndicator />
 
@@ -213,6 +214,7 @@ export function AppShell() {
         <ServerStatusBanner />
         <TopProgress />
 
+        {authUser?.viewedBy && <ViewAsBanner as={authUser.viewedBy.as} tier={authUser.tier} />}
         <main className="content">
           <div className="content-inner">
             {/* The sidebar stays put while a page's code downloads. */}

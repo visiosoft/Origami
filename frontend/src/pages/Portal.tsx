@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { api } from '../api';
+import { RELEASE_KINDS, api, type LienRelease, type PortalRetention } from '../api';
 import { useApp } from '../AppContext';
 import { Logo } from '../components/Logo';
 import { ACCENT, ACCENT_BG, BG, DANGER, INK, LINE, MUTED, Badge, Label, btn, card, fmtDate, input, todayISO } from '../components/manpowerUi';
@@ -17,6 +17,8 @@ interface Invoice {
   status: 'submitted' | 'approved' | 'paid' | 'returned'; paidDate?: string; paymentRef?: string; returnedReason?: string; submittedAt?: string; fromPortal: boolean;
   lines: { id: string; description: string; amount: number; status: string; returnedReason?: string }[];
   files: { id: string; entryId: string; name: string; kind: string; url?: string }[];
+  /** Batch 6: retention held, net payable and lien releases (on the Invoices page). */
+  gross?: number; retentionPct?: number; retention?: number; net?: number; releases?: LienRelease[]; payBlock?: string | null; waitingUnconditional?: boolean;
 }
 interface Overview {
   vendor: { name: string; contactPerson?: string; email?: string };
@@ -324,7 +326,8 @@ function InvoicesPage() {
           return <div key={k} onClick={() => setFilter(k)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: filter === k ? ACCENT : 'var(--surface)', color: filter === k ? '#fff' : ACCENT, border: '1px solid ' + (filter === k ? ACCENT : 'rgba(var(--rgb-shade), .14)') }}>{k === 'all' ? 'All' : STATUS[k][0].split(' ·')[0]} · {n}</div>;
         })}
       </div>
-      {rows === null ? <Skeleton label="Loading…" /> : <InvoiceList rows={shown} empty="No invoices here." />}
+      {rows === null ? <Skeleton label="Loading…" /> : <InvoiceList rows={shown} empty="No invoices here." onRows={setRows} />}
+      <RetentionHeld />
     </div>
   );
 }
@@ -348,7 +351,7 @@ function Steps({ inv }: { inv: Invoice }) {
   );
 }
 
-function InvoiceList({ rows, empty }: { rows: Invoice[]; empty: string }) {
+function InvoiceList({ rows, empty, onRows }: { rows: Invoice[]; empty: string; onRows?: (r: Invoice[]) => void }) {
   const [open, setOpen] = useState<string | null>(null);
   if (!rows.length) return <div style={{ ...card, padding: '18px', fontSize: 12.5, color: MUTED }}>{empty}</div>;
   return (
@@ -383,11 +386,107 @@ function InvoiceList({ rows, empty }: { rows: Invoice[]; empty: string }) {
                     {inv.files.map((f) => <a key={f.id} href={f.kind === 'link' ? f.url : api.portal.billFileUrl(f.entryId, f.id)} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 700, color: ACCENT }}>📎 {f.name}</a>)}
                   </div>
                 )}
+                {inv.gross != null && <InvoiceMoney inv={inv} onRows={onRows} />}
               </div>
             )}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Retention held, net payable and the lien releases on one invoice (Batch 6). */
+function InvoiceMoney({ inv, onRows }: { inv: Invoice; onRows?: (r: Invoice[]) => void }) {
+  const { toast } = useApp();
+  const [busy, setBusy] = useState(false);
+  const [kind, setKind] = useState(inv.status === 'paid' ? 'unconditional_progress' : 'conditional_progress');
+  const ref = useRef<HTMLInputElement>(null);
+  const upload = async (file?: File) => {
+    if (!file) return;
+    setBusy(true);
+    try { const r: any = await api.portal.invoiceRelease(inv.id, file, kind); onRows?.(Array.isArray(r) ? r : []); toast('Lien release sent'); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not upload the release')); }
+    finally { setBusy(false); if (ref.current) ref.current.value = ''; }
+  };
+  const row = (label: string, v: number | undefined, strong = false) => (
+    <div style={{ display: 'flex', fontSize: 12.5, padding: '2px 0', fontWeight: strong ? 700 : 500 }}><span style={{ flex: 1, color: strong ? INK : MUTED }}>{label}</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{usd(v || 0)}</span></div>
+  );
+  return (
+    <div aria-label="Invoice money" style={{ display: 'grid', gap: 8 }}>
+      <div style={{ background: PAPER, borderRadius: 10, padding: '8px 12px' }}>
+        {row('Invoice total', inv.gross)}
+        {row(`Retention held (${inv.retentionPct}%)`, -(inv.retention || 0))}
+        {row('Payable now', inv.net, true)}
+      </div>
+      <div style={{ fontSize: 12.5, fontWeight: 700 }}>Lien releases</div>
+      {(inv.releases || []).map((r) => (
+        <div key={r.id} style={{ fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span>📄 {r.name || 'Release'}</span><span style={{ color: MUTED }}>{r.label}</span>
+          <Badge tone={r.checked ? 'green' : 'amber'}>{r.checked ? 'Checked' : 'Being checked'}</Badge>
+        </div>
+      ))}
+      {inv.status !== 'returned' && (
+        <>
+          {inv.payBlock && <div style={{ fontSize: 12, color: 'var(--c-8a6d12)' }}>{inv.payBlock.replace('you to mark its type', 'us to check it')} Payment waits for a signed conditional release.</div>}
+          {inv.waitingUnconditional && <div style={{ fontSize: 12, color: 'var(--c-8a6d12)' }}>Paid — please send the signed unconditional release for this payment.</div>}
+          {(inv.payBlock || inv.waitingUnconditional) && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <select aria-label="Release type" value={kind} onChange={(e) => setKind(e.target.value)} style={{ ...input, width: 'auto' }}>
+                {RELEASE_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
+              </select>
+              <input ref={ref} type="file" accept="application/pdf,image/*" style={{ display: 'none' }} onChange={(e) => upload(e.target.files?.[0])} />
+              <div onClick={() => !busy && ref.current?.click()} style={btn(true)}>{busy ? 'Uploading…' : 'Upload signed release'}</div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Retention held on each subcontract, and the final release that lets it be paid out (Batch 6). */
+function RetentionHeld() {
+  const { toast } = useApp();
+  const [rows, setRows] = useState<PortalRetention[]>([]);
+  const [busy, setBusy] = useState('');
+  const ref = useRef<HTMLInputElement>(null);
+  const target = useRef<{ id: string; kind: string }>({ id: '', kind: 'conditional_final' });
+  useEffect(() => { api.portal.retention().then((r) => setRows(Array.isArray(r) ? r : [])).catch(() => setRows([])); }, []);
+  const shown = rows.filter((r) => r.held > 0 || r.releases.length || r.paidDate);
+  if (!shown.length) return null;
+  const upload = async (file?: File) => {
+    if (!file) return;
+    setBusy(target.current.id);
+    try { const r = await api.portal.finalRelease(target.current.id, file, target.current.kind); setRows(Array.isArray(r) ? (r as PortalRetention[]) : []); toast('Final release sent'); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not upload the release')); }
+    finally { setBusy(''); if (ref.current) ref.current.value = ''; }
+  };
+  return (
+    <div aria-label="Retention held" style={{ marginTop: 22 }}>
+      <h2 style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>Retention held</h2>
+      <input ref={ref} type="file" accept="application/pdf,image/*" style={{ display: 'none' }} onChange={(e) => upload(e.target.files?.[0])} />
+      <div style={{ ...card, overflow: 'hidden' }}>
+        {shown.map((r, i) => {
+          const kind = r.paidDate ? 'unconditional_final' : 'conditional_final';
+          return (
+            <div key={r.commitmentId} style={{ padding: '12px 16px', borderTop: i ? '1px solid rgba(var(--rgb-shade), .06)' : 'none', display: 'grid', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <b style={{ flex: 1, fontSize: 13.5 }}>{r.number}</b>
+                {r.paidDate ? <Badge tone="green">Paid {fmtDate(r.paidDate)}</Badge> : <Badge tone="amber">Held</Badge>}
+                <b style={{ fontVariantNumeric: 'tabular-nums' }}>{usd(r.held)}</b>
+              </div>
+              {r.releases.map((x) => <div key={x.id} style={{ fontSize: 12 }}>📄 {x.name} <span style={{ color: MUTED }}>{x.label} · {x.checked ? 'checked' : 'being checked'}</span></div>)}
+              {(!r.paidDate || r.waitingUnconditional) && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12, color: MUTED }}>
+                  <span style={{ flex: 1 }}>{r.paidDate ? 'Please send the signed unconditional final release.' : 'When your work is complete, send the signed conditional final release to have the retention paid.'}</span>
+                  <div onClick={() => { if (busy) return; target.current = { id: r.commitmentId, kind }; ref.current?.click(); }} style={btn(false)}>{busy === r.commitmentId ? 'Uploading…' : r.paidDate ? 'Upload unconditional final' : 'Upload conditional final'}</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

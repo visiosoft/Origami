@@ -17,6 +17,8 @@ export interface MarkupData {
   points: Pt[];
   color: string;
   width: number;
+  /** Its CSI code (Nov 3 sync). */
+  csiCodeId?: string;
   text?: string;
   size?: number;
   /** measure_len / measure_area: the value as shown ("12'-6\""); scale: the real length typed in. */
@@ -78,7 +80,7 @@ export function cleanSheetNames(raw: unknown): Record<string, string> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     const page = Math.floor(Number(k));
-    const name = String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 30);
+    const name = String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 80); // "A-201 — FLOOR PLAN" (Nov 3 sync)
     if (page >= 1 && page <= 10000 && name) out[String(page)] = name;
   }
   return out;
@@ -133,9 +135,11 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
   if (kind === 'text' && !data.text?.trim()) throw new Error('Type some text.');
   if (d.size !== undefined) data.size = Math.min(72, Math.max(6, Number(d.size) || 12));
   if (typeof d.label === 'string') data.label = d.label.slice(0, 60);
+  if (typeof d.csiCodeId === 'string' && d.csiCodeId.trim()) data.csiCodeId = d.csiCodeId.trim().slice(0, 40);
   if (FILLABLE.includes(kind) && d.fill === true) data.fill = true;
   if (kind === 'text' && Number(d.boxW) > 0) data.boxW = Math.min(1, Math.max(0.02, Number(d.boxW)));
-  if (typeof d.note === 'string' && d.note.trim()) data.note = d.note.replace(/\s+/g, ' ').trim().slice(0, 120);
+  // Notes stay in the side panel and list (Nov 3 sync), so they can be longer; line breaks are kept.
+  if (typeof d.note === 'string' && d.note.trim()) data.note = String(d.note).split(/\r?\n/).map((l: string) => l.replace(/\s+/g, ' ').trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1000);
   if (kind === 'scale') {
     const real = Number(d.real);
     if (!(real > 0)) throw new Error('Type the real length of the line.');
@@ -164,6 +168,42 @@ export const leadsMarkups = (roleKey?: string | null) => MARKUP_LEADS.includes(S
 export function visibleTo<T extends { private?: boolean | null; authorId?: string | null }>(rows: T[], userId?: string, roleKey?: string | null): T[] {
   if (leadsMarkups(roleKey)) return rows;
   return rows.filter((m) => !m.private || (!!userId && m.authorId === userId));
+}
+
+// ---------------------------------------------------------------- layer access (Oct 30 sync)
+export type LayerAudience = 'everyone' | 'internal' | 'people';
+export interface LayerPerson { type: 'user' | 'company'; id: string; name: string }
+export interface LayerRule { layerKey: string; audience: LayerAudience; people?: LayerPerson[] | null }
+/** Who's looking: our team or not, and the company on their People record. */
+export interface LayerViewer { userId?: string; roleKey?: string | null; internal: boolean; company?: string | null }
+
+/** A layer's audience, cleaned; anything unknown is everyone. */
+export function cleanLayerRule(raw: any): { audience: LayerAudience; people: LayerPerson[] } {
+  const audience: LayerAudience = raw?.audience === 'internal' || raw?.audience === 'people' ? raw.audience : 'everyone';
+  const people = audience === 'people'
+    ? (Array.isArray(raw?.people) ? raw.people : [])
+      .filter((p: any) => (p?.type === 'user' || p?.type === 'company') && String(p?.id || '').trim())
+      .slice(0, 50)
+      .map((p: any) => ({ type: p.type, id: String(p.id).trim().slice(0, 120), name: String(p.name || p.id).trim().slice(0, 120) }))
+    : [];
+  if (audience === 'people' && !people.length) throw new Error('Pick at least one person or company.');
+  return { audience, people };
+}
+
+const sameCompany = (a?: string | null, b?: string | null) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** May this viewer see markups on this layer? Our team always sees an Internal or picked layer. */
+export function layerAllows(rule: LayerRule | undefined, v: LayerViewer): boolean {
+  if (!rule || rule.audience === 'everyone') return true;
+  if (v.internal || leadsMarkups(v.roleKey)) return true;
+  if (rule.audience === 'internal') return false;
+  return (rule.people || []).some((p) => (p.type === 'user' && p.id === v.userId) || (p.type === 'company' && sameCompany(p.id, v.company)));
+}
+
+/** visibleTo plus layer access: a markup's author always sees their own. */
+export function visibleWithLayers<T extends { private?: boolean | null; authorId?: string | null; layer?: string | null; authorName?: string | null }>(rows: T[], rules: LayerRule[], v: LayerViewer): T[] {
+  const byKey = new Map(rules.map((r) => [r.layerKey, r]));
+  return visibleTo(rows, v.userId, v.roleKey).filter((m) => (!!v.userId && m.authorId === v.userId) || layerAllows(byKey.get(layerKey(m)), v));
 }
 
 export const canEditMarkup = (m: { authorId?: string | null }, who: { id?: string; isAdmin?: boolean }) => !!who.isAdmin || (!!who.id && m.authorId === who.id);
@@ -260,15 +300,8 @@ export function toPage(p: Pt, w: number, h: number, rotation: number): Pt {
 
 /** Draw one markup onto a pdf-lib page. */
 function drawMarkup(page: PDFPage, font: PDFFont, kind: string, d: MarkupData, sheet?: (page: number) => string | undefined) {
+  // A markup's note stays in the list, not on the sheet (Nov 3 sync); only the shape (and a text box's own text) is drawn.
   drawShape(page, font, kind, d, sheet);
-  if (d.note) {
-    // The note sits just above the markup's top-left corner.
-    const { width: w, height: h } = page.getSize();
-    const rot = page.getRotation().angle;
-    const xs = d.points.map((p) => p[0]), ys = d.points.map((p) => p[1]);
-    const at = toPage([Math.min(...xs), Math.min(...ys)], w, h, rot);
-    page.drawText(latin1(d.note), { x: at[0], y: h - at[1] + 4, size: 9, font, color: colorOf(d.color === '#FFFFFF' ? '#111827' : d.color), rotate: degrees(rot) });
-  }
 }
 
 function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData, sheet?: (page: number) => string | undefined) {
@@ -332,9 +365,10 @@ function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData, sh
     for (const line of stampStrokes(d.icon || 'check', d.points[0], d.points[1])) path(poly(line.map((p) => toPage(p, w, h, rot))));
   } else if (kind === 'text') {
     const size = d.size || 12;
-    // A sized box wraps its text (Oct 31); older text runs on, line by line as typed.
+    // A sized box wraps its text (Oct 31); older text wraps at the page's edge (Nov 10), as on screen.
     const pageW = rot % 180 ? h : w;
-    const lines = d.boxW ? wrapLines(latin1(d.text || ''), d.boxW * pageW, (s) => font.widthOfTextAtSize(s, size)) : (d.text || '').split('\n');
+    const wrapW = d.boxW ? d.boxW * pageW : Math.max(60, (1 - (d.points[0]?.[0] ?? 0)) * pageW - 6);
+    const lines = wrapLines(latin1(d.text || ''), wrapW, (s) => font.widthOfTextAtSize(s, size));
     lines.forEach((line, i) => label(line, [pts[0][0], pts[0][1] + size * 1.2 * i + size], size));
   }
 }
@@ -381,7 +415,8 @@ export async function flattenPdf(
     const page = pages[m.page - 1];
     if (!page) continue;
     if (m.kind === 'symbol') { await drawSymbol(doc, page, font, m.data, opts.symbols, embedded); continue; }
-    drawMarkup(page, font, m.kind, m.data, (n) => opts.sheetNames?.[String(n)]);
+    // Links and tags show the sheet number only (the name may carry its title).
+    drawMarkup(page, font, m.kind, m.data, (n) => opts.sheetNames?.[String(n)]?.split(' — ')[0]);
     if (m.kind === 'link' && m.data.target) addLinkAnnotation(doc, page, pages, m.data, opts.fileUrl);
   }
   return doc.save();

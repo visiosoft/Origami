@@ -87,4 +87,15 @@ describe('High Viz', () => {
       ['high_viz', 'Website — Done', {}],
     ]);
   });
+
+  it('Emergency: the people on the task and every admin, by text and email, even if they turned it off; never the person who set it', async () => {
+    const { hub, texts, mails, items, users } = setup();
+    users.push({ id: 'U-AD2', name: 'Astrid', email: 'as@x.com', roleKey: 'admin', tier: 'internal', status: 'active', notificationMatrix: { emergency: [] } } as any);
+    users.push({ id: 'U-GONE', name: 'Gone', email: 'g@x.com', roleKey: 'admin', tier: 'internal', status: 'suspended', notificationMatrix: null } as any);
+    await hub.emergency(['U-AN', 'U-AD2'], { title: '🚨 EMERGENCY: Burst pipe — Cole Valley', path: '/tasks?task=T1', actorId: 'U-AN' });
+    expect(items.map((i) => i.userId).sort()).toEqual(['U-AD2', 'U-ED']);
+    expect(items.every((i) => i.event === 'emergency')).toBe(true);
+    expect(mails.map((m) => m.to).sort()).toEqual(['as@x.com', 'ed@x.com']);
+    expect(texts).toEqual([{ to: '(415) 555 0100', body: '🚨 EMERGENCY: Burst pipe — Cole Valley — https://app.test/tasks?task=T1' }]);
+  });
 });

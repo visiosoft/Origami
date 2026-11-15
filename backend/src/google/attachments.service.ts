@@ -49,6 +49,8 @@ export class AttachmentsService {
     files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }>,
     scope: string,
     actor: UploadActor,
+    /** A Drive folder path to put them in instead of the scope folder, e.g. the project's File Room photos (Batch 6). */
+    place?: { root: string; path: string[] },
   ): Promise<TaskAttachment[]> {
     if (!files?.length) throw new BadRequestException('No files were uploaded.');
     if (!(await this.google.isConnected())) {
@@ -60,7 +62,7 @@ export class AttachmentsService {
       throw new BadRequestException(`At most ${MAX_FILES_PER_UPLOAD} files at a time.`);
     }
 
-    const parentId = await this.google.folderForScope(scope);
+    const parentId = place ? await this.google.folderForPath(place.root, place.path) : await this.google.folderForScope(scope);
     const out: TaskAttachment[] = [];
     for (const file of files) {
       this.assertAllowed(file.originalname);
@@ -88,6 +90,11 @@ export class AttachmentsService {
       this.log.log(`Uploaded ${file.originalname} to ${scope}`);
     }
     return out;
+  }
+
+  /** The per-upload limit, when one upload is split between folders. */
+  assertCount(files: unknown[]) {
+    if ((files?.length || 0) > MAX_FILES_PER_UPLOAD) throw new BadRequestException(`At most ${MAX_FILES_PER_UPLOAD} files at a time.`);
   }
 
   /** Best-effort cleanup: an orphaned Drive file beats an orphaned task row. */

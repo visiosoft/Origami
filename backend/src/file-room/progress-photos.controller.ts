@@ -1,3 +1,4 @@
+import { FolderAccessService } from './folder-access.service';
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, UploadedFiles, UseInterceptors, BadRequestException } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Claims } from '../auth/guards/claims.decorator';
@@ -16,6 +17,7 @@ export class ProgressPhotosController {
     private readonly service: ProgressPhotosService,
     private readonly auth: AuthService,
     private readonly access: ProjectAccessService,
+    private readonly folders: FolderAccessService,
   ) {}
 
   @Get('categories')
@@ -29,7 +31,10 @@ export class ProgressPhotosController {
     const pid = Number(projectId);
     if (!Number.isFinite(pid) || pid <= 0) throw new BadRequestException('Pick a project.');
     await this.access.assert(claims ?? null, pid);
-    return this.service.list(pid, this.access.isStaff(claims ?? null));
+    const out = await this.service.list(pid, this.access.isStaff(claims ?? null));
+    // Not photos in a File Room folder kept from the caller (Nov 13).
+    const ok = await this.folders.gate(claims ?? null);
+    return { ...out, photos: out.photos.filter((p: any) => ok(pid, p.folderPath)), unsorted: out.unsorted.filter((p: any) => ok(pid, p.folderPath)) };
   }
 
   @Tiers('internal')

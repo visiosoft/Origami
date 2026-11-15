@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query } from '@nestjs/common';
+import { ManageWrites } from '../auth/guards/perm.guard';
+import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, UseInterceptors } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { AuthService } from '../auth/auth.service';
 import { DailyLogsService } from './daily-logs.service';
@@ -6,8 +7,10 @@ import { DailyLogBackupService } from './daily-log-backup.service';
 import { DailyReportAutomationService } from './daily-report-automation.service';
 import { WeeklyReportService } from './weekly-report.service';
 import { SaveDailyLogDto, RejectDailyLogDto, SaveDailyReportTemplateDto } from './dto/daily-log.dto';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
 @Tiers('internal')
+@UseInterceptors(ProjectScope)
 @Controller('daily-logs')
 export class DailyLogsController {
   constructor(
@@ -85,11 +88,13 @@ export class DailyLogsController {
     return this.backup.send(id, to.length ? to : undefined);
   }
 
+  @ManageWrites('manpower_con')
   @Post(':id/approve')
   async approve(@Param('id') id: string, @Headers('authorization') auth?: string) {
     return this.service.approve(id, await this.auth.actor(auth));
   }
 
+  @ManageWrites('manpower_con')
   @Post(':id/reject')
   async reject(@Param('id') id: string, @Body() dto: RejectDailyLogDto, @Headers('authorization') auth?: string) {
     return this.service.reject(id, dto.note, await this.auth.actor(auth));

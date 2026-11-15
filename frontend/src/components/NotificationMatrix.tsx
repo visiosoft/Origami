@@ -76,12 +76,12 @@ export function NotificationMatrix() {
                   <tr key={e.key}>
                     {CHANNELS.map((c) => (
                       <td key={c.key} style={{ ...cell, borderTop: 0 }}>
-                        <input type="checkbox" checked={row.includes(c.key)} disabled={busy} onChange={() => pick(e.key, c.key)}
+                        <input type="checkbox" checked={row.includes(c.key)} disabled={busy || !!e.fixed} onChange={() => pick(e.key, c.key)}
                           aria-label={`${e.label}: ${c.label} ${c.when}`} style={{ width: 17, height: 17, accentColor: 'var(--forest)', cursor: 'pointer' }} />
                       </td>
                     ))}
                     <td style={{ ...cell, borderTop: 0 }}>
-                      <input type="checkbox" checked={row.length === 0} disabled={busy || row.length === 0} onChange={() => pick(e.key, 'none')}
+                      <input type="checkbox" checked={row.length === 0} disabled={busy || row.length === 0 || !!e.fixed} onChange={() => pick(e.key, 'none')}
                         aria-label={`${e.label}: no notification`} style={{ width: 17, height: 17, accentColor: 'var(--muted)', cursor: 'pointer' }} />
                     </td>
                   </tr>,

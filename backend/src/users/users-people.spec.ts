@@ -18,6 +18,17 @@ describe('UsersService: every login has a People record', () => {
     expect(people[1]).toMatchObject({ id: 5, name: 'George test', email: 'george.test@origami.com', tier: 'Internal', kind: 'Staff', projects: [] });
   });
 
+  it('new accounts never share an id, even made in the same instant (Nov 13)', async () => {
+    const users: any[] = [];
+    const svc = setup([], users);
+    jest.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
+    await svc.create({ name: 'A', email: 'a@o.com', roleKey: 'super' });
+    await svc.create({ name: 'B', email: 'b@o.com', roleKey: 'super' });
+    jest.restoreAllMocks();
+    expect(new Set(users.map((u) => u.id)).size).toBe(2);
+    await expect(svc.create({ id: users[0].id, name: 'C', email: 'c@o.com', roleKey: 'super' })).rejects.toThrow(/already has the id/);
+  });
+
   it('lists logins left out of People, and adds them when asked', async () => {
     const people = [{ id: 1, name: 'Ed', email: 'ed@o.com', userId: 'U-1', projects: [] }, { id: 2, name: 'Sara', email: 'sara@o.com', projects: [] }];
     const users = [{ id: 'U-1', name: 'Ed', email: 'ed@o.com', tier: 'internal' }, { id: 'U-2', name: 'Sara', email: 'sara@o.com', tier: 'internal' },

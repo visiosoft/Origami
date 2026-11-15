@@ -1,3 +1,4 @@
+import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
@@ -31,10 +32,12 @@ import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker, LabelChip } from './LabelPicker';
+import { TagPicker } from './TagPicker';
+import { TagFilter, matchesTag } from './TagFilter';
 import { LeadSelect } from './LeadSelect';
 import { leadLabel } from '../data/linkTargets';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine, type TaskScope as TaskScopeKind } from './TaskScope';
-import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
+import { linkPriorityDue, PRIORITY_HINT, priorityOption } from '../data/priority';
 import { filesFromClipboard, nameClipboardFile } from './Attachments';
 import { Skeleton } from './Skeleton';
 
@@ -63,7 +66,8 @@ function PriorityPill({ p }: { p?: Priority }) {
  * since the drawer resolves its task out of `tasks`.
  */
 /** The fields the task panel edits; they autosave together. */
-const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy'];
+/** `sectionId` isn't here: the server sets the column from the status (Nov 10). */
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'description', 'checklist', 'labels', 'tags', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy'];
 
 /** "Q3 PRD draft" -> "QP": the card's tile. */
 const initialsOf = (title: string) => {
@@ -130,6 +134,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const { can, toast, users, authUser } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
   const [query, setQuery] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
   const canManage = can('tasks', 'manage');
   // New cards belong to one project's board, not the all-projects view.
   const canAdd = canManage && !all;
@@ -228,7 +233,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const inDoneCol = (id: string) => /^(done|complete|completed|confirmed)$/i.test(sections.find((s) => s.id === id)?.name.trim() || '');
   const placed = (t: ProjectTask): ProjectTask => (doneColId && !t.parentId && isFinished(t) && !inDoneCol(t.sectionId) ? { ...t, sectionId: doneColId } : t);
   // Search also finds the task's full number (NARV-T-2026-0007).
-  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query) || (!!query.trim() && numberOf(t).toLowerCase().includes(query.trim().toLowerCase()))).map(placed);
+  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query) || (!!query.trim() && numberOf(t).toLowerCase().includes(query.trim().toLowerCase()))).filter((t) => matchesTag(t, tagFilter)).map(placed);
   const phaseTaskCount = tasks.filter((t) => t.phaseId && !t.parentId).length;
   // Counts are absolute, not relative to the active scope.
   const mineCount = inScopeOfBoard.filter((t) => !t.parentId && isMine(t, currentUser)).length;
@@ -938,10 +943,20 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     const byStatus = TASK_STATUSES.map((st) => ({ status: st, count: topLevel.filter((t) => (t.status || 'Not started') === st).length }));
     const maxStatus = Math.max(1, ...byStatus.map((s) => s.count));
 
+    // What each number means (Nov 13 sync: "clearer definitions for incomplete").
+    const open = topLevel.filter((t) => !t.completed);
+    const openBy = (st: string) => open.filter((t) => (t.status || 'Not started') === st).length;
+    const HINT: Record<string, string> = {
+      'Total tasks': 'Every task shown here (sub-tasks counted with their parent)',
+      Completed: 'Marked complete',
+      Incomplete: TASK_STATUSES.filter((st) => !/^(done|complete)/i.test(st)).map((st) => `${openBy(st)} ${st.toLowerCase()}`).join(' · ') || 'Not marked complete',
+      Overdue: 'Incomplete and past its due date (also counted in Incomplete)',
+    };
     const tile = (label: string, value: number, color?: string) => (
-      <div key={label} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: '16px 18px' }}>
+      <div key={label} title={HINT[label]} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: '16px 18px' }}>
         <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
         <div style={{ fontFamily: BG, fontSize: 26, fontWeight: 700, color: color || 'var(--ink)' }}>{value}</div>
+        {HINT[label] && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4 }}>{HINT[label]}</div>}
       </div>
     );
 
@@ -1015,6 +1030,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
         />
         <PersonFilter person={person} setPerson={setPerson} users={allUsers} scope={scope} visible={!restricted && (scope === 'assigned' || scope === 'from')} />
         <TaskSearch value={query} onChange={setQuery} />
+        <TagFilter value={tagFilter} onChange={setTagFilter} />
         {/* Always here, so the row doesn't shift between views; the dashboard ignores it. */}
         <TaskSort sort={listSort} onChange={setListSort} />
       </div>
@@ -1103,6 +1119,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                   internalOnly={selected.projectId == null}
                   onChange={(u) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
                 />
+                <UnfilledRole team={(d as any).team} assigned={assigned} />
               </Field>
               <Field label="Source (requested by)">
                 <AssigneePicker
@@ -1154,7 +1171,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 <select disabled={!canManage} value={d.priority || ''} title={d.priority ? PRIORITY_HINT[d.priority as Priority] : 'Picking a priority fills in the due date'}
                   onChange={(e) => { const r = linkPriorityDue({ priority: d.priority, dueDate: d.dueDate, auto: autoPD.current[selected.id] }, { priority: e.target.value as Priority | '' }); autoPD.current[selected.id] = r.auto; set({ priority: (r.priority || undefined) as Priority, dueDate: r.dueDate }); }}
                   style={{ ...inputStyle, width: '100%' }}>
-                  <option value="">None</option>{PRIORITY_ORDER.map((p) => <option key={p} value={p}>{p} — {PRIORITY_HINT[p as Priority].replace('Due ', '')}</option>)}
+                  <option value="">None</option>{PRIORITY_ORDER.map((p) => <option key={p} value={p}>{priorityOption(p as Priority)}</option>)}
                 </select>
                 {autoPD.current[selected.id] === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
                 <PriorityHelp value={d.priority} />
@@ -1226,6 +1243,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 suggestions={allLabels}
                 onChange={(labels) => set({ labels })}
               />
+              <div style={{ marginTop: 12 }}>
+                <TagPicker tags={d.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
+              </div>
             </div>
 
             {/* Attachments — paste a screenshot, drop files, or add a link */}

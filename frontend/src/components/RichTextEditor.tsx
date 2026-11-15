@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { cleanPastedHtml, textToParagraphs } from '../data/pasteClean';
 
 /** Keeps a document's HTML size sane -- large embedded images slow every save and PDF render. */
 const MAX_IMAGE_BYTES = 500 * 1024;
@@ -18,15 +19,19 @@ const BTN: React.CSSProperties = {
  * Controlled by `value`/`onChange` (an HTML string), the same shape a plain
  * textarea's body already was, so it drops into the same field.
  */
-export function RichTextEditor({ value, onChange, minHeight = 260, fields }: {
+export function RichTextEditor({ value, onChange, minHeight = 260, fields, wordImport }: {
   value: string;
   onChange: (html: string) => void;
   minHeight?: number;
   /** Merge fields to offer in an "Insert field" list (Oct 31), grouped. */
   fields?: { label: string; tokens: { key: string; label: string }[] }[];
+  /** Offer "Import from Word (.docx)" (Oct 30 sync: bringing a contract in whole). */
+  wordImport?: boolean;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const wordRef = useRef<HTMLInputElement | null>(null);
+  const [importing, setImporting] = useState(false);
   // Only push `value` into the DOM when it changes from *outside* (e.g.
   // switching templates or applying merge tokens) -- never while the user is
   // actively typing, or the cursor jumps to the start on every keystroke.
@@ -52,6 +57,32 @@ export function RichTextEditor({ value, onChange, minHeight = 260, fields }: {
     ref.current?.focus();
     document.execCommand(cmd, false, arg);
     emit();
+  };
+
+  /** Pasted from Word, Google Docs or a page: keep the formatting that lasts, drop the rest (data/pasteClean.ts). */
+  const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const html = e.clipboardData.getData('text/html');
+    const text = e.clipboardData.getData('text/plain');
+    if (!html && !text) return; // an image or a file: the browser's own paste
+    e.preventDefault();
+    run('insertHTML', html ? cleanPastedHtml(html) : textToParagraphs(text));
+  };
+
+  /** A Word document, headings, lists and tables included; it replaces an empty editor, else goes in at the cursor. */
+  const importWord = async (file: File | undefined) => {
+    if (!file) return;
+    if (!/\.docx$/i.test(file.name)) { alert('Pick a Word document (.docx). For an older .doc, open it in Word and save it as .docx first.'); return; }
+    setImporting(true);
+    try {
+      const mammoth = await import('mammoth');
+      const { value: html } = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
+      const clean = cleanPastedHtml(html);
+      const empty = !(ref.current?.textContent || '').trim();
+      if (empty && ref.current) { ref.current.innerHTML = clean; emit(); }
+      else run('insertHTML', clean);
+    } catch (err) {
+      alert('Couldn’t read that document: ' + ((err as Error).message || 'unknown error'));
+    } finally { setImporting(false); }
   };
 
   const link = () => {
@@ -101,6 +132,12 @@ export function RichTextEditor({ value, onChange, minHeight = 260, fields }: {
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { insertImage(e.target.files?.[0]); e.currentTarget.value = ''; }} />
         <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(var(--rgb-shade), 0.1)', margin: '0 3px' }} />
         {btn('✕', () => run('removeFormat'), 'Clear formatting')}
+        {wordImport && <>
+          <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(var(--rgb-shade), 0.1)', margin: '0 3px' }} />
+          <span onClick={() => !importing && wordRef.current?.click()} title="Bring in a Word document (.docx) with its headings, lists and tables" onMouseDown={(e) => e.preventDefault()}
+            style={{ ...BTN, width: 'auto', padding: '0 8px', fontSize: 12 }}>{importing ? 'Importing…' : '⤓ Word'}</span>
+          <input ref={wordRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: 'none' }} onChange={(e) => { void importWord(e.target.files?.[0]); e.currentTarget.value = ''; }} />
+        </>}
         {fields && fields.length > 0 && (
           <select aria-label="Insert a merge field" value="" onMouseDown={() => ref.current?.focus()} onChange={(e) => { if (e.target.value) run('insertText', `{{${e.target.value}}}`); e.target.value = ''; }}
             style={{ marginLeft: 'auto', height: 26, borderRadius: 6, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, color: 'var(--body)' }}>
@@ -115,6 +152,7 @@ export function RichTextEditor({ value, onChange, minHeight = 260, fields }: {
         suppressContentEditableWarning
         onInput={emit}
         onBlur={emit}
+        onPaste={onPaste}
         style={{
           padding: '12px 14px', minHeight, maxHeight: 520, overflowY: 'auto',
           fontSize: 13, lineHeight: 1.6, color: 'var(--ink)', outline: 'none',

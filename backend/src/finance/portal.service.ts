@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { SubInvoicesService } from './sub-invoices.service';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import {
@@ -49,6 +50,7 @@ export class PortalService {
     private readonly settings: SettingsService,
     private readonly google?: GoogleService,
     private readonly attachments?: AttachmentsService,
+    @Optional() private readonly subInvoices?: SubInvoicesService,
   ) {}
 
   // ------------------------------------------------------------------ who is asking
@@ -151,7 +153,28 @@ export class PortalService {
   async invoices(claims: SessionClaims | null) {
     const k = await this.me(claims);
     const { cms, es, projectName } = await this.mine(k.id);
-    return this.groupInvoices(es, cms, projectName);
+    const rows = this.groupInvoices(es, cms, projectName);
+    // Retention and lien releases on each invoice (Batch 6).
+    const extra = this.subInvoices ? (await this.subInvoices.forCommitments(cms)).invoices : [];
+    return rows.map((r) => {
+      const x = extra.find((i) => i.id === r.id);
+      return x ? { ...r, gross: x.gross, retentionPct: x.retentionPct, retention: x.retention, net: x.net, releases: x.releases, payBlock: x.payBlock, waitingUnconditional: x.waitingUnconditional } : r;
+    });
+  }
+
+  /** Retention held on each of the sub's subcontracts, and its final releases (Batch 6). */
+  async retention(claims: SessionClaims | null) {
+    const k = await this.me(claims);
+    const { cms } = await this.mine(k.id);
+    return this.subInvoices ? (await this.subInvoices.forCommitments(cms)).retention : [];
+  }
+
+  /** The sub uploads a signed lien release: on an invoice, or a final one on the subcontract. */
+  async uploadRelease(claims: SessionClaims | null, where: { invoiceId?: string; commitmentId?: string }, files: any[], kind: string | undefined) {
+    const k = await this.me(claims);
+    if (!this.subInvoices) throw new BadRequestException('Lien releases aren’t set up.');
+    await this.subInvoices.uploadRelease(k, where, files, kind, { name: `${k.companyName} (portal)`, id: claims!.sub });
+    return where.invoiceId ? this.invoices(claims) : this.retention(claims);
   }
 
   /** Bills grouped the way the sub sent them: one invoice per batch (portal) or per invoice number. */
@@ -214,6 +237,7 @@ export class PortalService {
       } as Partial<CostEntryEntity>);
     });
     await this.entries.save(rows, { chunk: 40 });
+    await this.subInvoices?.header(batchId, rows[0]).catch(() => undefined);
     const actor: Actor = { name: `${k.companyName} (portal)`, id: claims!.sub };
     await this.fin.log(null, {
       projectId: c.projectId, entityType: 'cost', entityId: batchId, action: 'portal_invoice_submitted',

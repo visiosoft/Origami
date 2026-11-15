@@ -6,10 +6,12 @@ import { AkPage, AkSeg, AkStats, akDay, akToday } from '../components/ActionKit'
 import './Schedule.css';
 import { Skeleton } from '../components/Skeleton';
 
-interface SPhase { id: string; key: string; name: string; color?: string; progress: number; complete: boolean; total: number; start: string | null; end: string | null }
+interface SPhase { id: string; key: string; structureKey?: string | null; name: string; color?: string; progress: number; complete: boolean; total: number; start: string | null; end: string | null }
 interface SRow {
   projectId: number; name: string; stage: string; contractType?: string; estStart?: string; duration?: string; holdUntil?: string;
   progress: number; currentPhaseKey?: string | null; start: string | null; end: string | null; phases: SPhase[];
+  /** Buildings on the lot (Batch 6), e.g. Main house and ADU. */
+  structures?: { key: string; name: string }[];
 }
 type Span = { start: string; end: string; estimated: boolean; noEnd?: boolean };
 
@@ -63,6 +65,8 @@ export function Schedule() {
   const [span, setSpan] = useState<6 | 12 | 24>(12);
   const [offset, setOffset] = useState(0); // months from the default window
   const [open, setOpen] = useState<Set<number>>(new Set());
+  // Projects with more than one structure: one lane per building, or every phase merged in date order.
+  const [layout, setLayout] = useState<'lanes' | 'merged'>('lanes');
   useEffect(() => { api.projectPhases.schedule().then((r) => setRows(Array.isArray(r) ? r : [])).catch(() => setRows([])); }, []);
 
   const today = akToday();
@@ -86,6 +90,20 @@ export function Schedule() {
   const finishingSoon = dated.filter((p) => p.s!.end >= today && p.s!.end <= addDays(today, 60)).length;
   const toggle = (id: number) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
+  const structName = (r: SRow, ph: SPhase) => (r.structures?.length || 0) > 1 ? r.structures!.find((st) => st.key === (ph.structureKey || 'main'))?.name || '' : '';
+  /** A project's expanded rows: its phases, under one lane per structure when it has several (or merged in date order). */
+  const phaseRows = (r: SRow): { ph?: SPhase; i: number; lane?: { key: string; name: string; span: { start: string; end: string } | null } }[] => {
+    const all = r.phases.map((ph, i) => ({ ph, i }));
+    if ((r.structures?.length || 0) < 2) return all;
+    if (layout === 'merged') return [...all].sort((a, b) => (a.ph.start || '9999').localeCompare(b.ph.start || '9999') || a.i - b.i);
+    return r.structures!.flatMap((st) => {
+      const mine = all.filter(({ ph }) => (ph.structureKey || 'main') === st.key);
+      const dated = mine.filter(({ ph }) => ph.start && ph.end);
+      const span = dated.length ? { start: dated.reduce((m, { ph }) => (ph.start! < m ? ph.start! : m), dated[0].ph.start!), end: dated.reduce((m, { ph }) => (ph.end! > m ? ph.end! : m), dated[0].ph.end!) } : null;
+      return [{ i: -1, lane: { key: st.key, name: st.name, span } }, ...mine];
+    });
+  };
+
   const bar = (s: Span, inner?: React.ReactNode, title?: string) => {
     if (s.end < winStart || s.start > winEnd) return null;
     const l = xr(s.start), w = Math.max(0.6, xr(s.end) - l);
@@ -104,6 +122,7 @@ export function Schedule() {
       <div className="ak-tools">
         <AkSeg value={scope} onChange={setScope} options={[['live', 'Design & construction'], ['all', 'All projects']]} />
         <AkSeg value={String(span) as '6' | '12' | '24'} onChange={(v) => { setSpan(Number(v) as 6 | 12 | 24); setOffset(0); }} options={[['6', '6 months'], ['12', '12 months'], ['24', '2 years']]} />
+        {(rows || []).some((r) => (r.structures?.length || 0) > 1) && <AkSeg value={layout} onChange={setLayout} options={[['lanes', 'Structures side by side'], ['merged', 'Merged']]} />}
         <span className="sc-nav">
           <button type="button" className="ak-btn" onClick={() => setOffset((o) => o - Math.max(1, span / 4))} aria-label="Earlier">‹</button>
           <button type="button" className="ak-btn" onClick={() => setOffset(0)}>Today</button>
@@ -150,16 +169,24 @@ export function Schedule() {
                       </div>
                       {isOpen && (
                         <>
-                          {r.phases.map((ph, i) => (
-                            <div key={ph.id} className="sc-row is-phase">
+                          {phaseRows(r).map(({ ph, i, lane }) => lane ? (
+                            <div key={'lane-' + lane.key} className="sc-row is-phase sc-lane" aria-label={'Structure ' + lane.name}>
+                              <span className="sc-name"><b>{lane.name}</b><small>{lane.span ? `${akDay(lane.span.start)} – ${akDay(lane.span.end)}` : 'no dates yet'}</small></span>
+                              <span className="sc-track">
+                                {months.map((m) => <i key={m} className="sc-grid-line" style={{ left: x(m) + '%' }} />)}
+                                {lane.span && bar({ start: lane.span.start, end: lane.span.end, estimated: false }, undefined, `${lane.name}: ${akDay(lane.span.start)} – ${akDay(lane.span.end)}`)}
+                              </span>
+                            </div>
+                          ) : (
+                            <div key={ph!.id} className="sc-row is-phase">
                               <span className="sc-name">
                                 <span className="sc-dot" style={{ background: toneOf(i) }} />
-                                <span><b>{ph.name}</b><small>{ph.start ? `${akDay(ph.start)} – ${akDay(ph.end || ph.start)}` : 'no dates yet'} · {ph.total ? `${ph.progress}%` : 'no tasks'}{ph.key === r.currentPhaseKey ? ' · current' : ''}</small></span>
+                                <span><b>{ph!.name}{layout === 'merged' && structName(r, ph!) ? <span style={{ fontWeight: 500, color: 'var(--muted)' }}> · {structName(r, ph!)}</span> : null}</b><small>{ph!.start ? `${akDay(ph!.start)} – ${akDay(ph!.end || ph!.start)}` : 'no dates yet'} · {ph!.total ? `${ph!.progress}%` : 'no tasks'}{ph!.key === r.currentPhaseKey ? ' · current' : ''}</small></span>
                               </span>
                               <span className="sc-track">
                                 {months.map((m) => <i key={m} className="sc-grid-line" style={{ left: x(m) + '%' }} />)}
                                 {today >= winStart && today <= winEnd && <i className="sc-today" style={{ left: x(today) + '%' }} />}
-                                {ph.start && ph.end && bar({ start: ph.start, end: ph.end, estimated: false }, <i className="sc-fill" style={{ width: ph.progress + '%', background: toneOf(i) }} />, `${ph.name}: ${akDay(ph.start)} – ${akDay(ph.end)} · ${ph.progress}%`)}
+                                {ph!.start && ph!.end && bar({ start: ph!.start, end: ph!.end, estimated: false }, <i className="sc-fill" style={{ width: ph!.progress + '%', background: toneOf(i) }} />, `${ph!.name}: ${akDay(ph!.start)} – ${akDay(ph!.end)} · ${ph!.progress}%`)}
                               </span>
                             </div>
                           ))}

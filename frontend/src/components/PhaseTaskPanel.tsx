@@ -1,3 +1,5 @@
+import { LinkedMail } from './LinkedMail';
+import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
@@ -13,7 +15,7 @@ import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
 import { PRIORITY_ORDER, TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, createdByOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
-import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
+import { linkPriorityDue, PRIORITY_HINT, priorityOption } from '../data/priority';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
 import { OriginatorLine } from './ActionTools';
 import { askHoldReason } from './CompletionNote';
@@ -158,6 +160,7 @@ export function PhaseTaskPanel({
               disabled={!canManage}
               onChange={(u: any) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
             />
+            <UnfilledRole team={draft.team} assigned={!!(draft.assigneeId || (draft.assignee || '').trim())} />
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
             {label('Collaborative', 'Follow the task without owning it — they hear about comments and when it’s done.')}
@@ -186,7 +189,7 @@ export function PhaseTaskPanel({
             <select disabled={!canManage} value={draft.priority || ''} title={draft.priority ? PRIORITY_HINT[draft.priority as Priority] : 'Picking a priority fills in the due date'}
               onChange={(e) => { const r = linkPriorityDue({ priority: draft.priority, dueDate: draft.dueDate, auto: autoPD.current }, { priority: e.target.value as Priority | '' }); autoPD.current = r.auto; set({ priority: r.priority, dueDate: r.dueDate }); }} style={input}>
               <option value="">None</option>
-              {PRIORITIES.map((p) => <option key={p} value={p}>{p} — {PRIORITY_HINT[p].replace('Due ', '')}</option>)}
+              {PRIORITIES.map((p) => <option key={p} value={p}>{priorityOption(p)}</option>)}
             </select>
             {autoPD.current === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
             <PriorityHelp value={draft.priority} />
@@ -273,6 +276,8 @@ export function PhaseTaskPanel({
             onAddLink={async (name: string, url: string) => { applied(await api.projectTasks.addLink(draft.id, name, url)); }}
           />
         </div>
+
+        <div style={{ padding: '0 22px' }}><LinkedMail entityType="task" entityId={draft.id} /></div>
 
         <div style={{ padding: '16px 22px 26px' }}>
           <ActivityFeed

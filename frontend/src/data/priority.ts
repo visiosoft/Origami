@@ -19,6 +19,9 @@ export const PRIORITY_HINT: Record<Priority, string> = {
   'Very Low': 'Due in more than a month',
 };
 
+/** A priority as a picker option: "High — within 5 business days". Emergency says it alerts the team (Oct 30 sync). */
+export const priorityOption = (p: Priority) => `${p} — ${PRIORITY_HINT[p].replace('Due ', '')}${p === 'Emergency' ? ' · alerts the team now' : ''}`;
+
 /** What a priority means (Settings -> Task priorities). Mirrors backend tasks/priority-definitions.ts. */
 export interface PriorityDef { priority: Priority; window: string; meaning: string }
 

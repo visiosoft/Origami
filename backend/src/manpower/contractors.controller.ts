@@ -1,3 +1,4 @@
+import { ManageWrites } from '../auth/guards/perm.guard';
 import {
   Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
 } from '@nestjs/common';
@@ -35,6 +36,7 @@ export class ContractorDto {
 }
 
 @Tiers('internal')
+@ManageWrites('manpower_con', 'fin_resources')
 @Controller('contractors')
 export class ContractorsController {
   constructor(

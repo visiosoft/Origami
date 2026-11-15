@@ -11,6 +11,8 @@ export interface MarkupData {
   points: Pt[];
   color: string;
   width: number;
+  /** Its CSI code (Nov 3 sync). */
+  csiCodeId?: string;
   text?: string;
   size?: number;
   label?: string;
@@ -38,7 +40,12 @@ export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId
 
 /** What a link box says: "→ A501" (the sheet, when named), "→ p. 5", or "→ Inspection card 3.pdf, p. 2" (same as the server draws). */
 export const linkLabel = (t?: LinkTarget | null, sheet?: (page: number) => string | undefined) =>
-  !t ? 'Link' : t.type === 'page' ? `→ ${sheet?.(t.page) || `p. ${t.page}`}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
+  !t ? 'Link' : t.type === 'page' ? `→ ${sheetNumberOf(sheet?.(t.page)) || `p. ${t.page}`}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
+
+/** A sheet name is "A-201 — FLOOR PLAN" (Nov 3 sync); links and tags show just the number. */
+export const SHEET_SEP = ' — ';
+export const sheetNumberOf = (name?: string | null) => (name ? name.split(SHEET_SEP)[0] : name || undefined);
+export const sheetLabel = (num: string, title?: string | null) => (title ? `${num}${SHEET_SEP}${title}` : num).slice(0, 80);
 
 /** Photos can be marked up too (Oct 31). */
 export const isPhotoFile = (f: { name?: string; mimeType?: string | null }) => /\.(jpe?g|png|webp|gif)$/i.test(f.name || '') || /^image\/(jpeg|png|webp|gif)$/.test(f.mimeType || '');
@@ -55,8 +62,36 @@ const SHEET_RE = /^[A-Z]{1,3}[-.]?\s?\d{1,4}(?:\.\d{1,3})?[A-Z]?$/;
  */
 export function sheetNameFrom(runs: { str: string; x0: number; y0: number; x1: number; y1: number }[]): string | null {
   const hits = runs.map((r) => ({ ...r, s: r.str.trim() })).filter((r) => SHEET_RE.test(r.s));
-  const pick = (list: typeof hits) => list.sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0))[0]?.s || null;
-  return pick(hits.filter((r) => r.x0 > 0.55 && r.y0 > 0.55)) || pick(hits.filter((r) => r.x0 > 0.8));
+  const pick = (list: typeof hits) => list.sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0))[0] || null;
+  const num = pick(hits.filter((r) => r.x0 > 0.55 && r.y0 > 0.55)) || pick(hits.filter((r) => r.x0 > 0.8));
+  if (!num) return null;
+  // Its title (Nov 3 sync): the biggest words in the same title block, that aren't a label, scale, date or company line.
+  const block = runs.map((r) => ({ ...r, s: r.str.replace(/\s+/g, ' ').trim() }))
+    .filter((r) => r !== (num as any) && r.s !== num.s && isTitleText(r.s) && (num.x0 > 0.8 && num.y0 < 0.55 ? r.x0 > 0.8 : r.x0 > 0.55 && r.y0 > 0.5));
+  const title = block.sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0) || Math.abs(a.y0 - num.y0) - Math.abs(b.y0 - num.y0))[0]?.s;
+  return sheetLabel(num.s, title || null);
+}
+
+/** Words that could be a sheet title: letters, not a title-block label, scale, date, phone or address line. */
+const LABELS = /^(sheet|sheet (no|number|title)|scale|date|drawn( by)?|checked( by)?|project( no| number)?|title|revision|rev|issue|issued for|no\.?|job|client|owner|architect|engineer|seal|stamp|description|north)[.:]?$/i;
+export function isTitleText(s: string): boolean {
+  if (s.length < 3 || s.length > 60) return false;
+  if (SHEET_RE.test(s) || LABELS.test(s)) return false;
+  if (/["'=:]|\d+\/\d+|\d{4}|@|www\.|\.com|\(\d{3}\)|\d{3}[-. ]\d{4}/i.test(s)) return false;
+  const letters = s.replace(/[^A-Za-z]/g, '').length;
+  return letters >= 3 && letters / s.replace(/\s/g, '').length > 0.7 && !/(inc|llc|corp|design|build|architects?|engineering|residence|street|ave|blvd|road)\b/i.test(s);
+}
+
+/** From OCR'd title-block text (a scanned sheet): its sheet number and title, or null. */
+export function sheetNameFromLines(text: string): string | null {
+  const lines = text.split(/\r?\n/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const nums = lines.map((l) => l.replace(/^sheet( no\.?| number)?[:\s]*/i, ''));
+  const at = nums.findIndex((l) => SHEET_RE.test(l));
+  if (at < 0) return null;
+  // The title usually comes just above the number in the block; else the longest title-like line.
+  const before = lines.slice(0, at).reverse().find(isTitleText);
+  const title = before || lines.filter(isTitleText).sort((a, b) => b.length - a.length)[0];
+  return sheetLabel(nums[at], title || null);
 }
 export interface Markup {
   id: string;
@@ -100,6 +135,34 @@ export function dedupePoints(pts: Pt[], eps = 0.002): Pt[] {
 }
 
 /**
+ * A drawn stroke with the points it doesn't need (Ramer–Douglas–Peucker): every
+ * point dropped lies within `tol` of the line kept. w/h are the page's size, so
+ * `tol` is in page points; the ends are always kept.
+ */
+export function simplifyStroke(pts: Pt[], tol: number, w = 1, h = 1): Pt[] {
+  if (pts.length <= 2 || !(tol > 0)) return pts;
+  const keep = new Uint8Array(pts.length);
+  keep[0] = 1; keep[pts.length - 1] = 1;
+  const stack: [number, number][] = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop()!;
+    const ax = pts[a][0] * w, ay = pts[a][1] * h, bx = pts[b][0] * w, by = pts[b][1] * h;
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
+    let far = -1, worst = tol;
+    for (let i = a + 1; i < b; i++) {
+      const px = pts[i][0] * w - ax, py = pts[i][1] * h - ay;
+      const d = len ? Math.abs(px * dy - py * dx) / len : Math.hypot(px, py);
+      if (d > worst) { worst = d; far = i; }
+    }
+    if (far > 0) { keep[far] = 1; stack.push([a, far], [far, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+
+/** Markups whose look depends on the zoom (labels and pins keep their size on screen); the rest don't redraw when zooming. */
+export const SCALE_KINDS: ReadonlySet<string> = new Set(['pin', 'link', 'measure_len', 'measure_path', 'measure_area', 'scale']);
+
+/**
  * Text wrapped to a width: each paragraph broken at spaces, a word longer than
  * the line broken by letters. `measure` gives a string's width (same unit as maxW).
  * Mirrors the server, which wraps the same way when drawing the PDF.
@@ -124,6 +187,56 @@ export function wrapLines(text: string, maxW: number, measure: (s: string) => nu
     out.push(line);
   }
   return out;
+}
+
+/**
+ * Where a measurement label goes and how it breaks (Nov 10 sync: on a phone the
+ * labels ran off the screen). The label keeps the same size on screen at any
+ * zoom, wraps to a sensible width, and is moved back inside the page when it
+ * would spill over an edge. Everything is in page points.
+ */
+export function labelLayout(text: string, at: [number, number], page: { w: number; h: number }, scale: number, measure: (fs: number) => (s: string) => number) {
+  const k = scale > 0 ? scale : 1;
+  const fs = 12 / k;
+  const maxW = Math.max(fs * 4, Math.min(200 / k, page.w - 8 / k));
+  const width = measure(fs);
+  const lines = wrapLines(text, maxW, width);
+  const w = Math.max(...lines.map(width));
+  const h = lines.length * fs * 1.2;
+  const pad = 3 / k;
+  let x = at[0] + 4 / k;
+  let y = at[1] - 4 / k - h + fs;
+  if (x + w > page.w - pad) x = page.w - pad - w;
+  if (x < pad) x = pad;
+  if (y - fs < pad) y = pad + fs;
+  if (y - fs + h > page.h - pad) y = page.h - pad - h + fs;
+  return { x, y, fs, lines, w, h };
+}
+
+/**
+ * Several markups made into one RFI or task (Nov 10 sync): a subject, a body
+ * listing every markup with a link back to its spot, and the pages they're on.
+ */
+export function markupsBrief(
+  marks: Pick<Markup, 'id' | 'kind' | 'page' | 'data'>[], file: { id: string; name: string }, origin: string,
+  pageName: (n: number) => string = (n) => `p. ${n}`,
+) {
+  const sorted = [...marks].sort((a, b) => a.page - b.page);
+  const pages = [...new Set(sorted.map((m) => m.page))];
+  const what = (m: Pick<Markup, 'kind' | 'data'>) => {
+    const t = (m.data.text || '').split('\n')[0] || m.data.label || '';
+    return `${m.data.note || KIND_LABEL[m.kind]}${t ? ` — ${t}` : ''}`;
+  };
+  const first = sorted.find((m) => m.data.text)?.data.text?.split('\n')[0];
+  const subject = (sorted.length === 1 ? first : null) || `${sorted.length} markup${sorted.length === 1 ? '' : 's'} on ${file.name}${pages.length === 1 ? `, ${pageName(pages[0])}` : ''}`;
+  const lines = sorted.map((m, i) => `${i + 1}. ${what(m)} (${pageName(m.page)}): ${origin}/planroom?file=${encodeURIComponent(file.id)}&markup=${encodeURIComponent(m.id)}`);
+  const question = sorted.map((m) => m.data.text).filter(Boolean).join('\n\n');
+  return {
+    subject: subject.slice(0, 120),
+    body: `From ${sorted.length === 1 ? 'a markup' : `${sorted.length} markups`} on ${file.name}:\n${lines.join('\n')}`,
+    question,
+    drawingRef: `${file.name}, ${pages.length === 1 ? pageName(pages[0]) : pages.map(pageName).join(', ')}`,
+  };
 }
 
 /** The key a layer is shown, hidden and downloaded by (same as the server's). */
@@ -324,9 +437,11 @@ export const MAX_RENDER_PIXELS = 16_000_000;
 const MAX_SIDE = 16_000;
 
 /** The pdf.js render scale for a w x h (points) page at `scale`, sharp for the screen but within the canvas limits. */
-export function capRenderScale(w: number, h: number, scale: number, dpr: number): number {
+/** Phones have less memory for a page picture: half the desktop limit keeps deep zoom from going blank (Nov 4). */
+export const PHONE_RENDER_PIXELS = 8_000_000;
+export function capRenderScale(w: number, h: number, scale: number, dpr: number, maxPixels = MAX_RENDER_PIXELS): number {
   const want = scale * dpr;
-  const byArea = Math.sqrt(MAX_RENDER_PIXELS / (w * h));
+  const byArea = Math.sqrt(maxPixels / (w * h));
   const bySide = MAX_SIDE / Math.max(w, h);
   return Math.min(want, byArea, bySide);
 }
@@ -380,3 +495,21 @@ export const markupLink = (type?: string | null, id?: string | null) => {
   const l = type ? MARKUP_LINKS[type as MarkupLinkType] : undefined;
   return l && id ? { label: l.label, href: l.href(id) } : null;
 };
+
+// ------------------------------------------------------------------ phones and tablets (Nov 4)
+
+/** The tools in groups, for the phone's short tool bar: Select and Pan on their own, the rest one tap away. */
+export const TOOL_GROUPS: { key: string; label: string; icon: string; tools: string[] }[] = [
+  { key: 'select', label: 'Select', icon: '↖', tools: ['select'] },
+  { key: 'pan', label: 'Move the sheet', icon: '✋', tools: ['pan'] },
+  { key: 'draw', label: 'Draw', icon: '✎', tools: ['pen', 'highlight', 'line', 'arrow', 'polyline', 'cloud'] },
+  { key: 'shapes', label: 'Shapes', icon: '▭', tools: ['rect', 'ellipse', 'triangle', 'polygon', 'symbol', 'stamp'] },
+  { key: 'notes', label: 'Text, pins and links', icon: 'T', tools: ['text', 'pin', 'link'] },
+  { key: 'measure', label: 'Measure', icon: '📏', tools: ['scale', 'measure_len', 'measure_path', 'measure_area'] },
+];
+export const groupOfTool = (tool: string) => TOOL_GROUPS.find((g) => g.tools.includes(tool))?.key || 'select';
+
+/** A second tap close in time and place: finishes a polyline, or zooms (phones have no double-click). */
+export function isDoubleTap(prev: { t: number; x: number; y: number } | null, next: { t: number; x: number; y: number }, ms = 320, px = 28): boolean {
+  return !!prev && next.t - prev.t <= ms && Math.hypot(next.x - prev.x, next.y - prev.y) <= px;
+}

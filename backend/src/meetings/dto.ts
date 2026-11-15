@@ -38,6 +38,7 @@ export class MeetingDto {
   @IsString() @IsOptional() @MaxLength(1000) recordingUrl?: string;
   @IsString() @IsOptional() @MaxLength(1000) transcriptUrl?: string;
   @IsString() @IsOptional() transcript?: string;
+  @IsString() @IsOptional() @MaxLength(200) calendarEventId?: string | null;
 }
 
 /** One action raised in a meeting: becomes a Request Log entry linked to it. */

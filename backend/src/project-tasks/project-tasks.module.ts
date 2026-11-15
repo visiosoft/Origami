@@ -20,6 +20,6 @@ import { SettingsModule } from '../settings/settings.module';
   imports: [SettingsModule, NotificationsModule, TypeOrmModule.forFeature([ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity, ChecklistTemplateEntity, LeadEntity, TaskEntity]), GoogleModule, AuthModule],
   controllers: [ProjectTasksController, SectionsController, PhasesController, ProjectHoldController, ChecklistTemplatesController],
   providers: [ProjectTasksService, SectionsService, PhasesService, ProjectHoldService, ChecklistTemplatesService],
-  exports: [ProjectHoldService, ProjectTasksService, SectionsService],
+  exports: [ProjectHoldService, ProjectTasksService, SectionsService, PhasesService],
 })
 export class ProjectTasksModule {}

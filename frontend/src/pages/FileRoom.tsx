@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { LazyThumb } from '../components/LazyThumb';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { PdfMarkupViewer } from '../components/markup/PdfMarkupViewer';
+import { sketchFile } from '../data/sketch';
 import { api } from '../api';
 import { isPhotoFile } from '../data/markup';
 import { RecipientPicker } from '../components/RecipientPicker';
@@ -14,6 +16,7 @@ import {
   type FileRoomData, type FileRoomFile,
 } from '../data/fileRoom';
 import { Skeleton } from '../components/Skeleton';
+import { FolderAccessDialog, type FolderRule } from '../components/FolderAccessDialog';
 
 const BG = 'var(--font-display)';
 /** Documents Drive can show as a PDF (images have their own preview). */
@@ -94,7 +97,18 @@ export function FileRoom() {
   const [search, setSearch] = useState('');
   const [latestOnly, setLatestOnly] = useState(false);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  // Sort by name or by date changed (Nov 3 sync: photo folders had no way to find the newest).
+  const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({});
+  // Restricted folders (Nov 13): per project, which folders are kept to some people.
+  const [restricted, setRestricted] = useState<Record<number, FolderRule[]>>({});
+  const [restricting, setRestricting] = useState<{ projectId: number; path: string[] } | null>(null);
+  const loadRestricted = (pid: number) => { api.fileRoom.folderAccess(pid).then((r) => setRestricted((s) => ({ ...s, [pid]: Array.isArray(r) ? r as FolderRule[] : [] }))).catch(() => undefined); };
+  const ruleFor = (pid: number, p: string[]) => (restricted[pid] || []).find((r) => r.pathKey.toLowerCase() === p.join('>').toLowerCase()) || null;
+  const lockIcon = (pid: number, p: string[]) => {
+    const r = ruleFor(pid, p);
+    return r ? <span title={r.audience === 'internal' ? 'Staff only' : 'Only chosen people'} aria-label="Restricted folder" style={{ fontSize: 11 }}>🔒</span> : null;
+  };
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderTreeFor, setNewFolderTreeFor] = useState<number | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
@@ -176,6 +190,7 @@ export function FileRoom() {
   const projectId = atRoot ? null : Number(path[0]);
   const folder = atRoot ? [] : path.slice(1);
   const project = data.projects.find((p) => p.id === projectId);
+  useEffect(() => { for (const id of [...Object.keys(openProjects).filter((k) => openProjects[k]).map(Number), ...(projectId ? [projectId] : [])]) if (!(id in restricted)) loadRestricted(id); }, [openProjects, projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- what the current folder holds -------------------------------------
 
@@ -186,19 +201,27 @@ export function FileRoom() {
   const [visibleFiles, setVisibleFiles] = useState<FileRoomFile[]>([]);
   const [searchQ, setSearchQ] = useState('');
   useEffect(() => { const t = window.setTimeout(() => setSearchQ(search.trim()), 300); return () => window.clearTimeout(t); }, [search]);
-  const filesKey = [pathKey(path), searchQ, latestOnly, sortDir, filesSize].join('|');
+  const filesKey = [pathKey(path), searchQ, latestOnly, sortDir, sortBy, filesSize].join('|');
   const lastFilesKey = useRef(filesKey);
   useEffect(() => {
     const changed = lastFilesKey.current !== filesKey;
     lastFilesKey.current = filesKey;
     if (changed && filesPg !== 1) { setFilesPg(1); return; }
     let live = true;
-    api.fileRoom.filesPage({ projectId: atRoot ? undefined : (projectId as number), path: atRoot ? undefined : folder, q: searchQ, latest: latestOnly, dir: sortDir, page: filesPg, size: filesSize })
+    api.fileRoom.filesPage({ projectId: atRoot ? undefined : (projectId as number), path: atRoot ? undefined : folder, q: searchQ, latest: latestOnly, dir: sortDir, sort: sortBy, page: filesPg, size: filesSize })
       .then((r) => { if (!live) return; setVisibleFiles(r.rows); setPageData(r); remember(r.rows); })
       .catch(() => { if (live) { setVisibleFiles([]); setPageData(null); } });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filesKey, filesPg, filesTick]);
+  // Thumbnails being made (just uploaded): look again a few times so they appear without a reload.
+  const previewPolls = useRef(0);
+  useEffect(() => {
+    if (!visibleFiles.some((f) => f.previewState === 'pending')) { previewPolls.current = 0; return; }
+    if (previewPolls.current >= 8) return;
+    const t = window.setTimeout(() => { previewPolls.current++; setFilesTick((n) => n + 1); }, 6000 + previewPolls.current * 2000);
+    return () => window.clearTimeout(t);
+  }, [visibleFiles]);
 
   const visibleFolders = useMemo(() => {
     if (atRoot) {
@@ -281,6 +304,22 @@ export function FileRoom() {
     }
   };
 
+  /** A blank sheet in the project's Sketches folder, opened straight away to draw on (Nov 10 sync). */
+  const newSketch = async () => {
+    if (atRoot || !projectId) { toast('⚠ Open a project first'); return; }
+    if (!storageReady) { toast('⚠ Connect a Google account under Settings → Integrations to store files'); return; }
+    try {
+      const name = data.projects.find((p) => p.id === projectId)?.name;
+      const saved = (await api.fileRoom.upload(projectId, ['Sketches'], [sketchFile(name)])) as FileRoomFile[];
+      const f = Array.isArray(saved) ? saved[0] : null;
+      if (!f) throw new Error('Not saved');
+      remember([f]);
+      load();
+      setMarkingUp({ id: f.id });
+      toast('Sketch saved in Sketches — draw away');
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not start a sketch')); }
+  };
+
   const createFolder = async (forProject: number, parent: string[], name: string) => {
     if (!name.trim()) return;
     try {
@@ -333,6 +372,23 @@ export function FileRoom() {
 
   // ---- tree ---------------------------------------------------------------
 
+  // Two file areas (Oct 30 sync): All Files shows everything; a project's Plan & File Room
+  // shows its build set -- the folders marked ★ -- once it has one.
+  const isPlanRoom = window.location.pathname === '/planroom';
+  const buildSetOf = (pid: number) => treeData?.projects.find((x) => x.id === pid)?.buildSet || [];
+  const inBuildSet = (pid: number, name: string) => buildSetOf(pid).some((f) => f.toLowerCase() === name.toLowerCase());
+  // People who manage the File Room see every folder (★ marks the build set); everyone else sees the build set.
+  const buildSetOnly = (pid: number) => isPlanRoom && !canManage && buildSetOf(pid).length > 0;
+  const toggleBuildSet = async (pid: number, name: string) => {
+    const now = buildSetOf(pid);
+    const next = inBuildSet(pid, name) ? now.filter((f) => f.toLowerCase() !== name.toLowerCase()) : [...now, name];
+    try {
+      const r = await api.fileRoom.setBuildSet(pid, next);
+      setTreeData((t) => (t ? { ...t, projects: t.projects.map((x) => (x.id === pid ? { ...x, buildSet: r.buildSet } : x)) } : t));
+      toast(inBuildSet(pid, name) ? `${name} taken out of the build set` : `${name} is in the build set`);
+    } catch (e) { toast('⚠ ' + (e as Error).message); }
+  };
+
   const treeRow = (
     label: string, count: number | null, active: boolean, onClick: () => void,
     opts: { indent?: number; chevron?: 'open' | 'closed' | null; onChevron?: () => void } = {},
@@ -372,11 +428,20 @@ export function FileRoom() {
             })}
             {open && (
               <>
-                {subfoldersOf(data, p.id, []).map((name) =>
-                  <div key={name}>
-                    {treeRow(name, countUnder(p.id, [name]),
-                      projectId === p.id && pathKey(folder) === name,
-                      () => setPath([String(p.id), name]), { indent: 26 })}
+                {buildSetOnly(p.id) && <div style={{ marginLeft: 26, padding: '2px 9px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--forest)' }}>Build set</div>}
+                {subfoldersOf(data, p.id, []).filter((name) => !buildSetOnly(p.id) || inBuildSet(p.id, name)).map((name) =>
+                  <div key={name} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {treeRow(name, countUnder(p.id, [name]),
+                        projectId === p.id && pathKey(folder) === name,
+                        () => setPath([String(p.id), name]), { indent: 26 })}
+                    </div>
+                    {lockIcon(p.id, [name])}
+                    {canManage && (
+                      <button type="button" onClick={() => void toggleBuildSet(p.id, name)} aria-pressed={inBuildSet(p.id, name)} aria-label={`${inBuildSet(p.id, name) ? 'Take' : 'Put'} ${name} ${inBuildSet(p.id, name) ? 'out of' : 'in'} the build set`}
+                        title={inBuildSet(p.id, name) ? 'In the build set — shown in this project’s Plan & File Room. Click to take it out.' : 'Put in the build set (drawings, selections, specs): the project’s Plan & File Room shows only these'}
+                        style={{ border: 0, background: 'transparent', cursor: 'pointer', fontSize: 13, color: inBuildSet(p.id, name) ? '#C08A00' : 'var(--c-9aa39d)', padding: '4px 6px' }}>{inBuildSet(p.id, name) ? '★' : '☆'}</button>
+                    )}
                   </div>)}
                 {canManage && (newFolderTreeFor === p.id ? (
                   <div style={{ display: 'flex', gap: 5, marginLeft: 26, marginTop: 4 }}>
@@ -414,6 +479,7 @@ export function FileRoom() {
 
   const breadcrumb = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
+      {projectId && folder.length > 0 && lockIcon(projectId, folder)}
       {shown.map((s, i) => {
         const last = i === shown.length - 1;
         return (
@@ -428,6 +494,12 @@ export function FileRoom() {
           </span>
         );
       })}
+      {canManage && projectId && folder.length > 0 && (
+        <button type="button" onClick={() => setRestricting({ projectId, path: folder })} title="Who can open this folder" style={{ marginLeft: 6, padding: '4px 10px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.15)', background: 'var(--surface)', font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>
+          {ruleFor(projectId, folder) ? '🔒 Who can open' : 'Restrict…'}
+        </button>
+      )}
+      {restricting && <FolderAccessDialog projectId={restricting.projectId} path={restricting.path} current={ruleFor(restricting.projectId, restricting.path)} onClose={() => setRestricting(null)} onSaved={() => loadRestricted(restricting.projectId)} />}
     </div>
   );
 
@@ -460,9 +532,12 @@ export function FileRoom() {
         return (
           <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
                style={{ ...card, borderRadius: 13, padding: 14, cursor: 'pointer', position: 'relative', outline: picked.has(f.id) ? '2px solid var(--ink)' : 'none', outlineOffset: -2 }}>
-            {canPick && <span style={{ position: 'absolute', top: 12, right: 12 }}>{pickBox(f.id)}</span>}
-            <div style={{ width: 38, height: 38, borderRadius: 9, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', marginBottom: 10, fontSize: 9, fontWeight: 800 }}>
-              {(f.ext || '?').slice(0, 4)}
+            {canPick && <span style={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>{pickBox(f.id)}</span>}
+            {/* The saved 300 px thumbnail (Nov 5), loaded only when scrolled to; the box keeps its size meanwhile. */}
+            <div style={{ aspectRatio: '4 / 3', margin: '-6px -6px 10px', borderRadius: 9, overflow: 'hidden', background: f.thumbV ? 'var(--c-efede8)' : st.bg, display: 'grid', placeItems: 'center' }}>
+              {f.thumbV
+                ? <LazyThumb src={api.fileRoom.smallUrl(f.id, 'thumb', f.thumbV)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                : <span style={{ color: st.c, fontSize: 11, fontWeight: 800, letterSpacing: '0.04em' }}>{(f.ext || '?').slice(0, 4).toUpperCase()}</span>}
             </div>
             <div title={f.name} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
             <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>{prettySize(f.size)} · {shortDate(f.updatedAt)}</div>
@@ -500,7 +575,9 @@ export function FileRoom() {
           <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', background: picked.has(f.id) ? 'rgba(245, 196, 67, 0.12)' : 'transparent' }}>
             {pickBox(f.id)}
-            <span style={{ width: 22, height: 22, borderRadius: 6, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 800, flexShrink: 0 }}>{(f.ext || '?').slice(0, 4)}</span>
+            {f.thumbV
+              ? <span style={{ width: 28, height: 28, borderRadius: 6, flexShrink: 0, overflow: 'hidden', background: 'var(--c-efede8)' }}><LazyThumb src={api.fileRoom.smallUrl(f.id, 'thumb', f.thumbV)} style={{ width: 28, height: 28, objectFit: 'cover', display: 'block' }} /></span>
+              : <span style={{ width: 28, height: 28, borderRadius: 6, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 800, flexShrink: 0 }}>{(f.ext || '?').slice(0, 4)}</span>}
             <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
             {badge(f)}
             {atRoot && <span style={{ fontSize: 10.5, color: '#2F6F68' }}>{data.projects.find((p) => p.id === Number(f.projectId))?.name}</span>}
@@ -558,6 +635,13 @@ export function FileRoom() {
                      style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: view === v ? 'var(--seg-on)' : 'transparent', color: view === v ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v}</div>
               ))}
             </div>
+            <select aria-label="Sort files" value={`${sortBy}:${sortDir}`} onChange={(e) => { const [b, d] = e.target.value.split(':'); setSortBy(b as 'name' | 'date'); setSortDir(d as 'asc' | 'desc'); }}
+              style={{ ...inputStyle, width: 'auto', padding: '6px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700 }}>
+              <option value="name:asc">Name A–Z</option>
+              <option value="name:desc">Name Z–A</option>
+              <option value="date:desc">Newest first</option>
+              <option value="date:asc">Oldest first</option>
+            </select>
             {pill('Latest files only', latestOnly, () => setLatestOnly((v) => !v))}
             {canManage && !atRoot && pill('+ New Folder', false, () => setNewFolderOpen((v) => !v))}
             {canManage && !atRoot && pill('Sent history', historyOpen, () => setHistoryOpen((v) => !v))}
@@ -580,6 +664,10 @@ export function FileRoom() {
               <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
                 {syncedLabel(data.projects.find((p) => p.id === projectId)?.syncedAt)}
               </span>
+            )}
+            {canManage && !atRoot && (
+              <div onClick={() => void newSketch()} role="button" title="A blank sheet to draw on with the markup tools, kept in this project's Sketches folder"
+                   style={{ padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.16)', color: 'var(--ink)' }}>✎ Sketch</div>
             )}
             {canManage && (
               <div onClick={() => setUploadOpen((v) => !v)}
@@ -707,8 +795,9 @@ export function FileRoom() {
 
             {isImage(selected) && (
               <div style={{ padding: '16px 22px 0' }}>
+                {/* The 1200 px preview shows at once; the original paints over it when it arrives. */}
                 <img src={api.fileRoom.contentUrl(selected.id)} alt={selected.name}
-                     style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.08)' }} />
+                     style={{ width: '100%', minHeight: selected.thumbV ? 160 : undefined, borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.08)', background: selected.thumbV ? `var(--c-efede8) url("${api.fileRoom.smallUrl(selected.id, 'preview', selected.thumbV)}") center / contain no-repeat` : undefined }} />
                 {isPhotoFile(selected) && (
                   <button type="button" onClick={() => setMarkingUp({ id: selected.id })}
                     style={{ marginTop: 6, padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>✎ Mark up</button>
@@ -718,7 +807,7 @@ export function FileRoom() {
             {canPreview(selected) && (
               <div style={{ padding: '16px 22px 0' }}>
                 <iframe key={selected.id} src={api.fileRoom.previewUrl(selected.id)} title={selected.name}
-                        style={{ width: '100%', height: 360, border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, background: 'var(--panel)' }} />
+                        style={{ width: '100%', height: 360, border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, background: selected.thumbV ? `var(--panel) url("${api.fileRoom.smallUrl(selected.id, 'preview', selected.thumbV)}") top center / contain no-repeat` : 'var(--panel)' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 6 }}>
                   {isPdf(selected) && (
                     <button type="button" onClick={() => setMarkingUp({ id: selected.id })}
@@ -891,7 +980,7 @@ export function FileRoom() {
         return (
           <PdfMarkupViewer
             key={f.id}
-            file={{ id: f.id, name: f.name, isLatest: (f as any).isLatest !== false, folderPath: f.folderPath }}
+            file={{ id: f.id, name: f.name, isLatest: (f as any).isLatest !== false, folderPath: f.folderPath, size: f.size, updatedAt: f.updatedAt }}
             projectId={Number(f.projectId) || null}
             projectName={data.projects.find((p) => p.id === Number(f.projectId))?.name || null}
             focusMarkupId={markingUp.focus || null}

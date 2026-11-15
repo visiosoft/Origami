@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Query, Body, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, ForbiddenException, UseInterceptors } from '@nestjs/common';
 import { Claims } from '../auth/guards/claims.decorator';
 import type { SessionClaims } from '../auth/crypto.util';
 
@@ -10,9 +10,11 @@ import { ProjectTasksService } from './project-tasks.service';
 import { CreateSectionDto } from './dto/create-section.dto';
 import { COLUMN_EDITORS } from './board-columns';
 import { Perm } from '../auth/guards/perm.guard';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
 @Tiers('internal')
 @Perm('projects', 'tasks', 'design', 'pm')
+@UseInterceptors(ProjectScope)
 @Controller('project-sections')
 export class SectionsController {
   constructor(

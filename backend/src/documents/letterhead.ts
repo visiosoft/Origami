@@ -35,7 +35,11 @@ export interface Branding {
   coverPhotoDataUrl: string;
 }
 
+/** The one fallback for the workspace's name and colour, on documents, emails and in the app (Nov 10). */
+export const BRAND_FALLBACK = { companyName: 'Origami Design + Build', accentColor: '#173326' } as const;
+
 export const BRAND_KEYS = [
+  'brand.license',
   'brand.companyName', 'brand.tagline', 'brand.logoDataUrl', 'brand.accentColor',
   'brand.address', 'brand.phone', 'brand.email', 'brand.website', 'brand.footerNote',
   'brand.signatureName', 'brand.signatureTitle', 'brand.signatureDataUrl',
@@ -53,10 +57,10 @@ export function brandingFrom(settings: Record<string, string>): Branding {
     team = [];
   }
   return {
-    companyName: pick('companyName') || 'Origami',
+    companyName: pick('companyName') || BRAND_FALLBACK.companyName,
     tagline: pick('tagline'),
     logoDataUrl: pick('logoDataUrl'),
-    accentColor: pick('accentColor') || '#173326',
+    accentColor: pick('accentColor') || BRAND_FALLBACK.accentColor,
     address: pick('address'),
     phone: pick('phone'),
     email: pick('email'),

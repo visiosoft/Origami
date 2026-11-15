@@ -187,7 +187,7 @@ export function TasksAndRfis({ projectId, projectName, showRfis, view, onView, s
       </div>
       {cur === 'tasks' || (cur === 'rfis' && !showRfis) ? <TaskBoard projectId={projectId} />
         : cur === 'rfis' ? <RfiLog projectId={projectId} projectName={projectName} compact />
-          : cur === 'meetings' ? <Meetings projectName={projectName} />
+          : cur === 'meetings' ? <Meetings projectName={projectName} projectId={projectId} />
             : cur === 'record' ? <Observations projectName={projectName} />
               : cur === 'changes' ? (canChanges ? <ChangeOrderWorkspace projectId={projectId} rights={rights} /> : <Skeleton rows={4} />)
                 : <Approvals projectName={projectName} />}

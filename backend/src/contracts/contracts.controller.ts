@@ -1,10 +1,11 @@
+import { FolderAccessService } from '../file-room/folder-access.service';
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Response } from 'express';
 import { Readable } from 'stream';
 import { Public } from '../auth/guards/public.decorator';
 import { Roles, Tiers } from '../auth/guards/roles.decorator';
 import type { AuthedRequest } from '../auth/guards/session.guard';
-import { CONTRACT_TYPES, MERGE_FIELDS } from './contract-types';
+import { CA_CLAUSES, CONTRACT_TYPES, MERGE_FIELDS } from './contract-types';
 import { ContractsService, type ContractActor } from './contracts.service';
 import { Perm } from '../auth/guards/perm.guard';
 import { ProjectScope } from '../auth/project-scope.interceptor';
@@ -22,7 +23,7 @@ const sendPdf = (res: Response, r: { pdf: Buffer; filename: string }, download: 
 @UseInterceptors(ProjectScope)
 @Controller('contracts')
 export class ContractsController {
-  constructor(private readonly contracts: ContractsService) {}
+  constructor(private readonly contracts: ContractsService, private readonly folders: FolderAccessService) {}
 
   // --- the signer's own page (no account) ---
 
@@ -58,7 +59,7 @@ export class ContractsController {
   @Tiers('internal')
   @Get('types')
   types() {
-    return { types: CONTRACT_TYPES, mergeFields: MERGE_FIELDS };
+    return { types: CONTRACT_TYPES, mergeFields: MERGE_FIELDS, caClauses: CA_CLAUSES(0) };
   }
 
   @Tiers('internal')
@@ -79,6 +80,13 @@ export class ContractsController {
     return this.contracts.saveTemplate(id, body || {}, actorOf(req));
   }
 
+  /** Email yourself the template filled with sample details, and the PDF it makes (Oct 30 sync). */
+  @Tiers('internal')
+  @Post('templates/preview')
+  previewTemplate(@Body() body: any, @Req() req: AuthedRequest) {
+    return this.contracts.previewTemplate(body || {}, actorOf(req));
+  }
+
   @Roles('admin')
   @Delete('templates/:id')
   removeTemplate(@Param('id') id: string) {
@@ -93,8 +101,8 @@ export class ContractsController {
 
   @Tiers('internal')
   @Get('files')
-  files(@Query('projectId') projectId: string) {
-    return this.contracts.attachableFiles(Number(projectId));
+  async files(@Query('projectId') projectId: string, @Req() req: AuthedRequest) {
+    return this.contracts.attachableFiles(Number(projectId), await this.folders.gate(req.claims ?? null));
   }
 
   @Tiers('internal')

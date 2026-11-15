@@ -7,6 +7,8 @@ const TEXT = { type: 'nvarchar', length: 'MAX' } as const;
 @Entity('projects')
 export class ProjectEntity {
   @PrimaryColumn('int') id!: number;
+  /** Buildings on the lot (Batch 6), e.g. Main house and ADU, each with its own phases; empty = one building. */
+  @Column({ type: 'simple-json', nullable: true }) structures!: { key: string; name: string }[] | null;
   @Column() priority!: string;
   @Column() name!: string;
   @Column() location!: string;
@@ -35,6 +37,10 @@ export class ProjectEntity {
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
   @Column({ type: 'nvarchar', length: 1000, nullable: true }) siteAccess!: string; // lockbox / gate codes, how to get on site
   @Column({ nullable: true }) fileRoomSyncedAt!: string; // ISO time the File Room last pulled this project's Drive folder
+  /** Top-level File Room folders that make up the build set (drawings, selections, specs): the project's Plan & File Room under Construction shows these (Oct 30 sync). */
+  @Column({ type: 'simple-json', nullable: true }) buildSetFolders!: string[] | null;
+  /** Its backup Google Sheet (Tasks, RFIs, change orders, FOR RECORD, meetings), refreshed nightly (Oct 30 sync). */
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) backupSheetId!: string | null;
   @Column({ nullable: true }) introLetterSentAt!: string; // ISO timestamp when the Introduction Letter was sent
   // The composed Introduction Letter, saved as a draft before it's sent --
   // separate from the plain-text template default, so an edit survives a
@@ -51,6 +57,14 @@ export class ProjectEntity {
   // kitchen remodel and a ground-up build don't share one shape. Unset falls
   // back to the library's first entry.
   @Column({ nullable: true }) templateKey!: string;
+  /** Who fills each role on this project (Nov 13): role key (projectManager...) -> users.id. Copied from the CRM deal when converted. */
+  @Column({ type: 'simple-json', nullable: true }) roles!: Record<string, string> | null;
+  /** client (default) or internal, e.g. business development (Nov 13): internal ones are never shown to clients or subs. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) kind!: string | null;
+  /** When the stage last changed (Nov 13): closed-out / cancelled projects are archived 10 days after. */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) stageChangedAt!: string | null;
+  /** Set when archived (automatically or by hand); empty = active. */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) archivedAt!: string | null;
   @Column({ nullable: true }) website!: string; // rolls over from the originating lead at conversion
   /** True when the project doesn't use the Project Program workbook (outsourced, software, small jobs); its answers are kept. */
   @Column({ nullable: true, default: false }) programOff!: boolean;
@@ -81,6 +95,8 @@ export class PersonEntity {
   @Column() phone!: string;
   @Column() email!: string;
   @Column('simple-json') projects!: string[];
+  /** The projects they're on, by id (Nov 13): the record once set; `projects` keeps the names in step. Null = not moved yet (names are matched). */
+  @Column({ type: 'simple-json', nullable: true }) projectIds!: number[] | null;
   /** Which phases they work on, per project (Oct 26 review notes): { "HOM Cafe": ["design", "construction"] }. */
   @Column({ type: 'simple-json', nullable: true }) projectPhases!: Record<string, string[]> | null;
   @Column('int') openTasks!: number;
@@ -151,6 +167,34 @@ export class ContactInteractionEntity {
  * A text sent to a client from a lead, contact or project (Oct 27 backlog item
  * 11), sent or failed -- the record's "Texts" list and an audit of what went out.
  */
+/** A phone number's text choices (Nov 13): STOP replies and the preferences page. */
+@Entity('sms_preferences')
+export class SmsPreferenceEntity {
+  /** E.164, e.g. +14155550100. */
+  @PrimaryColumn({ type: 'nvarchar', length: 20 }) phone!: string;
+  /** Stopped everything (STOP, or "no texts" on the page). */
+  @Column({ type: 'bit', default: false }) stopAll!: boolean;
+  /** Kinds turned off: updates | announcements. */
+  @Column({ type: 'simple-json', nullable: true }) off!: string[] | null;
+  @Column({ type: 'nvarchar', length: 40 }) updatedAt!: string;
+  /** stop-reply | start-reply | page | admin */
+  @Column({ type: 'nvarchar', length: 20 }) source!: string;
+}
+
+/** A mass text (Nov 13): one message sent to each person on their own. */
+@Entity('sms_batches')
+export class SmsBatchEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 40 }) at!: string;
+  @Column({ type: 'nvarchar', length: 2000 }) body!: string;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) byId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) byName!: string | null;
+  /** queued | sending | done | stopped */
+  @Column({ type: 'nvarchar', length: 12 }) status!: string;
+  /** Each recipient: who, their number, and what happened. */
+  @Column({ type: 'simple-json' }) recipients!: { type: 'person' | 'lead'; id: string; name: string; phone: string; status: 'waiting' | 'sent' | 'failed' | 'skipped'; note?: string }[];
+}
+
 @Entity('sms_messages')
 @Index('IX_sms_messages_entity', ['entityType', 'entityId'])
 export class SmsMessageEntity {
@@ -256,6 +300,8 @@ export class TaskEntity {
   @Column({ type: 'simple-json', nullable: true }) comments!: TaskComment[];
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
+  /** Its CSI code (Nov 3 sync). */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) csiCodeId!: string | null;
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
   /** Access tags (internal, client, external, financial, crm, design, construction); see task.types cleanTags. */
   @Column({ type: 'simple-json', nullable: true }) tags!: string[] | null;
@@ -321,9 +367,16 @@ export class MeetingEntity {
   @Column({ type: 'nvarchar', length: 1000, nullable: true }) transcriptUrl!: string;
   @Column({ ...TEXT, nullable: true }) transcript!: string;
   /** Who went through the notes / transcript and pulled out the special actions, and when. */
+  /** Notes pulled from Google (Nov 3 sync): the "Notes by Gemini" Doc, and when it was read. */
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) notesDocId!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) notesImportedAt!: string | null;
+  /** Its Google Calendar event, when put on a calendar from Origami. */
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) calendarEventId!: string | null;
   @Column({ nullable: true }) reviewedBy!: string;
   @Column({ nullable: true }) reviewedAt!: string;
   @Column({ nullable: true }) createdBy!: string;
+  /** Who created it (Nov 10): they always see it, project or not. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) createdById!: string | null;
   @Column() createdAt!: string;
   @Column({ nullable: true }) updatedAt!: string;
 }
@@ -455,6 +508,8 @@ export class ContractEntity {
   @Column({ type: 'nvarchar', length: 20 }) status!: string;
   @Column({ type: 'simple-json' }) parties!: { key: string; role: string; label: string; name: string; email: string; personId?: number | null; internal?: boolean; sentAt?: string | null; viewedAt?: string | null; lastViewedAt?: string | null; views?: number | null; signedAt?: string | null; signedName?: string | null; initials?: string | null; signatureImage?: string | null; ip?: string | null; userAgent?: string | null }[];
   @Column({ type: 'simple-json', nullable: true }) attachments!: { fileId: string; name: string; kind: string }[] | null;
+  /** The draw schedule (Nov 13, California rules): down payment, mobilization, progress milestones; placed by {{draw_schedule}}. */
+  @Column({ type: 'simple-json', nullable: true }) drawSchedule!: { label: string; kind: 'down' | 'mobilization' | 'progress' | 'final'; mode: 'pct' | 'amt'; value: number; milestone?: string }[] | null;
   @Column({ type: 'nvarchar', length: 64, nullable: true }) templateId!: string | null;
   @Column({ type: 'nvarchar', length: 64, nullable: true }) changeOrderId!: string | null;
   @Column({ type: 'nvarchar', length: 64, nullable: true }) commitmentId!: string | null;
@@ -800,6 +855,8 @@ export class ProjectTaskEntity {
   @Column({ nullable: true }) status!: string;         // Not started (To Do) | Assigned | In progress | On hold | Done (Complete) | Confirmed
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
+  /** Standard (access) tags: internal, client, external, financial, crm, design, construction (Oct 30 sync). */
+  @Column({ type: 'simple-json', nullable: true }) tags!: string[] | null;
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
   @Column({ nullable: true }) updatedAt!: string;
   // --- Phase Board ---
@@ -861,6 +918,8 @@ export class ProjectPhaseEntity {
    * row stays so the template never re-adds them.
    */
   @Column({ nullable: true }) hiddenAt!: string;
+  /** Which structure it belongs to (Batch 6); empty = the main one. */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) structureKey!: string | null;
 }
 
 /**
@@ -950,10 +1009,32 @@ export class UserEntity {
   @PrimaryColumn() id!: string;
   @Column() name!: string;
   @Column() email!: string;
+  /** Other addresses that are also this person (Nov 13), e.g. apogeec.com and the Origami domain; sign-in and records match any. */
+  @Column({ type: 'simple-json', nullable: true }) altEmails!: string[] | null;
   @Column() tier!: string; // internal | client | consultant
   @Column() roleKey!: string;
   @Column() status!: string; // pending | active | suspended
   @Column({ nullable: true }) lastLogin!: string;
+  /** Two-step sign-in (Nov 13): the authenticator secret, sealed (auth/totp.ts); a pending one while being set up. */
+  @Column({ type: 'nvarchar', length: 400, nullable: true }) totpSecret!: string | null;
+  @Column({ type: 'nvarchar', length: 400, nullable: true }) totpPending!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) totpEnabledAt!: string | null;
+  /** The last 30-second step used, so the same code can't be used twice. */
+  @Column({ type: 'int', nullable: true }) totpLastStep!: number | null;
+  /** One-time backup codes, hashed (scrypt). */
+  @Column({ type: 'simple-json', nullable: true }) backupCodes!: string[] | null;
+  /** Devices that skip the code for 30 days ("remember this device"): hashed tokens. */
+  @Column({ type: 'simple-json', nullable: true }) trustedDevices!: { hash: string; expiresAt: string; addedAt: string; label?: string }[] | null;
+  /** How their second step works (Nov 13): app (authenticator), sms (a code by text) or email; empty = app. */
+  @Column({ type: 'nvarchar', length: 10, nullable: true }) twoFactorMethod!: string | null;
+  /** The number codes are texted to. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) twoFactorPhone!: string | null;
+  /** The live text / email code (hashed), when it runs out, and recent sends (for the rate limit). */
+  @Column({ type: 'nvarchar', length: 100, nullable: true }) otpHash!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) otpExpiresAt!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) otpSends!: string[] | null;
+  /** A method being switched to (with its number), until its first code proves it. */
+  @Column({ type: 'simple-json', nullable: true }) otpPending!: { method: string; phone?: string | null } | null;
   @Column() createdAt!: string;
   // --- Authentication (never sent to the client; stripped in UsersService) ---
   @Column({ nullable: true }) passwordHash!: string;   // scrypt: salt:hash
@@ -991,6 +1072,10 @@ export class UserEntity {
   // Never returned to the client -- see publicUser() in auth.service.
   @Column({ nullable: true }) calendarRefreshToken!: string;
   @Column({ nullable: true }) calendarEmail!: string;
+  /** Their own Gmail (Nov 13): the refresh token sealed (auth/totp.ts sealSecret), the address, when connected. */
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) mailRefreshToken!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) mailEmail!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) mailConnectedAt!: string | null;
   @Column({ nullable: true }) calendarConnectedAt!: string;
 }
 
@@ -1003,6 +1088,8 @@ export class ChecklistTemplateEntity {
   @Column({ type: 'simple-json', nullable: true }) items!: { item: string }[] | null;
   /** Added by itself to new records of these kinds: task, record, record:Observation, label:Safety. */
   @Column({ type: 'simple-json', nullable: true }) autoFor!: string[] | null;
+  /** general | qaqc (Nov 13): QA/QC checklists show on the QA/QC page and are added to programme tasks as they're set up. */
+  @Column({ type: 'nvarchar', length: 20, default: 'general' }) kind!: string;
   @Column({ nullable: true }) createdById!: string;
   @Column({ nullable: true }) createdByName!: string;
   @Column() createdAt!: string;
@@ -1040,6 +1127,23 @@ export class MarkupSymbolEntity {
   @Column({ type: 'int', nullable: true }) sortOrder!: number | null;
   @Column({ nullable: true }) createdBy!: string;
   @Column() createdAt!: string;
+}
+
+/**
+ * Who sees a markup layer on one drawing (Oct 30 sync). No row = everyone who
+ * can open the drawing. `internal` = our team only; `people` = our team plus
+ * the listed people and companies (e.g. one sub).
+ */
+@Entity('markup_layers')
+export class MarkupLayerEntity {
+  /** `${fileId}|${layerKey}` */
+  @PrimaryColumn({ type: 'nvarchar', length: 200 }) id!: string;
+  @Column({ type: 'nvarchar', length: 80 }) fileId!: string;
+  @Column({ type: 'nvarchar', length: 120 }) layerKey!: string;
+  @Column({ type: 'nvarchar', length: 20 }) audience!: string;
+  @Column({ type: 'simple-json', nullable: true }) people!: { type: 'user' | 'company'; id: string; name: string }[] | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) updatedBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
 }
 
 @Entity('pdf_markups')
@@ -1155,6 +1259,17 @@ export class FileRoomFileEntity {
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) notes!: string;
   /** A drawing's sheet numbers by page ("1": "A100"), read from the title blocks and correctable (Oct 31). */
   @Column({ type: 'simple-json', nullable: true }) sheetNames!: Record<string, string> | null;
+  /**
+   * Small copies for the grid and a quick look (Nov 5): a 300 px square WebP
+   * thumbnail and a 1200 px preview, kept in the workspace Drive's hidden
+   * "Origami previews" folder. State: null = never made (existing files),
+   * pending | ready | none (nothing Drive or we can draw) | failed.
+   */
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) thumbDriveId!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) previewDriveId!: string | null;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) previewState!: string | null;
+  @Column({ type: 'int', default: 0 }) previewTries!: number;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) previewAt!: string | null;
 }
 
 /** A folder someone created that holds no files yet — otherwise it would vanish. */
@@ -1168,6 +1283,26 @@ export class FileRoomFolderEntity {
 }
 
 /** A record of File Room files emailed to someone: who sent what, to whom, when. */
+/**
+ * A File Room folder kept to some people (Nov 13, Batch 4): staff only, or
+ * picked people, roles and companies. Covers its sub-folders. Folders mostly
+ * exist only as paths on files, so this is keyed by project and path, not a
+ * folder row. No row = everyone who can see the project.
+ */
+@Entity('file_room_folder_access')
+export class FileRoomFolderAccessEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** The folder path joined by '>' (as the tree keys it). */
+  @Column({ type: 'nvarchar', length: 900 }) pathKey!: string;
+  @Column({ type: 'simple-json' }) path!: string[];
+  /** internal (staff only) | picked */
+  @Column({ type: 'nvarchar', length: 20 }) audience!: string;
+  @Column({ type: 'simple-json', nullable: true }) people!: { type: 'user' | 'role' | 'company'; id: string; name: string }[] | null;
+  @Column({ nullable: true }) updatedAt!: string;
+  @Column({ nullable: true }) updatedBy!: string;
+}
+
 @Entity('file_room_shares')
 export class FileRoomShareEntity {
   @PrimaryColumn() id!: string;
@@ -1194,6 +1329,8 @@ export class EmployeeEntity {
   @Column({ type: 'float', nullable: true }) payRate!: number;
   @Column({ nullable: true }) phone!: string;
   @Column({ nullable: true }) email!: string;
+  /** Other addresses for this employee (Nov 13); a login with any of them is linked. */
+  @Column({ type: 'simple-json', nullable: true }) altEmails!: string[] | null;
   @Column({ nullable: true }) hireDate!: string;
   @Column({ default: 'active' }) status!: string; // active | inactive -- superseded by employmentStatus
   /** Who this employee reports to -- the org/reporting layer, independent of any project assignment. */
@@ -1457,6 +1594,12 @@ export class ContractorEntity {
   @Column({ type: 'simple-json', nullable: true }) tradeIds!: string[];
   @Column({ nullable: true }) licenseNumber!: string;
   @Column({ nullable: true }) licenseExpiry!: string;
+  /** Prequalification (Nov 13): pending | approved | rejected; empty = not started. Bid invites need approved + licence and insurance current. */
+  @Column({ type: 'nvarchar', length: 12, nullable: true }) prequalStatus!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) prequal!: { trades?: string; yearsInBusiness?: number | null; references?: string; w9OnFile?: boolean; notes?: string; submittedAt?: string; submittedBy?: string } | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) prequalAt!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) prequalBy!: string | null;
+  @Column({ type: 'nvarchar', length: 2000, nullable: true }) prequalNotes!: string | null;
   @Column({ default: 'active' }) status!: string; // active | suspended | ended
   @Column({ ...TEXT, nullable: true }) notes!: string;
   @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
@@ -1870,6 +2013,12 @@ export class ProjectFinancialEntity extends FinanceStamped {
   @Column({ ...PCT, default: 0 }) taxPct!: number;
   @Column({ type: 'int', default: 30 }) paymentTermsDays!: number;
   @Column({ default: false }) requireProgressApproval!: boolean;
+  /**
+   * Book type (K7, Nov 13): which client role's money view the client's copy
+   * of an estimate follows -- open | modified | closed | lump_sum (Client Open
+   * Book ... Client Lump Sum Closed Book in User Access & Roles).
+   */
+  @Column({ type: 'nvarchar', length: 20, default: 'closed' }) bookType!: string;
   @Column({ nullable: true }) billToName!: string;
   @Column({ nullable: true }) billToEmail!: string;
   @Column({ ...TEXT, nullable: true }) billToAddress!: string;
@@ -1952,6 +2101,8 @@ export class ProgressUpdateEntity {
 @Index('UQ_project_invoices_number', ['issuedNumber'], { unique: true, where: '[issuedNumber] IS NOT NULL' })
 export class ProjectInvoiceEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
+  /** Which funding source pays it (Batch 6: loan, owner cash...); empty = not assigned. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) fundingSourceId!: string | null;
   /** INV-YYYY-0001, given only when the invoice is issued. */
   @Column({ nullable: true }) issuedNumber!: string;
   @Column('int') projectId!: number;
@@ -2122,6 +2273,8 @@ export class AuditEventEntity {
 @Index('UQ_change_orders_number', ['projectId', 'number'], { unique: true })
 export class ChangeOrderEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
+  /** Which funding source pays for it (Batch 6); empty = not assigned. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) fundingSourceId!: string | null;
   /** Where it came from when it was converted or duplicated from another special action. */
   @Column({ nullable: true }) sourceType!: string;
   @Column({ nullable: true }) sourceId!: string;
@@ -2410,6 +2563,11 @@ export class CommitmentEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
   @Column('int') projectId!: number;
   /** SC-001 for subcontracts, PO-001 for purchase orders and service agreements. */
+  /** Retention held on each sub invoice (Batch 6); empty = 10%. */
+  @Column({ type: 'decimal', precision: 7, scale: 4, nullable: true, transformer: { to: (v: unknown) => v, from: (v: unknown) => (v == null ? null : Number(v)) } }) retentionPct!: number | null;
+  /** When the retention held was paid out, and the payment reference. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) retentionPaidDate!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) retentionPaymentRef!: string | null;
   @Column() number!: string;
   /** subcontract | purchase_order | service */
   @Column({ default: 'subcontract' }) type!: string;
@@ -2472,6 +2630,55 @@ export class ContractorBidEntity {
   @Column({ nullable: true }) createdByName!: string;
   @Column() createdAt!: string;
   @Column({ nullable: true }) updatedAt!: string;
+}
+
+/**
+ * K10 (Nov 13): a sub bid package -- chosen scopes of an estimate sent to
+ * subs for pricing. `content` is a snapshot made when the package is created,
+ * built from an allow-list (scope and line text, CSI codes, inclusions /
+ * exclusions): never our costs, markup or prices. Line keys are the line's
+ * originId (or id), so a bid can be applied to a later draft revision.
+ */
+@Entity('bid_packages')
+export class BidPackageEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() estimateId!: string;
+  /** The estimate's number (EST-001): bids are applied to its current draft revision. */
+  @Column({ type: 'nvarchar', length: 40 }) estimateNumber!: string;
+  @Column({ type: 'nvarchar', length: 20 }) number!: string;
+  @Column({ type: 'nvarchar', length: 300 }) title!: string;
+  @Column({ type: 'simple-json' }) content!: { scopes: { key: string; title: string; csi: string | null; lines: { key: string; description: string }[]; notes: { kind: string; text: string }[] }[] };
+  @Column({ type: 'nvarchar', length: 10, nullable: true }) dueDate!: string | null;
+  @Column({ ...TEXT, nullable: true }) notes!: string | null;
+  /** draft | out | closed */
+  @Column({ default: 'draft' }) status!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+/** K10: one sub asked to price a bid package; their price, per line and/or in total. */
+@Entity('bid_invites')
+export class BidInviteEntity {
+  @PrimaryColumn() id!: string;
+  @Column() packageId!: string;
+  @Column('int') projectId!: number;
+  @Column() contractorId!: string;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) vendorName!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) email!: string | null;
+  /** The matching row on the Contractors page (contractor_bids). */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) contractorBidId!: string | null;
+  /** invited | viewed | submitted | declined | awarded | not_awarded */
+  @Column({ default: 'invited' }) status!: string;
+  @Column({ ...MONEY, nullable: true }) total!: number | null;
+  @Column({ type: 'simple-json', nullable: true }) lineAmounts!: Record<string, number> | null;
+  @Column({ ...TEXT, nullable: true }) notes!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) sentAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) viewedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) submittedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) decidedAt!: string | null;
+  @Column() createdAt!: string;
 }
 
 /** A cost incurred: a vendor bill, subcontractor invoice, material or equipment charge. Labor and reimbursables are counted from their own records. */
@@ -2551,6 +2758,8 @@ export class RfiEntity {
   @Column() number!: string;
   @Column() subject!: string;
   /** draft | open | answered | closed | void */
+  /** Its CSI code (Nov 3 sync: track an issue from the drawing through change orders to the contract). */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) csiCodeId!: string | null;
   @Column() status!: string;
   @Column({ nullable: true }) priority!: string;
   @Column({ ...TEXT, nullable: true }) question!: string;
@@ -2613,4 +2822,314 @@ export class LeadFilesEntity {
   @Column({ nullable: true }) welcomeSentTo!: string;
   @Column({ nullable: true }) welcomeSentBy!: string;
   @Column({ nullable: true }) welcomeSentById!: string;
+}
+
+/**
+ * The shared bank of custom tags (Oct 30 sync): a tag anyone types on a task
+ * joins it, so it's offered everywhere and can be filtered on. The seven
+ * standard tags (task.types ACTION_TAGS) aren't stored here. Admins rename,
+ * merge or delete custom tags in Settings -> Tags.
+ */
+@Entity('tag_bank')
+export class TagEntity {
+  /** The tag in lower case, for matching ("astrid private"). */
+  @PrimaryColumn({ type: 'nvarchar', length: 80 }) key!: string;
+  /** As first typed ("Astrid private"). */
+  @Column({ type: 'nvarchar', length: 80 }) name!: string;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) createdBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) createdAt!: string | null;
+}
+
+// ================================================================== estimates (financial tab, Nov 4)
+// The prime contract estimate, built like the team's spreadsheet: scopes (one CSI
+// code each) with lines, the subcontractor and markup columns beside them, and
+// General Requirements, profit and contingency below the line. The maths is in
+// finance/estimate.calc.ts. A sent estimate is frozen as a revision; one is accepted.
+
+/** One custom column someone added (or a built-in one hidden or moved). */
+export interface EstimateColumn {
+  key: string;
+  label: string;
+  /** text | number | money | pct | date | choice | checkbox | formula */
+  type: string;
+  table: 'lines' | 'gr';
+  formula?: string;
+  choices?: string[];
+  width?: number;
+  hidden?: boolean;
+  /** Custom columns are internal-only unless switched on. */
+  showClient?: boolean;
+  showSub?: boolean;
+  builtIn?: boolean;
+  /** The column group it sits under (prime | precon | sub | markup | notes). */
+  band?: string;
+}
+export interface EstimatePayment { id: string; label: string; mode: 'pct' | 'amt'; value: number; trigger?: string }
+export interface EstimateAreas { demolish?: number; footprint?: number; built?: number; conditioned?: number; roof?: number; hardscape?: number; landscape?: number }
+
+@Entity('estimates')
+@Index('IX_estimates_project', ['projectId'])
+export class EstimateEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /**
+   * A named company template ("Bathroom remodel"): projectId 0, never sent.
+   * A new estimate can start from a template or from any other estimate.
+   */
+  @Column({ default: false }) isTemplate!: boolean;
+  /** The company default: a blank estimate starts with its columns, GR lines, percentages, payments and letter text. */
+  @Column({ default: false }) isDefaultTemplate!: boolean;
+  /** EST-001; revisions keep the number and count up `rev`. */
+  @Column() number!: string;
+  @Column({ type: 'int', default: 1 }) rev!: number;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) title!: string | null;
+  /** draft | sent | accepted | superseded */
+  @Column({ default: 'draft' }) status!: string;
+  /** The revision this one was copied from. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) revisionOf!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) frozenAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) sentAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) acceptedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) acceptedBy!: string | null;
+  /** K8 (Nov 13): who it was emailed to and by, and the client's signature when they accept it online. */
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) sentTo!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) sentById!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) signedName!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) signedEmail!: string | null;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) signatureImage!: string | null;
+  @Column({ type: 'nvarchar', length: 80, nullable: true }) signedIp!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) signedFileId!: string | null;
+  /** K9: "Set up the job" -- when, by whom, and what each step made (contract, budget, subcontracts, milestones). */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) setupAt!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) setupBy!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) setupRefs!: Record<string, any> | null;
+  @Column({ ...PCT, default: 17 }) grPct!: number;
+  @Column({ ...PCT, default: 12 }) profitPct!: number;
+  @Column({ ...PCT, default: 5 }) contingencyPct!: number;
+  /** General Liability rate % of (subtotal + GR), F20 (Nov 13). Null = off; older estimates keep a GL line in GR instead. */
+  @Column({ ...PCT, nullable: true }) glPct!: number | null;
+  /** "Show detail costs in prime?": GR lines on the client's copy, or only the GR total. */
+  @Column({ default: true }) showGrDetail!: boolean;
+  @Column({ ...MONEY, nullable: true }) discount!: number | null;
+  @Column({ default: false }) showDiscount!: boolean;
+  @Column({ ...MONEY, nullable: true }) designCost!: number | null;
+  @Column({ default: false }) showDesignCost!: boolean;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) estimateDate!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) preparedById!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) reviewedById!: string | null;
+  @Column({ ...TEXT, nullable: true }) intro!: string | null;
+  @Column({ ...TEXT, nullable: true }) descriptionOfWork!: string | null;
+  @Column({ ...TEXT, nullable: true }) terms!: string | null;
+  @Column({ ...TEXT, nullable: true }) closing!: string | null;
+  @Column({ ...TEXT, nullable: true }) additionalNotes!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) areas!: EstimateAreas | null;
+  @Column({ type: 'simple-json', nullable: true }) columns!: EstimateColumn[] | null;
+  @Column({ type: 'simple-json', nullable: true }) payments!: EstimatePayment[] | null;
+}
+
+@Entity('estimate_scopes')
+@Index('IX_estimate_scopes_estimate', ['estimateId'])
+export class EstimateScopeEntity {
+  @PrimaryColumn() id!: string;
+  @Column() estimateId!: string;
+  /** The row this was copied from in an earlier revision (kept across revisions, for Compare; Nov 13). */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) originId!: string | null;
+  @Column('int') projectId!: number;
+  @Column('int') scopeOrder!: number;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) csiCodeId!: string | null;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) title!: string | null;
+  /** Precon range multiplier (1.15 = 15% higher end). */
+  @Column({ type: 'decimal', precision: 9, scale: 4, nullable: true, transformer: numberFrom }) factor!: number | null;
+  @Column({ ...TEXT, nullable: true }) privateNotes!: string | null;
+  @Column({ default: false }) collapsed!: boolean;
+  @Column({ type: 'simple-json', nullable: true }) custom!: Record<string, unknown> | null;
+}
+
+@Entity('estimate_lines')
+@Index('IX_estimate_lines_estimate', ['estimateId'])
+export class EstimateLineEntity {
+  @PrimaryColumn() id!: string;
+  @Column() estimateId!: string;
+  /** The row this was copied from in an earlier revision (kept across revisions, for Compare; Nov 13). */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) originId!: string | null;
+  @Column('int') projectId!: number;
+  @Column() scopeId!: string;
+  @Column('int') lineOrder!: number;
+  @Column({ type: 'int', default: 0 }) indent!: number;
+  /**
+   * item (a priced line) | details | inclusion | exclusion | assumption. The notes
+   * are rows in the same table and numbering as the items (2.07 << Details,
+   * 2.08 << Inclusions ...); there can be several of each, and a row can be
+   * typed or a canned statement for the scope's CSI code. Notes carry no money.
+   */
+  @Column({ type: 'nvarchar', length: 20, default: 'item' }) kind!: string;
+  /** For notes: the canned statement it came from, if any. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) statementId!: string | null;
+  @Column({ ...TEXT, nullable: true }) description!: string | null;
+  /** Rough Labor, Rough Materials, Finish Labor, Finish Materials, Equipment. */
+  @Column({ type: 'simple-json', nullable: true }) costTypes!: string[] | null;
+  /** fc | tm | nte | allowance | ofci | nis */
+  @Column({ default: 'fc' }) pricing!: string;
+  /** The sub's own pricing type (the subcontractor columns' FC / T&M / ... boxes); null = same as the prime line. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) subPricing!: string | null;
+  /** sub_used | sub_required | self_perform | ofci | sub_procures | prime_procures | designer_procures | not_in_scope (Nov 13; older rows may still hold subcontract | owner | contract_required | other until mapped) */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) strategy!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) contractorId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) subName!: string | null;
+  @Column({ type: 'int', nullable: true }) durationDays!: number | null;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) startDate!: string | null;
+  /** Quantity, unit (SF, LF, EA, LS...) and unit cost (Nov 13): when quantity and unit cost are filled, quantity × unit cost is the sub cost (F21). */
+  @Column({ type: 'decimal', precision: 14, scale: 4, nullable: true, transformer: numberFrom }) qty!: number | null;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) unit!: string | null;
+  @Column({ ...MONEY, nullable: true }) unitCost!: number | null;
+  @Column({ ...MONEY, default: 0 }) cost!: number;
+  /** amt (markup typed in dollars) | pct */
+  @Column({ default: 'amt' }) markupMode!: string;
+  @Column({ ...MONEY, default: 0 }) markupAmt!: number;
+  @Column({ ...PCT, nullable: true }) markupPct!: number | null;
+  /** The sub's wording for the line; it fills the prime description until someone edits that. */
+  @Column({ ...TEXT, nullable: true }) subNotes!: string | null;
+  @Column({ ...TEXT, nullable: true }) privateNotes!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) custom!: Record<string, unknown> | null;
+}
+
+@Entity('estimate_gr_lines')
+@Index('IX_estimate_gr_lines_estimate', ['estimateId'])
+export class EstimateGrLineEntity {
+  @PrimaryColumn() id!: string;
+  @Column() estimateId!: string;
+  @Column('int') projectId!: number;
+  @Column('int') lineOrder!: number;
+  @Column({ type: 'nvarchar', length: 300 }) title!: string;
+  @Column({ default: true }) included!: boolean;
+  @Column({ ...MONEY, default: 0 }) base!: number;
+  /** LS | Monthly | Weekly | Each | ... */
+  @Column({ type: 'nvarchar', length: 40, default: 'LS' }) unit!: string;
+  @Column({ type: 'decimal', precision: 12, scale: 4, default: 1, transformer: numberFrom }) qty!: number;
+  @Column({ ...TEXT, nullable: true }) notes!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) custom!: Record<string, unknown> | null;
+}
+
+/**
+ * Standard statements for estimate scopes (financial tab): canned Details,
+ * Inclusions, Exclusions and Assumptions & Clarifications, kept per CSI code
+ * (or for every scope when no code is set) and picked into a scope's note rows.
+ */
+@Entity('estimate_statements')
+@Index('IX_estimate_statements_csi', ['csiCodeId'])
+export class EstimateStatementEntity {
+  @PrimaryColumn() id!: string;
+  /** Null: offered on every scope. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) csiCodeId!: string | null;
+  /** details | inclusion | exclusion | assumption */
+  @Column({ type: 'nvarchar', length: 20 }) kind!: string;
+  @Column({ ...TEXT }) text!: string;
+  @Column({ type: 'int', default: 0 }) sortOrder!: number;
+  @Column({ default: true }) active!: boolean;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) createdBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) updatedBy!: string | null;
+}
+
+/**
+ * A Gmail thread linked to a lead, project or task (Nov 13 sync): by hand,
+ * by a #tag in the mail, or because a lead wrote it. Keeps a copy of the
+ * messages so people who can see the record can read it.
+ */
+@Entity('email_links')
+export class EmailLinkEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 64 }) threadId!: string;
+  /** Whose mailbox it is in. */
+  @Column({ type: 'nvarchar', length: 64 }) ownerId!: string;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) ownerName!: string | null;
+  /** lead | project | task */
+  @Column({ type: 'nvarchar', length: 12 }) entityType!: string;
+  @Column({ type: 'nvarchar', length: 80 }) entityId!: string;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) label!: string | null;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) subject!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) messages!: { from: string; to: string; date: string; subject: string; text: string; attachments: string[] }[] | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) lastAt!: string | null;
+  /** Linked by a #tag or a lead's address rather than by hand. */
+  @Column({ type: 'bit', default: false }) auto!: boolean;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+}
+
+/** An email template for My Mail (Batch 6): shared (ownerId empty, made by administrators) or one person's own. */
+@Entity('mail_templates')
+export class MailTemplateEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 200 }) name!: string;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) subject!: string | null;
+  @Column({ type: 'nvarchar', length: 'MAX' }) html!: string;
+  /** Empty = shared with everyone. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) ownerId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) ownerName!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) updatedAt!: string;
+}
+
+/**
+ * An email sent from My Mail with open tracking (Batch 6): the tiny image's
+ * id (random, unguessable), the Gmail message, and each time it was loaded.
+ */
+@Entity('mail_sends')
+export class MailSendEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 64 }) ownerId!: string;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) gmailId!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) threadId!: string | null;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) to!: string | null;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) subject!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) sentAt!: string;
+  @Column({ type: 'simple-json', nullable: true }) opens!: string[] | null;
+}
+
+/** A sub's invoice (Batch 6): the header over the cost lines they billed together (id = their batchId), with its retention. */
+@Entity('sub_invoices')
+export class SubInvoiceEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column('int') projectId!: number;
+  @Column({ type: 'nvarchar', length: 64 }) commitmentId!: string;
+  @Column({ type: 'nvarchar', length: 64 }) contractorId!: string;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) reference!: string | null;
+  @Column({ type: 'decimal', precision: 7, scale: 4, transformer: { to: (v: unknown) => v, from: (v: unknown) => Number(v) } }) retentionPct!: number;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+}
+
+/** A lien release the sub uploaded (Batch 6); the bookkeeper marks its kind. invoiceId empty = a final release on the subcontract. */
+@Entity('lien_releases')
+export class LienReleaseEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column('int') projectId!: number;
+  @Column({ type: 'nvarchar', length: 64 }) commitmentId!: string;
+  @Column({ type: 'nvarchar', length: 64 }) contractorId!: string;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) invoiceId!: string | null;
+  /** conditional_progress | unconditional_progress | conditional_final | unconditional_final; empty until marked. */
+  @Column({ type: 'nvarchar', length: 30, nullable: true }) kind!: string | null;
+  @Column({ type: 'decimal', precision: 18, scale: 2, nullable: true, transformer: { to: (v: unknown) => v, from: (v: unknown) => (v == null ? null : Number(v)) } }) amount!: number | null;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) throughDate!: string | null;
+  @Column({ type: 'simple-json' }) file!: TaskAttachment;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) uploadedBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) uploadedAt!: string;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) checkedBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) checkedAt!: string | null;
+}
+
+/** Where a project's money comes from (Batch 6): a loan, the owner's cash, or another source, with the amount approved. */
+@Entity('funding_sources')
+export class FundingSourceEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column('int') projectId!: number;
+  /** loan | owner_cash | other */
+  @Column({ type: 'nvarchar', length: 20 }) kind!: string;
+  @Column({ type: 'nvarchar', length: 200 }) name!: string;
+  @Column({ type: 'decimal', precision: 18, scale: 2, transformer: { to: (v: unknown) => v, from: (v: unknown) => (v == null ? 0 : Number(v)) } }) approvedAmount!: number;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) notes!: string | null;
+  @Column({ type: 'int', default: 0 }) sortOrder!: number;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) createdBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
 }

@@ -17,6 +17,10 @@ export interface FileRoomFile {
   isLatest?: boolean;
   /** Free notes about the document, shown and edited in the drawer. */
   notes?: string;
+  /** Small copies (Nov 5): pending | ready | none | failed; null for files not done yet. */
+  previewState?: string | null;
+  /** Set when the thumbnail is ready; part of its URL, so the browser keeps it for good. */
+  thumbV?: string | null;
 }
 
 export interface FileRoomFolder {

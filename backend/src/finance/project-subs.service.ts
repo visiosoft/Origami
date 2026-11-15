@@ -1,3 +1,4 @@
+import { personOnProject } from '../people/person-projects';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -77,11 +78,11 @@ export class ProjectSubsService {
     }
     for (const r of rows.values()) r.subcontracts.sort((a, b) => a.number.localeCompare(b.number));
 
-    // Subs tied to the project in People (by project name) but with no subcontract here yet.
+    // Subs tied to the project in People (by project id; by name until moved to ids) but with no subcontract here yet.
     const onJob = new Set([...rows.values()].map((r) => r.personId).filter(Boolean));
     const contractorByPerson = new Map(contractors.filter((c) => c.personId).map((c) => [Number(c.personId), c]));
     const unlinked = people
-      .filter((p) => p.kind === 'Sub' && (p.projects || []).includes(project.name) && !onJob.has(p.id))
+      .filter((p) => p.kind === 'Sub' && personOnProject(p, { id: project.id, name: project.name }, [{ id: project.id, name: project.name }]) && !onJob.has(p.id))
       .map((p) => ({ personId: p.id, name: p.name, company: p.company, role: p.role, phone: p.phone, email: p.email, contractorId: contractorByPerson.get(p.id)?.id }));
 
     return {

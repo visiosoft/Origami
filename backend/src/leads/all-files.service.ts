@@ -33,6 +33,9 @@ const headline = (s?: string) => String(s || '').split('\n')[0].trim().slice(0, 
  * project, its board tasks, RFIs and Plan & File Room. Numbered in the order
  * they were added, so a file keeps its number as more arrive.
  */
+/** May the caller open this File Room folder? (FolderAccessService.gate) */
+type FolderOk = (projectId: unknown, path?: string[] | null) => boolean;
+
 @Injectable()
 export class AllFilesService {
   constructor(
@@ -46,18 +49,18 @@ export class AllFilesService {
     @InjectRepository(FileRoomFileEntity) private readonly fileRoom: Repository<FileRoomFileEntity>,
   ) {}
 
-  async forLead(leadId: string) {
+  async forLead(leadId: string, folderOk?: FolderOk) {
     const project = await this.projects.findOneBy({ leadId });
-    return this.collect(leadId, project);
+    return this.collect(leadId, project, folderOk);
   }
 
-  async forProject(projectId: number) {
+  async forProject(projectId: number, folderOk?: FolderOk) {
     const project = await this.projects.findOneBy({ id: projectId });
     if (!project) throw new NotFoundException('Project not found');
-    return this.collect(project.leadId || null, project);
+    return this.collect(project.leadId || null, project, folderOk);
   }
 
-  private async collect(leadId: string | null, project: ProjectEntity | null) {
+  private async collect(leadId: string | null, project: ProjectEntity | null, folderOk: FolderOk = () => true) {
     const out: Omit<IndexedFile, 'n'>[] = [];
     const base = (a: any) => ({ id: a.id, name: a.name, kind: a.kind, mimeType: a.mimeType, size: a.size, uploadedAt: a.uploadedAt, uploadedBy: a.uploadedBy, ...(a.kind === 'link' ? { url: a.url } : {}) });
 
@@ -91,7 +94,8 @@ export class AllFilesService {
       for (const r of rfis) {
         for (const a of normalizeAttachments(r.attachments)) out.push({ ...base(a), source: 'rfi', where: `${r.number} · ${r.subject}`, scope: 'rfis', ownerId: r.id });
       }
-      for (const f of rooms.filter((x) => x.isLatest !== false)) {
+      // Not files in a File Room folder kept from the caller (Nov 13).
+      for (const f of rooms.filter((x) => x.isLatest !== false && folderOk(x.projectId, x.folderPath))) {
         out.push({
           id: f.id, name: f.name, kind: 'drive', mimeType: f.mimeType, size: Number(f.size) || undefined, uploadedAt: f.updatedAt, uploadedBy: f.uploadedBy,
           source: 'file-room', where: `Plan & File Room${(f.folderPath || []).length ? ' › ' + f.folderPath.join(' › ') : ''}`, scope: 'file-room', ownerId: String(project.id),

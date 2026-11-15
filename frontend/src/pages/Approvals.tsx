@@ -78,7 +78,7 @@ export function Approvals({ projectName }: { projectName?: string } = {}) {
         });
       }
       for (const l of Array.isArray(logs) ? logs : []) {
-        out.push({ key: 'd' + l.id, kind: 'daily_report', project: pn(l.projectId), title: `${pn(l.projectId)} — daily report`, sub: [l.supervisorName && 'by ' + l.supervisorName, l.totalHours != null && `${l.totalHours} h`].filter(Boolean).join(' · '), since: l.submittedAt || l.date, canAct: canManpower, to: '/manpower_con?tab=approvals' });
+        out.push({ key: 'd' + l.id, kind: 'daily_report', project: pn(l.projectId), title: `${pn(l.projectId)} — daily report`, sub: [l.supervisorName && 'by ' + l.supervisorName, l.totalHours != null && `${l.totalHours} h`].filter(Boolean).join(' · '), since: l.submittedAt || l.date, canAct: canManpower, to: `/daily_reports?report=${encodeURIComponent(l.id)}` });
       }
       for (const t of Array.isArray(sheets) ? sheets : []) {
         out.push({ key: 't' + t.id, kind: 'timesheet', title: `${t.employeeName} — week of ${new Date(t.weekStart + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, sub: `${t.totalHours} h`, since: t.submittedAt, canAct: true, to: '/manpower_con?tab=approvals' });

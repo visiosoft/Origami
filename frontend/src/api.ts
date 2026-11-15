@@ -19,6 +19,7 @@ import type { BillingMonth } from './data/dashboardCharts';
 import type { AuditRow } from './data/audit';
 import type { Contract, ContractSigningView, ContractTemplate, ContractTypeInfo } from './data/contracts';
 import type { PriorityDef } from './data/priority';
+import type { TagInfo } from './data/tagBank';
 const API_BASE = '/api';
 
 /** Special actions that can be duplicated or converted: Special Actions Log entry, board task, meeting, RFI, change order. */
@@ -49,9 +50,29 @@ export interface WeeklyReport {
 }
 
 /** A checklist made in advance ("Pre-pour inspection"). */
+export type PrequalAnswers = { trades?: string; yearsInBusiness?: number | null; references?: string; w9OnFile?: boolean; notes?: string; submittedAt?: string; submittedBy?: string };
+export type PrequalRow = {
+  id: string; companyName: string; contactPerson?: string; email?: string; phone?: string; tradeIds: string[];
+  licenseNumber?: string; licenseExpiry?: string; insuranceProvider?: string; insurancePolicyNumber?: string; insuranceExpiry?: string;
+  prequalStatus: 'pending' | 'approved' | 'rejected' | null; prequal: PrequalAnswers | null; prequalAt?: string | null; prequalBy?: string | null; prequalNotes?: string | null;
+  attachments: { id: string; name: string }[]; canBid: boolean; reason: string | null;
+};
+export type PrequalPublic = { companyName: string; licenseNumber?: string; licenseExpiry?: string; insuranceProvider?: string; insurancePolicyNumber?: string; insuranceExpiry?: string; prequal: PrequalAnswers | null; status: string | null; files: string[] };
+
+export type MailTemplate = { id: string; name: string; subject: string | null; html: string; shared: boolean; mine: boolean; ownerName?: string | null };
+export type MailLink = { id: string; entityType: 'lead' | 'project' | 'task'; entityId: string; label: string | null; auto?: boolean };
+export type MailThreadRow = { id: string; subject: string; from: string; to: string; date: string; snippet: string; count: number; unread: boolean; links: MailLink[] };
+export type MailMessage = { id: string; threadId: string; from: string; to: string; cc: string; subject: string; date: string; messageId: string; unread: boolean; snippet: string; html: string; text: string; attachments: { id: string; filename: string; mimeType: string; size: number }[]; /** Opens of a tracked email you sent (Batch 6). */ opens?: { count: number; last: string | null } | null };
+export type MailThread = { id: string; subject: string; messages: MailMessage[]; links: MailLink[] };
+export type LinkedMailRow = { id: string; threadId: string; subject: string | null; ownerName: string | null; mine: boolean; auto: boolean; lastAt: string | null; messages: { from: string; to: string; date: string; subject: string; text: string; attachments: string[] }[] };
+
+export type MassRecipient = { type: 'person' | 'lead'; id: string; name: string; phone: string; status: 'waiting' | 'sent' | 'failed' | 'skipped'; note?: string };
+
 export interface ChecklistTemplate { id: string; name: string; items: { item: string }[];
   /** Added by itself to new records: task, record, record:Observation, label:Safety. */
-  autoFor?: string[]; createdById?: string; createdByName?: string; createdAt: string }
+  autoFor?: string[]; createdById?: string; createdByName?: string; createdAt: string;
+  /** general | qaqc (Nov 13). */
+  kind?: string }
 
 /** A saved filter set on a list page (Saved views). */
 export interface SavedView { id: string; page: string; name: string; filters: Record<string, unknown> | null; createdAt: string }
@@ -160,13 +181,17 @@ export const session = {
 export const READ_TTL_MS = 60_000;
 const readCache = new Map<string, { at: number; value: unknown }>();
 const readsInFlight = new Map<string, Promise<unknown>>();
-const NEVER_CACHE = /^\/(auth\/|status\b|notifications\/my-tasks|google\/status)/;
+// Tasks, the programme and the dashboard are always read fresh (Nov 13 sync: a teammate's
+// task update must show on the next refresh, not up to a minute later).
+const NEVER_CACHE = /^\/(auth\/|status\b|notifications\/my-tasks|google\/status|tasks\b|project-tasks\b|project-phases\b|dashboard\b)/;
 /** The last path segment is a record id (it has a digit), e.g. /tasks/T-2026-0007, /people/42. */
 const isRecordPath = (path: string) => /\d/.test(path.split('?')[0].split('/').filter(Boolean).pop() || '');
 export const cacheableRead = (path: string, options?: RequestInit) =>
   (options?.method || 'GET').toUpperCase() === 'GET' && options?.cache !== 'no-store' && !NEVER_CACHE.test(path) && !isRecordPath(path);
 /** Drop every cached read (after a change, or on signing in or out). */
 export function clearReadCache() { readCache.clear(); readsInFlight.clear(); }
+// Coming back to the tab (another window, a meeting screen): start from fresh reads.
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') clearReadCache(); });
 const copy = <T,>(v: T): T => (v === undefined || v === null ? v : structuredClone(v));
 
 // ---- Busy count: how many reads (and page downloads) are in flight, for the top loading bar ----
@@ -191,12 +216,27 @@ export function markBusy(): () => void {
   };
 }
 
+/**
+ * View as (Nov 13): an administrator sees the app as a role or a person,
+ * read-only. Kept per browser tab; sent on every request except the ones
+ * about the real session.
+ */
+const VIEW_AS_KEY = 'origami.viewAs';
+export const viewAs = {
+  get: (): string | null => { try { return sessionStorage.getItem(VIEW_AS_KEY); } catch { return null; } },
+  set: (v: string | null) => { try { if (v) sessionStorage.setItem(VIEW_AS_KEY, v); else sessionStorage.removeItem(VIEW_AS_KEY); } catch { /* private mode */ } clearReadCache(); },
+};
+const viewAsHeader = (path: string): Record<string, string> => {
+  const v = viewAs.get();
+  return v && !/^\/auth\/(refresh|logout|2fa)/.test(path) ? { 'X-View-As': v } : {};
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!cacheableRead(path, options)) {
     try { return await send<T>(path, options); }
     finally { if ((options?.method || 'GET').toUpperCase() !== 'GET') clearReadCache(); }
   }
-  const key = (session.get() || '') + ' ' + path;
+  const key = (session.get() || '') + ' ' + (viewAs.get() || '') + ' ' + path;
   const hit = readCache.get(key);
   if (hit && Date.now() - hit.at < READ_TTL_MS) return copy(hit.value as T);
   let pending = readsInFlight.get(key) as Promise<T> | undefined;
@@ -223,6 +263,7 @@ async function sendNow<T>(path: string, options: RequestInit | undefined, token:
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...viewAsHeader(path),
       ...(options?.headers ?? {}),
     },
   });
@@ -253,7 +294,7 @@ async function sendForm<T>(path: string, form: FormData): Promise<T> {
   const token = session.get();
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...viewAsHeader(path) },
     body: form,
   });
   if (!res.ok) {
@@ -268,7 +309,7 @@ async function sendForm<T>(path: string, form: FormData): Promise<T> {
 /** A file's bytes, signed in (for the PDF markup viewer and marked-up downloads). */
 async function requestBytes(path: string): Promise<ArrayBuffer> {
   const token = session.get();
-  const res = await fetch(`${API_BASE}${path}`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  const res = await fetch(`${API_BASE}${path}`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...viewAsHeader(path) } });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
@@ -301,10 +342,51 @@ export const attachmentUrl = (
 
 const qs = (o?: Record<string, unknown>) => { const q = new URLSearchParams(); Object.entries(o || {}).forEach(([k, v]) => { if (v != null && v !== '') q.set(k, String(v)); }); const t = q.toString(); return t ? `?${t}` : ''; };
 
+/** Sub invoices and lien releases (Batch 6). */
+export type ReleaseKind = 'conditional_progress' | 'unconditional_progress' | 'conditional_final' | 'unconditional_final';
+export const RELEASE_KINDS: { key: ReleaseKind; label: string }[] = [
+  { key: 'conditional_progress', label: 'Conditional — progress payment' },
+  { key: 'unconditional_progress', label: 'Unconditional — progress payment' },
+  { key: 'conditional_final', label: 'Conditional — final payment' },
+  { key: 'unconditional_final', label: 'Unconditional — final payment' },
+];
+export interface LienRelease { id: string; kind: ReleaseKind | null; label: string; name?: string; amount?: number | null; throughDate?: string | null; uploadedAt: string; checked: boolean }
+export interface SubInvoice {
+  id: string; reference: string | null; commitmentId: string; commitmentNumber?: string; contractorId: string; vendorName?: string; date: string | null;
+  status: 'submitted' | 'approved' | 'paid' | 'returned'; gross: number; retentionPct: number; retention: number; net: number; lineIds: string[]; paidDate: string | null;
+  releases: LienRelease[]; payBlock: string | null; waitingUnconditional: boolean;
+}
+/** Funding sources on a project (Batch 6). */
+export interface FundingView {
+  canManage: boolean; kinds: { key: string; label: string }[];
+  sources: { id: string; kind: string; kindLabel: string; name: string; notes: string | null; approved: number; invoiced: number; paid: number; left: number; changeOrders: number; over: boolean }[];
+  approved: number; revisedContract: number; gap: number; unassignedInvoiced: number; unassignedCount: number;
+  invoices: { id: string; number: string | null; date: string; total: number | null; fundingSourceId: string | null }[];
+  changeOrders: { id: string; number: string; title: string; amount: number | null; fundingSourceId: string | null }[];
+}
+export interface PortalRetention { commitmentId: string; number: string; vendorName?: string; held: number; paidDate: string | null; paymentRef: string | null; block: string | null; waitingUnconditional: boolean; releases: LienRelease[] }
+
+export interface DbBackupStatus {
+  enabled: boolean; lastRun: string | null; folder: string; keep: number; connected: boolean;
+  lastResult: { at: string; ok: boolean; name?: string; bytes?: number; tables?: number; rows?: number; removed?: number; link?: string | null; error?: string } | null;
+}
+
 export const api = {
   auth: {
+    /** A session, or -- for staff (Nov 13) -- a ticket for the second step. */
     login: (email: string, password: string) =>
-      request<{ token: string; user: unknown }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+      request<{ token?: string; user?: unknown; twoFactor?: 'setup' | 'code'; ticket?: string; name?: string; email?: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    twoFactorSetup: (ticket: string) => request<{ secret: string; uri: string; account: string }>('/auth/2fa/setup', { method: 'POST', body: JSON.stringify({ ticket }) }),
+    twoFactorEnable: (ticket: string, code: string, remember: boolean, method: 'app' | 'sms' | 'email' = 'app') => request<{ token: string; user: unknown; backupCodes: string[] }>('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ ticket, code, remember, method }) }),
+    /** Text / email codes (Nov 13). */
+    twoFactorInfo: (ticket: string) => request<{ step: 'setup' | 'code'; method: 'app' | 'sms' | 'email'; methods: ('app' | 'sms' | 'email')[]; sentTo?: string }>('/auth/2fa/info', { method: 'POST', body: JSON.stringify({ ticket }) }),
+    twoFactorSend: (ticket: string, choice?: { method: 'sms' | 'email'; phone?: string }) => request<{ sentTo: string }>('/auth/2fa/send', { method: 'POST', body: JSON.stringify({ ticket, ...choice }) }),
+    sendOwnCode: () => request<{ sentTo: string }>('/auth/2fa/code', { method: 'POST' }),
+    changeMethod: (method: 'app' | 'sms' | 'email', phone?: string) => request<{ method: string; secret?: string; uri?: string; sentTo?: string }>('/auth/2fa/method', { method: 'POST', body: JSON.stringify({ method, phone }) }),
+    confirmMethod: (method: 'app' | 'sms' | 'email', code: string) => request<unknown>('/auth/2fa/method/confirm', { method: 'POST', body: JSON.stringify({ method, code }) }),
+    twoFactorVerify: (ticket: string, d: { code?: string; backupCode?: string; remember?: boolean }) => request<{ token: string; user: unknown; backupCodesLeft: number }>('/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ ticket, ...d }) }),
+    newBackupCodes: (code: string) => request<{ backupCodes: string[] }>('/auth/2fa/backup-codes', { method: 'POST', body: JSON.stringify({ code }) }),
+    resetTwoFactor: (userId: string) => request<{ reset: boolean }>(`/auth/2fa/reset/${encodeURIComponent(userId)}`, { method: 'POST' }),
     me: () => request('/auth/me'),
     /** A fresh session token while the current one is still valid. */
     refresh: () => request<{ token: string; expiresIn: number; user: unknown }>('/auth/refresh', { method: 'POST' }),
@@ -334,9 +416,11 @@ export const api = {
   /** Checklists made in advance and added to tasks. */
   checklistTemplates: {
     list: () => request<ChecklistTemplate[]>('/checklist-templates'),
-    save: (name: string, items: string[], autoFor?: string[]) => request<ChecklistTemplate>('/checklist-templates', { method: 'POST', body: JSON.stringify({ name, items, autoFor }) }),
-    update: (id: string, d: { name?: string; items?: string[]; autoFor?: string[] }) => request<ChecklistTemplate>(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    save: (name: string, items: string[], autoFor?: string[], kind?: string) => request<ChecklistTemplate & { applied?: number }>('/checklist-templates', { method: 'POST', body: JSON.stringify({ name, items, autoFor, kind }) }),
+    update: (id: string, d: { name?: string; items?: string[]; autoFor?: string[]; kind?: string }) => request<ChecklistTemplate & { applied?: number }>(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     remove: (id: string) => request(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    /** QA/QC checklists on tasks (Nov 13): per task and template, done of total. */
+    qaqc: (projectId?: number) => request<{ taskId: string; projectId: number; title: string; phaseId: string | null; templateId: string; templateName: string; total: number; done: number; dueDate: string | null; assignee: string | null; completed: boolean }[]>(`/checklist-templates/qaqc${projectId ? `?projectId=${projectId}` : ''}`, { cache: 'no-store' } as any),
   },
   /** The caller's own saved filter sets, per list page. */
   views: {
@@ -357,6 +441,15 @@ export const api = {
       request<import('./data/sms').SmsMessage[]>(`/sms/messages?entityType=${entityType}&entityId=${encodeURIComponent(entityId)}`),
     test: (to: string) =>
       request<{ sent: boolean; to: string }>('/sms/test', { method: 'POST', body: JSON.stringify({ to }) }),
+    /** Mass texts (Nov 13): who would get it, then send each their own. */
+    massPreview: (pick: { people?: number[]; leads?: string[] }) => request<MassRecipient[]>('/sms/mass/preview', { method: 'POST', body: JSON.stringify(pick) }),
+    massSend: (pick: { people?: number[]; leads?: string[] }, body: string) => request<{ id: string }>('/sms/mass', { method: 'POST', body: JSON.stringify({ ...pick, body }) }),
+    massList: () => request<{ id: string; at: string; body: string; byName: string | null; status: string; total: number; sent: number }[]>('/sms/mass', { cache: 'no-store' } as any),
+    massGet: (id: string) => request<{ id: string; status: string; body: string; recipients: MassRecipient[]; sent: number; failed: number; skipped: number; waiting: number }>(`/sms/mass/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
+    massStop: (id: string) => request(`/sms/mass/${encodeURIComponent(id)}/stop`, { method: 'POST' }),
+    /** The public text-settings page (link in every text's footer). */
+    prefs: (t: string) => request<{ phone: string; stopAll: boolean; off: string[] }>(`/texts/prefs?t=${encodeURIComponent(t)}`, { cache: 'no-store' } as any),
+    savePrefs: (t: string, choice: { stopAll: boolean; off: string[] }) => request<{ phone: string; stopAll: boolean; off: string[] }>('/texts/prefs', { method: 'PUT', body: JSON.stringify({ t, ...choice }) }),
   },
 
   notifications: {
@@ -400,6 +493,12 @@ export const api = {
     },
     testDrive: () => request<{ ok: boolean; folderId: string }>('/google/drive/test', { method: 'POST' }),
     driveFiles: (q?: string) => request<DriveFile[]>(`/google/drive/files${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    /** Their own Gmail (Nov 13). */
+    myMail: {
+      status: () => request<{ connected: boolean; email: string; connectedAt?: string }>('/google/my-mail/status', { cache: 'no-store' } as any),
+      connectUrl: () => `${API_BASE}/google/my-mail/connect`,
+      disconnect: () => request<{ connected: boolean }>('/google/my-mail/disconnect', { method: 'POST' }),
+    },
     myCalendar: {
       status: () => request<{ connected: boolean; email: string; connectedAt: string }>('/google/my-calendar/status'),
       connectUrl: () => `${API_BASE}/google/my-calendar/connect`,
@@ -428,7 +527,12 @@ export const api = {
     workload: () => request('/dashboard/workload'),
   },
   projects: {
-    list: () => request('/projects'),
+    /** Archived projects (Nov 13) are left out unless asked for: 'only' or 'all'. */
+    list: (archived?: 'only' | 'all') => request(archived ? `/projects?archived=${archived}` : '/projects'),
+    archivePlan: () => request<{ on: boolean; afterDays: number; due: { id: number; name: string; stage: string; since?: string }[]; waiting: { id: number; name: string; stage: string; on?: string }[]; undated: { id: number; name: string; stage: string; on?: string }[] }>('/projects/archive-plan', { cache: 'no-store' } as any),
+    applyArchive: () => request<{ archived: number; counting: number }>('/projects/archive-plan', { method: 'POST' }),
+    archive: (id: string | number) => request(`/projects/${id}/archive`, { method: 'POST' }),
+    restore: (id: string | number) => request(`/projects/${id}/restore`, { method: 'POST' }),
     get: (id: string) => request(`/projects/${id}`),
     create: (data: unknown) => request('/projects', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string | number, data: unknown) => request(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -449,6 +553,11 @@ export const api = {
     remove: (id: string | number) => request(`/people/${id}`, { method: 'DELETE' }),
     /** Possible duplicates of a contact being added (same name, email or phone), Expired first. */
     duplicates: (q: Record<string, string>) => request<DupMatch[]>(`/people/duplicates?${new URLSearchParams(q).toString()}`),
+    /** Consultants saved with the firm as their name (Nov 10): what each would become, then apply. */
+    projectIdPlan: () => request<{ id: number; name: string; projects: { id: number; name: string }[]; unmatched: string[] }[]>('/people/project-ids', { cache: 'no-store' } as any),
+    applyProjectIds: () => request<{ applied: boolean; changed?: number }>('/people/project-ids', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
+    consultantFix: () => request<{ id: number; nameNow: string; nameAfter: string; company: string }[]>('/people/consultant-fix', { cache: 'no-store' } as any),
+    applyConsultantFix: () => request<{ applied: boolean; changed?: number }>('/people/consultant-fix', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     /** Activity: logged interactions, RFPs / estimates, the company's point of contact, and alerts. */
     activity: (id: number) => request<ContactActivity>(`/people/${id}/activity`),
     logInteraction: (id: number, d: { kind: string; at: string; note?: string }) => request<ContactInteraction>(`/people/${id}/interactions`, { method: 'POST', body: JSON.stringify(d) }),
@@ -484,6 +593,12 @@ export const api = {
     update: (id: string, d: unknown) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     remove: (id: string) => request(`/meetings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     get: (id: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`),
+    /** "Notes by Gemini" Docs from the last 30 days, each with the meeting it belongs to (Nov 5). */
+    googleNotes: () => request<{ id: string; name: string; link: string | null; modifiedTime: string | null; title: string; date: string | null; time: string | null; meetingId: string | null; meetingTitle: string | null; imported: boolean }[]>('/meetings/google-notes'),
+    /** Import one Doc: onto its meeting, or onto a new meeting made from the Doc's name. */
+    importGoogleDoc: (d: { docId?: string; link?: string }) => request<{ meeting: import('./data/meetings').Meeting; created: boolean }>('/meetings/google-notes/import', { method: 'POST', body: JSON.stringify(d) }),
+    /** Pull the meeting's "Notes by Gemini" from Google: a Doc link, or found by title and date (Nov 3 sync). */
+    importGoogle: (id: string, link?: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}/import-google`, { method: 'POST', body: JSON.stringify({ link: link || undefined }) }),
     /** Raise a task, or a FOR RECORD item (FYI, observation, decision), from the meeting: a Special Actions Log entry linked to it. */
     addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string; priority?: string; tags?: string[] }) =>
       request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
@@ -509,7 +624,7 @@ export const api = {
     },
     get: (id: string) => request(`/tasks/${id}`),
     /** One page of the Special Actions Log -- filtered, searched and sorted on the server. */
-    page: (o: { tab?: string; pf?: string; archived?: boolean; q?: string; tag?: string; scope?: string; person?: string; parts?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
+    page: (o: { tab?: string; pf?: string; archived?: boolean; q?: string; tag?: string; csi?: string; scope?: string; person?: string; parts?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
       const params = new URLSearchParams();
       for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '' && v !== false) params.set(k, v === true ? '1' : String(v));
       return request<{
@@ -535,6 +650,8 @@ export const api = {
       request<{ task: any; entry: any }>(`/tasks/${encodeURIComponent(id)}/linked-task`, { method: 'POST', body: JSON.stringify(d) }),
   },
   pipeline: {
+    teamBackfill: () => request<{ projectId: number; projectName: string; dealName: string; roles: Record<string, string> }[]>('/pipeline/team-backfill', { cache: 'no-store' } as any),
+    applyTeamBackfill: () => request<{ applied: boolean; changed?: number; filled?: number }>('/pipeline/team-backfill', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     /** Archived deals are excluded unless asked for. */
     list: (includeArchived = false) => request(`/pipeline${includeArchived ? '?archived=true' : ''}`),
     stages: () => request('/pipeline/stages'),
@@ -610,7 +727,7 @@ export const api = {
     access: () => request<{ view: boolean; manage: boolean }>('/rfis/access'),
     list: (projectId?: number) => request<any[]>(`/rfis${projectId ? `?projectId=${projectId}` : ''}`),
     /** One page of the RFI log, filtered and sorted on the server, with its counts and stat cards. */
-    page: (o: { projectId?: number; status?: string; q?: string; sort?: string; dir?: string; page?: number; size?: number; today?: string }) => {
+    page: (o: { projectId?: number; status?: string; q?: string; csi?: string; sort?: string; dir?: string; page?: number; size?: number; today?: string }) => {
       const params = new URLSearchParams();
       for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '') params.set(k, String(v));
       return request<{ rows: any[]; total: number; page: number; size: number; pages: number; any: boolean;
@@ -637,6 +754,30 @@ export const api = {
     /** Just mine, now -- whatever the schedule says. */
     mine: () => request<{ sent: boolean; reason?: string; overdue: number; today: number; soon: number }>('/reminders/mine', { method: 'POST' }),
   },
+  /** Backup sheets per project (Oct 30 sync; admins). */
+  backup: {
+    sheets: () => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean; folder?: string }>('/backup/sheets', { cache: 'no-store' } as any),
+    setSheets: (enabled: boolean) => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean; folder?: string }>('/backup/sheets', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    /** Drive folder for the sheet, inside the project folder (Nov 13); blank = the project folder. */
+    setSheetsFolder: (folder: string) => request<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; connected: boolean; folder?: string }>('/backup/sheets', { method: 'PUT', body: JSON.stringify({ folder }) }),
+    /** Weekly database copy (Batch 6; admins): zipped JSON in Drive, last 8 kept. */
+    database: () => request<DbBackupStatus>('/backup/database', { cache: 'no-store' } as any),
+    setDatabase: (enabled: boolean) => request<DbBackupStatus>('/backup/database', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    runDatabase: () => request<{ ok: boolean; name: string; bytes: number; tables: number; rows: number; removed: number }>('/backup/database/run', { method: 'POST' }),
+    runSheets: (projectId?: number) => request<{ at: string; projects: number; failed: { project: string; error?: string }[] }>('/backup/sheets/run', { method: 'POST', body: JSON.stringify({ projectId }) }),
+  },
+  /** The shared tag bank (Oct 30 sync): standard tags plus everyone's custom ones. */
+  tags: {
+    list: () => request<TagInfo[]>('/tags', { cache: 'no-store' } as any),
+    add: (name: string) => request<TagInfo>('/tags', { method: 'POST', body: JSON.stringify({ name }) }),
+    rename: (key: string, name: string) => request<{ changed: number }>(`/tags/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+    remove: (key: string) => request<{ changed: number }>(`/tags/${encodeURIComponent(key)}`, { method: 'DELETE' }),
+  },
+  /** The project's internal team (Nov 13): who fills each role; tasks given to a role follow. */
+  projectTeam: {
+    get: (projectId: number) => request<{ roles: Record<string, string>; summary: { key: string; label: string; userId: string | null; name: string | null; waiting: number }[] }>(`/project-phases/team?projectId=${projectId}`, { cache: 'no-store' } as any),
+    set: (projectId: number, roles: Record<string, string>) => request<{ roles: Record<string, string>; summary: { key: string; label: string; userId: string | null; name: string | null; waiting: number }[]; filled: number }>('/project-phases/team', { method: 'PUT', body: JSON.stringify({ projectId, roles }) }),
+  },
   users: {
     list: () => request('/users'),
     /** Names and roles of the team, for people pickers -- open to all staff (the full list is admin-only). */
@@ -653,6 +794,12 @@ export const api = {
     setAccess: (id: string, overrides: Record<string, { level?: string; extent?: string }>) => request<any>(`/users/${encodeURIComponent(id)}/access`, { method: 'PUT', body: JSON.stringify({ overrides }) }),
   },
   roles: {
+    /** Duplicate roles and who would move (Nov 3 sync); merging needs a confirm. */
+    duplicates: () => request<{ from: { key: string; name: string }; to: { key: string; name: string }; users: { id: string; name: string; email: string }[] }[]>('/roles/duplicates', { cache: 'no-store' } as any),
+    mergeDuplicates: () => request<{ applied: boolean; moved?: number; removed?: string[] }>('/roles/duplicates/merge', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
+    /** Field roles vs the access sheet (Nov 10): what would change, and apply it after review. */
+    fieldPolicy: () => request<{ key: string; name: string; changes: { key: string; from: string; to: string }[] }[]>('/roles/field-policy', { cache: 'no-store' } as any),
+    applyFieldPolicy: () => request<{ applied: boolean; roles?: string[] }>('/roles/field-policy/apply', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     list: () => request('/roles'),
     create: (data: unknown) => request('/roles', { method: 'POST', body: JSON.stringify(data) }),
     update: (key: string, data: unknown) => request(`/roles/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -764,11 +911,13 @@ export const api = {
   },
   /** Contracts signed inside ODIN: templates, drafts, sending, counter-signing, the signed PDF. */
   contracts: {
-    types: () => request<{ types: ContractTypeInfo[]; mergeFields: [string, string][] }>('/contracts/types'),
+    types: () => request<{ types: ContractTypeInfo[]; mergeFields: [string, string][]; caClauses?: string }>('/contracts/types'),
     templates: () => request<ContractTemplate[]>('/contracts/templates'),
     createTemplate: (d: Partial<ContractTemplate>) => request<ContractTemplate>('/contracts/templates', { method: 'POST', body: JSON.stringify(d) }),
     saveTemplate: (id: string, d: Partial<ContractTemplate>) => request<ContractTemplate>(`/contracts/templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     removeTemplate: (id: string) => request(`/contracts/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    /** Email yourself the template filled with sample details, with the PDF it makes (Oct 30 sync). */
+    previewTemplate: (t: { name: string; type: string; html: string }) => request<{ to: string }>('/contracts/templates/preview', { method: 'POST', body: JSON.stringify(t) }),
     list: (q: Record<string, string> = {}) => request<Contract[]>(`/contracts?${new URLSearchParams(q).toString()}`),
     get: (id: string) => request<Contract>(`/contracts/${encodeURIComponent(id)}`),
     create: (d: Record<string, unknown>) => request<Contract>('/contracts', { method: 'POST', body: JSON.stringify(d) }),
@@ -847,18 +996,24 @@ export const api = {
   fileRoom: {
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
     /** The tree without the files: projects, folders, file counts per folder (counts[projectId][path joined by '>']) and totals. */
+    /** Restricted folders (Nov 13): which folders of a project are kept to some people; set who may open one. */
+    folderAccess: (projectId: number) => request<{ path: string[]; pathKey: string; audience: string; people?: { type: 'user' | 'role' | 'company'; id: string; name: string }[] | null }[]>(`/file-room/folder-access?projectId=${projectId}`, { cache: 'no-store' } as any),
+    setFolderAccess: (d: { projectId: number; path: string[]; audience: string; people?: unknown[] }) => request<unknown>('/file-room/folder-access', { method: 'PUT', body: JSON.stringify(d) }),
+    /** Which top-level folders are the project's build set (Oct 30 sync). */
+    setBuildSet: (projectId: number, folders: string[]) => request<{ projectId: number; buildSet: string[] }>(`/file-room/projects/${projectId}/build-set`, { method: 'PUT', body: JSON.stringify({ folders }) }),
     tree: () => request<{
-      projects: { id: number; name: string; syncedAt?: string | null }[]; categories: string[]; folders: any[];
+      projects: { id: number; name: string; syncedAt?: string | null; buildSet?: string[] }[]; categories: string[]; folders: any[];
       counts: Record<string, Record<string, number>>; totals: { total: number; recent: number; bytes: number };
     }>('/file-room/tree'),
     /** One page of files: a folder's (projectId + path) or every file's; q, latest, dir. */
-    filesPage: (o: { projectId?: number; path?: string[]; q?: string; latest?: boolean; dir?: string; page?: number; size?: number }) => {
+    filesPage: (o: { projectId?: number; path?: string[]; q?: string; latest?: boolean; dir?: string; sort?: 'name' | 'date'; page?: number; size?: number }) => {
       const params = new URLSearchParams();
       if (o.projectId) params.set('projectId', String(o.projectId));
       if (o.path) params.set('path', o.path.join('>'));
       if (o.q) params.set('q', o.q);
       if (o.latest) params.set('latest', '1');
       if (o.dir) params.set('dir', o.dir);
+      if (o.sort === 'date') params.set('sort', 'date');
       params.set('page', String(o.page || 1));
       params.set('size', String(o.size || 50));
       return request<{ rows: import('./data/fileRoom').FileRoomFile[]; total: number; page: number; size: number; pages: number }>(`/file-room/files/page?${params}`);
@@ -887,6 +1042,9 @@ export const api = {
     moveMany: (ids: string[], folderPath: string[]) => request<{ moved: number }>('/file-room/files/move', { method: 'PUT', body: JSON.stringify({ ids, folderPath }) }),
     move: (id: string, folderPath: string[]) => request(`/file-room/files/${id}/move`, { method: 'PUT', body: JSON.stringify({ folderPath }) }),
     applyTemplate: (projectId: number) => request<{ created: number; template: number }>(`/file-room/template?projectId=${projectId}`, { method: 'POST' }),
+    /** Existing projects (Batch 6, administrators): which standard folders each lacks, then lay them out. */
+    templatePreview: () => request<{ template: string[]; projects: { projectId: number; name: string; missing: string[] }[]; folders: number }>('/file-room/template/preview', { cache: 'no-store' } as any),
+    templateApplyAll: (projectIds?: number[]) => request<{ projects: number; created: number; failed: { projectId: number; error?: string }[] }>('/file-room/template/apply-all', { method: 'POST', body: JSON.stringify({ projectIds }) }),
     /** A file the browser can show: Office and Google documents arrive as PDF. */
     previewUrl: (id: string) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/preview`,
     share: (id: string) => request<{ url: string; name: string }>(`/file-room/files/${id}/share`, { method: 'POST' }),
@@ -896,6 +1054,8 @@ export const api = {
       request<{ added: number; updated: number; removed: number; folders: number; syncedAt?: string }>(`/file-room/sync?projectId=${projectId}`, { method: 'POST' }),
     /** The PDF itself, for the markup viewer. */
     bytes: (id: string) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/content`),
+    /** A photo for marking up (Nov 10): Drive's JPEG at up to 2400 px instead of the 12-48 MP original, which froze phones. */
+    photoBytes: (id: string) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/content?thumb=1&size=2400`),
     markups: (id: string) => request<Markup[]>(`/file-room/files/${encodeURIComponent(id)}/markups`),
     addMarkup: (id: string, m: Pick<Markup, 'kind' | 'page' | 'data' | 'private'> & { layer?: string | null }) => request<Markup>(`/file-room/files/${encodeURIComponent(id)}/markups`, { method: 'POST', body: JSON.stringify(m) }),
     editMarkup: (mid: string, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer' | 'linkType' | 'linkId'>>) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'PUT', body: JSON.stringify(patch) }),
@@ -908,7 +1068,12 @@ export const api = {
     removeSymbol: (id: string) => request(`/file-room/symbols/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     /** A drawing's sheet names by page ("1": "A100"); saving merges page by page unless `replace`. */
     sheets: (id: string) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { cache: 'no-store' } as any),
+    /** OCR a scanned sheet's title block (a PNG data URL of the corner) through Google Drive (Nov 3 sync). */
+    titleOcr: (image: string) => request<{ text: string }>('/file-room/title-ocr', { method: 'POST', body: JSON.stringify({ image }) }),
     setSheets: (id: string, names: Record<string, string>, replace = false) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { method: 'PUT', body: JSON.stringify({ names, replace }) }),
+    /** Who sees each layer on a drawing (only restricted ones), and changing one (Oct 30 sync). */
+    layerAccess: (id: string) => request<{ layerKey: string; audience: 'everyone' | 'internal' | 'people'; people?: { type: 'user' | 'company'; id: string; name: string }[] }[]>(`/file-room/files/${encodeURIComponent(id)}/layer-access`, { cache: 'no-store' } as any),
+    setLayerAccess: (id: string, layerKey: string, r: { audience: string; people: unknown[] }) => request<{ layerKey: string; audience: 'everyone' | 'internal' | 'people'; people?: { type: 'user' | 'company'; id: string; name: string }[] }>(`/file-room/files/${encodeURIComponent(id)}/layer-access`, { method: 'PUT', body: JSON.stringify({ layerKey, ...r }) }),
     renameLayer: (id: string, from: string | null, to: string, authorId?: string | null) => request<{ layer: string; updated: number }>(`/file-room/files/${encodeURIComponent(id)}/layers`, { method: 'PUT', body: JSON.stringify({ from, to, authorId }) }),
     addPinPhotos: (mid: string, files: File[] | FileList) => requestForm<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos`, filesForm(files)),
     removePinPhoto: (mid: string, fileId: string) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos/${encodeURIComponent(fileId)}`, { method: 'DELETE' }),
@@ -916,6 +1081,8 @@ export const api = {
     markedUpPdf: (id: string, layers?: string[]) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/markups/pdf${layers?.length ? `?layers=${encodeURIComponent(layers.join(','))}` : ''}`),
     saveMarkedUpCopy: (id: string, layers?: string[]) => request<{ id: string; name: string }>(`/file-room/files/${encodeURIComponent(id)}/markups/copy`, { method: 'POST', body: JSON.stringify({ layers }) }),
     /** Relative on purpose: works through the vite proxy and same-origin in prod. */
+    /** The saved small copy: `thumb` (300 px square) or `preview` (1200 px), WebP; `v` changes when it's remade. */
+    smallUrl: (id: string, kind: 'thumb' | 'preview', v: string) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/small?kind=${kind}&v=${encodeURIComponent(v)}`,
     contentUrl: (id: string, opts?: { thumb?: boolean; download?: boolean }) => {
       const q = [opts?.thumb ? 'thumb=1' : '', opts?.download ? 'download=1' : ''].filter(Boolean).join('&');
       return `${API_BASE}/file-room/files/${encodeURIComponent(id)}/content${q ? `?${q}` : ''}`;
@@ -935,6 +1102,10 @@ export const api = {
     create: (data: unknown) => request('/project-phases', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-phases/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-phases/${id}`, { method: 'DELETE' }),
+    /** Structures on the lot (Batch 6): adding one copies the programme's phases for it. */
+    addStructure: (projectId: number, name: string, mainName?: string) => request<{ structures: { key: string; name: string }[]; phasesAdded: number }>('/project-phases/structures', { method: 'POST', body: JSON.stringify({ projectId, name, mainName }) }),
+    renameStructure: (projectId: number, key: string, name: string) => request<{ structures: { key: string; name: string }[] }>(`/project-phases/structures/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify({ projectId, name }) }),
+    removeStructure: (projectId: number, key: string) => request<{ structures: { key: string; name: string }[] }>(`/project-phases/structures/${encodeURIComponent(key)}?projectId=${projectId}`, { method: 'DELETE' }),
     /** Give a project a phase (and its template tasks) it doesn't have yet -- e.g. dropping it onto a board column from a different template. */
     adopt: (projectId: number, key: string) =>
       request(`/project-phases/adopt`, { method: 'POST', body: JSON.stringify({ projectId, key }) }),
@@ -1015,9 +1186,73 @@ export const api = {
     project: (projectId: number) => request<AuditRow[]>(`/audit-project/${projectId}`),
   },
   finance: {
+    funding: (projectId: number) => request<FundingView>(`/finance/projects/${projectId}/funding`),
+    saveFunding: (projectId: number, d: { id?: string; kind: string; name: string; approvedAmount: number; notes?: string }) => request<FundingView>(`/finance/projects/${projectId}/funding`, { method: 'POST', body: JSON.stringify(d) }),
+    removeFunding: (id: string) => request<FundingView>(`/finance/funding/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    assignFunding: (projectId: number, d: { invoiceId?: string; changeOrderId?: string; fundingSourceId: string | null }) => request<FundingView>(`/finance/projects/${projectId}/funding/assign`, { method: 'POST', body: JSON.stringify(d) }),
+    subInvoices: (projectId: number) => request<{ invoices: SubInvoice[]; retention: PortalRetention[] }>(`/finance/projects/${projectId}/sub-invoices`),
+    markRelease: (id: string, d: { kind: ReleaseKind; amount?: number | null; throughDate?: string | null }) => request(`/finance/lien-releases/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify(d) }),
+    releaseFile: (id: string) => requestBytes(`/finance/lien-releases/${encodeURIComponent(id)}/file`),
+    setSubInvoiceRetention: (id: string, pct: number) => request(`/finance/sub-invoices/${encodeURIComponent(id)}/retention`, { method: 'POST', body: JSON.stringify({ pct }) }),
+    releaseRetention: (commitmentId: string, d: { paidDate?: string; paymentRef?: string }) => request(`/finance/commitments/${encodeURIComponent(commitmentId)}/release-retention`, { method: 'POST', body: JSON.stringify(d) }),
     access: () => request('/finance/access'),
     brand: () => request('/finance/brand'),
     overview: (projectId: number) => request(`/finance/projects/${projectId}`),
+    /** Estimates: the prime contract built like the team's sheet (financial tab). */
+    estimates: (projectId: number) => request<any>(`/finance/projects/${projectId}/estimates`),
+    createEstimate: (projectId: number, d: { title?: string; fromId?: string } = {}) => request<any>(`/finance/projects/${projectId}/estimates`, { method: 'POST', body: JSON.stringify(d) }),
+    estimate: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}`),
+    saveEstimate: (projectId: number, id: string, d: unknown) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    saveEstimateSheet: (projectId: number, id: string, d: unknown) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/sheet`, { method: 'PUT', body: JSON.stringify(d) }),
+    strategyMap: () => request<{ total: number; estimates: number; groups: { from: string; to: string | null; count: number; samples: string[] }[] }>('/finance/estimate-strategy-map', { cache: 'no-store' } as any),
+    applyStrategyMap: () => request<{ applied: boolean; changed?: number }>('/finance/estimate-strategy-map', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
+    estimateSent: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/sent`, { method: 'POST' }),
+    /** K8: the client's copy as a PDF, or the internal workbook, as a blob. */
+    estimateFile: async (projectId: number, id: string, kind: 'pdf' | 'xlsx'): Promise<Blob> => {
+      const token = session.get();
+      const res = await fetch(`${API_BASE}/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/${kind}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) { const body = await res.json().catch(() => null); throw new Error((body && body.message) || `Could not make the file (${res.status})`); }
+      return res.blob();
+    },
+    /** K10: sub bid packages. */
+    bidPackages: (projectId: number, estimateId: string) => request<any[]>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(estimateId)}/bid-packages`, { cache: 'no-store' } as any),
+    createBidPackage: (projectId: number, estimateId: string, d: { title?: string; scopeIds: string[]; dueDate?: string; notes?: string }) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(estimateId)}/bid-packages`, { method: 'POST', body: JSON.stringify(d) }),
+    inviteBid: (projectId: number, packageId: string, contractorIds: string[]) => request<{ invited: { contractorId: string; vendorName: string; link: string; emailed: boolean }[] }>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/invite`, { method: 'POST', body: JSON.stringify({ contractorIds }) }),
+    useBid: (projectId: number, packageId: string, inviteId: string) => request<{ rev: number; changed: number; vendorName: string }>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/use/${encodeURIComponent(inviteId)}`, { method: 'POST' }),
+    bidPublic: {
+      get: (token: string) => request<any>(`/bid-public?token=${encodeURIComponent(token)}`),
+      submit: (token: string, d: { decline?: boolean; total?: string | number | null; lineAmounts?: Record<string, string>; notes?: string }) => request<{ status: string }>('/bid-public', { method: 'POST', body: JSON.stringify({ token, ...d }) }),
+    },
+    estimateSetup: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { cache: 'no-store' } as any),
+    runEstimateSetup: (projectId: number, id: string, steps: string[]) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { method: 'POST', body: JSON.stringify({ steps }) }),
+    markEstimateAccepted: (projectId: number, id: string, signer: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/accepted`, { method: 'POST', body: JSON.stringify({ signer }) }),
+    sendEstimate: (projectId: number, id: string, d: { to?: string; cc?: string; note?: string }) => request<{ sent: boolean; to: string }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
+    estimatePublic: {
+      get: (token: string) => request<any>(`/estimate-public?token=${encodeURIComponent(token)}`),
+      /** A client's estimates to review here (Nov 13). */
+      mine: () => request<{ id: string; projectId: number; projectName: string; number: string; rev: number; title: string | null; status: string; sentAt: string | null; acceptedAt: string | null; link: string }[]>('/estimate-public/mine', { cache: 'no-store' } as any),
+      sign: (token: string, d: { name: string; email?: string; image: string; agree: boolean }) => request<{ accepted: boolean; acceptedAt: string }>('/estimate-public/sign', { method: 'POST', body: JSON.stringify({ token, ...d }) }),
+      pdfUrl: (token: string) => `${API_BASE}/estimate-public/pdf?token=${encodeURIComponent(token)}`,
+    },
+    compareEstimates: (projectId: number, id: string, other: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/compare/${encodeURIComponent(other)}`, { cache: 'no-store' } as any),
+    reviseEstimate: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/revise`, { method: 'POST' }),
+    copyEstimateScopes: (projectId: number, id: string, d: { version: number; fromId: string; scopeIds: string[] }) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/copy-scopes`, { method: 'POST', body: JSON.stringify(d) }),
+    /** Every estimate you can see, across projects -- to start from one. */
+    estimatesAll: () => request<any>('/finance/estimates-all'),
+    estimateSource: (id: string) => request<any>(`/finance/estimate-source/${encodeURIComponent(id)}`),
+    /** Standard statements for scope notes (all, or one CSI code's plus the general ones). */
+    estimateStatements: (csiCodeId?: string | null) => request<any>(`/finance/estimate-statements${csiCodeId === undefined ? '' : `?csiCodeId=${encodeURIComponent(csiCodeId || '')}`}`),
+    estimateStatementSuggestions: (csiCodeId: string, kind: string) => request<any>(`/finance/estimate-statements/suggestions?csiCodeId=${encodeURIComponent(csiCodeId)}&kind=${encodeURIComponent(kind)}`),
+    createEstimateStatement: (d: { kind: string; text: string; csiCodeId?: string | null }) => request<any>('/finance/estimate-statements', { method: 'POST', body: JSON.stringify(d) }),
+    saveEstimateStatement: (id: string, d: unknown) => request<any>(`/finance/estimate-statements/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    deleteEstimateStatement: (id: string) => request<any>(`/finance/estimate-statements/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    estimateTemplates: () => request<any>('/finance/estimate-templates'),
+    createEstimateTemplate: (d: { title: string; fromId?: string }) => request<any>('/finance/estimate-templates', { method: 'POST', body: JSON.stringify(d) }),
+    estimateTemplate: (id: string) => request<any>(`/finance/estimate-templates/${encodeURIComponent(id)}`),
+    saveEstimateTemplate: (id: string, d: unknown) => request<any>(`/finance/estimate-templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    saveEstimateTemplateSheet: (id: string, d: unknown) => request<any>(`/finance/estimate-templates/${encodeURIComponent(id)}/sheet`, { method: 'PUT', body: JSON.stringify(d) }),
+    deleteEstimateTemplate: (id: string) => request<any>(`/finance/estimate-templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    deleteEstimate: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     saveSettings: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}`, { method: 'PUT', body: JSON.stringify(d) }),
     addMilestone: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/milestones`, { method: 'POST', body: JSON.stringify(d) }),
     activity: (projectId: number) => request(`/finance/projects/${projectId}/activity`),
@@ -1129,6 +1364,10 @@ export const api = {
     invoices: () => request('/portal/invoices'),
     submit: (d: unknown) => request('/portal/invoices', { method: 'POST', body: JSON.stringify(d) }),
     attach: (batchId: string, files: File[] | FileList) => requestForm(`/portal/invoices/${encodeURIComponent(batchId)}/attachments`, filesForm(files)),
+    /** Lien releases (Batch 6): on an invoice, or a final one on the subcontract; the retention held. */
+    invoiceRelease: (batchId: string, file: File, kind?: string) => { const fd = filesForm([file]); if (kind) fd.append('kind', kind); return requestForm(`/portal/invoices/${encodeURIComponent(batchId)}/releases`, fd); },
+    finalRelease: (subcontractId: string, file: File, kind?: string) => { const fd = filesForm([file]); if (kind) fd.append('kind', kind); return requestForm(`/portal/subcontracts/${encodeURIComponent(subcontractId)}/releases`, fd); },
+    retention: () => request<PortalRetention[]>('/portal/retention'),
     billFileUrl: (entryId: string, attId: string) => `${API_BASE}/portal/bills/${encodeURIComponent(entryId)}/files/${encodeURIComponent(attId)}`,
     sharedFileUrl: (subcontractId: string, attId: string) => `${API_BASE}/portal/subcontracts/${encodeURIComponent(subcontractId)}/files/${encodeURIComponent(attId)}`,
   },
@@ -1178,6 +1417,51 @@ export const api = {
     fulfill: (id: string) => request(`/workforce-requests/${id}/fulfill`, { method: 'POST' }),
     allocate: (id: string, data: { lineId: string; employeeIds: string[]; startDate?: string; workArea?: string }) =>
       request(`/workforce-requests/${id}/allocate`, { method: 'POST', body: JSON.stringify(data) }),
+  },
+  /** My mail (Nov 13): the caller's own Gmail, and mail linked to records. */
+  mail: {
+    threads: (q = '', page = '', label = 'INBOX') => request<{ threads: MailThreadRow[]; nextPageToken: string | null }>(`/mail/threads?q=${encodeURIComponent(q)}&page=${encodeURIComponent(page)}&label=${encodeURIComponent(label)}`, { cache: 'no-store' } as any),
+    /** Drafts (Batch 6): Gmail's own, so they show in Gmail too. */
+    drafts: () => request<{ id: string; threadId: string | null; subject: string; to: string; snippet: string; date: string }[]>('/mail/drafts', { cache: 'no-store' } as any),
+    draft: (id: string) => request<{ id: string; threadId: string | null; to: string; cc: string; subject: string; html: string; messageId: string; attachments: { id: string; filename: string; mimeType: string; size: number }[]; inReplyTo: string | null }>(`/mail/drafts/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
+    saveDraft: (d: { id?: string; to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string }, files: File[] = []) => {
+      const f = filesForm(files);
+      for (const [k, v] of Object.entries(d)) if (v != null && v !== '') f.append(k, String(v));
+      return requestForm<{ id: string; threadId: string | null }>('/mail/drafts', f);
+    },
+    sendDraft: (id: string, d: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string; track?: boolean }, files: File[] = []) => {
+      const f = filesForm(files);
+      for (const [k, v] of Object.entries(d)) if (v != null && v !== '') f.append(k, String(v));
+      return requestForm<{ id: string; threadId: string }>(`/mail/drafts/${encodeURIComponent(id)}/send`, f);
+    },
+    discardDraft: (id: string) => request(`/mail/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    /** Templates (Batch 6): shared (administrators) and personal. */
+    templates: () => request<MailTemplate[]>('/mail/templates', { cache: 'no-store' } as any),
+    saveTemplate: (id: string | null, d: { name: string; subject?: string; html: string; shared?: boolean }) => request<MailTemplate>(id ? `/mail/templates/${encodeURIComponent(id)}` : '/mail/templates', { method: 'POST', body: JSON.stringify(d) }),
+    removeTemplate: (id: string) => request(`/mail/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    thread: (id: string) => request<MailThread>(`/mail/threads/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
+    attachment: async (mid: string, aid: string, name: string) => new Blob([await requestBytes(`/mail/messages/${encodeURIComponent(mid)}/attachments/${encodeURIComponent(aid)}?name=${encodeURIComponent(name)}`)]),
+    send: (d: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string; track?: boolean }, files: File[] = []) => {
+      const f = filesForm(files);
+      for (const [k, v] of Object.entries(d)) if (v != null && v !== '') f.append(k, String(v));
+      return requestForm<{ id: string; threadId: string }>('/mail/send', f);
+    },
+    contacts: (q: string) => request<{ name: string; email: string; kind: string }[]>(`/mail/contacts?q=${encodeURIComponent(q)}`, { cache: 'no-store' } as any),
+    /** Mail with one address, from your own mailbox (Batch 6). */
+    withAddress: (email: string) => request<{ connected: boolean; threads: MailThreadRow[] }>(`/mail/with?email=${encodeURIComponent(email)}`, { cache: 'no-store' } as any),
+    link: (threadId: string, entityType: 'lead' | 'project' | 'task', entityId: string) => request(`/mail/threads/${encodeURIComponent(threadId)}/link`, { method: 'POST', body: JSON.stringify({ entityType, entityId }) }),
+    unlink: (id: string) => request(`/mail/links/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    linked: (entityType: 'lead' | 'project' | 'task', entityId: string) => request<LinkedMailRow[]>(`/mail/linked?entityType=${entityType}&entityId=${encodeURIComponent(entityId)}`, { cache: 'no-store' } as any),
+  },
+  /** GC & Sub Prequalify (Nov 13). */
+  prequal: {
+    list: () => request<PrequalRow[]>('/prequal', { cache: 'no-store' } as any),
+    save: (id: string, d: Record<string, unknown>) => request<PrequalRow>(`/prequal/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    decide: (id: string, decision: 'approved' | 'rejected' | 'pending', notes?: string) => request<PrequalRow>(`/prequal/${encodeURIComponent(id)}/decision`, { method: 'POST', body: JSON.stringify({ decision, notes }) }),
+    link: (id: string) => request<{ link: string; emailed: boolean }>(`/prequal/${encodeURIComponent(id)}/link`, { method: 'POST' }),
+    publicView: (token: string) => request<PrequalPublic>(`/prequal-public?token=${encodeURIComponent(token)}`, { cache: 'no-store' } as any),
+    publicSubmit: (token: string, d: Record<string, unknown>) => request<PrequalPublic>('/prequal-public', { method: 'POST', body: JSON.stringify({ ...d, token }) }),
+    publicUpload: (token: string, files: FileList | File[]) => requestForm<PrequalPublic>(`/prequal-public/files?token=${encodeURIComponent(token)}`, filesForm(files)),
   },
   contractors: {
     list: () => request('/contractors'),

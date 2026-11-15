@@ -1,3 +1,5 @@
+import { sharesEmail } from '../common/emails';
+import { personProjectIds } from '../people/person-projects';
 import { ForbiddenException, Global, Injectable, Module, Optional, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +17,10 @@ import { PORTAL_ROLE } from './guards/roles.decorator';
  * client dashboards read. Portal accounts reach projects only through the
  * portal's own routes, never through these.
  */
+/** Roles that work on site: limited to their own projects unless set otherwise. */
+const FIELD_ROLE = /super|foreman|labou?r|site_/i;
+const OVERALL = '__overall';
+
 @Injectable()
 export class ProjectAccessService {
   constructor(
@@ -48,6 +54,14 @@ export class ProjectAccessService {
     const perms = await this.permissions(claims);
     return modules.some((m) => !!perms[m]?.view);
   }
+  /** May the caller change things in any of these modules (manage)? Administrators always; outside accounts never. */
+  async canManage(claims: SessionClaims | null, ...modules: string[]): Promise<boolean> {
+    if (!claims) return false;
+    if (claims.roleKey === 'admin') return true;
+    if (!this.isStaff(claims)) return false;
+    const perms = await this.permissions(claims);
+    return modules.some((m) => !!perms[m]?.manage);
+  }
   /** Throws unless the caller may view one of these modules. */
   async assertView(claims: SessionClaims | null, what: string, ...modules: string[]) {
     if (!(await this.canView(claims, ...modules))) throw new ForbiddenException(`Your role doesn’t include ${what}.`);
@@ -55,7 +69,33 @@ export class ProjectAccessService {
   /** Staff whose access says "Assigned projects" (role overall, or their own change): only their projects. */
   private async assignedOnly(claims: SessionClaims): Promise<boolean> {
     if (claims.roleKey === 'admin' || !this.roles || !this.users) return false;
-    return extentOf(await this.permissions(claims)) === 'assigned';
+    const perms = await this.permissions(claims);
+    // Field roles (superintendents, foremen, labour) with no overall setting see only their projects (Nov 3 sync).
+    if (!perms?.[OVERALL] && FIELD_ROLE.test(String(claims.roleKey || ''))) return true;
+    return extentOf(perms) === 'assigned';
+  }
+
+  /**
+   * 'all', or the leads the caller may see (Nov 3 sync: "Assigned projects"
+   * holds for CRM too): leads that became one of their projects, and leads
+   * they're the assignee of or hold a role on.
+   */
+  async allowedLeadIds(claims: SessionClaims | null, deals: { id: string; assignee?: string | null; roles?: Record<string, string> | null }[] = []): Promise<'all' | Set<string>> {
+    const ids = await this.allowedIds(claims);
+    if (ids === 'all') return 'all';
+    const out = new Set((await this.projects.find()).filter((p) => ids.has(p.id) && (p as any).leadId).map((p) => String((p as any).leadId)));
+    const me = (v: unknown) => !!v && (v === claims!.sub || String(v).trim().toLowerCase() === String(claims!.name || '').trim().toLowerCase());
+    for (const d of deals) if (me(d.assignee) || Object.values(d.roles || {}).some(me)) out.add(String(d.id));
+    return out;
+  }
+
+  /** Every project's id and name (kept a few seconds): matching people's projects. */
+  private refs: { at: number; rows: { id: number; name: string }[] } | null = null;
+  async projectRefs(): Promise<{ id: number; name: string }[]> {
+    if (this.refs && Date.now() - this.refs.at < 15_000) return this.refs.rows;
+    const rows = (await this.projects.find({ select: { id: true, name: true } })).map((p) => ({ id: p.id, name: p.name }));
+    this.refs = { at: Date.now(), rows };
+    return rows;
   }
 
   /** 'all', or the names of the projects the caller may read -- for records kept by project name (the Special Actions Log, people). */
@@ -66,6 +106,17 @@ export class ProjectAccessService {
   }
 
   /** True for staff (and administrators, whatever their tier). */
+  /**
+   * Client phone numbers, emails and addresses (Nov 10, PEOPLE ACCESS sheet):
+   * not below internal level 2 -- superintendents, foremen and labour work
+   * through the office, not with the client directly.
+   */
+  seesClientContacts(claims: SessionClaims | null): boolean {
+    if (!claims) return false;
+    if (claims.roleKey === 'admin') return true;
+    return this.isStaff(claims) && !FIELD_ROLE.test(String(claims.roleKey || ''));
+  }
+
   isStaff(claims: SessionClaims | null) {
     return !!claims && (claims.roleKey === 'admin' || (claims.tier === 'internal' && claims.roleKey !== PORTAL_ROLE));
   }
@@ -76,13 +127,24 @@ export class ProjectAccessService {
     if (this.isStaff(claims) && !(await this.assignedOnly(claims))) return 'all';
     if (claims.roleKey === PORTAL_ROLE) return new Set();
     // Their People entries: the one their login was given from (People.userId), and any with the same email.
-    const email = String(claims.email || '').trim().toLowerCase();
-    const linked = (await this.people.find())
-      .filter((p) => (p.userId && p.userId === claims.sub) || (!!email && String(p.email || '').trim().toLowerCase() === email))
-      .flatMap((p) => p.projects || []);
-    if (!linked.length) return new Set();
-    const names = new Set(linked);
-    return new Set((await this.projects.find()).filter((p) => names.has(p.name)).map((p) => p.id));
+    // Any of the login's addresses (Nov 13: a person can have more than one).
+    const me = { email: claims.email, altEmails: (await this.altEmailsOf(claims.sub)) };
+    const mine = (await this.people.find())
+      .filter((p) => (p.userId && p.userId === claims.sub) || sharesEmail(p, me));
+    if (!mine.length) return new Set();
+    // By project id (Nov 13); people not moved to ids yet are matched by name.
+    const projects = await this.projectRefs();
+    return new Set(mine.flatMap((p) => personProjectIds(p, projects)));
+  }
+
+  private altCache = new Map<string, { at: number; alt: string[] }>();
+  private async altEmailsOf(userId: string): Promise<string[]> {
+    if (!this.users || !userId) return [];
+    const hit = this.altCache.get(userId);
+    if (hit && Date.now() - hit.at < 15_000) return hit.alt;
+    const alt = ((await this.users.findOneBy({ id: userId }))?.altEmails || []) as string[];
+    this.altCache.set(userId, { at: Date.now(), alt });
+    return alt;
   }
 
   async canSee(claims: SessionClaims | null, projectId: number | null | undefined) {

@@ -20,6 +20,8 @@ export interface Person {
   phone: string;
   email: string;
   projects: string[];
+  /** Their projects by id (Nov 13); null until moved from names. */
+  projectIds?: number[] | null;
   /** Which phases they work on, per project: { "HOM Cafe": ["design"] }. */
   projectPhases?: Record<string, string[]> | null;
   openTasks: number;
@@ -136,7 +138,8 @@ export interface DupMatch {
 
 export interface FormerCompany { company: string; personId?: number | null; role?: string | null; until?: string | null }
 
-const COMPANY_KINDS = ['Consultant', 'Sub', 'Authority', 'Vendor'];
+/** Firms. Consultants are people with a company (Nov 10). */
+const COMPANY_KINDS = ['Sub', 'Authority', 'Vendor'];
 /** The company a record stands for: a firm's own name, or the company a person works at. */
 export const companyOf = (p: Pick<Person, 'kind' | 'name' | 'company'>) => (COMPANY_KINDS.includes(p.kind) ? p.name : p.company || '').trim();
 
@@ -156,4 +159,11 @@ export interface ContactActivity {
   lastInteractionAt: string | null;
   alerts: ContactAlert[];
   pointOfContact: { id: number; name: string } | null;
+}
+
+const normName = (s: unknown) => String(s ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+/** Is this person on that project? By id once their projects are moved to ids, else by name (case and spacing ignored). */
+export function onProject(p: { projects?: string[] | null; projectIds?: number[] | null }, project: { id?: number | null; name?: string | null }): boolean {
+  if (Array.isArray(p.projectIds) && project.id != null) return p.projectIds.includes(Number(project.id));
+  return (p.projects || []).some((n) => normName(n) === normName(project.name));
 }

@@ -11,6 +11,8 @@ export class CreateEmployeeDto {
   @IsString() @IsOptional() gender?: string;
   @IsString() @IsOptional() phone?: string;
   @IsString() @IsOptional() email?: string;
+  /** Other addresses for this employee (Nov 13). */
+  @IsArray() @IsString({ each: true }) @IsOptional() altEmails?: string[];
   @IsString() @IsOptional() emergencyContactName?: string;
   @IsString() @IsOptional() emergencyContactPhone?: string;
   @IsString() @IsOptional() emergencyContactRelation?: string;

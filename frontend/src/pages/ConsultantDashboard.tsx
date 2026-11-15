@@ -1,3 +1,4 @@
+import { onProject } from '../data/people';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
@@ -48,7 +49,7 @@ export function ConsultantDashboard() {
     [people, currentUser],
   );
   const assigned = useMemo(
-    () => (outside ? allProjects : me ? allProjects.filter((p) => me.projects.includes(p.name)) : []),
+    () => (outside ? allProjects : me ? allProjects.filter((p) => onProject(me, p)) : []),
     [allProjects, me, outside],
   );
   const projectsById = useMemo(() => Object.fromEntries(assigned.map((p) => [p.id, p.name])), [assigned]);

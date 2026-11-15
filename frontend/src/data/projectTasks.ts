@@ -116,6 +116,8 @@ export interface ProjectTask extends ActionTrailFields {
   status?: TaskStatus;
   checklist?: ChecklistItem[];
   labels?: string[];
+  /** Standard (access) tags: internal, client, … (Oct 30 sync). */
+  tags?: string[];
   activity?: ActivityEvent[];
   updatedAt?: string;
   // --- Phase Board ---

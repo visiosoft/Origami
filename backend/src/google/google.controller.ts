@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { GoogleService } from './google.service';
 import { CalendarService } from './calendar.service';
 import { SettingsService } from '../settings/settings.service';
@@ -8,7 +8,7 @@ import { signState, readState } from '../auth/crypto.util';
 import { BRAND_KEYS, brandingFrom, buildLetterHtml, safeFilename } from '../documents/letterhead';
 import { Public } from '../auth/guards/public.decorator';
 import { Roles } from '../auth/guards/roles.decorator';
-import { SESSION_COOKIE, sessionCookieOptions } from '../auth/guards/cookie.util';
+import { DEVICE_COOKIE, readCookie, SESSION_COOKIE, sessionCookieOptions } from '../auth/guards/cookie.util';
 import type { AuthedRequest } from '../auth/guards/session.guard';
 import { assertFilled } from '../email-templates/placeholders';
 
@@ -49,6 +49,28 @@ export class GoogleController {
     const secret = await this.settings.jwtSecret();
     const url = await this.google.consentUrl('my-calendar', signState({ mode: 'my-calendar', userId }, secret));
     return res.redirect(url);
+  }
+
+  /** Connect your own Gmail (Nov 13): read, reply and link mail in the app. */
+  @Get('my-mail/connect')
+  async connectMyMail(@Req() req: AuthedRequest, @Res() res: Response) {
+    const userId = req.claims?.sub;
+    if (!userId) throw new BadRequestException('Sign in to continue.');
+    const url = await this.google.consentUrl('my-mail', signState({ mode: 'my-mail', userId }, await this.settings.jwtSecret()));
+    return res.redirect(url);
+  }
+
+  @Post('my-mail/disconnect')
+  async disconnectMyMail(@Req() req: AuthedRequest) {
+    const userId = req.claims?.sub;
+    if (userId) await this.auth.disconnectMyMail(userId);
+    return { connected: false };
+  }
+
+  @Get('my-mail/status')
+  async myMailStatus(@Req() req: AuthedRequest) {
+    const userId = req.claims?.sub;
+    return userId ? this.auth.myMailStatus(userId) : { connected: false, email: '' };
   }
 
   @Post('my-calendar/disconnect')
@@ -107,18 +129,21 @@ export class GoogleController {
     @Query('code') code: string,
     @Query('state') state: string,
     @Query('error') error: string,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     const base = (await this.settings.baseUrl()) || '';
     const secret = await this.settings.jwtSecret();
     const parsed = readState(state, secret);
-    const mode = parsed?.mode === 'connect' ? 'connect' : parsed?.mode === 'my-calendar' ? 'my-calendar' : 'login';
+    const mode = parsed?.mode === 'connect' ? 'connect' : parsed?.mode === 'my-calendar' ? 'my-calendar' : parsed?.mode === 'my-mail' ? 'my-mail' : 'login';
     const fail = (msg: string) =>
       res.redirect(
         mode === 'connect'
           ? `${base}/settings?tab=google&error=${encodeURIComponent(msg)}`
           : mode === 'my-calendar'
             ? `${base}/settings?tab=my-calendar&error=${encodeURIComponent(msg)}`
+            : mode === 'my-mail'
+              ? `${base}/mail?error=${encodeURIComponent(msg)}`
             : `${base}/login?error=${encodeURIComponent(msg)}`,
       );
 
@@ -127,12 +152,18 @@ export class GoogleController {
     if (!code) return fail('Google did not return an authorization code.');
 
     try {
-      const tokens = await this.google.exchangeCode(code, mode as 'connect' | 'login' | 'my-calendar');
+      const tokens = await this.google.exchangeCode(code, mode as 'connect' | 'login' | 'my-calendar' | 'my-mail');
       const profile = await this.google.profile(tokens.access_token);
 
       if (mode === 'connect') {
         await this.google.saveConnection(tokens.refresh_token, profile);
         return res.redirect(`${base}/settings?tab=google&connected=${encodeURIComponent(profile.email)}`);
+      }
+
+      if (mode === 'my-mail') {
+        if (!tokens.refresh_token) return fail('Google did not grant a refresh token. Remove Origami from your Google account’s connected apps and try again.');
+        await this.auth.connectMyMail(String(parsed.userId), tokens.refresh_token, profile.email);
+        return res.redirect(`${base}/mail?connected=${encodeURIComponent(profile.email)}`);
       }
 
       if (mode === 'my-calendar') {
@@ -143,7 +174,9 @@ export class GoogleController {
         return res.redirect(`${base}/settings?tab=my-calendar&connected=${encodeURIComponent(profile.email)}`);
       }
 
-      const session = await this.auth.loginWithGoogle(profile);
+      const session = await this.auth.loginWithGoogle(profile, readCookie(req.headers.cookie, DEVICE_COOKIE));
+      // Staff go on to the second step (Nov 13): the ticket rides in the fragment, like the token.
+      if (!('token' in session)) return res.redirect(`${base}/login#twofa=${encodeURIComponent(session.ticket)}&step=${session.twoFactor}`);
       // The token rides in the fragment so it never lands in server or proxy logs.
       // Mirror the password flow: the cookie is what lets <img src> URLs work.
       res.cookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresIn));

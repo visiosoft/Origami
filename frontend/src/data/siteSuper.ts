@@ -1,2 +1,2 @@
 /** The site superintendent role gets its own home and task view. */
-export const isSiteSuper = (roleKey?: string) => roleKey === 'site_super';
+export const isSiteSuper = (roleKey?: string) => roleKey === 'site_super' || roleKey === 'r_internal_super';

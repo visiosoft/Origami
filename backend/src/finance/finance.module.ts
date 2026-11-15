@@ -1,3 +1,6 @@
+import { SubInvoicesService } from './sub-invoices.service';
+import { FundingSourceEntity, LienReleaseEntity, SubInvoiceEntity } from '../database/entities';
+import { FundingService } from './funding.service';
 import { ChangeOrderPublicController } from './co-public.controller';
 import { TrackingModule } from '../tracking/tracking.module';
 import { Module } from '@nestjs/common';
@@ -8,6 +11,7 @@ import {
   ProjectSectionEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, RoleEntity, TaskFinancialEntity,
   CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity, TimesheetEntity, TimesheetLineEntity,
   DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity, PersonEntity, SubcontractorTradeEntity, RfiEntity, ChangeEventEntity, ChangeOrderRequestEntity, CommitmentChangeOrderEntity,
+  EstimateEntity, EstimateScopeEntity, EstimateLineEntity, EstimateGrLineEntity, EstimateStatementEntity, BidPackageEntity, BidInviteEntity, ContractorBidEntity,
 } from '../database/entities';
 import { ProjectSubsService } from './project-subs.service';
 import { DailyReportSummaryService } from './daily-report-summary.service';
@@ -17,6 +21,14 @@ import { GoogleModule } from '../google/google.module';
 import { SettingsModule } from '../settings/settings.module';
 import { ManpowerAccess } from '../manpower/manpower-access.service';
 import { FinancialsService } from './financials.service';
+import { EstimatesService } from './estimates.service';
+import { EstimateLetterService } from './estimate-letter.service';
+import { EstimateSetupService } from './estimate-setup.service';
+import { BidPackagesService } from './bid-packages.service';
+import { BidPublicController } from './bid-public.controller';
+import { EstimatePublicController } from './estimate-public.controller';
+import { FileRoomModule } from '../file-room/file-room.module';
+import { EstimateStatementsService } from './estimate-statements.service';
 import { InvoicesService } from './invoices.service';
 import { ChangeOrdersService } from './change-orders.service';
 import { ChangeEventsService } from './change-events.service';
@@ -39,7 +51,7 @@ import {
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
+    TypeOrmModule.forFeature([SubInvoiceEntity, LienReleaseEntity, FundingSourceEntity, 
       ProjectEntity, LeadEntity, ProjectPhaseEntity, ProjectTaskEntity, ProjectSectionEntity, RoleEntity,
       ProjectFinancialEntity, PhaseFinancialEntity, TaskFinancialEntity, ProgressUpdateEntity,
       ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, FinanceSequenceEntity, FinanceActivityEntity,
@@ -47,15 +59,17 @@ import {
       CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity,
       TimesheetEntity, TimesheetLineEntity, DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity,
       PersonEntity, SubcontractorTradeEntity, RfiEntity,
+      EstimateEntity, EstimateScopeEntity, EstimateLineEntity, EstimateGrLineEntity, EstimateStatementEntity, BidPackageEntity, BidInviteEntity, ContractorBidEntity,
     ]),
     AuthModule,
     GoogleModule,
     SettingsModule,
     TrackingModule,
+    FileRoomModule,
   ],
-  controllers: [ChangeOrderPublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
+  controllers: [ChangeOrderPublicController, EstimatePublicController, BidPublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService, EstimatesService, EstimateStatementsService, EstimateLetterService, EstimateSetupService, BidPackagesService, SubInvoicesService, FundingService],
   exports: [ChangeOrdersService, FinancialsService],
 })
 export class FinanceModule {}

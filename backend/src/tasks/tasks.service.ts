@@ -1,5 +1,7 @@
+import { isPhoto, photoPlace } from '../file-room/layout';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { cleanTags } from '../database/task.types';
+import { TagsService } from '../tags/tags.service';
 import { activityPage } from '../common/activity-page';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
@@ -48,6 +50,7 @@ export class TasksService implements OnApplicationBootstrap {
     @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
     @Optional() private readonly hub?: NotifyHub,
     @Optional() @InjectRepository(ProjectTaskEntity) private readonly boardTasks?: Repository<ProjectTaskEntity>,
+    @Optional() private readonly tagBank?: TagsService,
   ) {}
 
   /** What each priority means: the defaults, or the wording an administrator set in Settings. */
@@ -347,6 +350,11 @@ export class TasksService implements OnApplicationBootstrap {
     const defer = !!dto.deferNotify;
     delete dto.deferNotify; delete dto.pendingNotices;
     const assignee = await resolveAssignee(this.users, { id: dto.assignedToId, name: dto.assignedTo });
+    // Tags (Oct 30 sync): Internal by default, where it was made, money is Financial; custom ones join the shared list.
+    const tagged = this.tagBank
+      ? await this.tagBank.newItemTags({ tags: dto.tags, labels: normalizeList<string>(dto.labels), actor, assigneeId: assignee.id, leadId: dto.leadId, projectName: dto.project || null, financial: cleanIds(dto.changeOrderIds).length > 0 || /change order|financ/i.test(String(dto.topicType || '')) })
+      : { tags: cleanTags(dto.tags), labels: normalizeList<string>(dto.labels) };
+    dto = { ...dto, labels: tagged.labels };
     // Checklist templates marked "add automatically to" this kind of entry.
     const templates = this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
     const checklist = withAutoChecklists(templates, { kind: logSerialKind(dto.topicType || 'Task') as 'task' | 'record', type: dto.topicType || 'Task', labels: normalizeList<string>(dto.labels) }, normalizeList(dto.checklist));
@@ -372,7 +380,7 @@ export class TasksService implements OnApplicationBootstrap {
       commentCount: 0,
       checklist,
       labels: normalizeList<string>(dto.labels),
-      tags: cleanTags(dto.tags),
+      tags: tagged.tags,
       priority: cleanPriority(dto.priority),
       linkedTaskIds: cleanIds(dto.linkedTaskIds),
       changeOrderIds: cleanIds(dto.changeOrderIds),
@@ -401,7 +409,20 @@ export class TasksService implements OnApplicationBootstrap {
     if (defer) task.pendingNotices = holdNotices(null, notices);
     const saved = await this.repo.save(task);
     if (!defer) this.sendNotices(saved, notices);
+    if (saved.priority === 'Emergency') this.alertEmergency(saved, actor);
     return this.hydrate(saved);
+  }
+
+  /** Set to Emergency (Oct 30 sync): the people on it and every admin hear at once. Never blocks the save. */
+  private alertEmergency(t: TaskEntity, actor: UploadActor) {
+    if (!this.hub) return;
+    const due = t.dueDate ? `Due ${t.dueDate}. ` : '';
+    void (async () => this.hub!.emergency(await this.involved(t), {
+      title: `🚨 EMERGENCY: ${taskTitle(t)}${t.project ? ' — ' + t.project : ''}`,
+      body: `${due}${t.description || ''}`.trim() || undefined,
+      path: `/tasks?task=${encodeURIComponent(t.id)}&type=log`,
+      actorId: actor.id,
+    }))().catch(() => undefined);
   }
 
   /** The task card an email carries. */
@@ -437,6 +458,11 @@ export class TasksService implements OnApplicationBootstrap {
     await this.bucketRules(task, patch, actor);
     if ('priority' in patch) patch.priority = cleanPriority(patch.priority);
     if ('tags' in patch) patch.tags = cleanTags(patch.tags, task.tags);
+    if ('labels' in patch && this.tagBank) {
+      const t = await this.tagBank.editedTags({ tags: 'tags' in patch ? patch.tags : task.tags, labelsBefore: task.labels, labels: normalizeList<string>(patch.labels), actor });
+      patch.labels = t.labels;
+      patch.tags = cleanTags(t.tags, task.tags);
+    }
 
     // Closing a task (any status marked "closed" in Settings) stamps the close
     // date; reopening clears it. "Blocked" is the board's old word for On hold.
@@ -490,6 +516,7 @@ export class TasksService implements OnApplicationBootstrap {
       ...(finished ? [{ kind: 'done' as const, ids: [], actor: who, at }] : []),
       ...(moved ? [{ kind: 'status' as const, ids: [], actor: who, at, status: patch.status }] : []),
     ];
+    const nowEmergency = patch.priority === 'Emergency' && task.priority !== 'Emergency';
     Object.assign(task, patch, { id });
     task.activity = [...normalizeList<ActivityEvent>(task.activity), ...events];
     task.daysOpen = this.daysOpen(task);
@@ -498,6 +525,7 @@ export class TasksService implements OnApplicationBootstrap {
 
     const saved = await this.repo.save(task);
     if (!defer) this.sendNotices(saved, notices);
+    if (nowEmergency) this.alertEmergency(saved, actor);
     if (moved || finished) {
       void this.hub?.highVizTask({ labels: normalizeList<string>(saved.labels), projectName: saved.project || null },
         { title: `${taskTitle(saved)} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}&type=log`, actorId: actor.id }).catch(() => undefined);
@@ -568,7 +596,15 @@ export class TasksService implements OnApplicationBootstrap {
 
   async addAttachments(id: string, files: any[], actor: UploadActor) {
     const task = await this.load(id);
-    const added = await this.attachments.upload(files, SCOPE, actor);
+    // Photos on a project's Request Log entry go to its File Room photos (Batch 6): FOR RECORD ones apart.
+    const project = task.project && this.projects ? await this.projects.findOneBy({ name: task.project }) : null;
+    const photos = project ? (files || []).filter(isPhoto) : [];
+    const rest = (files || []).filter((f) => !photos.includes(f));
+    if (photos.length && rest.length) this.attachments.assertCount(files);
+    const added = !photos.length ? await this.attachments.upload(files, SCOPE, actor) : [
+      ...(await this.attachments.upload(photos, SCOPE, actor, photoPlace(project!.name, logSerialKind(task.topicType) === 'record'))),
+      ...(rest.length ? await this.attachments.upload(rest, SCOPE, actor) : []),
+    ];
     task.attachments = [...normalizeAttachments(task.attachments), ...added];
     task.activity = [
       ...normalizeList<ActivityEvent>(task.activity),

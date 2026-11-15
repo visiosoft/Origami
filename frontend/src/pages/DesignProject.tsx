@@ -1,3 +1,5 @@
+import { ProjectTeam } from '../components/ProjectTeam';
+import { unfilledLabel } from '../components/UnfilledRole';
 import { useEffect, useMemo, useState } from 'react';
 import { ProjectSubcontractors } from '../components/ProjectSubcontractors';
 import { RfiLog } from '../components/rfis/Rfis';
@@ -570,8 +572,8 @@ export function DesignProject() {
                                 <span style={{ width: 22, height: 22, borderRadius: 999, background: task.assignee ? '#EDE5FF' : 'var(--c-f0eee9)', color: '#4A1FA0', fontSize: 9.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
                                   {task.assignee ? initials(task.assignee) : '—'}
                                 </span>
-                                <span style={{ fontSize: 12, color: task.assignee ? '#4A4357' : '#A79EB4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {task.assignee || 'Unassigned'}
+                                <span style={{ fontSize: 12, color: task.assignee ? '#4A4357' : unfilledLabel(task.team) ? '#9A5B00' : '#A79EB4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {task.assignee || unfilledLabel(task.team) || 'Unassigned'}
                                 </span>
                               </div>
                               <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
@@ -644,6 +646,7 @@ export function DesignProject() {
 
           {view === 'subs' && (
             <div style={{ padding: '18px 26px 28px', display: 'grid', gap: 22 }}>
+              {project && <ProjectTeam projectId={project.id} />}
               {project && <ProjectPeople projectName={project.name} />}
               <div>
                 <h4 style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Subcontracts</h4>
@@ -766,7 +769,7 @@ function ListView({ groups, allTasks, hiddenCols, onOpen, isDone, isLate }: {
                             <span style={{ width: 18, height: 18, borderRadius: 999, background: t.assignee ? '#EDE5FF' : 'var(--c-f0eee9)', color: '#4A1FA0', fontSize: 8.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
                               {t.assignee ? initials(t.assignee) : '—'}
                             </span>
-                            <span style={{ fontSize: 11.5, color: '#4A4357', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.assignee || 'Unassigned'}</span>
+                            <span style={{ fontSize: 11.5, color: t.assignee ? '#4A4357' : unfilledLabel(t.team) ? '#9A5B00' : '#4A4357', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.assignee || unfilledLabel(t.team) || 'Unassigned'}</span>
                           </span>
                         );
                         if (c.key === 'status') return (
@@ -917,11 +920,13 @@ function DashboardView({ filtered, shownPhases, isDone, isProgress, isLate }: {
   const overdue = filtered.filter((r) => isLate(r.task)).length;
   const incomplete = total - done;
 
+  // What each number means (Nov 13 sync).
+  const inProgress = filtered.filter((r) => isProgress(r.task)).length;
   const tiles = [
-    { label: 'Total tasks', value: total, c: INK },
-    { label: 'Completed', value: done, c: 'var(--c-16a34a)' },
-    { label: 'Incomplete', value: incomplete, c: ACCENT },
-    { label: 'Overdue', value: overdue, c: '#B4232A' },
+    { label: 'Total tasks', value: total, c: INK, hint: 'Every task shown here' },
+    { label: 'Completed', value: done, c: 'var(--c-16a34a)', hint: 'Marked done' },
+    { label: 'Incomplete', value: incomplete, c: ACCENT, hint: `${inProgress} in progress · ${incomplete - inProgress} not started` },
+    { label: 'Overdue', value: overdue, c: '#B4232A', hint: 'Incomplete and past its due date (also counted in Incomplete)' },
   ];
 
   const byPhase = shownPhases.map((s) => ({ name: s.name, dot: s.colors?.dot || ACCENT, count: filtered.filter((r) => r.stage.key === s.key).length }));
@@ -941,6 +946,7 @@ function DashboardView({ filtered, shownPhases, isDone, isProgress, isLate }: {
           <div key={t.label} style={{ border: '1px solid rgba(var(--rgb-shade), .08)', borderRadius: 'var(--r-14)', padding: '16px 18px' }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>{t.label}</div>
             <div style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 30, color: t.c, marginTop: 6 }}>{t.value}</div>
+            <div style={{ fontSize: 11, color: '#9c96a4', marginTop: 4, lineHeight: 1.4 }}>{t.hint}</div>
           </div>
         ))}
       </div>

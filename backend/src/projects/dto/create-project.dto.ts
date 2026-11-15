@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsBoolean, IsIn } from 'class-validator';
 
 // Matches the Projects directory record (frontend data/projects.ts Project).
 export class CreateProjectDto {
@@ -34,4 +34,6 @@ export class CreateProjectDto {
   @IsString() @IsOptional() introLetterHtml?: string;
   @IsBoolean() @IsOptional() contractApproved?: boolean;
   @IsString() @IsOptional() templateKey?: string;
+  /** client | internal (Nov 13). */
+  @IsIn(['client', 'internal']) @IsOptional() kind?: string;
 }

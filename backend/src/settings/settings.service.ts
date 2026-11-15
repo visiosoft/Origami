@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import { AppSettingEntity } from '../database/entities';
 
 /** Keys that hold secrets — masked whenever settings are read by the UI. */
-export const SECRET_KEYS = ['google.clientSecret', 'google.workspaceClientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken', 'sms.quoApiKey'];
+export const SECRET_KEYS = ['google.clientSecret', 'google.workspaceClientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken', 'sms.quoApiKey', 'sms.quoWebhookSecret'];
 
 /** Settings the Settings UI may read/write. Anything else is rejected. */
 export const PUBLIC_KEYS = [
@@ -14,6 +14,9 @@ export const PUBLIC_KEYS = [
   'google.workspaceClientId',
   'google.workspaceClientSecret',
   'app.baseUrl',
+  // Two-step sign-in for staff: 'off' turns it off; which ways codes may come (app,sms,email).
+  'auth.twoFactor',
+  'auth.twoFactorMethods',
   // A banner every signed-in page shows while it's on ("Updates 3-4 pm -- please save your work").
   'app.notice',
   'app.noticeActive',
@@ -60,6 +63,8 @@ export const PUBLIC_KEYS = [
   'sms.provider',
   'sms.quoApiKey',
   'sms.quoFrom',
+  // Signing secret of the Quo webhook that carries STOP / START replies (Nov 13).
+  'sms.quoWebhookSecret',
   // --- Branding: letterhead, footer and signature used on generated documents ---
   'brand.companyName',
   'brand.tagline',

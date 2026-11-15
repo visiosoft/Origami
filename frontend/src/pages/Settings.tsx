@@ -1,5 +1,6 @@
 import { AuditLogSettings } from './AuditLogSettings';
 import { PrioritySettings } from './PrioritySettings';
+import { TagSettings } from './TagSettings';
 import { ContractTemplateSettings } from './ContractTemplateSettings';
 import { CostCodesSettings } from '../components/CostCodes';
 import { useEffect, useState } from 'react';
@@ -8,6 +9,7 @@ import { api } from '../api';
 import { GoogleSettings } from './GoogleSettings';
 import { BrandingSettings } from './BrandingSettings';
 import { NotificationSettings } from './NotificationSettings';
+import { TwoStepSettings } from '../components/TwoStepSettings';
 import { PipelineSlaSettings } from './PipelineSlaSettings';
 import { SmsSettings } from './SmsSettings';
 import { SchedulingSettings } from './SchedulingSettings';
@@ -61,6 +63,7 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
     { key: 'request-log-statuses', label: 'Special Actions Log statuses' },
     { key: 'checklists', label: 'Checklist templates' },
     { key: 'priorities', label: 'Task priorities' },
+    { key: 'tags', label: 'Tags' },
     { key: 'contract-templates', label: 'Contract templates' },
     { key: 'audit-log', label: 'Audit log' },
   ] },
@@ -79,13 +82,15 @@ export function Settings() {
   const tabParam = params.get('tab');
   // (It used to open on a "lead-scoring" section that no longer exists, so the page started blank.)
   const [active, setActive] = useState(
-    tabParam === 'google' || tabParam === 'my-calendar' || tabParam === 'cost-codes' || tabParam === 'audit-log' || tabParam === 'priorities' || tabParam === 'contract-templates' ? tabParam : 'notifications',
+    tabParam === 'google' || tabParam === 'my-calendar' || tabParam === 'cost-codes' || tabParam === 'audit-log' || tabParam === 'priorities' || tabParam === 'tags' || tabParam === 'contract-templates' ? tabParam : 'notifications',
   );
   const [theme] = useTheme();
   if (theme === 'coterie') {
-    const canCodes = can('settings', 'manage') || can('manpower_con', 'manage');
+    // The same rights the server checks (Nov 10: settings-only managers saw an editable form and got refused).
+    const canCodes = can('manpower_con', 'manage') || can('fin_resources', 'manage');
     const sections: SettingsSection[] = [
       { key: 'notifications', tab: 'account', label: 'Notifications', hint: 'What we email or text you', render: () => <NotificationSettings /> },
+      { key: 'two-step', tab: 'account', label: 'Two-step sign-in', hint: 'Authenticator app and backup codes', render: () => <TwoStepSettings /> },
       { key: 'my-calendar', tab: 'account', label: 'My Calendar', hint: 'Your Google Calendar', render: () => <MyCalendarSettings /> },
       { key: 'branding', tab: 'workspace', label: 'Branding & letterhead', hint: 'Logo, colours and letterhead', render: () => <BrandingSettings /> },
       { key: 'cost-codes', tab: 'workspace', label: 'Cost codes (CSI)', hint: 'Codes used on budgets and costs', render: () => <CostCodesSettings canManage={canCodes} /> },
@@ -97,6 +102,7 @@ export function Settings() {
       { key: 'daily-log-backup', tab: 'workspace', label: 'Daily log backup', hint: 'Copies of daily logs to Drive', render: () => <DailyLogBackupSettings /> },
       ...(isAdmin ? [{ key: 'contract-templates', tab: 'workspace' as SettingsTab, label: 'Contract templates', hint: 'Wording for each kind of contract', render: () => <ContractTemplateSettings /> }] : []),
       ...(isAdmin ? [{ key: 'priorities', tab: 'workspace' as SettingsTab, label: 'Task priorities', hint: 'What Emergency, Urgent, High, Medium, Low and Very Low mean', render: () => <PrioritySettings /> }] : []),
+      ...(isAdmin ? [{ key: 'tags', tab: 'workspace' as SettingsTab, label: 'Tags', hint: 'The shared list of tags: rename, merge or delete', render: () => <TagSettings /> }] : []),
       ...(isAdmin ? [{ key: 'audit-log', tab: 'workspace' as SettingsTab, label: 'Audit log', hint: 'Who changed what, across the app', render: () => <AuditLogSettings /> }] : []),
       { key: 'google', tab: 'integrations', label: 'Google Workspace', hint: 'Email, Drive and sign-in', render: () => <GoogleSettings /> },
       { key: 'sms', tab: 'integrations', label: 'SMS', hint: 'Text messages through Twilio', render: () => <SmsSettings /> },
@@ -111,7 +117,7 @@ export function Settings() {
       {SECTIONS.map((sec) => (
         <div key={sec.group} style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', padding: '0 12px 8px' }}>{sec.group}</div>
-          {sec.items.filter((it) => !['audit-log', 'priorities', 'contract-templates'].includes(it.key) || isAdmin).map((it) => {
+          {sec.items.filter((it) => !['audit-log', 'priorities', 'contract-templates', 'tags'].includes(it.key) || isAdmin).map((it) => {
             const on = active === it.key;
             return (
               <div key={it.key} onClick={() => setActive(it.key)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? 'var(--ink)' : 'var(--body)', background: on ? 'var(--c-e7f0e8)' : 'transparent', borderLeft: '3px solid ' + (on ? 'var(--success)' : 'transparent'), marginBottom: 2, lineHeight: 1.3 }}>{it.label}</div>
@@ -142,6 +148,7 @@ export function Settings() {
           {active === 'checklists' && <ChecklistTemplateSettings />}
           {active === 'audit-log' && isAdmin && <AuditLogSettings />}
           {active === 'priorities' && isAdmin && <PrioritySettings />}
+          {active === 'tags' && isAdmin && <TagSettings />}
           {active === 'contract-templates' && isAdmin && <ContractTemplateSettings />}
           {active === 'cost-codes' && <CostCodesSettings canManage={can('settings', 'manage') || can('manpower_con', 'manage')} />}
         </div>
@@ -389,7 +396,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                 })()}
               </div>
               {isRichKind(draft.kind) ? (
-                <RichTextEditor value={asHtml(draft.body)} onChange={(html) => setDraft({ ...draft, body: html })} minHeight={360} fields={FIELD_GROUPS} />
+                <RichTextEditor value={asHtml(draft.body)} onChange={(html) => setDraft({ ...draft, body: html })} minHeight={360} fields={FIELD_GROUPS} wordImport />
               ) : (<>
                 <textarea id="tpl-sms-body" value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={draft.kind === 'sms' ? 5 : 20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
                 {canManage && (

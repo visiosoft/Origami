@@ -52,3 +52,29 @@ describe('meeting notes -> special actions', () => {
     expect(matchPeople(['Edward Ciccarelli', 'Jared', 'HomCafe'], people)).toEqual({ matched: [people[0], people[2]], unmatched: ['HomCafe'] });
   });
 });
+
+describe('Gemini notes (Nov 3 sync)', () => {
+  const doc = [
+    'Weekly Sync', '', 'Nov 3, 2026', '',
+    'Drawing markups and tools', 'Edward requested adding transparent fill options for shapes.', 'Edward proposed OCR for page titles.', '',
+    'Suggested next steps',
+    '[IT and Systems Department] Enable Thumbnail View: Implement a thumbnail grid view for project photos.',
+    '[Edward Ciccarelli, Astrid Rivas] Provide Drawing Symbols: Send the standard symbols.', '',
+    'You should review Gemini\'s notes to make sure they\'re accurate.', 'Nov 3, 2026', 'Weekly Sync',
+    'Decisions', 'Aligned', 'Selection of Quo for messaging integration The participants agreed to use Quo.', 'Needs Further Discussion', 'Automated drawing title readers were deferred.', '',
+    'Next steps',
+    '[IT and Systems Department] Enable Thumbnail View: Implement a thumbnail grid view for project photos.', '',
+    'Details', 'Invoicing and Billing Follow-Up: Edward noted something long here.',
+  ].join('\n');
+  const p = parseMeetingNotes(doc, '2026-11-03');
+  it('reads sentence notes under a heading, and each next step once', () => {
+    expect(p.records.filter((r) => !r.kind).map((r) => r.title)).toEqual(['Drawing markups and tools', 'Drawing markups and tools']);
+    expect(p.tasks.map((t) => t.title)).toEqual(['Enable Thumbnail View', 'Provide Drawing Symbols']);
+    expect(p.tasks[0].names).toEqual(['IT and Systems Department']);
+    expect(p.tasks[1].names).toEqual(['Edward Ciccarelli', 'Astrid Rivas']);
+  });
+  it('turns the Decisions section into decision records, and stops at the footer', () => {
+    expect(p.records.filter((r) => r.kind === 'Decision').map((r) => r.title)).toEqual(['Decision — Aligned', 'Decision — Needs Further Discussion']);
+    expect(p.tasks.some((t) => /review Gemini|Invoicing/i.test(t.title))).toBe(false);
+  });
+});

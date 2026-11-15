@@ -161,3 +161,148 @@ Today: Urgent / High / Medium (a month) / Low (past a month). Plan: add Emergenc
 | H4 | The Project Program PDF doesn't look good | — | Redesign the PDF: cover/header with logo, clear phase table, spacing and type | ✅ (laid out by the app, no Google Docs conversion) |
 
 Order agreed (Oct 31): G priorities → F drawings → H templates.
+
+## I. Oct 30 sync (System and file structure)
+
+| # | Request | Status |
+|---|---|---|
+| I1 | Access: roles enforced on every module; "Assigned projects" holds everywhere; every login linked to People | ✅ (on Prod) |
+| I8 | Contracts: a pasted contract keeps its formatting; owner name and other fields fill in; email yourself a preview | ✅ (paste cleanup for Word / Google Docs, ⤓ Word import of .docx, fields grouped under + Insert field, "Email me a preview" with the PDF) |
+| I7 | Tags: standard set + custom tags in one shared list, reusable and filterable; auto-tags | ✅ (shared tag bank, Settings → Tags; auto: Internal by default, CRM/Design/Construction by origin, Financial with a CO, personal tags Internal; filters on board and Log) |
+| I10 | Layer access: choose who sees each layer (Internal only, a given sub) | ✅ (Everyone / Our team / picked people or companies; downloads follow it) |
+| I11 | iPad: tune markup tools for tablets | ✅ (44px+ tools, bigger swatches/grips, slide-over list in portrait, Pencil palm rejection) |
+| I6 | Navigation regroup | ✅ (Special Actions under Main; Pre-construction back office only; Construction regrouped with QA/QC & Safety and Plan & File Room; Resource Enterprise Management = Procurement + Equipment + Manpower) |
+| I5 | Two file areas: All Files vs per-project Plan & File Room (build set) | ✅ (☆ build-set folders per project; field roles see only those; file changes need File Room manage, enforced on the server) |
+| I3 | Drive as the backup of record (PDF, REV1/REV2) | ✅ for signed contracts and the Project Program as sent ("Backups of record" folder). Renderings and Word files: open |
+| I4 | Per-project backup Google Sheet, refreshed on a schedule | ✅ (Tasks, RFIs, COs, FOR RECORD, Meetings tabs; nightly 2am once switched on; Refresh now) |
+| I2 | People without logins (name + rate) for daily reports and weekly pay | ✅ checked, no change needed: a People “Staff” entry without email gets its Manpower employee at once; the rate is set in Manpower → Employees; daily report crew, weekly timesheets and payroll use the employee, not an email (only self-service “My Timesheet” needs a login) |
+| I9 | Emergency tasks alert the team at once | ✅ (assignee, collaborators, originator + every admin; text + email + bell, always on; sent once) |
+
+## J. Nov 3 sync (Weekly Sync – Ehsan + Origami DB)
+
+| # | Request | Status |
+|---|---|---|
+| J1 | Superintendent (George) sees too much: projects, leads, address book; resource management changes only by Astrid / accounting | ✅ field roles default to Assigned projects; leads follow Assigned projects; outside contacts only on your projects; writes in Manpower, leads and People need manage |
+| J2 | Markup notes typed in the side panel appear on the drawing; email markups; iPhone scrolling conflicts | ✅ notes stay in the panel (not drawn), up to 1,000 chars; Email button (saves a copy, emails its link); safe-area padding and touch handling on iPhone |
+| J3 | Automate drawing titles (OCR, no AI) | ✅ number + title from the title-block text; scans via Drive OCR; ↻ to re-read; ✎ to fix |
+| J4 | Photos: thumbnails, date sort out of order, duplicates / missing sort buttons | ✅ Progress Photos already shows thumbnails and sorts by ISO date; fixed photos chaining as versions (same name) and added a Name / Newest / Oldest sort to the File Room grid and list |
+| J5 | Working in a project bounces you out of it | ✅ project + tab in the URL (Back works), “← Back to <project>” on pages opened from it, wider overview |
+| J6 | Add the field report to the approvals view (no switching logins) | ✅ field form in admins’ menu; Approvals opens the report; project links pre-filter |
+| J7 | Meeting transcripts and notes integrated, tasks created and assigned from them | ✅ hourly pull of “Notes by Gemini” from Drive into the meeting; Import from Google (link or search); parser reads Gemini headings, decisions and next steps for review → tasks / FOR RECORD |
+| J8 | CSI codes on drawing markups, tracked through change orders to the base contract | ✅ CSI code on markups, RFIs and Log entries; carried from a markup onto its CO line / RFI / task; CSI filters on RFIs and the Log |
+| J9 | Remove duplicate user roles | ✅ built; waiting on an admin to press “Merge duplicates” on staging after checking who moves |
+| J10 | Markup mobile-friendly on iPhone and iPad | ✅ one-row header + ⋯ More; tool groups; Done pill + double-tap; long-press select + action bar; bottom sheets; touch gestures; landscape rail; phone canvas cap; home-screen app |
+
+## K. Financial tab: Estimate / Prime contract (from the Development Task Tracker, Nov 4)
+
+| # | Item | Status |
+|---|---|---|
+| K1 | Estimate maths F1–F19 (line price, NIS = $0, GR, total build = (subtotal + GR) ÷ (1 − profit% − contingency%), discount, design cost, cost split, payments) with formula descriptions; tested on the Catherine example | ✅ |
+| K2 | Estimate tables: estimates (revisions), scopes, lines (items + Details/Inclusions/Exclusions/A&C rows, sub columns, markup), GR lines, custom columns | ✅ |
+| K3 | Estimate API: list, create (EST-001 + standard GR lines), open with live totals, save whole sheet (version-checked), settings, mark sent (frozen), revise (Rev 2), delete draft | ✅ (accept comes with K9) |
+| K4 | Spreadsheet-style editor in Precon → Estimating (rows, columns, tables, paste from Excel, undo, ⓘ formulas) | ✅ /estimating?project=; band show/hide; row menu; GR, totals, payments; freeze on send. Custom columns are K5 |
+| K5a | Reuse: named templates (Save as template, Estimating → Templates), new estimate from a template or any estimate you can see, “+ Scopes from…”; everything copied | ✅ |
+| K5 | Custom columns (text, number, $, %, date, choice, checkbox, formula) with Excel-style formulas; rename/move/resize/hide; internal unless shown to clients/subs; company default template for blank estimates | ✅ (custom columns on the GR table: later if wanted) |
+| K6 | Standard statements per CSI code (library on Estimating; pick from a note row; “Save this text…”), plus “used before” suggestions from past estimates. Seeded with the 2 reusable lines from the sheet — its “Standard Verbage” column is shifted against its codes, so not imported | ✅ |
+| K7 | Who sees what (money data types × role, book type per project), enforced on the server | ✅ Nov 13 — uses the access sheet's financial data types; book type = one of the four client roles |
+| K8 | Estimate letter PDF, email, e-sign; .xlsx export | ✅ Nov 13 |
+| K9 | On acceptance: SOV, budget per CSI, draft subcontracts, contract value, billing schedule | ✅ Nov 13 |
+| K10 | Sub bid packages (without our amounts) | ✅ Nov 13 |
+
+## L. File Room speed (Nov 5)
+
+| # | Item | Status |
+|---|---|---|
+| L1 | Small copies per file: 300 px square WebP thumbnail (centre of a photo, top of a page) + 1200 px preview, kept in the workspace Drive's hidden "Origami previews" folder; photos from the original (sharp), PDFs/Office/HEIC from Drive's page-1 render | ✅ |
+| L2 | Grid loads thumbnails only near the screen (300 px ahead), fixed box, cached for good (versioned URL) | ✅ |
+| L3 | Existing files filled in by a background job: automatic on staging; on Odin only after `filePreviews.backfill` is switched on (GET/PUT file-room/previews/…) | ✅ (Odin: waiting for the go) |
+| L4 | Drive-synced files: made on sync, remade when changed in Drive | ✅ |
+| L5 | PDF/Office first page as the thumbnail | ✅ via Drive's render |
+
+## M. Client feedback (Nov 5)
+
+| # | Item | Status |
+|---|---|---|
+| M1 | “Import from Google” not visible: it was only inside a meeting's review (after marking it Occurred, on the Notes tab, below the fold). Now: a button at the top of Meetings listing recent Gemini notes (creates the meeting when it isn't in Origami), and a button on every meeting; imported notes open the review on the Notes tab | ✅ |
+| M2 | Demo videos with voice: Estimating, Meeting notes from Google | ✅ (sent in chat) |
+
+## N. Nov 10 sync (Weekly Sync – Ehsan + Origami DB)
+
+| # | Item | Status |
+|---|---|---|
+| N1 | Photo markup freeze / can't close: 2400 px copy instead of full original, bitmap freed if closed while loading, Esc closes, ✕ on the Progress Photos lightbox on phones | ✅ |
+| N2 | Meetings missing: creator becomes attendee + always sees it; project tab by projectId; "Show all" when nothing upcoming | ✅ |
+| N3 | Consultant contact saved firm as name: consultants are people (first/last + firm + discipline) in form, card scan, import | ✅ (existing records: fix-up offered separately) |
+| N4 | Task status jumping Assigned ↔ In progress: open panel rebases on outside changes; sectionId no longer saved from the panel | ✅ (confirm with Andrea's video) |
+| N5 | Branding in the app: public /brand, AppShell/sign-in logo from Settings, one fallback name/colour | ✅ |
+| N6 | CSI codes appear everywhere at once; edit rights match the server | ✅ |
+| N7 | Access for field roles (i-3 and below): project scope on daily-logs, project-program, audit-project, lead-files, project-sections, assignments, workflows (`:projectId` routes too), project PUT/DELETE, guest access, File Room shares, project texts; contacts by id narrowed; client phone/email/address hidden in People + CRM; company-wide dashboard figures only for full access; contractAmt only with financial rights | ✅ (stored role permissions: proposed changes waiting for a yes) |
+| N8 | Cancelled project stage; Closed + Cancelled projects and closed CRM leads hidden unless "Show closed & cancelled" | ✅ |
+| N9 | Field roles vs the access sheet: preview + "Apply to field roles" (Admin → User Access & Roles) | ✅ built — press it on staging |
+| N10 | Existing consultants saved as firm: preview + "Update consultants" (People) | ✅ built — press it on staging |
+| N11 | Drawing speed: PDF kept in the browser (Cache Storage, by file + version, 40 files / 400 MB, oldest out first) | ✅ |
+| N12 | Sheet picker with page pictures + search (replaces the sheet dropdown) | ✅ |
+| N13 | Measurement labels wrap, keep their size on screen and stay inside the page; unboxed text wraps at the page edge (screen + PDF) | ✅ |
+| N14 | Progress Photos: saved small thumbnails, lazy loading, "added" date beside the taken date | ✅ |
+| N15 | Several markups / a whole layer → one RFI, task, change order or FOR RECORD item | ✅ |
+| N16 | ✎ Sketch: blank 11×17 sheet in the project's Sketches folder, opened in the markup viewer | ✅ |
+| N17 | PDF layer (OCG) toggles for heavy drawing sets | ⏸ later — only if large sets are still slow with the browser copy |
+| N18 | Faster markup drawing on busy sheets: the stroke / shape / drag under the pen is drawn on its own live layer (the viewer redraws once, when the pen lifts); pen lines simplified on save (within 0.6 px); zoom only redraws pins, links and measure labels; text on the sheet can't be selected (a selection cancelled the next shape) | ✅ — memoised side panels and a bitmap of other layers not needed after measuring |
+
+## O. Batch 3: estimating (Nov 13)
+
+| # | Item | Status |
+|---|------|--------|
+| O1 | Performing strategies (Edward's list) with automatic Subcontract used / required and OFCI; old lines listed with where each goes, "Update strategies" moves them (Owner → OFCI, Other → blank) | ✅ built — press it on staging |
+| O2 | Standard statements: tick several, "Insert N" adds them below in order (one undo) | ✅ |
+| O3 | Estimate colours: band headings tinted with a coloured rule between bands; Precon / Subcontractor / Markup cells lightly tinted; Prime a fixed green in both themes | ✅ |
+| O4 | GR / GL / totals panel beside the sheet on wide screens (closable; below on iPad and phones); General Liability = rate × (subtotal + GR), F20; no GL line in GR for new estimates | ✅ |
+| O5 | Revision compare (added / removed / changed with old → new, ↑↓ amounts, totals; rows matched by where they were copied from, older rows by text) and "Restore as new draft" | ✅ |
+| O6 | Estimating start page grouped by stage: CRM (no stage yet) / Design / Precon (Kickoff) / Construction, counts, folds remembered; closed & cancelled behind a toggle | ✅ — CRM uses "no stage yet" (the projects list carries no lead status) |
+| O7 | K7: estimate money by role from the access sheet's financial data types (hidden figures sent as null; restricted roles get server figures, money read-only, saves keep stored amounts); book type per project; contractAmt hidden on project page + Design board too | ✅ |
+| O8 | K8: Letter tab, client's copy PDF (book type), Send to client (PDF + accept link, 60 days), public /sign-estimate (name + signature → Accepted, signed PDF to File Room Estimates, sender emailed), Excel export (exceljs) | ✅ |
+| O9 | K9: "Set up the job" (preview → confirm; contract value, budget per CSI with GR+GL under 01, draft subcontracts per named sub, payments → milestones; each step once, partial runs resumable) + "Mark accepted…" for paper acceptance | ✅ — a later revision can't be accepted once one is, so no "differences" path was needed |
+| O10 | K10: bid packages (allow-list snapshot of scope/line text + statements), invites by email with a private 90-day link, sub page /bid (per-line or total, notes, decline; updatable until chosen), leveling, "Use this bid" → draft revision by line + Contractors-page bids awarded / not awarded | ✅ — package files (drawings) not attached yet |
+
+## P. Batch 4, part 1 (Nov 13)
+
+| # | Item | Status |
+|---|------|--------|
+| P1 | People linked to projects by id (projectIds; names kept in step; rename sync; access, People scope, subs, notifications, guest access, client program check by id); preview + "Link by project" on People | ✅ built — press it on staging |
+| P2 | Two-step sign-in (TOTP, RFC 6238, no backend dependency) for internal staff on password and Google; QR set-up (qrcode 1.5.4, frontend only), 10 one-time backup codes, remember device 30 days, 5 tries then 10-minute lock, admin reset; setting `auth.twoFactor = off` turns it off | ✅ |
+| P3 | View as (admins): role or person via X-View-As; AuthService.verify answers as them for every route (AsyncLocalStorage), the guard refuses changes, refresh and two-step use the real account; picker + yellow banner; old mock switch removed | ✅ |
+| P4 | File Room restricted folders (staff only / picked roles, companies, people; covers sub-folders): enforced on tree counts, file pages and search, list, meta, content/preview/thumbs, markups, share/email, upload, progress photos, All Files, contract attachments; Restrict… dialog + 🔒 | ✅ |
+| P5 | Role-based task assignment: one role list (programme teams, CRM keys, access role names), project team (ProjectEntity.roles) copied from the CRM on convert + backfill (preview/apply), unassigned role tasks filled on seed and on team change, unfilled chips, Team card | ✅ built — press "Copy the CRM team" on staging |
+| P6 | QA/QC checklists: template kind qaqc tied to programme tasks or labels, attached on seed and to open existing tasks, QA/QC page (list across projects + templates); backup sheet folder setting | ✅ built |
+
+## Q. Batch 5 (Nov 13 sync)
+
+Plan: second emails, project housekeeping, texts opt-out + mass texts, 2-step by text/email, estimate line math, CA contract rules, GC/sub prequal, Gmail per person, attendee meeting notes, architecture doc.
+
+| # | What | Status |
+|---|---|---|
+| Q1 | Second emails per person: `altEmails` on users and employees; sign-in (password, Google, invites), People link, project access, timesheets and staff sync match any address; an address can't belong to two accounts; Admin "+ other emails", employee "Other emails" | ✅ built |
+| Q2 | Project housekeeping: closed-out / cancelled projects archived 10 days after the stage changed (stageChangedAt, archivedAt; hourly, off until the admin presses Apply on the preview), Archived list + Restore; Internal project kind (filter; never shown to outside accounts); task, programme and dashboard reads never cached and the cache cleared on returning to the tab; task dashboard definitions; mobile collapse not reproduced — needs the screen it happened on | ✅ built — press "Apply and switch on" on Projects |
+| Q3 | Texts: every text (not sign-in codes) ends "Reply STOP to opt out. Settings: <link>"; sms_preferences per number (stop all / updates / announcements); public /texts page from the link; Quo webhook /api/texts/quo-webhook (legacy openphone-signature and current webhook-signature both verified) turns STOP/START replies into preferences; opted-out numbers are refused and logged as skipped; Mass texts page (People + CRM leads, {first name}, preview of who is skipped, each sent on their own 1.5s apart, progress, stop, history) | ✅ built — paste the Quo webhook secret in Settings → SMS |
+| Q4 | 2-step by text (Quo) or email as well as the authenticator app: chosen at set-up, switchable in Settings → Two-step sign-in (confirmed by a code from the new way); 6-digit code, 10 minutes, newest only, used once, 1 per 30s and 5 an hour; backup codes, remembered devices and lockout unchanged; admins choose the allowed ways and can switch two-step off (auth.twoFactor / auth.twoFactorMethods now editable) | ✅ built |
+| Q5 | Estimating: Qty / Unit / Unit cost on every line (F21: Qty × Unit cost = Sub cost; typing a sub cost clears the unit cost; hidden with cost rights; kept on restricted saves), total square feet (areas.total) with cost per sq ft for the job and each scope (F22), GL rate also as $ per $1,000, Total profit = markups + profit (F23), Duplicate scope; client estimate email has the review link only (no PDF), clients see their sent / accepted estimates on their dashboard | ✅ built |
+| Q6 | California contract rules: {{cancel_by}} = midnight at the end of the 3rd business day (Mon–Fri, no federal holidays) after the owner signs, shown live on the signing page and PDF; draw schedule per contract (down / mobilization / progress / final, % or $), down payment ≤ $1,000 or 10%, must add up to the price, checked on send; {{draw_schedule}} table and {{drawing_list}} (attachments of kind Drawings); default GC and owner templates carry the clauses + notice of cancellation; “+ California clauses” adds them to an existing template | ✅ built — add the clauses to your saved templates (Settings → Contract templates) and have counsel review the wording |
+| Q7 | GC & Sub Prequalify page (/sub_prequal): per contractor licence, insurance, trades, years, references, W-9, files; staff save the form, approve (only with licence + insurance on file and current) or turn down with a note; a private 30-day link for the sub to fill it in and upload files (/prequal); bid invites refuse anyone not approved or with an expired licence / insurance (the picker greys them out with the reason) | ✅ built — no sub is approved yet, so approve them before inviting to bid |
+| Q8 | My Mail: each person connects their own Gmail (gmail.readonly / send / compose; token sealed; any domain); inbox with Gmail search and paging, threads, attachments, reply in thread / new mail with attachments, contact suggestions from People and leads; Link to… a lead, project or task; auto-links by #P-45 / #L-… / #<task number> and by a lead's address (only to records the person can see); linked mail is copied to the record and shown on the project overview, lead drawer and task panel | ✅ built — needs the Google sign-in app to allow the Gmail scopes (see notes) |
+| Q9 | Meeting notes for meetings people attend but don't organise, and on another domain: My Calendar connections may also read Docs shared with the person (drive.readonly); the hourly sweep and “Import from Google” try the attendees' own connections (matched by id or any of their emails) when the workspace account can't see the Doc; personal Google connections aren't locked to one hosted domain. A second shared workspace connection isn't needed for this | ✅ built — everyone presses Reconnect once in Settings → My Calendar |
+
+## R. Batch 6
+
+Plan: My Mail drafts, templates, open tracking and email on contacts; sub line-item invoices with lien releases; funding sources and structures; weekly database copy and uptime check; File Room default layout.
+
+| # | What | Status |
+|---|---|---|
+| R1 | My Mail: Inbox / Sent / Drafts; drafts are Gmail's own (autosave 5s after typing, Save draft, Discard deletes, opening a draft keeps its attachments, sending a draft sends that draft); email templates, shared (administrators) and personal, filled with {{clientFirstName}} / {{clientName}} / {{projectTitle}} / {{senderName}}; unfilled fields asked about before sending | ✅ built |
+| R2 | Open tracking (mail_sends): a 1×1 image /api/mail-open/<random id>.gif on mail sent from My Mail (on unless “Track opens” is unticked), each load counted; the app hides the image and shows “Opened 3× · last …” on your sent messages. Email with a person or lead: People profile and lead drawer list your Gmail threads with their address (/mail/with) and an Email button that opens My Mail to them | ✅ built |
+| R3 | Sub invoicing: sub_invoices header per portal batch (retention %, default from the subcontract, else 10%) with gross / retention / net; lien_releases uploaded by the sub (portal: on an invoice, or a final on the subcontract), kind marked by the bookkeeper (approveCosts). Costs → pay on a portal line is blocked until a checked conditional release; after payment it shows waiting for the unconditional. Release retention (commitment retentionPaidDate / ref) needs a checked conditional final, then waits for the unconditional final. Job cost → Sub invoices tab; portal Invoices shows money, releases and Retention held | ✅ built |
+| R4a | Funding sources (funding_sources: loan / owner_cash / other, approved amount, notes) per project; fundingSourceId on owner invoices and change orders, set from the Funding tab’s “Paid from” list (issued invoices, approved change orders). Per source: approved, invoiced (credit notes count against the credited invoice’s source), paid (payments not voided), left; gap = contract with approved COs − funding approved. Removing a source un-assigns what it paid | ✅ built |
+| R4b | Structures: projects.structures (e.g. Main house, ADU) and project_phases.structureKey. Adding one copies the programme’s phases for it, keyed “<phase>@<structure>”, with their template tasks (task ids suffixed too); the template’s category, gating, weeks and dependencies are read by the base key and stay within the structure. Phase board: Structure picker and “+ Structure” (rename or remove, removal only while its tasks are untouched). Schedule: lanes per structure or merged. Projects without structures look as before | ✅ built |
+| R5 | Weekly database copy: DbBackupService (hourly tick, Sunday 3am reminders.timezone, on unless switched off) exports every regular table to JSON (secret columns and secret settings left out), zips them (own deflate zip writer, no new dependency) with a manifest, uploads to the top-level Drive folder “Origami System Backups” (outside the File Room) and trashes all but the newest 8. Settings → Google → Database copy: on/off, Back up now, last result. GET /api/status/health (public): SELECT 1, 503 when the database doesn’t answer. .github/workflows/uptime.yml every 15 min against staging: two failures 60 s apart fail the run (GitHub emails admins); optional Quo text with secrets QUO_API_KEY, QUO_FROM, IT_PHONE | ✅ built |
+| R6 | File Room layout: default folder template when Settings has none (Drawings & Plans/Base sets, Drawings & Plans/Markups, Photos/Tasks, Photos/FOR RECORD; nested under the existing top-level categories, file-room/layout.ts). Markup saveCopy → Drawings & Plans/Markups. Photos on a project’s board task → <project>/Photos/Tasks, on a Request Log entry for a project → Photos/Tasks or Photos/FOR RECORD (by topic); other files and old uploads unchanged. Existing projects: GET /file-room/template/preview, POST /file-room/template/apply-all (admins), Settings → Standard project folders → Existing projects (Preview, then Apply). Settings shows the “A-101 Floor Plan” naming guidance | ✅ built — Apply on staging is yours to press |
+| R7 | Fix (staging down): AuthService.findByEmail ran LOWER(u.altEmails); altEmails is simple-json = ntext on SQL Server, which LOWER() refuses (“Argument data type ntext is invalid for argument 1 of lower function”), so every email lookup — sign-in included — errored. Now LOWER(CAST(u.altEmails AS NVARCHAR(MAX))). New test database/ntext-queries.spec fails on any LOWER/UPPER/TRIM of a simple-json column without a CAST. Introduced in Batch 5 (second emails) | ✅ fixed |
+| R8 | My Mail cache (Nov 15): server keeps, per user and in memory (up to 2,000 each), each thread’s list details and full view by Gmail historyId; threads() fetches metadata only for new or changed threads (1 list call instead of 26), thread() asks format=minimal and fetches format=full only when the historyId changed; sending, sending a draft or saving a draft into a thread drops it. Browser keeps lists (by folder, search, page), drafts, opened threads and the Gmail status in memory for the tab (nothing in browser storage; reset when another user signs in): shown at once, then one check for new mail, plus a Refresh button. No polling | ✅ built |

@@ -98,7 +98,7 @@ export class GuestAccessService {
       user = await this.users.save(user);
     }
 
-    await this.people.linkToProject(email, name, input.tier === 'client' ? 'Client' : 'Consultant', project.name);
+    await this.people.linkToProject(email, name, input.tier === 'client' ? 'Client' : 'Consultant', { id: project.id, name: project.name });
 
     const now = new Date();
     const grant = await this.repo.save(this.repo.create({

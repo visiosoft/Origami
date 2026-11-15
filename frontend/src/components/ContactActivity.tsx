@@ -25,7 +25,7 @@ export function ContactActivity({ person, canManage, onChanged }: { person: Pers
   useEffect(() => { setA(null); setDraft(null); void load(); }, [person.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const company = companyOf(person);
-  const isFirm = ['Consultant', 'Sub', 'Authority', 'Vendor'].includes(person.kind);
+  const isFirm = ['Sub', 'Authority', 'Vendor'].includes(person.kind);
   const fail = (e: unknown) => toast('⚠ ' + ((e as Error).message || 'Not saved'));
   const save = async () => {
     if (!draft) return;

@@ -16,6 +16,620 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-15a',
+    date: '2026-11-15',
+    title: 'My Mail opens straight away',
+    items: [
+      { area: 'Mail', kind: 'improved', text: 'My Mail shows the email it already loaded as soon as you open it, then checks Gmail for new mail (“Checking for new mail…”). Only new or changed conversations are fetched again, and a conversation you already opened shows at once. Press Refresh to check again.', where: 'Special Actions → My Mail' },
+    ],
+  },
+  {
+    id: '2026-11-14h',
+    date: '2026-11-14',
+    title: 'Fix: signing in by email failed',
+    items: [
+      { area: 'Sign-in', kind: 'fixed', text: 'Signing in (and anything that looks a person up by email) failed with a database error after second emails were added. It works again, for main and second emails.' },
+    ],
+  },
+  {
+    id: '2026-11-14g',
+    date: '2026-11-14',
+    title: 'File Room: standard folders for drawings and photos',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'Projects start with Drawings & Plans / Base sets and Markups, and Photos / Tasks and FOR RECORD, unless Settings lists your own folders. Administrators can preview which open projects are missing them and add them in one go.', where: 'Settings → Google Workspace → Standard project folders → Existing projects' },
+      { area: 'Markups', kind: 'improved', text: 'A saved marked-up copy now goes into the project’s Drawings & Plans / Markups folder instead of next to the drawing.' },
+      { area: 'Tasks', kind: 'improved', text: 'Photos added to a project’s task go into its File Room under Photos / Tasks (FOR RECORD entries: Photos / FOR RECORD). Other files, and photos already uploaded, stay where they are.' },
+    ],
+  },
+  {
+    id: '2026-11-14f',
+    date: '2026-11-14',
+    title: 'Weekly database copy and an uptime check',
+    items: [
+      { area: 'Settings', kind: 'new', text: 'Every Sunday at 3am a copy of the whole database (each table as JSON, zipped) goes to the “Origami System Backups” folder in Drive; the last 8 are kept and passwords and sign-in secrets are left out. Administrators can switch it off or press Back up now.', where: 'Settings → Google Workspace → Database copy' },
+      { area: 'System', kind: 'new', text: 'The app is checked every 15 minutes. If it doesn’t answer twice in a row, the repository admins get GitHub’s failure email (and IT gets a text once the Quo details are added).' },
+    ],
+  },
+  {
+    id: '2026-11-14e',
+    date: '2026-11-14',
+    title: 'More than one building on a lot (Main house + ADU)',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Add a structure such as an ADU to a project. It gets its own copy of the programme’s phases and tasks, and the phase board has a picker to switch between buildings (double-click a name to rename it, or remove it before its work starts).', where: 'Project → Design / Build → + Structure' },
+      { area: 'Schedule', kind: 'new', text: 'Projects with more than one structure show one lane per building, or every phase merged in date order.', where: 'Schedule → Structures side by side / Merged' },
+    ],
+  },
+  {
+    id: '2026-11-14d',
+    date: '2026-11-14',
+    title: 'Funding sources on a project',
+    items: [
+      { area: 'Financials', kind: 'new', text: 'Add where a project’s money comes from — a construction loan, the owner’s cash or another source — with the amount approved. Each shows what’s been invoiced to it, paid and left, and the top line shows the gap still to cover against the contract with approved change orders.', where: 'Project → Financials → Funding' },
+      { area: 'Financials', kind: 'new', text: 'Pick which source pays each owner invoice and approved change order (“Paid from”).', where: 'Project → Financials → Funding' },
+    ],
+  },
+  {
+    id: '2026-11-14c',
+    date: '2026-11-14',
+    title: 'Sub invoices: retention and lien releases',
+    items: [
+      { area: 'Vendor portal', kind: 'new', text: 'Each invoice a sub sends shows the total, the retention held (10% unless set) and what’s payable now. Subs upload their signed lien release on the invoice, and a final release to have retention paid.', where: 'Portal → Invoices' },
+      { area: 'Job cost', kind: 'new', text: 'A Sub invoices tab lists portal invoices with retention and the releases uploaded. Mark each release’s type after opening it; a sub’s invoice can’t be marked paid until a conditional release is checked.', where: 'Project → Financials → Job cost → Sub invoices' },
+      { area: 'Job cost', kind: 'new', text: 'Release retention records the payout on a subcontract once its conditional final release is checked, then shows it waiting for the unconditional final.' },
+    ],
+  },
+  {
+    id: '2026-11-14b',
+    date: '2026-11-14',
+    title: 'See when email is opened; email from People and leads',
+    items: [
+      { area: 'Mail', kind: 'new', text: 'Email you send from My Mail shows when it was opened (“Opened 3× · last Tue”). Untick “Track opens” for one you’d rather not track. It counts when the email’s images load, so treat it as a guide.' },
+      { area: 'People', kind: 'new', text: 'A person’s page and a lead show your emails with them, newest first, and an Email button that starts one.', where: 'People → a person; CRM → a lead' },
+    ],
+  },
+  {
+    id: '2026-11-14a',
+    date: '2026-11-14',
+    title: 'My Mail: drafts and templates',
+    items: [
+      { area: 'Mail', kind: 'new', text: 'Inbox, Sent and Drafts. What you write saves itself as a Gmail draft a few seconds after you stop typing, so it’s in Gmail too; open it later from Drafts and send it.', where: 'Special Actions → My Mail' },
+      { area: 'Mail', kind: 'new', text: 'Email templates: save your own, or (administrators) share them with everyone. Picking one fills in the person’s name, the project and your name.', where: 'My Mail → Templates' },
+    ],
+  },
+  {
+    id: '2026-11-13u',
+    date: '2026-11-13',
+    title: 'Meeting notes from meetings you attend',
+    items: [
+      { area: 'Meetings', kind: 'improved', text: 'Gemini notes now come in for meetings you attend but don’t organise, and for meetings on an apogeec.com calendar: Origami looks through the attendees’ own Google connections when the office account can’t see the notes.', where: 'Settings → My Calendar → Reconnect (once)' },
+      { area: 'Sign-in', kind: 'improved', text: 'Your own calendar and mail can be on any Google domain (Origami or Apogee).' },
+    ],
+  },
+  {
+    id: '2026-11-13t',
+    date: '2026-11-13',
+    title: 'My Mail: your Gmail in Origami',
+    items: [
+      { area: 'Mail', kind: 'new', text: 'Connect your own Gmail to read, search and answer your mail here, with attachments. Only you see your mailbox.', where: 'Special Actions → My Mail' },
+      { area: 'Mail', kind: 'new', text: '“Link to…” puts a conversation on a lead, project or task so the team can read it there. Mail links itself when it has #P-45 (a project), #L-… (a lead) or a task number like #NARV-T-2026-0001, and when it’s from a lead.' },
+      { area: 'Projects', kind: 'new', text: 'Projects, leads and tasks show the email linked to them.' },
+    ],
+  },
+  {
+    id: '2026-11-13s',
+    date: '2026-11-13',
+    title: 'GC & Sub Prequalify',
+    items: [
+      { area: 'Preconstruction', kind: 'new', text: 'GC & Sub Prequalify: each company’s licence, insurance (with expiry dates), trades, years in business, references and W-9, reviewed and approved or turned down. Send a sub a private link to fill it in and upload their documents themselves.', where: 'Preconstruction → GC & Sub Prequalify & RFP' },
+      { area: 'Estimating', kind: 'improved', text: 'Bid packages can only be sent to prequalified subs whose licence and insurance are current; the others show why.', where: 'Estimating → Bid packages → Invite subs' },
+    ],
+  },
+  {
+    id: '2026-11-13r',
+    date: '2026-11-13',
+    title: 'Contracts: California three-day cancel and draw schedule',
+    items: [
+      { area: 'Contracts', kind: 'new', text: '{{cancel_by}} shows the last day the owner can cancel: midnight at the end of the third business day (Monday to Friday, not counting federal holidays) after they sign. Before they sign it explains how it’s worked out.' },
+      { area: 'Contracts', kind: 'new', text: 'A draw schedule on each contract — down payment, mobilization and progress payments as % or $. The down payment can’t be more than $1,000 or 10% of the price, and the payments must add up to the price before it can be sent. {{draw_schedule}} puts the table in the contract.', where: 'Contracts → a draft → Draw schedule' },
+      { area: 'Contracts', kind: 'new', text: '{{drawing_list}} lists the files attached as Drawings. “+ California clauses” adds the drawings section, the three-day right to cancel and the notice of cancellation to a template.', where: 'Settings → Contract templates' },
+    ],
+  },
+  {
+    id: '2026-11-13q',
+    date: '2026-11-13',
+    title: 'Estimates: quantities, cost per square foot and total profit',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'Each line has Qty, Unit (SF, LF, EA, LS…) and Unit cost — fill them and Qty × Unit cost becomes the sub cost (e.g. 3 shower pans × $5,000). Typing a sub cost straight in still works.', where: 'Estimating → a sheet → Subcontractor columns' },
+      { area: 'Estimating', kind: 'new', text: 'Enter the total square feet to see the cost per square foot for the job and for each scope.', where: 'Estimating → Totals' },
+      { area: 'Estimating', kind: 'new', text: 'General Liability can be typed as dollars per $1,000 (e.g. $7) as well as a %; a Total profit line shows markups plus profit, in dollars and as a % of the project.' },
+      { area: 'Estimating', kind: 'new', text: '“Duplicate scope” copies a scope with all its lines and notes right below it.', where: 'Estimating → a scope’s ⋯ menu' },
+      { area: 'Clients', kind: 'improved', text: 'The estimate email no longer attaches a PDF — the client reviews and accepts it in the system, and their dashboard lists their estimates.' },
+    ],
+  },
+  {
+    id: '2026-11-13p',
+    date: '2026-11-13',
+    title: 'Two-step sign-in by text or email',
+    items: [
+      { area: 'Sign-in', kind: 'new', text: 'Staff can get their sign-in code by text message or email instead of an authenticator app — chosen when setting it up. A code works for 10 minutes, once; “Send a new code” is there if it doesn’t arrive.' },
+      { area: 'Settings', kind: 'new', text: 'Switch how your codes come (app, text, email, or a different mobile) — the first code from the new way confirms it.', where: 'Settings → Two-step sign-in' },
+      { area: 'Settings', kind: 'new', text: 'Administrators choose which ways are allowed (texts cost per message) and can switch two-step sign-in off for everyone.', where: 'Settings → Two-step sign-in' },
+    ],
+  },
+  {
+    id: '2026-11-13o',
+    date: '2026-11-13',
+    title: 'Texts: opt out, settings link and mass texts',
+    items: [
+      { area: 'Texts', kind: 'new', text: 'Every text now ends with “Reply STOP to opt out” and a link where the person chooses which texts they get (project updates, announcements) or stops them all. People who opted out aren’t texted.' },
+      { area: 'Texts', kind: 'new', text: 'STOP and START replies are picked up from Quo once its webhook is added (Settings → SMS shows the address and takes the signing secret).', where: 'Settings → SMS' },
+      { area: 'People', kind: 'new', text: 'Mass texts: pick people (by project, company or kind) and CRM leads (by stage), write one message with {first name}, see who is skipped and why, then each person gets their own text — never a group thread. Progress and past sends are kept.', where: 'People → Mass text' },
+    ],
+  },
+  {
+    id: '2026-11-13n',
+    date: '2026-11-13',
+    title: 'Projects tidy themselves; task lists stay current',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Closed-out and cancelled projects move to the archive 10 days after they reach that stage. Administrators see what it would do first and switch it on with “Apply and switch on”. “Archived” lists them, and Restore brings one back.', where: 'Projects' },
+      { area: 'Projects', kind: 'new', text: 'A project can be marked Internal (e.g. business development). Internal projects can be filtered on their own and are never shown to clients or subs.', where: 'Projects → a project → Internal project' },
+      { area: 'Tasks', kind: 'fixed', text: 'Task lists, the programme and the dashboard always load fresh, and everything reloads when you come back to the tab — a teammate’s update shows on your next refresh.' },
+      { area: 'Tasks', kind: 'improved', text: 'The task dashboard says what each number means; Incomplete is broken down by status.' },
+    ],
+  },
+  {
+    id: '2026-11-13m',
+    date: '2026-11-13',
+    title: 'More than one email per person',
+    items: [
+      { area: 'Admin', kind: 'new', text: 'A person can have other email addresses as well as their main one — for example an apogeec.com address and an Origami one. Signing in (password or Google), their People record, project access, timesheets and their employee record all match any of them. An address can only belong to one account.', where: 'Admin → users → “+ other emails”; Manpower → employee → Contact → Other emails' },
+    ],
+  },
+  {
+    id: '2026-11-13l',
+    date: '2026-11-13',
+    title: 'QA/QC checklists, and where backup sheets go',
+    items: [
+      { area: 'QA/QC', kind: 'new', text: 'QA/QC checklists: inspections and quality checks tied to a programme task (e.g. Final Inspection) or a label. Every project’s matching task gets the checklist when its programme is set up, and open tasks that already exist get it as soon as the checklist is saved.', where: 'QA/QC & Safety → QA/QC → QA/QC templates' },
+      { area: 'QA/QC', kind: 'new', text: 'The QA/QC page lists every QA/QC checklist on tasks across your projects, with how many items are done; pick a project to narrow it and click one to open the project’s programme.', where: 'QA/QC & Safety → QA/QC' },
+      { area: 'Settings', kind: 'new', text: 'Backup sheets can go in a folder inside each project’s Drive folder (e.g. Admin / Backups). Existing sheets move there at the next refresh.', where: 'Settings → Google Workspace → Backup sheets' },
+    ],
+  },
+  {
+    id: '2026-11-13k',
+    date: '2026-11-13',
+    title: 'Tasks go to the role, and the role to the person',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Each project has a team: who is its Project Manager, Project Coordinator, Estimator, Architect, Designer, Superintendent, Foreman, Admin, Accounting and Permits person. Programme tasks given to a role go to whoever fills it — when the project is set up, and whenever the team changes. A person picked by hand is never changed.', where: 'Projects → a project → People → Project team' },
+      { area: 'Projects', kind: 'new', text: 'The team comes over from the CRM when a lead becomes a project. Projects converted before this are listed for administrators with “Copy the CRM team”.', where: 'Projects' },
+      { area: 'Tasks', kind: 'new', text: 'A task given to a role nobody fills shows “Project Coordinator — unfilled” in amber, and the project team shows how many tasks wait on each empty role.' },
+      { area: 'CRM', kind: 'improved', text: 'The lead’s Internal Team has the same roles as the project team (Admin, Accounting and Permits added).' },
+    ],
+  },
+  {
+    id: '2026-11-13j',
+    date: '2026-11-13',
+    title: 'Restricted File Room folders',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'Keep a folder — and everything inside it — to staff only, or to chosen roles, companies and people. Others on the project don’t see it in the tree, the file lists, searches, All Files, progress photos or the contract and RFI file pickers, and can’t open its files by link. Administrators and File Room managers always see everything.', where: 'File Room → open a folder → Restrict…' },
+      { area: 'File Room', kind: 'new', text: 'A 🔒 marks restricted folders.' },
+    ],
+  },
+  {
+    id: '2026-11-13i',
+    date: '2026-11-13',
+    title: 'View as: see the app as any role or person',
+    items: [
+      { area: 'Admin', kind: 'new', text: 'Administrators can view the app as a role (e.g. Client Closed Book, Internal Super) or as a person: their menus, projects and data, exactly as the server gives them. It’s read-only — nothing can be changed while viewing as — and a yellow bar shows who you’re viewing as, with “Stop viewing as”.', where: 'Top bar → View as…' },
+      { area: 'Admin', kind: 'improved', text: 'The old “View as: Internal / Client / Consultant” switch, which only showed sample dashboards, is gone.' },
+    ],
+  },
+  {
+    id: '2026-11-13h',
+    date: '2026-11-13',
+    title: 'Two-step sign-in for staff',
+    items: [
+      { area: 'Sign-in', kind: 'new', text: 'Staff sign in in two steps: after the password or Google, a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…). The first time, you scan a QR code and get 10 backup codes to keep. Clients, subs and guest links are unchanged.', where: 'Sign in' },
+      { area: 'Sign-in', kind: 'new', text: '“Remember this device” skips the code on that browser for 30 days. Lost your phone? Use a backup code (each works once), or ask an administrator to reset your two-step sign-in.' },
+      { area: 'Settings', kind: 'new', text: 'Two-step sign-in in your settings: on since when, backup codes left, and new backup codes.', where: 'Settings → Two-step sign-in' },
+      { area: 'Admin', kind: 'new', text: 'User Access shows whether each staff member has two-step sign-in on, with “Reset 2-step” for a lost phone.', where: 'Admin → User Access & Roles' },
+    ],
+  },
+  {
+    id: '2026-11-13g',
+    date: '2026-11-13',
+    title: 'People are linked to projects, not project names',
+    items: [
+      { area: 'People', kind: 'improved', text: 'Renaming a project no longer cuts people off it: clients, consultants and subs stay linked to the project itself, and their record shows the new name.' },
+      { area: 'People', kind: 'new', text: 'People still linked by name are listed with the project each name becomes, and names that match no project (to fix); “Link by project” moves them.', where: 'People' },
+      { area: 'People', kind: 'improved', text: '“Projects they can access” lists the real projects, so a new project can be picked before anyone is on it, and names no longer in use are marked ⚠.', where: 'People → a person → Projects they can access' },
+    ],
+  },
+  {
+    id: '2026-11-13f',
+    date: '2026-11-13',
+    title: 'Estimating: bid packages for subs',
+    items: [
+      { area: 'Estimating', kind: 'new', text: '“Bid packages”: pick scopes of an estimate to send to subs for pricing. They get the scope, its lines and the inclusions / exclusions — never our costs, markup or prices.', where: 'Estimating → an estimate → Bid packages' },
+      { area: 'Estimating', kind: 'new', text: 'Invite subs from the Contractors list: each gets an email with a private link (or copy the link for a sub without email). They price each line or give a total, add notes, or decline — on a phone or computer, no account. Each invite shows on the Contractors page as a bid (invited, then pending, awarded or not).' },
+      { area: 'Estimating', kind: 'new', text: 'Compare the prices line by line, with the lowest total marked. “Use this bid” puts that sub’s prices into the draft revision as sub cost and names them (a total only is spread over the lines by their current cost); they’re marked awarded and the others not.' },
+    ],
+  },
+  {
+    id: '2026-11-13e',
+    date: '2026-11-13',
+    title: 'Estimating: set up the job from an accepted estimate',
+    items: [
+      { area: 'Estimating', kind: 'new', text: '“Set up the job” on an accepted estimate shows what it will make, then makes it: the contract value (the accepted total), the cost budget per CSI code (direct cost before markup; GR and General Liability under 01), a draft subcontract for each named sub on “Subcontract used” lines, and a billing milestone for each payment on the schedule. Untick anything you’ll do by hand; each step runs once.', where: 'Estimating → an accepted estimate → Set up the job' },
+      { area: 'Estimating', kind: 'new', text: '“Mark accepted…” records a client who accepted on paper or by email, for a sent estimate.', where: 'Estimating → a sent estimate' },
+    ],
+  },
+  {
+    id: '2026-11-13d',
+    date: '2026-11-13',
+    title: 'Estimating: send an estimate, and the client accepts it online',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'A “Letter” tab beside the sheet for the words of the client’s letter: opening, description of work, terms, notes and closing. The scopes, inclusions / exclusions and totals come from the sheet.', where: 'Estimating → an estimate → Letter' },
+      { area: 'Estimating', kind: 'new', text: '“PDF” shows the client’s copy on the letterhead, with the money the project’s book type allows (closed book: prices only; open book: costs and markups too).', where: 'Estimating → an estimate → PDF' },
+      { area: 'Estimating', kind: 'new', text: '“Send to client…” emails the PDF with a link to accept it online (to the bill-to contact unless you give another address). A draft is marked sent and frozen.', where: 'Estimating → an estimate → Send to client…' },
+      { area: 'Estimating', kind: 'new', text: 'The client reads the estimate on their phone or computer, types their name and signs. The revision becomes Accepted, the signed PDF is filed in the project’s File Room (Estimates), and whoever sent it gets an email. A replaced revision can’t be signed — the page points to the latest.' },
+      { area: 'Estimating', kind: 'new', text: '“Excel” downloads the estimate as a spreadsheet — the lines your role may see, scope subtotals as formulas, GR and totals, and a sheet of the inclusions / exclusions / assumptions.', where: 'Estimating → an estimate → Excel' },
+    ],
+  },
+  {
+    id: '2026-11-13c',
+    date: '2026-11-13',
+    title: 'Estimating: each role sees only the money it should',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'Estimates follow the financial data types in User Access & Roles (Line items amount, Subcontracted total, Markups, Line item total, Subtotal, General Requirements, Profit, Contingency, Total construction). A role sees only the figures it’s allowed — for example a Super sees costs and line totals but not markups, GR, profit or the totals. Hidden amounts never leave the server.', where: 'Estimating' },
+      { area: 'Estimating', kind: 'new', text: 'Someone who can’t see all of an estimate’s money can still edit descriptions, notes, strategies and subs, but not amounts; saving never changes what they couldn’t see.' },
+      { area: 'Financials', kind: 'new', text: 'Book type per project — Open book, Modified open book, Closed book or Lump sum closed book. The client’s copy of the estimate shows what that client role may see.', where: 'Project → Financials → Settings' },
+      { area: 'Projects', kind: 'fixed', text: 'A project’s contract amount was still shown on the project page and the Design board to roles without financial access. Fixed.' },
+    ],
+  },
+  {
+    id: '2026-11-13b',
+    date: '2026-11-13',
+    title: 'Estimating: totals beside the sheet, General Liability as a rate, compare revisions',
+    items: [
+      { area: 'Estimating', kind: 'improved', text: 'The Estimating page groups projects into CRM, Design, Precon (Kickoff) and Construction, each with its count; fold any you don’t need (remembered). Closed and cancelled projects show with “Show closed & cancelled”. Searching looks through all of them.', where: 'Estimating' },
+      { area: 'Estimating', kind: 'new', text: 'Compare two revisions: every scope and line added, removed or changed, the old and new value of what changed (sub cost, markup, price, strategy, sub), ↑ / ↓ with the amount, and the totals side by side. “Only changes” hides what stayed the same.', where: 'Estimating → an estimate with more than one revision → Compare…' },
+      { area: 'Estimating', kind: 'new', text: 'Restore an older revision: open it and press “Restore as new draft” — it’s copied as the next revision, and the later ones stay as they were.', where: 'Estimating → an older revision' },
+      { area: 'Estimating', kind: 'improved', text: 'On a wide screen, General Requirements, General Liability and the totals sit in a panel beside the sheet, so direct costs and the below-the-line figures are visible together. “Totals panel” closes it (the button then shows the total); on iPad and phones they stay below the sheet.', where: 'Estimating → an estimate' },
+      { area: 'Estimating', kind: 'new', text: 'General Liability is worked out as a rate: GL % × (Subtotal + GR), counted in the total build cost like GR (formula F20 behind the ⓘ). Leave it empty for none. A company default comes from the default template.', where: 'Estimating → an estimate → General Liability' },
+      { area: 'Estimating', kind: 'improved', text: 'New estimates no longer start with a “General Liability” lump-sum GR line. Existing estimates keep theirs and their totals don’t change; if you set a GL rate, a note reminds you to exclude that GR line.' },
+    ],
+  },
+  {
+    id: '2026-11-13a',
+    date: '2026-11-13',
+    title: 'Estimating: Edward’s performing strategies',
+    items: [
+      { area: 'Estimating', kind: 'improved', text: 'Performing strategy now offers Subcontract used, Subcontract required, Self perform, OFCI, Subcontractor procures, Prime procures, Designer procures and Not In Scope.', where: 'Estimating → an estimate → Performing strategy' },
+      { area: 'Estimating', kind: 'new', text: 'Naming a sub on a line sets “Subcontract used”, clearing it sets “Subcontract required”, and OFCI pricing sets OFCI. A strategy you picked yourself (self perform, procures, not in scope) is left alone.' },
+      { area: 'Estimating', kind: 'new', text: 'Lines saved with the old strategies are listed with where each goes (Subcontract and Contract Required by whether a sub is named, Owner → OFCI, Other → blank); “Update strategies” moves them. Amounts don’t change. Formulas that compare against an old name (e.g. "Owner") need the new one.', where: 'Estimating' },
+      { area: 'Estimating', kind: 'improved', text: 'The column bands are easier to tell apart: Prime contract green, Precon gold, Subcontractor blue and Markup green each tint their headings, with a coloured rule where one band meets the next.', where: 'Estimating → an estimate' },
+      { area: 'Estimating', kind: 'new', text: 'Standard statements: tick several and press “Insert N statements” — the first fills the row, the rest are added just below in the order ticked. One Undo takes them all back.', where: 'Estimating → an Inclusions / Exclusions row → Enter' },
+    ],
+  },
+  {
+    id: '2026-11-12e',
+    date: '2026-11-12',
+    title: 'Drawing markups is smoother on busy sheets',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'Pen lines, clouds, boxes and measurements follow the pen smoothly on sheets with hundreds of markups; moving or resizing a markup no longer redraws the whole sheet.', where: 'Drawing viewer' },
+      { area: 'Drawings', kind: 'improved', text: 'Pen lines are saved lighter (the same line with fewer points), so sheets stay quick as markups pile up.' },
+      { area: 'Drawings', kind: 'fixed', text: 'On a computer, a box or cloud could vanish while being drawn right after a pen line (the browser picked up the sheet’s label text). Fixed.' },
+    ],
+  },
+  {
+    id: '2026-11-12d',
+    date: '2026-11-12',
+    title: 'Drawings: faster, sheet pictures, sketches, one RFI from many markups',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'A drawing opens straight from your browser after the first time (no download), until a newer version is uploaded.', where: 'File Room → open a PDF' },
+      { area: 'Drawings', kind: 'new', text: 'The sheet list shows a small picture of every sheet, with a search box.', where: 'Drawing viewer → sheet name at the top' },
+      { area: 'Drawings', kind: 'fixed', text: 'Measurement labels wrap and stay on the sheet on phones; older text notes wrap at the edge of the page, on screen and in the downloaded PDF.' },
+      { area: 'Drawings', kind: 'new', text: '“Pick several” in the Markups list (or ☑ beside a layer) makes one RFI, task, change order or FOR RECORD item listing every picked markup with a link back to it.', where: 'Drawing viewer → side panel → Markups' },
+      { area: 'File Room', kind: 'new', text: '“✎ Sketch” gives a blank sheet to draw on with the markup tools, kept in the project’s Sketches folder.', where: 'File Room → a project' },
+      { area: 'Progress Photos', kind: 'improved', text: 'Photos load from small saved copies as you scroll, and show the day they were added when it differs from the day taken.', where: 'Progress Photos' },
+    ],
+  },
+  {
+    id: '2026-11-12c',
+    date: '2026-11-12',
+    title: 'Review and fix: field roles, consultants',
+    items: [
+      { area: 'Access', kind: 'new', text: 'User Access & Roles shows which field roles (superintendent, foreman, labour) still allow estimates or financial figures, with every change listed. “Apply to field roles” keeps them to their own entries (reimbursables, timesheets, projected labour) and makes People and Projects view-only.', where: 'Admin → User Access & Roles' },
+      { area: 'People', kind: 'new', text: 'Consultants saved with the firm as their name are listed with what each would become (the person as the name, the firm as their company); “Update consultants” changes them.', where: 'People' },
+    ],
+  },
+  {
+    id: '2026-11-12b',
+    date: '2026-11-12',
+    title: 'Tighter access for site roles; Cancelled projects',
+    items: [
+      { area: 'Access', kind: 'fixed', text: 'Superintendents, foremen and labour reach only their own projects everywhere: project changes, daily logs, the program, project history, lead files, columns, crew assignments, workflows, guest links, File Room share history and project texts.' },
+      { area: 'Access', kind: 'fixed', text: 'Below internal level 2, clients’ phone numbers, emails and addresses are hidden in People and the CRM, contacts outside your projects can’t be opened, and company-wide dashboard figures aren’t shown.' },
+      { area: 'Access', kind: 'improved', text: 'The contract amount on projects shows only to roles that see project financials.' },
+      { area: 'Projects', kind: 'new', text: 'A “Cancelled” stage for projects that won’t go ahead. Closed and Cancelled projects — and Cold/Lost and Cancelled/Pass leads in the CRM — are hidden unless “Show closed & cancelled” is on.' },
+    ],
+  },
+  {
+    id: '2026-11-12a',
+    date: '2026-11-12',
+    title: 'Fixes from the Nov 10 sync',
+    items: [
+      { area: 'Photos', kind: 'fixed', text: 'Marking up a photo no longer freezes phones and iPads: it opens from a 2400 px copy instead of the full 12–48 MP original. Esc closes it, and on a phone the photo viewer has a ✕ on the photo itself.' },
+      { area: 'Meetings', kind: 'fixed', text: 'Meetings you create are always yours to see (you’re added as an attendee). A project’s Meetings tab finds its meetings even after the project is renamed, and “Nothing coming up” offers “Show all” for meetings already held.' },
+      { area: 'People', kind: 'fixed', text: 'Adding a consultant asks for their first and last name (and their firm), instead of saving the firm as their name.' },
+      { area: 'Tasks', kind: 'fixed', text: 'A task moved on the board while its panel is open no longer jumps back to its old status.' },
+      { area: 'Branding', kind: 'fixed', text: 'The logo and name from Settings → Branding now show in the app itself, and documents and emails use the same fallback name and colour.' },
+      { area: 'Cost codes', kind: 'fixed', text: 'A CSI code added in Settings shows up at once in every picker and in Estimating, without reloading. Editing codes follows the same rights as the server.' },
+    ],
+  },
+  {
+    id: '2026-11-05b',
+    date: '2026-11-05',
+    title: 'Meeting notes from Google: easier to find',
+    items: [
+      { area: 'Meetings', kind: 'new', text: '“Import notes from Google” at the top of Meetings lists the “Notes by Gemini” from the last 30 days and the meeting each goes on. Import one: if the meeting isn’t in Origami yet, it’s made from the notes.', where: 'Meetings → Import notes from Google' },
+      { area: 'Meetings', kind: 'improved', text: 'Every meeting has “Import notes from Google” right on it — no need to mark it Occurred and open the review first. Importing marks it Occurred and opens the review on the notes, with “Review items” ready.' },
+    ],
+  },
+  {
+    id: '2026-11-05a',
+    date: '2026-11-05',
+    title: 'File Room: real thumbnails, fast',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'Photos, PDFs and Office files show a picture instead of a “JPG” or “PDF” badge: a small 300 px copy (about 15–25 KB) made once when the file arrives, so a folder of 50 photos opens about as fast as one full photo used to.', where: 'Plan & File Room' },
+      { area: 'File Room', kind: 'improved', text: 'Pictures load only as they come on screen, keep their place while loading, and are remembered by the browser.' },
+      { area: 'File Room', kind: 'improved', text: 'Opening a photo or PDF shows a 1200 px preview at once while the original loads.' },
+      { area: 'File Room', kind: 'improved', text: 'Files uploaded before today get their small copies in the background; a new upload’s appears a few seconds later.' },
+    ],
+  },
+  {
+    id: '2026-11-04o',
+    date: '2026-11-04',
+    title: 'Estimates: standard statements',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'Editing a Details, Inclusions, Exclusions or A&C row (Enter or double-click) lists the standard statements for the scope’s CSI code, plus wording used on earlier estimates with the same code — click one to use it.' },
+      { area: 'Estimating', kind: 'new', text: '“Save this text as a standard statement” keeps what you typed for that CSI code (or for every scope if the scope has no code).' },
+      { area: 'Estimating', kind: 'new', text: 'The standard statements library — add, edit or delete, filtered by CSI code.', where: 'Preconstruction → Estimating → Standard statements' },
+    ],
+  },
+  {
+    id: '2026-11-04n',
+    date: '2026-11-04',
+    title: 'Estimates: your own columns and formulas',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'Add your own columns — text, number, amount, percent, date, choice list, checkbox or formula — from “Columns ▾” or by clicking any column header (“Insert column to the right…”). Values copy and paste like any other cell.' },
+      { area: 'Estimating', kind: 'new', text: 'Formulas work like Excel and name columns in brackets: =[Sub cost]*1.1, =IF([Performing strategy]="Owner",0,[Line item total]). SUM, MIN, MAX, AVERAGE, ROUND, ABS, IF, AND, OR, NOT. Mistakes are shown as you type; a loop shows “Circular reference”. Renaming a column updates the formulas that use it.' },
+      { area: 'Estimating', kind: 'new', text: 'Click a column header to rename, move, widen, narrow or hide it. Columns you add are internal (🔒) unless set to show to clients or subs. They never change the totals.' },
+      { area: 'Estimating', kind: 'new', text: 'A template can be the “Company default”: blank estimates then start with its columns, General Requirements, percentages and payments.', where: 'Estimating → Templates → open one' },
+    ],
+  },
+  {
+    id: '2026-11-04m',
+    date: '2026-11-04',
+    title: 'Reuse estimates: templates, copies and scopes',
+    items: [
+      { area: 'Estimating', kind: 'new', text: '“Save as template” on any estimate keeps it as a named company template (e.g. “Bathroom remodel”). Templates are listed on the Estimating page, where they can be opened, edited or deleted.', where: 'Preconstruction → Estimating → Templates' },
+      { area: 'Estimating', kind: 'new', text: '“+ New estimate” can start blank, from a template, or from any estimate on a project you can see — everything is copied: scopes, lines, notes, subs, amounts, General Requirements, percentages and payments.' },
+      { area: 'Estimating', kind: 'new', text: '“+ Scopes from a template or estimate…” copies the scopes you tick, with their lines and notes, onto the end of the estimate you’re in.' },
+    ],
+  },
+  {
+    id: '2026-11-04l',
+    date: '2026-11-04',
+    title: 'Estimates, built like the team’s spreadsheet',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'A project’s estimate is now built in ODIN: scopes by CSI code, each with its lines and its Details, Inclusions, Exclusions and Assumptions rows, numbered 1.01, 1.02… as in the sheet.', where: 'Projects → Precon → Estimating, or Preconstruction → Estimating' },
+      { area: 'Estimating', kind: 'new', text: 'Works like Excel: arrow keys, Tab and Enter, type to edit, Ctrl+C / Ctrl+V to and from Excel (rows past the end become new lines), Ctrl+D fills down, Ctrl+Z / Ctrl+Y undo and redo, Alt+↑/↓ moves a line. Saves as you go.' },
+      { area: 'Estimating', kind: 'new', text: 'Precon range (factor × line = higher end), Subcontractor (strategy, sub, duration, start, sub cost) and Markup ($ or %) columns can each be shown or hidden.' },
+      { area: 'Estimating', kind: 'new', text: 'Below the line: General Requirements (base × qty, Included or Excluded), suggested GR max and balance, profit, contingency, discounts, design cost, total project cost and the payment schedule. Every total has an ⓘ that shows its formula with the numbers.' },
+      { area: 'Estimating', kind: 'new', text: 'Not In Scope lines stay on the estimate but count $0. “Mark as sent” freezes an estimate; “New revision” makes Rev 2 to keep working.' },
+    ],
+  },
+  {
+    id: '2026-11-04k',
+    date: '2026-11-04',
+    title: 'A tidier menu',
+    items: [
+      { area: 'Menu', kind: 'fixed', text: 'Special Actions under Main no longer sit pushed to the right: every item lines up with the rest.' },
+      { area: 'Menu', kind: 'improved', text: 'Menu groups start closed, except Main and the group of the page you’re on, so the menu stays short. Open or close any group with its heading — your choice is remembered on this computer. Searching the menu still shows every match.' },
+    ],
+  },
+  {
+    id: '2026-11-04j',
+    date: '2026-11-04',
+    title: 'Drawings on iPhone and iPad',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'iPhone: one slim bar on top (close, the sheet, the list, ⋯ More) instead of five rows of buttons; Download, Email, Save copy, Search, Fit, sheet names and Private drafts are under ⋯ More.', where: 'File Room → Mark up, on a phone' },
+      { area: 'Drawings', kind: 'improved', text: 'iPhone: the tools sit in six groups along the bottom — Select, Move, Draw, Shapes, Text & pins, Measure — each a tap away, plus colour and undo / redo. On its side, the tools run down the left edge.' },
+      { area: 'Drawings', kind: 'new', text: 'Polylines, shapes, paths and areas finish with “✓ Done” (or a double-tap) — no double-click needed. “↶ Point” takes back the last corner.' },
+      { area: 'Drawings', kind: 'new', text: 'Hold a finger on a markup to select it, whatever tool is on; a bar at the bottom offers Details, colour and Delete.' },
+      { area: 'Drawings', kind: 'improved', text: 'Touch: double-tap to zoom in and back out, drag empty paper with Select to move the sheet, no text-selection pop-ups, and typing in a box no longer zooms the page. The list and dialogs slide up from the bottom on a phone.' },
+      { area: 'App', kind: 'new', text: 'Added to the iPhone or iPad home screen, Origami now opens full screen like an app, with its own icon.' },
+    ],
+  },
+  {
+    id: '2026-11-04i',
+    date: '2026-11-04',
+    title: 'Duplicate roles',
+    items: [
+      { area: 'Access', kind: 'fixed', text: 'The roles list had doubles (two “Consultant”, two “Subcontractor”, and overlapping project manager, superintendent and authority roles). User Access & Roles now shows them with exactly who would move; “Merge duplicates” moves those people to the access-matrix role and removes the old one. Nothing changes until you press it.', where: 'User Access & Roles' },
+      { area: 'Access', kind: 'improved', text: 'The old roles no longer come back after a restart once their matrix role exists, and the “Internal Super” role gets the field Daily Report like Site Superintendent.' },
+    ],
+  },
+  {
+    id: '2026-11-04h',
+    date: '2026-11-04',
+    title: 'CSI codes from the drawing to the contract',
+    items: [
+      { area: 'CSI codes', kind: 'new', text: 'Give a markup, an RFI or a Special Actions Log entry its CSI code. A change order made from a markup takes the code onto its line, and an RFI or task made from it keeps it — so an issue can be followed from the drawing to the contract.', where: 'Mark up → select a markup → CSI code; RFI → CSI code; Log entry → CSI code' },
+      { area: 'CSI codes', kind: 'new', text: 'Filter RFIs and the Special Actions Log by CSI code.' },
+    ],
+  },
+  {
+    id: '2026-11-04g',
+    date: '2026-11-04',
+    title: 'Meeting notes arrive from Google',
+    items: [
+      { area: 'Meetings', kind: 'new', text: 'After a meeting, its “Notes by Gemini” are fetched from Google Drive by themselves (checked every hour for three days): the notes go into Notes / minutes, the transcript into Transcript, and the meeting says how many items are waiting to review.', where: 'Meetings → a meeting → Review notes & transcript' },
+      { area: 'Meetings', kind: 'new', text: '“Import from Google” fetches them now — paste the Doc’s link, or leave it empty to find it by the meeting’s title and date.' },
+      { area: 'Meetings', kind: 'improved', text: 'Turning notes into items reads Gemini’s layout: each point under a heading becomes FOR RECORD, each decision a Decision, each next step a task with its owner and due date — once, even though Gemini lists them twice. Nothing is added until you tick it.' },
+      { area: 'Meetings', kind: 'improved', text: 'For the notes to arrive, the meeting must be shared with the connected Google account — the simplest way is to invite that account to the meeting.' },
+    ],
+  },
+  {
+    id: '2026-11-04f',
+    date: '2026-11-04',
+    title: 'Field report for admins',
+    items: [
+      { area: 'Daily reports', kind: 'improved', text: 'Admins see “Daily Report (field)” in the menu, so they can fill in or try the superintendent’s form without signing in as one.', where: 'Construction → Daily Report (field)' },
+      { area: 'Daily reports', kind: 'improved', text: 'A daily report waiting in Approvals opens that report itself (crew, hours, notes), and links from a project open its reports.' },
+    ],
+  },
+  {
+    id: '2026-11-04e',
+    date: '2026-11-04',
+    title: 'Stay in the project',
+    items: [
+      { area: 'Projects', kind: 'improved', text: 'The open project and its tab are kept in the address, so the browser’s Back button returns to it instead of a closed list.' },
+      { area: 'Projects', kind: 'new', text: 'Open the CRM lead, daily reports, the files, a task or a meeting from a project and the page shows “← Back to <project>” — one click returns to the same project and tab.' },
+      { area: 'Projects', kind: 'improved', text: 'The project overview panel is wider.' },
+    ],
+  },
+  {
+    id: '2026-11-04d',
+    date: '2026-11-04',
+    title: 'Photos no longer hide each other',
+    items: [
+      { area: 'Files', kind: 'fixed', text: 'Phones name every photo “image.jpg”, so a new photo used to be filed as a new *version* of the last one and the older photo was hidden. Photos are now never versions: a same-name photo is saved as “image (2).jpg”. Drawings and documents still keep versions as before.' },
+      { area: 'Files', kind: 'new', text: 'Sort files by name or by date (newest or oldest first), in the grid and the list.', where: 'File Room → Sort' },
+    ],
+  },
+  {
+    id: '2026-11-04c',
+    date: '2026-11-04',
+    title: 'Sheet titles read from the title block',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Opening a drawing set names every page by its title block — sheet number and title, e.g. “A-201 — FLOOR PLAN” — so a 100-page set doesn’t need typing. Scanned sheets are read by Google Drive’s OCR (no AI). Fix any page with ✎; ↻ reads the whole set again.', where: 'File Room → Mark up → page picker' },
+    ],
+  },
+  {
+    id: '2026-11-04b',
+    date: '2026-11-04',
+    title: 'Drawings: notes stay in the list, Email, iPhone',
+    items: [
+      { area: 'Drawings', kind: 'fixed', text: 'A markup’s note is kept in the side panel and the list — it’s no longer written on the drawing or the download. Notes can now be longer (up to 1,000 characters, with line breaks). Use the Text tool to put words on the sheet.', where: 'File Room → Mark up → select a markup → Note' },
+      { area: 'Drawings', kind: 'new', text: '“Email” in the drawing: saves a marked-up copy (the layers you’re showing) and emails a link to it.' },
+      { area: 'Drawings', kind: 'fixed', text: 'iPhone: the tools sit clear of the home bar, and with a drawing tool on, one finger draws anywhere on the sheet instead of scrolling it.' },
+    ],
+  },
+  {
+    id: '2026-11-04a',
+    date: '2026-11-04',
+    title: 'Superintendents see only their own work',
+    items: [
+      { area: 'Access', kind: 'fixed', text: 'Superintendents, foremen and labour roles see only the projects on their People record, unless their access says otherwise.' },
+      { area: 'Access', kind: 'fixed', text: '“Assigned projects” now holds in CRM & Leads too: only leads that became one of their projects, or that they’re assigned to.' },
+      { area: 'Access', kind: 'fixed', text: 'The address book shows our own team, but clients, subs, consultants, authorities and vendors only when they’re on one of your projects (unless your role sees all of People).' },
+      { area: 'Access', kind: 'fixed', text: 'Adding, changing or deleting in Manpower and resource management, leads and People needs “manage” on that module — viewing alone is no longer enough. Approving daily reports and workforce requests needs Manpower manage.' },
+    ],
+  },
+  {
+    id: '2026-11-03k',
+    date: '2026-11-03',
+    title: 'A backup sheet for every project',
+    items: [
+      { area: 'Backups', kind: 'new', text: 'Each active project can have a Google Sheet in its Drive folder — tabs for Tasks, RFIs, Change orders, FOR RECORD and Meetings — rewritten every night at 2am, so work can carry on if the system is down. Off until an admin switches it on; “Refresh now” makes or updates them at once.', where: 'Settings → Integrations → Google Workspace → Backup sheets' },
+    ],
+  },
+  {
+    id: '2026-11-03j',
+    date: '2026-11-03',
+    title: 'Drive keeps the record',
+    items: [
+      { area: 'Files', kind: 'new', text: 'Each fully signed contract, and each Project Program as it’s sent, is also saved as a PDF in the project’s “Backups of record” folder (in the File Room and its Google Drive), numbered REV1, REV2… when it changes.', where: 'File Room → project → Backups of record' },
+    ],
+  },
+  {
+    id: '2026-11-03i',
+    date: '2026-11-03',
+    title: 'Two file areas: All Files and the build set',
+    items: [
+      { area: 'Files', kind: 'new', text: 'Mark a project’s build-set folders with ☆ (drawing set, selections, specifications). Field staff opening the project’s Plan & File Room then see only those folders.', where: 'Construction → Plan & File Room' },
+      { area: 'Files', kind: 'improved', text: 'All Files still shows everything, for the back office.' },
+      { area: 'Files', kind: 'improved', text: 'Only people who manage the File Room can move, rename, delete, mark as latest, make or remove folders, or add files to the build set — checked by the server too. Everyone else views and marks up; field photos and daily report files still upload.' },
+    ],
+  },
+  {
+    id: '2026-11-03h',
+    date: '2026-11-03',
+    title: 'The menu, regrouped',
+    items: [
+      { area: 'Menu', kind: 'improved', text: 'Special Actions sit nested under Main, as on a project page.' },
+      { area: 'Menu', kind: 'improved', text: 'Pre-construction is for the back office: site superintendents and outside accounts no longer see it.' },
+      { area: 'Menu', kind: 'improved', text: 'Construction now holds Project Management, QA/QC & Safety (one item, with a tab each), Schedule, Daily Reports, Progress Photos and the Plan & File Room.' },
+      { area: 'Menu', kind: 'new', text: 'Resource Enterprise Management brings Procurement, Equipment and Manpower together, a tab each.', where: 'Financial & Resource → Resource Enterprise Management' },
+      { area: 'Menu', kind: 'improved', text: 'Nothing moved behind the scenes: old links still open, and who sees what still comes from User Access & Roles.' },
+    ],
+  },
+  {
+    id: '2026-11-03g',
+    date: '2026-11-03',
+    title: 'Drawings on the iPad',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'On an iPad (or any touch screen) the markup tools, colours, buttons and layer controls are fingertip-sized, and the text box’s resize grip is bigger.', where: 'File Room → Mark up' },
+      { area: 'Drawings', kind: 'improved', text: 'In portrait the drawing gets the whole screen; the list slides over it from ☰.' },
+      { area: 'Drawings', kind: 'new', text: 'With an Apple Pencil, a palm or finger resting on the screen moves the sheet instead of drawing on it.' },
+    ],
+  },
+  {
+    id: '2026-11-03f',
+    date: '2026-11-03',
+    title: 'Choose who sees each markup layer',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Each layer on a drawing has “Who sees it” (👁): everyone who can open the drawing, our team only, or our team plus picked people or companies — e.g. just the electrical sub. Restricted layers show a 🔒 or 👥 badge, and downloads follow the same rule.', where: 'File Room → Mark up → Layers' },
+      { area: 'Drawings', kind: 'improved', text: 'Anyone with markups on a layer, and admins and principals, can change who sees it; admins and principals always see every layer.' },
+    ],
+  },
+  {
+    id: '2026-11-03e',
+    date: '2026-11-03',
+    title: 'One shared list of tags',
+    items: [
+      { area: 'Tags', kind: 'new', text: 'A tag anyone types on a task joins one shared list, so it’s suggested as you type everywhere and can be filtered on. Board tasks now have the standard tags too.', where: 'Any task → Tags' },
+      { area: 'Tags', kind: 'new', text: 'New special actions tag themselves: Internal unless made by or assigned to a client or consultant; CRM, Design or Construction from where they were made; Financial when they carry a change order; and a personal tag (“Astrid private”) keeps an item Internal. Untag anything by hand.' },
+      { area: 'Tags', kind: 'improved', text: 'Ticking Client or External on an Internal item shares it (Internal comes off), unless it’s Financial.' },
+      { area: 'Tags', kind: 'new', text: 'Filter the board and the Special Actions Log by any tag, standard or custom.', where: 'Special Actions → Task' },
+      { area: 'Tags', kind: 'new', text: 'Admins rename, merge or delete custom tags across every task.', where: 'Settings → Workspace → Tags' },
+      { area: 'Tags', kind: 'fixed', text: 'Changing the standard tags on a Special Actions Log entry now saves.' },
+    ],
+  },
+  {
+    id: '2026-11-03d',
+    date: '2026-11-03',
+    title: 'Emergency tasks alert the team at once',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Setting a task (or a Special Actions Log entry) to Emergency — or creating one as Emergency — immediately sends a text and an email, and adds it to the bell, for its assignee, collaborators and originator plus every admin. It’s sent once; later saves don’t repeat it.', where: 'Any task → Priority → Emergency' },
+      { area: 'Notifications', kind: 'new', text: '“Emergency tasks” is always on, by text and email, and can’t be turned off. Add your mobile number so the text reaches you.', where: 'Settings → My account → Notifications' },
+    ],
+  },
+  {
+    id: '2026-11-03c',
+    date: '2026-11-03',
+    title: 'Contracts keep their formatting',
+    items: [
+      { area: 'Contracts', kind: 'improved', text: 'Pasting a contract from Word or Google Docs keeps its headings, bold and italic, numbered and bulleted lists (with sub-levels) and tables; Word’s hidden clutter is left behind.', where: 'Settings → Contract templates' },
+      { area: 'Contracts', kind: 'new', text: '“⤓ Word” brings in a whole .docx contract with its headings, lists and tables.', where: 'Settings → Contract templates (also email templates in the Library)' },
+      { area: 'Contracts', kind: 'improved', text: '“+ Insert field” lists the contract fields by group — owner name, project address, amounts, our company, change order — and they fill in when a contract is made.' },
+      { area: 'Contracts', kind: 'new', text: '“Email me a preview” sends you the template filled with sample details and the PDF attached, exactly as a client would get it.', where: 'Settings → Contract templates' },
+    ],
+  },
+  {
     id: '2026-11-03b',
     date: '2026-11-03',
     title: 'Access settings are enforced everywhere',

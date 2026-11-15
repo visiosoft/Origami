@@ -3,8 +3,10 @@ export type PhotoTrack = 'construction' | 'design';
 export interface ProgressPhoto {
   id: string; projectId: number; track: PhotoTrack; category: string; area: string; takenOn: string; caption: string; tags: string[];
   clientVisible: boolean; name: string; mimeType: string; uploadedBy: string; createdAt: string;
+  /** When it reached Origami, and its saved small picture's version (null until made). */
+  uploadedAt?: string | null; thumbV?: string | null;
 }
-export interface UnsortedPhoto { id: string; name: string; mimeType?: string; uploadedBy?: string; updatedAt?: string; folderPath: string[] }
+export interface UnsortedPhoto { id: string; name: string; mimeType?: string; uploadedBy?: string; updatedAt?: string; folderPath: string[]; thumbV?: string | null }
 /** A dated progress update for one category. */
 export interface ProgressNote {
   id: string; projectId: number; track: PhotoTrack; category: string; percent: number; status: ProgressStatus;
@@ -74,4 +76,17 @@ export async function photoDate(file: File): Promise<string> {
   try { const d = exifDate(await file.slice(0, 256 * 1024).arrayBuffer()); if (d) return d; } catch { /* no camera data */ }
   const m = new Date(file.lastModified || Date.now());
   return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-${String(m.getDate()).padStart(2, '0')}`;
+}
+
+/** The local day (yyyy-mm-dd) of a timestamp. */
+export function localDay(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** The day a photo was added to Origami, only when it isn't the day it was taken (Nov 10 sync). */
+export function addedDay(p: { takenOn: string; uploadedAt?: string | null }): string | null {
+  const d = p.uploadedAt ? localDay(p.uploadedAt) : '';
+  return d && d !== p.takenOn ? d : null;
 }

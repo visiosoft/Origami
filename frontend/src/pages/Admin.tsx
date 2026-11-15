@@ -4,6 +4,7 @@ import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import { useTheme } from '../theme';
 import { UnlinkedLogins } from '../components/UnlinkedLogins';
+import { DuplicateRoles } from '../components/DuplicateRoles';
 import { AccessBoard } from '../components/AccessBoard';
 import {
   MODULES, TIERS, TIER_STYLE, STATUS_STYLE, FIN_ACTIONS,
@@ -52,6 +53,7 @@ export function Admin() {
       <div style={{ fontSize: 13, color: 'var(--c-5c6b65)', marginBottom: 20 }}>Manage accounts (Internal, Client, Consultant) and the roles that control what each can see. New users are emailed a link to set their own password — until they use it, or sign in with Google, the account stays <strong>Pending</strong>.</div>
       {readOnly && <div style={{ fontSize: 12, color: 'var(--c-8a6d12)', background: 'var(--amber-light)', borderRadius: 8, padding: '8px 12px', marginBottom: 16, display: 'inline-block' }}>Your role has view-only access to this page.</div>}
       <UnlinkedLogins canFix={!readOnly} />
+      <DuplicateRoles canFix={!readOnly} />
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 28, alignItems: 'flex-start' }}>
         {nav}
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
@@ -183,6 +185,17 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
                       onFocus={(e) => { e.target.style.border = '1px solid rgba(var(--rgb-shade), 0.14)'; e.target.style.background = 'white'; }}
                       onBlurCapture={(e) => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; }}
                     />
+                    {/* Other addresses that are also this person (Nov 13), e.g. apogeec.com: sign-in and records match any. */}
+                    <input
+                      key={'a' + u.id + (u.altEmails || []).join()}
+                      defaultValue={(u.altEmails || []).join(', ')}
+                      placeholder="+ other emails"
+                      aria-label={`Other emails for ${u.name}`}
+                      onBlur={(e) => { const list = e.target.value.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean); if (list.join() !== (u.altEmails || []).join()) patch(u, { altEmails: list }); }}
+                      style={{ ...inputStyle, width: '100%', padding: '3px 6px', border: '1px solid transparent', background: 'transparent', fontSize: 11, color: 'var(--muted)' }}
+                      onFocus={(e) => { e.target.style.border = '1px solid rgba(var(--rgb-shade), 0.14)'; e.target.style.background = 'white'; }}
+                      onBlurCapture={(e) => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; }}
+                    />
                   </>
                 )}
               </div>
@@ -194,6 +207,8 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
                   <select style={{ ...inputStyle, width: 170 }} value={u.roleKey} onChange={(e) => patch(u, { roleKey: e.target.value })}>{rolesForTier(u.tier).map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}{!rolesForTier(u.tier).some((r) => r.key === u.roleKey) && <option value={u.roleKey}>{u.roleKey}</option>}</select>
                   <select style={{ ...inputStyle, width: 130 }} value={u.status} onChange={(e) => patch(u, { status: e.target.value as UserStatus })}>{(['active', 'pending', 'suspended'] as UserStatus[]).map((s) => <option key={s} value={s}>{STATUS_STYLE[s].label}</option>)}</select>
                   <div onClick={() => resend(u)} title={u.hasPassword ? 'Email a password reset link' : 'Re-send the invitation email'} style={{ fontSize: 12, fontWeight: 600, color: 'var(--forest)', cursor: 'pointer', padding: '6px 10px' }}>{u.hasPassword ? 'Reset password' : 'Resend invite'}</div>
+                  {u.tier === 'internal' && <span title={(u as any).twoFactor ? 'Two-step sign-in is on' : 'Sets up two-step sign-in at the next sign-in'} style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: (u as any).twoFactor ? 'var(--mint, #DDEFE2)' : 'var(--sand)', color: 'var(--ink)' }}>{(u as any).twoFactor ? '2-step on' : '2-step not set up'}</span>}
+                  {(u as any).twoFactor && <div onClick={() => { if (window.confirm(`Reset two-step sign-in for ${u.name}? They set it up again at their next sign-in (e.g. after losing their phone).`)) api.auth.resetTwoFactor(u.id).then(() => { toast('Two-step sign-in reset'); refreshAccess(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Not reset'))); }} style={{ fontSize: 12, fontWeight: 600, color: 'var(--forest)', cursor: 'pointer', padding: '6px 10px' }}>Reset 2-step</div>}
                   <div onClick={() => del(u)} style={{ fontSize: 12, fontWeight: 600, color: '#8E2E0A', cursor: 'pointer', padding: '6px 10px' }}>Delete</div>
                 </>
               )}

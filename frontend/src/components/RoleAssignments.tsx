@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { api } from '../api';
 import type { User } from '../data/users';
+import { PROJECT_ROLES } from '../data/projectRoles';
+
+const ROLE_HINT: Record<string, string> = {
+  projectManager: 'Owns the pursuit and the client relationship.', projectCoordinator: 'Runs scheduling and intake follow-up.',
+  estimator: 'Prices the work and owns the proposal numbers.', architect: 'Architect of record, if internal.', designer: 'Owns the design package.',
+  superintendent: 'Runs the site once the job starts.', foreman: 'Leads the crew day to day.', admin: 'Office admin: documents and filing.',
+  accounting: 'Invoices, payments and job cost.', permits: 'Permits, inspections and compliance.',
+};
 
 /**
  * The internal team on a pursuit. Kept separate from the client-side contacts:
  * these are Origami people, picked from the platform's own user list.
  */
-export const INTERNAL_ROLES: { key: string; label: string; hint: string }[] = [
-  { key: 'projectManager', label: 'Project Manager', hint: 'Owns the pursuit and the client relationship.' },
-  { key: 'projectCoordinator', label: 'Project Coordinator', hint: 'Runs scheduling and intake follow-up.' },
-  { key: 'estimator', label: 'Estimator', hint: 'Prices the work and owns the proposal numbers.' },
-  { key: 'superintendent', label: 'Superintendent', hint: 'Runs the site once the job starts.' },
-  { key: 'foreman', label: 'Foreman', hint: 'Leads the crew day to day.' },
-  { key: 'designer', label: 'Designer', hint: 'Owns the design package.' },
-  { key: 'architect', label: 'Architect', hint: 'Architect of record, if internal.' },
-];
+/** The same roles as the project team (Nov 13): carried over when the lead becomes a project. */
+export const INTERNAL_ROLES: { key: string; label: string; hint: string }[] = PROJECT_ROLES.map((r) => ({ key: r.key, label: r.label, hint: ROLE_HINT[r.key] || '' }));
 
 interface Props {
   deal: { id: string; roles?: Record<string, string> };

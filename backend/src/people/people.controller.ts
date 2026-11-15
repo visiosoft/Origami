@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Param, Body, Query, Headers, Res, UploadedFiles, UseInterceptors, BadRequestException, NotFoundException,
+  Controller, Get, Post, Put, Delete, Param, Body, Query, Headers, Res, UploadedFiles, UseInterceptors, BadRequestException, NotFoundException, ForbiddenException,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -12,11 +12,18 @@ import type { SessionClaims } from '../auth/crypto.util';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES } from '../google/attachments.service';
-import { Perm } from '../auth/guards/perm.guard';
+import { Perm, ManageWrites } from '../auth/guards/perm.guard';
 import { ProjectAccessService } from '../auth/project-access.service';
+import { PersonScope } from './person-scope.interceptor';
+
+import { personProjectIds } from './person-projects';
+
+const INTERNAL_KINDS = /^(staff|executive|super|foreman|labou?r|internal)$/i;
 
 @Tiers('internal')
 @Perm('people')
+@ManageWrites('people')
+@UseInterceptors(PersonScope)
 @Controller('people')
 export class PeopleController {
   constructor(
@@ -31,12 +38,17 @@ export class PeopleController {
   @Perm('people', 'projects', 'tasks')
   @Get()
   async findAll(@Query('project') project?: string, @Claims() claims?: SessionClaims | null) {
-    const all = await this.peopleService.findAll(project);
+    const projects = await this.access.projectRefs();
+    const all = await this.peopleService.findAll(project, projects);
     // The whole directory for People; otherwise (and on "Assigned projects") the people on the caller's projects, and themselves.
-    const names = await this.access.allowedNames(claims ?? null);
-    const wholeDirectory = names === 'all' && (await this.access.canView(claims ?? null, 'people'));
+    const ids = await this.access.allowedIds(claims ?? null);
+    const wholeDirectory = ids === 'all' && (await this.access.canView(claims ?? null, 'people'));
     if (wholeDirectory) return all;
-    return all.filter((p: any) => p.userId === claims?.sub || (p.projects || []).some((n: string) => names === 'all' || names.has(n)));
+    // Our own team stays visible to staff; outside contacts (clients, subs, consultants, authorities, vendors)
+    // only when they're on one of the caller's projects (Nov 3 sync: George saw the whole address book). By project id (Nov 13).
+    const onMine = (p: any) => ids !== 'all' && personProjectIds(p, projects).some((id) => ids.has(id));
+    const staffView = this.access.isStaff(claims ?? null);
+    return all.filter((p: any) => p.userId === claims?.sub || onMine(p) || (staffView && INTERNAL_KINDS.test(String(p.kind || ''))));
   }
 
   /**
@@ -76,6 +88,32 @@ export class PeopleController {
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(att.name)}"`);
     res.setHeader('Cache-Control', 'private, max-age=300');
     Readable.fromWeb(file.body).pipe(res);
+  }
+
+  /** Consultants saved with the firm as their name, and what each would become (Nov 10). Read-only. */
+  @Get('consultant-fix')
+  async consultantFix(@Claims() claims?: SessionClaims | null) {
+    if (!(await this.access.canManage(claims ?? null, 'people'))) throw new ForbiddenException('Your role doesn’t allow changing People.');
+    return this.peopleService.consultantFixPlan();
+  }
+
+  /** People still linked to projects by name, and the project each name becomes (Nov 13). Read-only. */
+  @Get('project-ids')
+  async projectIds(@Claims() claims?: SessionClaims | null) {
+    if (!(await this.access.canManage(claims ?? null, 'people'))) throw new ForbiddenException('Your role doesn’t allow changing People.');
+    return this.peopleService.projectIdPlan();
+  }
+
+  @Post('project-ids')
+  async applyProjectIds(@Body() body: { confirm?: boolean }, @Claims() claims?: SessionClaims | null) {
+    if (!(await this.access.canManage(claims ?? null, 'people'))) throw new ForbiddenException('Your role doesn’t allow changing People.');
+    return this.peopleService.applyProjectIds(body?.confirm === true);
+  }
+
+  @Post('consultant-fix')
+  async applyConsultantFix(@Body() body: { confirm?: boolean }, @Claims() claims?: SessionClaims | null) {
+    if (!(await this.access.canManage(claims ?? null, 'people'))) throw new ForbiddenException('Your role doesn’t allow changing People.');
+    return this.peopleService.applyConsultantFix(body?.confirm === true);
   }
 
   /** Possible duplicates of a contact being added: ?name / firstName / lastName / email / phone, and exclude=<id>. */

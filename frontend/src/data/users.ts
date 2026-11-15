@@ -22,6 +22,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  /** Other addresses that are also this person (Nov 13). */
+  altEmails?: string[];
   tier: Tier;
   roleKey: string;
   status: UserStatus;
@@ -34,6 +36,8 @@ export interface User {
   invitePending?: boolean;
   /** Runs a site: Site Superintendent role, or an employee record whose designation says superintendent. From who-am-I. */
   isSuperintendent?: boolean;
+  /** Set while an administrator views the app as this role or person (Nov 13): who is really looking. */
+  viewedBy?: { sub: string; name: string; email: string; as: string } | null;
   /** The account's own role permissions, returned by who-am-I. */
   rolePermissions?: RolePermissions;
   /** The role's display name, from who-am-I. */

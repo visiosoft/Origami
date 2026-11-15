@@ -1,3 +1,4 @@
+import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put } from '@nestjs/common';
 import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Tiers } from '../auth/guards/roles.decorator';
@@ -14,6 +15,7 @@ export class SubcontractorTradeDto {
 }
 
 @Tiers('internal')
+@ManageWrites('manpower_con', 'fin_resources')
 @Controller('subcontractor-trades')
 export class SubcontractorTradesController {
   constructor(private readonly service: SubcontractorTradesService, private readonly access: ManpowerAccess) {}

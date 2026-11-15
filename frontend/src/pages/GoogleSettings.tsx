@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, type GoogleStatus, type DriveFile } from '../api';
+import { type DbBackupStatus, api, type GoogleStatus, type DriveFile } from '../api';
 import { useApp } from '../AppContext';
 import { Skeleton } from '../components/Skeleton';
 
@@ -180,6 +180,7 @@ export function GoogleSettings() {
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>{saving ? 'Saving…' : 'Save settings'}</div>
         </div>
+        <ExistingProjectFolders />
       </div>
 
       {/* ---------------------------------------------------- standard folders */}
@@ -188,10 +189,12 @@ export function GoogleSettings() {
         <div style={{ fontSize: 12, color: 'var(--c-5c6b65)', marginBottom: 10, maxWidth: 640, lineHeight: 1.55 }}>
           The folders every project’s File Room starts with, created in its Google Drive folder the first time the project is
           synced. One folder per line; use <b>/</b> for a folder inside another (e.g. <i>02 Drawings/Architectural</i>). For an
-          existing project, open it in All Files and click <b>Standard folders</b>.
+          existing project, open it in All Files and click <b>Standard folders</b>. Left empty, the default below is used:
+          saved markup copies go to <i>Drawings &amp; Plans/Markups</i> and task photos to <i>Photos/Tasks</i> or <i>Photos/FOR RECORD</i>.
+          Name drawings like <i>A-101 Floor Plan</i> (sheet number, then title) so they sort and read well.
         </div>
         <textarea value={form['fileRoom.folderTemplate']} onChange={(e) => set('fileRoom.folderTemplate', e.target.value)} rows={8}
-          placeholder={'01 Contracts & Permits\n02 Drawings/Architectural\n02 Drawings/Structural\n03 Photos\n04 Correspondence'}
+          placeholder={'Drawings & Plans/Base sets\nDrawings & Plans/Markups\nPhotos/Tasks\nPhotos/FOR RECORD'}
           style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6, fontFamily: 'inherit' }} />
         <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
           <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>{saving ? 'Saving…' : 'Save settings'}</div>
@@ -321,6 +324,8 @@ export function GoogleSettings() {
       )}
 
       {status?.connected && <DrivePanel />}
+      {status?.connected && <BackupSheetsPanel />}
+      {status?.connected && <DatabaseCopyPanel />}
     </div>
   );
 }
@@ -359,6 +364,163 @@ function DrivePanel() {
               <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>{f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : ''}</span>
             </a>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Backup sheets (Oct 30 sync): a Google Sheet per active project in its Drive
+ * folder -- Tasks, RFIs, change orders, FOR RECORD, meetings -- rewritten every
+ * night at 2am, so the team can keep working if the system is down.
+ */
+function BackupSheetsPanel() {
+  const { toast, authUser } = useApp();
+  const [st, setSt] = useState<{ enabled: boolean; lastRun: string | null; lastResult: { projects: number; failed: { project: string; error?: string }[] } | null; folder?: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [folder, setFolder] = useState<string | null>(null);
+  const isAdmin = authUser?.roleKey === 'admin';
+  useEffect(() => { if (isAdmin) api.backup.sheets().then(setSt).catch(() => undefined); }, [isAdmin]);
+  if (!isAdmin || !st) return null;
+  const run = async () => {
+    setBusy(true);
+    try { const r = await api.backup.runSheets(); toast(`Backup sheets refreshed for ${r.projects} project${r.projects === 1 ? '' : 's'}${r.failed.length ? ` — ${r.failed.length} failed` : ''}`); setSt(await api.backup.sheets()); }
+    catch (e) { toast('⚠ ' + (e as Error).message); }
+    finally { setBusy(false); }
+  };
+  const toggle = async () => {
+    setBusy(true);
+    try { setSt(await api.backup.setSheets(!st.enabled)); }
+    catch (e) { toast('⚠ ' + (e as Error).message); }
+    finally { setBusy(false); }
+  };
+  const saveFolder = async () => {
+    if (folder === null) return;
+    setBusy(true);
+    try { setSt(await api.backup.setSheetsFolder(folder)); setFolder(null); toast(folder.trim() ? `Backup sheets go in “${folder.trim()}” inside each project folder` : 'Backup sheets go in each project folder'); }
+    catch (e) { toast('⚠ ' + (e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div style={card}>
+      <SectionTitle>Backup sheets</SectionTitle>
+      <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginBottom: 12, lineHeight: 1.55 }}>
+        A Google Sheet per active project, in its Drive folder, with a tab each for Tasks, RFIs, Change orders, FOR RECORD and Meetings. Rewritten every night at 2am so work can carry on if the system is down. Edits made in the sheet are overwritten.
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+          <input type="checkbox" checked={st.enabled} disabled={busy} onChange={() => void toggle()} /> Refresh every night
+        </label>
+        <div onClick={() => !busy && void run()} role="button" aria-disabled={busy}
+          style={{ padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', background: 'var(--mist)', color: 'var(--forest)', opacity: busy ? 0.6 : 1 }}>{busy ? 'Working…' : 'Refresh now'}</div>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+          {st.lastRun ? `Last refreshed ${new Date(st.lastRun).toLocaleString()} — ${st.lastResult?.projects ?? 0} project${st.lastResult?.projects === 1 ? '' : 's'}` : 'Not run yet'}
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+        <label htmlFor="bk-folder" style={{ fontSize: 12.5, fontWeight: 700 }}>Folder inside each project</label>
+        <input id="bk-folder" value={folder ?? st.folder ?? ''} placeholder="e.g. Admin / Backups — blank for the project folder" onChange={(e) => setFolder(e.target.value)}
+          style={{ flex: '1 1 240px', padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.15)', font: 'inherit', fontSize: 13 }} />
+        {folder !== null && folder !== (st.folder ?? '') && <button type="button" disabled={busy} onClick={() => void saveFolder()} style={{ padding: '8px 15px', borderRadius: 999, border: 0, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: '#fff', font: 'inherit' }}>Save folder</button>}
+      </div>
+      {!!st.lastResult?.failed?.length && (
+        <div style={{ marginTop: 10, fontSize: 12, color: '#8E2E0A' }}>{st.lastResult.failed.map((f) => `${f.project}: ${f.error || 'failed'}`).join(' · ')}</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Weekly database copy (Batch 6): every table as JSON in one zip, secrets
+ * left out, in the admin-only "Origami System Backups" Drive folder; the last
+ * 8 are kept.
+ */
+function DatabaseCopyPanel() {
+  const { toast, authUser } = useApp();
+  const [st, setSt] = useState<DbBackupStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const isAdmin = authUser?.roleKey === 'admin';
+  useEffect(() => { if (isAdmin) api.backup.database().then(setSt).catch(() => undefined); }, [isAdmin]);
+  if (!isAdmin || !st) return null;
+  const run = async () => {
+    setBusy(true);
+    try { const r = await api.backup.runDatabase(); toast(`Database copy saved — ${r.tables} tables, ${(r.bytes / 1048576).toFixed(1)} MB`); setSt(await api.backup.database()); }
+    catch (e) { toast('⚠ ' + (e as Error).message); setSt(await api.backup.database().catch(() => st)); }
+    finally { setBusy(false); }
+  };
+  const toggle = async () => {
+    setBusy(true);
+    try { setSt(await api.backup.setDatabase(!st.enabled)); } catch (e) { toast('⚠ ' + (e as Error).message); } finally { setBusy(false); }
+  };
+  const r = st.lastResult;
+  return (
+    <div style={card} aria-label="Database copy">
+      <SectionTitle>Database copy</SectionTitle>
+      <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginBottom: 12, lineHeight: 1.55 }}>
+        Every Sunday at 3am, a copy of the whole database — every table as a JSON file, in one zip — goes to the Drive folder “{st.folder}”. The last {st.keep} are kept. Passwords, sign-in secrets and tokens are left out. The folder isn’t inside the File Room and isn’t shared; keep it to administrators in Drive.
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+          <input type="checkbox" checked={st.enabled} disabled={busy} onChange={() => void toggle()} /> Every week
+        </label>
+        <div onClick={() => !busy && void run()} role="button" aria-disabled={busy}
+          style={{ padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', background: 'var(--mist)', color: 'var(--forest)', opacity: busy ? 0.6 : 1 }}>{busy ? 'Copying…' : 'Back up now'}</div>
+        <span style={{ fontSize: 12, color: r && !r.ok ? '#8E2E0A' : 'var(--muted)' }}>
+          {!r ? 'No copy yet' : r.ok
+            ? <>Last copy {new Date(r.at).toLocaleString()} — {r.tables} tables, {((r.bytes || 0) / 1048576).toFixed(1)} MB{r.link ? <> · <a href={r.link} target="_blank" rel="noreferrer" style={{ color: 'var(--forest)', fontWeight: 700 }}>Open in Drive</a></> : null}</>
+            : `Last try ${new Date(r.at).toLocaleString()} failed: ${r.error}`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Lay the standard folders out in existing projects (Batch 6): a preview of
+ * what each open project is missing first, then Apply. Nothing is moved or
+ * removed. Administrators.
+ */
+function ExistingProjectFolders() {
+  const { toast, authUser } = useApp();
+  const [pv, setPv] = useState<{ template: string[]; projects: { projectId: number; name: string; missing: string[] }[]; folders: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (authUser?.roleKey !== 'admin') return null;
+  const preview = async () => {
+    setBusy(true);
+    try { setPv(await api.fileRoom.templatePreview()); } catch (e) { toast('⚠ ' + (e as Error).message); } finally { setBusy(false); }
+  };
+  const apply = async () => {
+    if (!pv) return;
+    setBusy(true);
+    try {
+      const r = await api.fileRoom.templateApplyAll(pv.projects.map((p) => p.projectId));
+      toast(`${r.created} folder${r.created === 1 ? '' : 's'} added in ${r.projects} project${r.projects === 1 ? '' : 's'}${r.failed.length ? ` — ${r.failed.length} failed` : ''}`);
+      setPv(await api.fileRoom.templatePreview());
+    } catch (e) { toast('⚠ ' + (e as Error).message); } finally { setBusy(false); }
+  };
+  const pill = (primary: boolean) => ({ padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', background: primary ? 'var(--forest)' : 'var(--mist)', color: primary ? '#fff' : 'var(--forest)', opacity: busy ? 0.6 : 1 } as const);
+  return (
+    <div aria-label="Existing projects" style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <b style={{ fontSize: 12.5 }}>Existing projects</b>
+        <span style={{ fontSize: 12, color: 'var(--muted)', flex: 1 }}>Add the standard folders to open projects that don’t have them yet. Save the list above first.</span>
+        <div onClick={() => !busy && void preview()} style={pill(false)}>{busy && !pv ? 'Checking…' : 'Preview'}</div>
+      </div>
+      {pv && (
+        <div style={{ marginTop: 10 }}>
+          {!pv.projects.length ? <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Every open project already has the standard folders.</div> : (
+            <>
+              <div style={{ fontSize: 12.5, marginBottom: 6 }}>{pv.folders} folder{pv.folders === 1 ? '' : 's'} to add in {pv.projects.length} project{pv.projects.length === 1 ? '' : 's'}:</div>
+              <div style={{ maxHeight: 220, overflowY: 'auto', fontSize: 12, lineHeight: 1.6, background: 'var(--c-efede8)', borderRadius: 10, padding: '8px 12px' }}>
+                {pv.projects.map((p) => <div key={p.projectId}><b>{p.name}</b>: {p.missing.join(', ')}</div>)}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <div onClick={() => !busy && void apply()} style={pill(true)}>{busy ? 'Adding…' : `Apply to ${pv.projects.length} project${pv.projects.length === 1 ? '' : 's'}`}</div>
+                <div onClick={() => setPv(null)} style={pill(false)}>Cancel</div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

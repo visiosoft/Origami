@@ -40,6 +40,8 @@ const btn = (primary = false): React.CSSProperties => ({
 export interface Employee {
   id: string; name: string; workerId?: string; fatherOrSpouseName?: string; nationalId?: string;
   dob?: string; gender?: string; phone?: string; email?: string;
+  /** Other addresses for them (Nov 13), e.g. apogeec.com; a login with any of them is linked. */
+  altEmails?: string[];
   emergencyContactName?: string; emergencyContactPhone?: string; emergencyContactRelation?: string;
   permanentAddress?: string; currentAddress?: string; photo?: Attachment | null;
   employmentType?: string; hireDate?: string; department?: string; designation?: string; jobTitle?: string;
@@ -118,6 +120,7 @@ const SECTIONS: Record<string, SectionDef> = {
     fields: [
       { key: 'phone', label: 'Phone' },
       { key: 'email', label: 'Email' },
+      { key: 'altEmails', label: 'Other emails', kind: 'list', placeholder: 'e.g. name@apogeec.com' },
       { key: 'currentAddress', label: 'Current address', kind: 'textarea', wide: true },
       { key: 'permanentAddress', label: 'Permanent address', kind: 'textarea', wide: true },
     ],

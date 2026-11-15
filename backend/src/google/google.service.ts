@@ -42,6 +42,9 @@ export const WORKSPACE_SCOPES = [
   'https://www.googleapis.com/auth/calendar.freebusy',
 ];
 
+/** Scopes for a person connecting their OWN Gmail (Nov 13): read, send and draft their mail -- nothing else. */
+export const MY_MAIL_SCOPES = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.compose'];
+
 /** Scopes for "Sign in with Google" — identity only. */
 export const LOGIN_SCOPES = ['openid', 'email', 'profile'];
 
@@ -58,6 +61,9 @@ export const MY_CALENDAR_SCOPES = [
   'email',
   'profile',
   'https://www.googleapis.com/auth/calendar.events',
+  // Nov 13: read the "Notes by Gemini" Docs shared with them, so notes of meetings they attend (not organise),
+  // and on another domain (apogeec.com), still reach Origami.
+  'https://www.googleapis.com/auth/drive.readonly',
 ];
 
 export interface GoogleProfile {
@@ -132,9 +138,9 @@ export class GoogleService {
   }
 
   /** Where the browser should be sent to start a consent flow. */
-  async consentUrl(mode: 'connect' | 'login' | 'my-calendar', state: string): Promise<string> {
+  async consentUrl(mode: 'connect' | 'login' | 'my-calendar' | 'my-mail', state: string): Promise<string> {
     const { clientId, redirectUri } = await this.credentials(mode === 'connect' ? 'workspace' : 'public');
-    const scopes = mode === 'connect' ? WORKSPACE_SCOPES : mode === 'my-calendar' ? MY_CALENDAR_SCOPES : LOGIN_SCOPES;
+    const scopes = mode === 'connect' ? WORKSPACE_SCOPES : mode === 'my-calendar' ? MY_CALENDAR_SCOPES : mode === 'my-mail' ? MY_MAIL_SCOPES : LOGIN_SCOPES;
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -143,7 +149,7 @@ export class GoogleService {
       state,
       include_granted_scopes: 'true',
     });
-    if (mode === 'connect' || mode === 'my-calendar') {
+    if (mode === 'connect' || mode === 'my-calendar' || mode === 'my-mail') {
       // Offline + forced consent is the only way Google hands back a refresh token.
       params.set('access_type', 'offline');
       params.set('prompt', 'consent');
@@ -151,13 +157,14 @@ export class GoogleService {
       params.set('prompt', 'select_account');
     }
     const hd = await this.settings.get('google.hostedDomain');
-    if (hd) params.set('hd', hd);
+    // Personal connections may be on another domain (Nov 13: apogeec.com and the Origami one).
+    if (hd && mode !== 'my-mail' && mode !== 'my-calendar') params.set('hd', hd);
     return `${AUTH_URL}?${params.toString()}`;
   }
 
   // ----------------------------------------------------------------- OAuth
 
-  async exchangeCode(code: string, mode: 'connect' | 'login' | 'my-calendar' = 'login'): Promise<{ access_token: string; refresh_token?: string; expires_in: number }> {
+  async exchangeCode(code: string, mode: 'connect' | 'login' | 'my-calendar' | 'my-mail' = 'login'): Promise<{ access_token: string; refresh_token?: string; expires_in: number }> {
     const { clientId, clientSecret, redirectUri } = await this.credentials(mode === 'connect' ? 'workspace' : 'public');
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
@@ -440,6 +447,29 @@ export class GoogleService {
       mimeType: res.headers.get('content-type') || 'application/octet-stream',
       size: res.headers.get('content-length') || undefined,
     };
+  }
+
+  /**
+   * Drive's own picture of a file at a given size (photos, HEIC, PDF and
+   * Office first pages), or null when Drive hasn't made one (yet). Unlike
+   * downloadDriveFile(thumb) it never falls back to the original.
+   */
+  async driveThumbnail(id: string, size = 1600): Promise<Buffer | null> {
+    const token = await this.workspaceToken();
+    const meta = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?fields=thumbnailLink,hasThumbnail&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });
+    const body: any = await meta.json().catch(() => ({}));
+    if (!meta.ok || !body?.thumbnailLink) return null;
+    const res = await fetch(thumbnailAt(body.thumbnailLink, size), { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    return Buffer.from(await res.arrayBuffer());
+  }
+
+  /** A Drive file's bytes in memory (for files small enough to process). */
+  async driveFileBuffer(id: string): Promise<Buffer> {
+    const token = await this.workspaceToken();
+    const res = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new BadRequestException('Could not read that file from Drive.');
+    return Buffer.from(await res.arrayBuffer());
   }
 
   /** Everything directly inside a Drive folder — files and subfolders alike. */
@@ -822,13 +852,38 @@ export class GoogleService {
     if (!res.ok) throw new BadRequestException(body?.error?.message || 'Drive request failed.');
     return (body.files ?? []) as DriveFile[];
   }
+
+  /** Google Docs matching a raw Drive query (Nov 3 sync: finding a meeting's "Notes by Gemini"). */
+  async findDocs(query: string, pageSize = 10): Promise<DriveFile[]> {
+    const token = await this.workspaceToken();
+    const params = new URLSearchParams({
+      pageSize: String(pageSize), orderBy: 'modifiedTime desc', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true',
+      fields: 'files(id,name,mimeType,modifiedTime,webViewLink)',
+      q: `${query} and mimeType = 'application/vnd.google-apps.document' and trashed = false`,
+    });
+    const res = await fetch(`${DRIVE_FILES_URL}?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+    const body: any = await res.json().catch(() => ({}));
+    if (!res.ok) throw new BadRequestException(body?.error?.message || 'Drive search failed.');
+    return (body.files ?? []) as DriveFile[];
+  }
+
+  /** A Google Doc as plain text (the connected account must be able to open it). */
+  async exportDocText(id: string): Promise<{ name: string; text: string; link: string }> {
+    const token = await this.workspaceToken();
+    const meta = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?fields=id,name,webViewLink,mimeType&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });
+    const m: any = await meta.json().catch(() => ({}));
+    if (!meta.ok) throw new BadRequestException(meta.status === 404 ? 'That Doc isn’t shared with the connected Google account.' : m?.error?.message || 'Could not open the Doc.');
+    const res = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}/export?mimeType=text/plain`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new BadRequestException('Could not read the Doc’s text.');
+    return { name: m.name || '', link: m.webViewLink || `https://docs.google.com/document/d/${id}`, text: (await res.text()).replace(/^\uFEFF/, '') };
+  }
 }
 
 /** MIME line ending. Built from char codes so no editor can normalise it away. */
 const CRLF = String.fromCharCode(13, 10);
 
 /** RFC-2822 message, base64url encoded the way the Gmail API wants it. */
-function buildMime(opts: {
+export function buildMime(opts: {
   from: string; to: string; subject: string; html: string; text?: string; cc?: string; bcc?: string; replyTo?: string;
   attachments?: Array<{ filename: string; mimeType: string; content: Buffer }>;
 }) {

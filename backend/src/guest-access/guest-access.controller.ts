@@ -6,19 +6,24 @@ import type { AuthedRequest } from '../auth/guards/session.guard';
 import { GoogleService } from '../google/google.service';
 import { SettingsService } from '../settings/settings.service';
 import { BRAND_KEYS, brandingFrom, buildLetterHtml } from '../documents/letterhead';
+import { ProjectAccessService } from '../auth/project-access.service';
 
 @Tiers('internal')
 @Controller('guest-access')
 export class GuestAccessController {
   constructor(
     private readonly service: GuestAccessService,
+    private readonly access: ProjectAccessService,
     private readonly google: GoogleService,
     private readonly settings: SettingsService,
   ) {}
 
   @Get()
-  list(@Query('projectId') projectId?: string) {
-    return this.service.list(projectId ? Number(projectId) : undefined);
+  async list(@Query('projectId') projectId: string | undefined, @Req() req: AuthedRequest) {
+    // Guests of the caller's own projects only (Nov 10).
+    if (projectId) await this.access.assert(req.claims ?? null, Number(projectId));
+    const rows = await this.service.list(projectId ? Number(projectId) : undefined);
+    return this.access.filter(req.claims ?? null, rows as any[], (g: any) => g.projectId);
   }
 
   /** Creates the grant and emails the link -- the office never has to copy/paste it by hand. */
@@ -27,6 +32,7 @@ export class GuestAccessController {
     @Body() body: { name: string; email: string; tier: 'client' | 'consultant'; projectId: number; days?: number },
     @Req() req: AuthedRequest,
   ) {
+    await this.access.assert(req.claims ?? null, Number(body?.projectId));
     const grant = await this.service.create(body, { id: req.claims?.sub, name: req.claims?.name });
     try {
       const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));

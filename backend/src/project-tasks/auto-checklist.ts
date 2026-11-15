@@ -6,16 +6,18 @@ import type { ChecklistItem } from '../database/task.types';
  *   task               -- every task (board and Request Log)
  *   record / record:X  -- every FOR RECORD entry, or only topic X (Observation)
  *   label:x            -- tasks carrying label x
+ *   programme:<id>     -- the programme (template) task with that id, when a
+ *                         project's programme is set up (Nov 13, QA/QC)
  * People can delete the items afterwards; nothing re-adds them.
  */
-export interface AutoTarget { kind: 'task' | 'record'; type?: string; labels?: string[] }
+export interface AutoTarget { kind: 'task' | 'record'; type?: string; labels?: string[]; programmeId?: string }
 
 export function cleanAutoFor(raw: unknown): string[] {
   const out = new Set<string>();
   for (const x of Array.isArray(raw) ? raw : []) {
     const s = String(x || '').trim();
     if (s === 'task' || s === 'record') out.add(s);
-    else if (/^(record|label):.+/.test(s)) { const [k, ...v] = s.split(':'); const val = v.join(':').trim().slice(0, 60); if (val) out.add(`${k}:${val}`); }
+    else if (/^(record|label|programme):.+/.test(s)) { const [k, ...v] = s.split(':'); const val = v.join(':').trim().slice(0, 60); if (val) out.add(`${k}:${val}`); }
   }
   return [...out].slice(0, 20);
 }
@@ -27,6 +29,7 @@ export function matchesAuto(autoFor: string[] | null | undefined, t: AutoTarget)
     if (a === 'record') return t.kind === 'record';
     if (a.startsWith('record:')) return t.kind === 'record' && a.slice(7).toLowerCase() === String(t.type || '').toLowerCase();
     if (a.startsWith('label:')) return labels.has(a.slice(6).toLowerCase());
+    if (a.startsWith('programme:')) return !!t.programmeId && a.slice(10).toLowerCase() === t.programmeId.toLowerCase();
     return false;
   });
 }
@@ -44,7 +47,7 @@ export function withAutoChecklists(
       const item = String(x?.item || '').trim();
       if (!item || have.has(item.toLowerCase())) return;
       have.add(item.toLowerCase());
-      out.push({ id: `ci-${stamp}-${tpl.id}-${i}`, item, done: false });
+      out.push({ id: `ci-${stamp}-${tpl.id}-${i}`, item, done: false, templateId: tpl.id });
     });
   }
   return out;

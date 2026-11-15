@@ -16,6 +16,11 @@ describe('notification matrix', () => {
   it('warns when texts are chosen without a phone number', () => {
     expect(channelWarnings({ lead_new: ['text_now'] }, { phone: false, email: true, smsReady: true })[0]).toMatch(/no phone number/);
     expect(channelWarnings({ lead_new: ['text_now'] }, { phone: true, email: true, smsReady: false })[0]).toMatch(/aren’t set up/);
-    expect(channelWarnings(null, { phone: false, email: true, smsReady: false })).toEqual([]);
+    expect(channelWarnings(null, { phone: true, email: true, smsReady: false })).toEqual([]);
+  });
+  it('Emergency is always a text and an email, whatever was chosen', () => {
+    expect(channelsFor({ notificationMatrix: { emergency: [] } }, 'emergency')).toEqual(['text_now', 'email_now']);
+    expect(cleanMatrix({ emergency: [] })).toEqual({ emergency: [] });
+    expect(channelWarnings(null, { phone: false, email: true, smsReady: true })).toEqual([expect.stringMatching(/Emergency tasks are always sent by text/)]);
   });
 });

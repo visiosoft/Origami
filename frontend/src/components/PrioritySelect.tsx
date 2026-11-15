@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { PRIORITY_HINT } from '../data/priority';
+import { PRIORITY_HINT, priorityOption } from '../data/priority';
 import { PRIORITY_ORDER, type Priority } from '../data/projectTasks';
 
 /** The one priority scale for every special action: None, then Emergency to Very Low -- each with its due-date window. */
@@ -13,7 +13,7 @@ export function PrioritySelect({ value, onChange, disabled, style }: {
     <select disabled={disabled} value={v} aria-label="Priority" title={v ? PRIORITY_HINT[v] : 'Picking a priority fills in the due date'}
       onChange={(e) => onChange(e.target.value as Priority | '')} style={style}>
       <option value="">None</option>
-      {PRIORITY_LEVELS.map((p) => <option key={p} value={p}>{p} — {PRIORITY_HINT[p].replace('Due ', '')}</option>)}
+      {PRIORITY_LEVELS.map((p) => <option key={p} value={p}>{priorityOption(p)}</option>)}
     </select>
   );
 }

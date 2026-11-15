@@ -1,3 +1,8 @@
+import { LinkedMail } from '../components/LinkedMail';
+import { TeamBackfill } from '../components/TeamBackfill';
+import { ArchiveBanner, ArchivedProjects } from '../components/ProjectArchive';
+import { ProjectTeam } from '../components/ProjectTeam';
+import { forgetProjectPlace, rememberProjectPlace } from '../data/returnToProject';
 import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
 import { tint, useTheme } from '../theme';
@@ -29,15 +34,16 @@ import { Attachments, filesFromClipboard, nameClipboardFile } from '../component
 import { ActivityFeed } from '../components/ActivityFeed';
 import { Checklist } from '../components/Checklist';
 import { LabelPicker } from '../components/LabelPicker';
+import { TagPicker } from '../components/TagPicker';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { PRIORITY_ORDER, TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, createdByOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
-import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
+import { linkPriorityDue, PRIORITY_HINT, priorityOption } from '../data/priority';
 import { api, persist } from '../api';
 import { OriginatorLine } from '../components/ActionTools';
 import { askHoldReason } from '../components/CompletionNote';
 import { LABOR_TYPES, PRICING_TYPES } from '../data/projectTypes';
 import { useApp } from '../AppContext';
-import { STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
+import { ENDED_STAGES, STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
 import { mergeTokens } from '../data/clientPersonality';
 import { asHtml } from '../data/templateHtml';
 import { useCompanyTokens } from '../data/companyTokens';
@@ -50,20 +56,21 @@ const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slic
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 const PRIORITIES = ['High', 'Medium', 'Low'];
 const TASK_PRIORITIES: Priority[] = PRIORITY_ORDER;
-const STAGES = ['Kickoff', 'Design', 'Construction', 'Closeout'];
+const STAGES = ['Kickoff', 'Design', 'Construction', 'Closeout', 'Cancelled'];
+const SHOW_ENDED_KEY = 'origami.projects.showEnded';
 /** "LS — Lump sum", or — when unset. */
 const codeLabel = (list: readonly { code: string; label: string }[], v?: string | null) => (v ? `${v} — ${list.find((o) => o.code === v)?.label || v}` : '—');
 
 const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Kickoff', location: '', typeOfWork: '', contractType: 'Design + Build', contractAmt: '', estStart: '', duration: '', scope: '', referral: '', contactedBy: '', progress: 0, imgColor: '#173326' };
 
-interface ProjectFilters { priority: string; contractType: string; typeOfWork: string; contactedBy: string; q: string; hold?: string }
+interface ProjectFilters { priority: string; contractType: string; typeOfWork: string; contactedBy: string; q: string; hold?: string; kind?: string }
 interface SavedView { name: string; filters: ProjectFilters }
 const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWork: '', contactedBy: '', q: '' };
 
 /** The fields the project form edits; they autosave together. */
-const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'pricing', 'labor', 'code', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved'] as (keyof Project)[];
+const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'pricing', 'labor', 'code', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved', 'kind'] as (keyof Project)[];
 /** The fields the phase-task panel edits; they autosave together. */
-const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels', 'holdReason'];
+const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels', 'tags', 'holdReason'];
 
 export function Projects() {
   const { can, toast, currentUser } = useApp();
@@ -136,13 +143,17 @@ export function Projects() {
     if (filters.contactedBy && p.contactedBy !== filters.contactedBy) return false;
     if (filters.hold === 'active' && isOnHold(p)) return false;
     if (filters.hold === 'hold' && !isOnHold(p)) return false;
+    if (filters.kind === 'internal' && p.kind !== 'internal') return false;
+    if (filters.kind === 'client' && p.kind === 'internal') return false;
     const q = filters.q.trim().toLowerCase();
     if (q && !p.name.toLowerCase().includes(q) && !p.location.toLowerCase().includes(q)) return false;
     return true;
   };
   const distinctValues = (key: 'priority' | 'contractType' | 'typeOfWork' | 'contactedBy') =>
     Array.from(new Set(projects.map((p) => p[key]).filter(Boolean))).sort();
-  const filtersActive = JSON.stringify({ ...filters, hold: filters.hold || undefined }) !== JSON.stringify(BLANK_FILTERS);
+  const [showArchived, setShowArchived] = useState(false);
+  const [showEnded, setShowEnded] = useState(() => { try { return localStorage.getItem(SHOW_ENDED_KEY) === '1'; } catch { return false; } });
+  const filtersActive = JSON.stringify({ ...filters, hold: filters.hold || undefined, kind: filters.kind || undefined }) !== JSON.stringify(BLANK_FILTERS);
   // Which project's hold form is open (drawer).
   const [holdFormFor, setHoldFormFor] = useState<number | null>(null);
 
@@ -171,6 +182,9 @@ export function Projects() {
   // The Phase Board reads the project's own phases and tasks, so it shows what
   // the programme template actually put there.
   const [boardPhases, setBoardPhases] = useState<BoardPhase[]>([]);
+  // Structures on the lot (Batch 6): Main house, ADU... each with its own phases; the board shows one at a time.
+  const [structures, setStructures] = useState<{ key: string; name: string }[]>([]);
+  const [structure, setStructure] = useState('main');
   const [boardTasks, setBoardTasks] = useState<BoardTask[]>([]);
   const [applying, setApplying] = useState(false);
   // Phases a project doesn't use (hidden from its board) stay out of the board and its progress until shown again.
@@ -178,7 +192,7 @@ export function Projects() {
   const hiddenPhaseCount = boardPhases.filter((p) => p.hiddenAt && (p.category === 'construction') === (tab === 'build')).length;
   // Design shows the design phases, Build the construction ones (from the programme template's category).
   const boardCat: 'design' | 'construction' = tab === 'build' ? 'construction' : 'design';
-  const catPhases = boardPhases.filter((p) => (p.category === 'construction') === (boardCat === 'construction'));
+  const catPhases = boardPhases.filter((p) => (p.category === 'construction') === (boardCat === 'construction') && (structures.length < 2 || (p.structureKey || 'main') === structure));
   const workflow = computeWorkflow(showHiddenPhases ? catPhases : catPhases.filter((p) => !p.hiddenAt), boardTasks);
   const setPhaseHidden = (phaseId: string, hidden: boolean) => {
     const hiddenAt = hidden ? new Date().toISOString() : null;
@@ -194,8 +208,12 @@ export function Projects() {
 
   const loadBoard = (projectId: number) => {
     api.projectPhases.board(projectId)
-      .then((res: any) => { setBoardPhases((res?.phases || []) as BoardPhase[]); setBoardTasks((res?.tasks || []) as BoardTask[]); })
-      .catch(() => { setBoardPhases([]); setBoardTasks([]); });
+      .then((res: any) => {
+        setBoardPhases((res?.phases || []) as BoardPhase[]); setBoardTasks((res?.tasks || []) as BoardTask[]);
+        const ss = Array.isArray(res?.structures) ? res.structures : [];
+        setStructures(ss); setStructure((cur) => (ss.some((s: any) => s.key === cur) ? cur : 'main'));
+      })
+      .catch(() => { setBoardPhases([]); setBoardTasks([]); setStructures([]); });
   };
 
   // A phase card is a real task row, so the panel edits it in place rather
@@ -256,6 +274,31 @@ export function Projects() {
     const step = stepForTaskId(pt?.id);
     if (step && !sel?.programOff) { setProgramStep(step); setTab('program'); return; }
     setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color });
+  };
+
+  const addStructure = async () => {
+    if (!sel) return;
+    const name = window.prompt('Add a structure on this lot — e.g. “ADU”. It gets its own copy of the programme’s phases and tasks.', 'ADU');
+    if (!name?.trim()) return;
+    const mainName = structures.length ? undefined : window.prompt('And what should the existing phases’ building be called?', 'Main house') || undefined;
+    try {
+      const r = await api.projectPhases.addStructure(sel.id, name.trim(), mainName);
+      toast(`${name.trim()} added — ${r.phasesAdded} phases`);
+      const added = r.structures[r.structures.length - 1];
+      setStructure(added.key);
+      loadBoard(sel.id);
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the structure')); }
+  };
+  const editStructure = async (key: string) => {
+    if (!sel) return;
+    const cur = structures.find((s) => s.key === key);
+    const name = window.prompt(`Rename ${cur?.name || 'structure'} (leave empty to remove it — only while none of its work has started)`, cur?.name || '');
+    if (name === null) return;
+    try {
+      if (name.trim()) await api.projectPhases.renameStructure(sel.id, key, name.trim());
+      else { await api.projectPhases.removeStructure(sel.id, key); setStructure('main'); }
+      loadBoard(sel.id);
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not change the structure')); }
   };
 
   const applyProgramme = (projectId: number) => {
@@ -436,15 +479,34 @@ export function Projects() {
   const openProject = (id: number) => { setSelectedId(id); setTab('overview'); loadBoard(id); };
   // A link like /projects?open=8&tab=financial (e.g. from the Finance guide) opens that project on that tab.
   const [searchParams, setSearchParams] = useSearchParams();
+  // The open project and tab live in the URL (Nov 3 sync), so Back and links from other pages return to them.
+  const TABS = ['overview', 'phases', 'program', 'tasks', 'rfis', 'subs', 'files', 'financial', 'guests', 'crm', 'precon', 'build'] as const;
   useEffect(() => {
     const id = Number(searchParams.get('open'));
-    if (!id || !projects.some((p) => p.id === id)) return;
+    if (!id || id === selectedId || !projects.some((p) => p.id === id)) return;
     openProject(id);
     const t = searchParams.get('tab');
     if (t === 'rfis') openWork('rfis');
-    else if (t === 'phases' || t === 'financial' || t === 'tasks') setTab(t);
-    setSearchParams({}, { replace: true });
+    else if (t === 'tasks') openWork((searchParams.get('view') as ActionView) || 'tasks');
+    else if (t && (TABS as readonly string[]).includes(t)) setTab(t as typeof tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects, searchParams]);
+  const placeSeen = useRef(false);
+  useEffect(() => {
+    if (selectedId) {
+      const p = projects.find((x) => x.id === selectedId);
+      const want = new URLSearchParams({ open: String(selectedId), tab });
+      if (tab === 'tasks') want.set('view', workView);
+      if (searchParams.toString() !== want.toString()) setSearchParams(want, { replace: true });
+      if (p) rememberProjectPlace(selectedId, p.name, tab, workView);
+      placeSeen.current = true;
+    } else if (placeSeen.current) {
+      // Closed by hand: nothing to go back to.
+      if (searchParams.get('open')) setSearchParams({}, { replace: true });
+      forgetProjectPlace();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, tab, workView, projects]);
   // The project form saves itself: created once it has a name, then only the
   // changed fields, 3 seconds after typing stops (Save saves at once; Done
   // saves anything pending and closes).
@@ -566,6 +628,8 @@ export function Projects() {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
+      {currentUser?.roleKey === 'admin' && <TeamBackfill />}
+      {currentUser?.roleKey === 'admin' && <ArchiveBanner onChanged={reload} />}
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <input
@@ -595,6 +659,11 @@ export function Projects() {
           <option value="active">Active only</option>
           <option value="hold">On hold ({projects.filter(isOnHold).length})</option>
         </select>
+        <select aria-label="Client or internal" value={filters.kind || ''} onChange={(e) => setFilter('kind', e.target.value)} style={{ ...inputStyle, width: 150, background: 'var(--surface)' }}>
+          <option value="">Client and internal</option>
+          <option value="client">Client projects</option>
+          <option value="internal">Internal ({projects.filter((p) => p.kind === 'internal').length})</option>
+        </select>
         {filtersActive && <div onClick={clearFilters} style={{ fontSize: 12, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Clear</div>}
         <div style={{ flex: 1 }} />
         {canManage && <div onClick={openNew} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: 'var(--forest)', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)', whiteSpace: 'nowrap' }}>+ New Project</div>}
@@ -618,6 +687,15 @@ export function Projects() {
             <span onClick={(e) => { e.stopPropagation(); deleteView(v.name); }} style={{ opacity: 0.6 }}>×</span>
           </div>
         ))}
+        <div onClick={() => setShowEnded((v) => { const n = !v; try { localStorage.setItem(SHOW_ENDED_KEY, n ? '1' : ''); } catch { /* private mode */ } return n; })}
+          title="Closed and cancelled projects are hidden unless this is on"
+          style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: showEnded ? 'var(--ink)' : 'var(--surface)', color: showEnded ? 'white' : 'var(--muted)' }}>
+          {showEnded ? '✓ ' : ''}Show closed & cancelled
+        </div>
+        <div role="button" onClick={() => setShowArchived((v) => !v)} title="Closed-out and cancelled projects go to the archive 10 days after"
+          style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: showArchived ? 'var(--ink)' : 'var(--surface)', color: showArchived ? 'white' : 'var(--muted)' }}>
+          {showArchived ? '✓ ' : ''}Archived
+        </div>
         {filtersActive && (
           <div onClick={saveCurrentView} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', border: '1px dashed rgba(var(--rgb-shade), 0.2)', color: 'var(--forest)', cursor: 'pointer' }}>
             + Save this view
@@ -625,10 +703,11 @@ export function Projects() {
         )}
       </div>
 
+      {showArchived && <ArchivedProjects canManage={canManage} onChanged={reload} />}
       {/* Pipeline columns */}
       {isNew ? (
         <div className="pc-board">
-          {STAGE_CONFIG.map((st, si) => {
+          {STAGE_CONFIG.filter((st) => showEnded || !ENDED_STAGES.includes(st.name)).map((st, si) => {
             const stageProjects = projects.filter((p) => p.stage === st.name && matchesFilters(p));
             return (
               <div key={st.name} className="pc-col">
@@ -664,7 +743,7 @@ export function Projects() {
         </div>
       ) : (
       <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
-        {STAGE_CONFIG.map((st) => {
+        {STAGE_CONFIG.filter((st) => showEnded || !ENDED_STAGES.includes(st.name)).map((st) => {
           const stageProjects = projects.filter((p) => p.stage === st.name && matchesFilters(p));
           return (
             <div key={st.name} style={{ flex: '0 0 280px' }}>
@@ -691,7 +770,7 @@ export function Projects() {
       {/* Project detail drawer */}
       {sel && (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'files' || tab === 'phases' || tab === 'program' || tab === 'crm' || tab === 'precon' || tab === 'build' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'files' || tab === 'phases' || tab === 'program' || tab === 'crm' || tab === 'precon' || tab === 'build' ? 'min(1100px, 96vw)' : 'min(760px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
             {/* Header — compact bar (stage color) with title, location & amount inline */}
             <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${tint(sel.imgColor, 'cc')})`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -773,6 +852,7 @@ export function Projects() {
             {tab === 'overview' ? (
               <div>
                 <WorkGlance projectId={sel.id} showRfis={rfiView} showChanges={finView} onOpen={openWork} />
+                <div style={{ padding: '0 28px' }}><LinkedMail entityType="project" entityId={sel.id} /></div>
                 <div style={{ padding: '24px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                   <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 14 }}>Project Details</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -820,7 +900,7 @@ export function Projects() {
                 <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Pre-construction for {sel.name}: the schedule, estimating and selections.</div>
                 {[
                   { title: 'Schedule', body: 'Every phase of this project on the timeline, with its dates.', action: 'Open the schedule', to: `/schedule?project=${sel.id}`, ready: true },
-                  { title: 'Estimating', body: 'Estimating tools for design and build work. Not built in ODIN yet — the page says what it will hold.', action: 'Open Estimating', to: '/estimating', ready: false },
+                  { title: 'Estimating', body: 'This project’s estimates, built like the team’s spreadsheet: scopes, sub and markup columns, General Requirements, profit and contingency.', action: 'Open Estimating', to: `/estimating?project=${sel.id}`, ready: true },
                   { title: 'Selections & Specifications', body: 'The library, selections, orders and tracking. Not built in ODIN yet.', action: 'Open Selections', to: '/selections', ready: false },
                 ].map((c) => (
                   <div key={c.title} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)' }}>
@@ -870,6 +950,7 @@ export function Projects() {
             ) : tab === 'subs' || tab === 'guests' ? (
               // Project People (Oct 27 sync): who's on the project -- consultants, subs, client -- their subcontracts, and guest access, in one place.
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', display: 'grid', gap: 18, alignContent: 'start' }}>
+                <ProjectTeam projectId={sel.id} />
                 <ProjectPeople projectName={sel.name} />
                 <ProjectSubcontractors projectId={sel.id} onAddSubcontract={finView ? () => { setFinStart('subcontracts'); setTab('financial'); } : undefined} />
                 {canManage && <div style={{ margin: '0 -24px' }}><GuestAccessPanel projectId={sel.id} /></div>}
@@ -894,6 +975,17 @@ export function Projects() {
                       {showHiddenPhases ? `Hide the ${hiddenPhaseCount} hidden phase${hiddenPhaseCount > 1 ? 's' : ''}` : `${hiddenPhaseCount} hidden phase${hiddenPhaseCount > 1 ? 's' : ''} · Show`}
                     </span>
                   )}
+                  {structures.length > 1 && (
+                    <div aria-label="Structure" style={{ display: 'flex', gap: 3, padding: 3, background: 'var(--c-efede8)', borderRadius: 999 }}>
+                      {structures.map((st) => (
+                        <div key={st.key} onClick={() => setStructure(st.key)} onDoubleClick={() => editStructure(st.key)} title="Double-click to rename or remove"
+                          style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: structure === st.key ? 'var(--seg-on)' : 'transparent', color: structure === st.key ? 'var(--ink)' : 'var(--muted)' }}>
+                          {st.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <span onClick={addStructure} title="A second building on the lot, e.g. an ADU, with its own phases" style={{ fontSize: 11.5, color: 'var(--forest)', fontWeight: 700, cursor: 'pointer' }}>+ Structure</span>
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 3, padding: 3, background: 'var(--c-efede8)', borderRadius: 999 }}>
                     {(['board', 'list'] as const).map((v) => (
                       <div
@@ -1208,7 +1300,7 @@ export function Projects() {
                       <select disabled={!canManage} value={d.priority || ''} title={d.priority ? PRIORITY_HINT[d.priority as Priority] : 'Picking a priority fills in the due date'}
                         onChange={(e) => { const k = live?.id || ''; const r = linkPriorityDue({ priority: d.priority, dueDate: d.dueDate, auto: ptAutoPD.current[k] }, { priority: e.target.value as Priority | '' }); ptAutoPD.current[k] = r.auto; set({ priority: r.priority, dueDate: r.dueDate }); }} style={inputStyle}>
                         <option value="">None</option>
-                        {TASK_PRIORITIES.map((pr) => <option key={pr} value={pr}>{pr} — {PRIORITY_HINT[pr].replace('Due ', '')}</option>)}
+                        {TASK_PRIORITIES.map((pr) => <option key={pr} value={pr}>{priorityOption(pr)}</option>)}
                       </select>
                       {ptAutoPD.current[live?.id || ''] === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
                       <PriorityHelp value={d.priority} />
@@ -1417,6 +1509,7 @@ export function Projects() {
 
                   <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                     <LabelPicker labels={d.labels ?? []} canManage={canManage} suggestions={allLabels} onChange={(labels: string[]) => set({ labels })} />
+                    <div style={{ marginTop: 12 }}><TagPicker tags={d.tags ?? []} disabled={!canManage} onChange={(tags: string[]) => set({ tags })} /></div>
                   </div>
 
                   <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
@@ -1478,6 +1571,7 @@ export function Projects() {
                 ['Programme Template', 'templateKey', 'select-template', '1 / -1'],
                 ['Scope of work', 'scope', 'textarea', '1 / -1'],
                 ['Contract Approved', 'contractApproved', 'checkbox', '1 / -1'],
+                ['Internal project', 'kind', 'checkbox-internal', '1 / -1'],
               ].map(([label, key, kind, span]) => (
                 <div key={key as string} style={{ gridColumn: (span as string) || 'auto' }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
@@ -1485,6 +1579,11 @@ export function Projects() {
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink)', cursor: 'pointer', padding: '9px 0' }}>
                       <input type="checkbox" checked={!!(np as any)[key as string]} onChange={(e) => setNp({ ...np, [key as string]: e.target.checked })} />
                       Client has signed — lock the AEC Team roster in the Project Program
+                    </label>
+                  ) : kind === 'checkbox-internal' ? (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink)', cursor: 'pointer', padding: '9px 0' }}>
+                      <input type="checkbox" checked={(np as any).kind === 'internal'} onChange={(e) => setNp({ ...np, kind: e.target.checked ? 'internal' : 'client' } as any)} />
+                      Internal — e.g. business development; never shown to clients or subs
                     </label>
                   ) : kind === 'select-priority' ? (
                     <select value={(np as any)[key as string] || 'Medium'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{PRIORITIES.map((o) => <option key={o}>{o}</option>)}</select>

@@ -93,14 +93,17 @@ export class DashboardController {
   @Tiers('internal')
   @Perm('pipeline', 'crm_holding')
   @Get('lead-funnel')
-  getLeadFunnel() {
+  async getLeadFunnel(@Claims() claims: SessionClaims | null) {
+    // Company-wide figures: not for "Assigned projects" accounts (Nov 10).
+    if ((await this.access.allowedIds(claims)) !== 'all') return [];
     return this.dashboardService.getLeadFunnel();
   }
 
   @Tiers('internal')
   @Perm('tasks', 'people')
   @Get('workload')
-  getWorkload() {
+  async getWorkload(@Claims() claims: SessionClaims | null) {
+    if ((await this.access.allowedIds(claims)) !== 'all') return [];
     return this.dashboardService.getWorkload();
   }
 }

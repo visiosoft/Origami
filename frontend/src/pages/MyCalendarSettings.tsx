@@ -86,6 +86,8 @@ export function MyCalendarSettings() {
             {status.connectedAt && (
               <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 14 }}>Since {new Date(status.connectedAt).toLocaleDateString()}</div>
             )}
+            {/* Nov 13: the connection can now also find the Gemini notes of meetings you attend. */}
+            {(!status.connectedAt || status.connectedAt < '2026-11-14') && <div style={{ fontSize: 12, color: 'var(--body)', marginBottom: 12, lineHeight: 1.5 }}>Press <b>Reconnect</b> once so Origami can also bring in the “Notes by Gemini” of meetings you attend but don’t organise.</div>}
             <div style={{ display: 'flex', gap: 8 }}>
               <a href={api.google.myCalendar.connectUrl()} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, background: 'var(--mist)', color: 'var(--forest)', textDecoration: 'none' }}>Reconnect</a>
               <div onClick={disconnecting ? undefined : disconnect} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: disconnecting ? 'default' : 'pointer', border: '1px solid rgba(142,46,10,0.2)', color: '#8E2E0A' }}>

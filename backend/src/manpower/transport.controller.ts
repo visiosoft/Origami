@@ -1,3 +1,4 @@
+import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put } from '@nestjs/common';
 import { IsArray, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Tiers } from '../auth/guards/roles.decorator';
@@ -28,6 +29,7 @@ export class RiderEndDto {
 }
 
 @Tiers('internal')
+@ManageWrites('manpower_con', 'fin_resources')
 @Controller('transport')
 export class TransportController {
   constructor(private readonly service: TransportService, private readonly access: ManpowerAccess) {}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exifDate, groupBy, weekOf } from './progressPhotos';
+import { addedDay, exifDate, groupBy, weekOf } from './progressPhotos';
 
 /** A minimal JPEG: SOI, then APP1 Exif with IFD0 -> ExifIFD -> DateTimeOriginal. */
 function jpegWithDate(date: string, le = true): ArrayBuffer {
@@ -27,5 +27,13 @@ describe('progress photos', () => {
   it('groups by week', () => {
     expect(weekOf('2026-10-18')).toBe('2026-10-12');
     expect(groupBy([{ d: 'a' }, { d: 'b' }, { d: 'a' }], (r) => r.d).map(([k, v]) => [k, v.length])).toEqual([['a', 2], ['b', 1]]);
+  });
+});
+
+describe('addedDay (Nov 10: upload date beside the camera date)', () => {
+  it('shows the day added only when it differs from the day taken', () => {
+    expect(addedDay({ takenOn: '2026-11-03', uploadedAt: '2026-11-05T15:00:00' })).toBe('2026-11-05');
+    expect(addedDay({ takenOn: '2026-11-05', uploadedAt: '2026-11-05T15:00:00' })).toBeNull();
+    expect(addedDay({ takenOn: '2026-11-05', uploadedAt: null })).toBeNull();
   });
 });

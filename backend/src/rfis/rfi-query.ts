@@ -17,13 +17,14 @@ export const isOverdue = (r: R, today: string) => r.status === 'open' && !!r.dat
 
 const STATUS_LABEL: Record<string, string> = { draft: 'Draft', open: 'Open', answered: 'Answered', closed: 'Closed', void: 'Void' };
 
-export interface RfiQuery { status?: string; q?: string; sort?: string; dir?: 'asc' | 'desc'; page?: unknown; size?: unknown; today: string }
+export interface RfiQuery { status?: string; q?: string; csi?: string; sort?: string; dir?: 'asc' | 'desc'; page?: unknown; size?: unknown; today: string }
 
 export function queryRfis(all: R[], o: RfiQuery) {
   const status = o.status || 'active';
   const t = String(o.q || '').trim().toLowerCase();
   const shown = all
     .filter((r) => (status === 'all' ? true : status === 'active' ? r.status !== 'closed' && r.status !== 'void' : r.status === status))
+    .filter((r) => !o.csi || r.csiCodeId === o.csi)
     .filter((r) => !t || [r.number, r.subject, r.to?.name, r.to?.company, r.projectName, r.drawingRef, r.discipline].some((x) => String(x || '').toLowerCase().includes(t)));
   const by: Record<string, (r: R) => string | number | null | undefined> = {
     number: (r) => r.number, subject: (r) => r.subject, project: (r) => r.projectName, to: (r) => r.to?.name, status: (r) => STATUS_LABEL[r.status] || r.status,

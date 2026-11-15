@@ -8,6 +8,8 @@ import {
 import './AccessBoard.css';
 import { LevelCell, UserAccessDrawer } from './AccessLevels';
 import { UnlinkedLogins } from './UnlinkedLogins';
+import { DuplicateRoles } from './DuplicateRoles';
+import { FieldRolePolicy } from './FieldRolePolicy';
 import { OVERALL_KEY, dataTypeLabel, permFor, usesLevels, type Extent, type Level as AccessLevel } from '../data/accessLevels';
 
 type Perms = Role['permissions'];
@@ -175,6 +177,8 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
       </div>
 
       <UnlinkedLogins canFix={!readOnly} />
+      <DuplicateRoles canFix={!readOnly} />
+      <FieldRolePolicy canFix={!readOnly} />
       <div className="ab-grid">
         {/* People */}
         <section className="ab-card ab-people">

@@ -1,0 +1,64 @@
+# Uptime check (Batch 6): every 15 minutes, ask the app's health endpoint
+# whether the server and its database answer. Two failures a minute apart
+# fail this run, so GitHub emails the repository admins; if the Quo secrets
+# are set (QUO_API_KEY, QUO_FROM, IT_PHONE) it also texts IT.
+# GitHub may start scheduled runs a few minutes late when it is busy.
+name: Uptime check
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Staging. Add Prod (Odin) here once it serves /api/status/health.
+          - name: Staging
+            url: https://dev-bzg9gyceeua8d5e9.canadacentral-01.azurewebsites.net/api/status/health
+    steps:
+      - name: Check ${{ matrix.name }}
+        id: check
+        env:
+          URL: ${{ matrix.url }}
+        run: |
+          try() { curl -sS -o body.txt -w '%{http_code}' --max-time 30 "$URL" || echo 000; }
+          code=$(try)
+          if [ "$code" != "200" ]; then
+            echo "First try: HTTP $code. Trying again in 60 seconds."
+            sleep 60
+            code=$(try)
+          fi
+          echo "HTTP $code"; head -c 400 body.txt 2>/dev/null; echo
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          [ "$code" = "200" ]
+
+      - name: Text IT
+        if: failure() && steps.check.outcome == 'failure'
+        env:
+          QUO_API_KEY: ${{ secrets.QUO_API_KEY }}
+          QUO_FROM: ${{ secrets.QUO_FROM }}
+          IT_PHONE: ${{ secrets.IT_PHONE }}
+          NAME: ${{ matrix.name }}
+          CODE: ${{ steps.check.outputs.code }}
+        run: |
+          if [ -z "$QUO_API_KEY" ] || [ -z "$QUO_FROM" ] || [ -z "$IT_PHONE" ]; then
+            echo "Quo secrets not set; GitHub's failed-run email is the alert."
+            exit 0
+          fi
+          msg="Origami $NAME is not answering (HTTP $CODE, twice, a minute apart). $(date -u '+%H:%M UTC')"
+          payload=$(jq -n --arg c "$msg" --arg f "$QUO_FROM" --arg t "$IT_PHONE" '{content:$c, from:$f, to:[$t]}')
+          curl -sS --max-time 20 -X POST https://api.openphone.com/v1/messages \
+            -H "Authorization: $QUO_API_KEY" -H 'Content-Type: application/json' -d "$payload" -o /dev/null -w 'Quo: HTTP %{http_code}\n' || true

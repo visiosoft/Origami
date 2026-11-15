@@ -26,6 +26,8 @@ const People = page(() => import('./pages/People'), 'People');
 const Tasks = page(() => import('./pages/Tasks'), 'Tasks');
 const SuperintendentTasks = page(() => import('./pages/SuperintendentHome'), 'SuperintendentTasks');
 const ModuleSpec = page(() => import('./pages/ModuleSpec'), 'ModuleSpec');
+const QaQc = page(() => import('./pages/QaQc'), 'QaQc');
+const TabHub = page(() => import('./pages/TabHub'), 'TabHub');
 const ProgressPhotos = page(() => import('./pages/ProgressPhotos'), 'ProgressPhotos');
 const PublicPage = page(() => import('./pages/PublicPage'), 'PublicPage');
 const HoldingReferOut = page(() => import('./pages/HoldingReferOut'), 'HoldingReferOut');
@@ -34,6 +36,7 @@ const DailyReports = page(() => import('./pages/DailyReports'), 'DailyReports');
 const SpecialActions = page(() => import('./pages/SpecialActions'), 'SpecialActions');
 const BusinessFinance = page(() => import('./pages/BusinessFinance'), 'BusinessFinance');
 const Schedule = page(() => import('./pages/Schedule'), 'Schedule');
+const Estimating = page(() => import('./pages/Estimating'), 'Estimating');
 const Meetings = page(() => import('./pages/Meetings'), 'Meetings');
 const FinanceHome = page(() => import('./pages/FinanceHome'), 'FinanceHome');
 const FinanceGuide = page(() => import('./pages/FinanceGuide'), 'FinanceGuide');
@@ -51,6 +54,13 @@ const MyProjectProgram = page(() => import('./pages/MyProjectProgram'), 'MyProje
 const ConsultantMatrix = page(() => import('./pages/ConsultantMatrix'), 'ConsultantMatrix');
 const MyCalendar = page(() => import('./pages/MyCalendar'), 'MyCalendar');
 const SignProposal = page(() => import('./pages/SignProposal'), 'SignProposal');
+const SignEstimate = page(() => import('./pages/SignEstimate'), 'SignEstimate');
+const TextPrefs = page(() => import('./pages/TextPrefs'), 'TextPrefs');
+const SubPrequal = page(() => import('./pages/SubPrequal'), 'SubPrequal');
+const Mail = page(() => import('./pages/Mail'), 'Mail');
+const PrequalForm = page(() => import('./pages/PrequalForm'), 'PrequalForm');
+const MassTexts = page(() => import('./pages/MassTexts'), 'MassTexts');
+const SubBid = page(() => import('./pages/SubBid'), 'SubBid');
 const SignContract = page(() => import('./pages/SignContract'), 'SignContract');
 const Contracts = page(() => import('./pages/Contracts'), 'Contracts');
 const GuestEntry = page(() => import('./pages/GuestEntry'), 'GuestEntry');
@@ -106,6 +116,14 @@ export default function App() {
       <Route path="/terms" element={<PublicPage file="terms" />} />
       {/* Public on purpose — a prospect signs a proposal from an emailed link, no account. */}
       <Route path="/sign-proposal" element={<SignProposal />} />
+      {/* Public on purpose — a client accepts an estimate from the emailed link, no account (K8). */}
+      <Route path="/sign-estimate" element={<SignEstimate />} />
+      {/* Public on purpose — the text settings link at the foot of every text (Nov 13). */}
+      <Route path="/texts" element={<TextPrefs />} />
+      {/* Public on purpose — a sub fills in their prequalification from our private link (Nov 13). */}
+      <Route path="/prequal" element={<PrequalForm />} />
+      {/* Public on purpose — a sub prices a bid package from the emailed link, no account (K10). */}
+      <Route path="/bid" element={<SubBid />} />
       <Route path="/sign-contract" element={<SignContract />} />
       {/* Public on purpose — where a guest access link logs a client/consultant in. */}
       <Route path="/guest" element={<GuestEntry />} />
@@ -122,6 +140,9 @@ export default function App() {
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/people" element={<People />} />
+        <Route path="/mass-texts" element={<MassTexts />} />
+        <Route path="/sub_prequal" element={<SubPrequal />} />
+        <Route path="/mail" element={<Mail />} />
         <Route path="/tasks" element={<TasksRouter />} />
         <Route path="/requests" element={<TasksRouter initialMode="log" />} />
         <Route path="/settings" element={<Settings />} />
@@ -147,6 +168,7 @@ export default function App() {
         <Route path="/reimbursement" element={<FinanceHome initial="reimbursables" />} />
         <Route path="/rfis" element={<RfisPage />} />
         <Route path="/fin_business" element={<BusinessFinance />} />
+        <Route path="/estimating" element={<Estimating />} />
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/schedule_con" element={<Schedule />} />
         <Route path="/meetings" element={<Meetings />} />
@@ -157,6 +179,16 @@ export default function App() {
         <Route path="/actions_design" element={<SpecialActions key="design" phase="design" />} />
         <Route path="/actions_con" element={<SpecialActions key="construction" phase="construction" />} />
         <Route path="/progress_photos" element={<ProgressPhotos />} />
+        {/* One page for several modules (Oct 30 sync); each module's own route still opens. */}
+        <Route path="/resources" element={<TabHub title="Resource Enterprise Management" tabs={[
+          { key: 'procurement', label: 'Procurement', perm: 'procurement', render: () => <ModuleSpec slug="procurement" /> },
+          { key: 'equipment', label: 'Equipment', perm: 'equipment', render: () => <ModuleSpec slug="equipment" /> },
+          { key: 'manpower', label: 'Manpower', perm: 'manpower_con', render: () => <Manpower /> },
+        ]} />} />
+        <Route path="/quality" element={<TabHub title="QA/QC & Safety" tabs={[
+          { key: 'quality', label: 'QA/QC', perm: 'quality', render: () => <QaQc /> },
+          { key: 'safety', label: 'Safety', perm: 'safety', render: () => <ModuleSpec slug="safety" /> },
+        ]} />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>
     </Routes>

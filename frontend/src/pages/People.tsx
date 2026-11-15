@@ -1,3 +1,4 @@
+import { ContactEmail } from '../components/ContactEmail';
 import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -27,10 +28,18 @@ import {
   CONTACT_STATUS_HINT, CONTACT_STATUS_LABEL, contactStatusOf, type ContactStatus, type DupMatch,
 } from '../data/people';
 import { Skeleton } from '../components/Skeleton';
+import { ConsultantFix } from '../components/ConsultantFix';
+import { PeopleProjectFix } from '../components/PeopleProjectFix';
 
 const BG = 'var(--font-display)';
 // Internal people are split by level (Executive … Labor); everyone else by kind.
 const KINDS = ['All', ...INTERNAL_LEVELS, 'Client', 'Consultant', 'Sub', 'Authority', 'Vendor'];
+/**
+ * Entries that are a firm (the name is the company, the person is the primary contact).
+ * Consultants are people (Nov 10: adding one saved the firm as their name): first and last
+ * name, with the firm as their company.
+ */
+const COMPANY_KINDS = ['Sub', 'Authority', 'Vendor'];
 const isLevel = (k: string) => (INTERNAL_LEVELS as readonly string[]).includes(k);
 const matchKind = (p: Person, k: string) => k === 'All' || (isLevel(k) ? internalLevelOf(p) === k : p.kind === k);
 const kindLabel = (k: string) => (k === 'Sub' ? 'Subs' : k);
@@ -168,7 +177,10 @@ export function People() {
   useEffect(() => { reload(); }, []);
 
   const all: Person[] = people;
-  const projectNames: string[] = [];
+  // The real projects (Nov 13): a new project can be picked before anyone is on it, and old names don't linger.
+  const [realProjects, setRealProjects] = useState<string[]>([]);
+  useEffect(() => { (api.projects.list() as Promise<any>).then((l) => setRealProjects((Array.isArray(l) ? l : l?.rows || []).map((p: any) => String(p.name)).filter(Boolean).sort((a: string, b: string) => a.localeCompare(b)))).catch(() => undefined); }, []);
+  const projectNames: string[] = [...realProjects];
   all.forEach((p) => p.projects.forEach((pr) => { if (!projectNames.includes(pr)) projectNames.push(pr); }));
 
   let shown = all.filter((p) => matchKind(p, kf));
@@ -344,7 +356,7 @@ export function People() {
     const [contactFirst, contactLast] = splitName(p.contact || '');
     const prof = normalizeProfile(p as any);
     // Older records hold one name: split it so first and last can be edited.
-    if (!['Consultant', 'Sub', 'Authority', 'Vendor'].includes(p.kind) && !prof.firstName && !prof.lastName) [prof.firstName, prof.lastName] = splitName(p.name);
+    if (!COMPANY_KINDS.includes(p.kind) && !prof.firstName && !prof.lastName) [prof.firstName, prof.lastName] = splitName(p.name);
     startPersonForm({
       name: p.name, kind: p.kind, role: p.role, company: p.company, contact: p.contact || '', contactFirst, contactLast,
       phone: p.phone === '—' ? '' : p.phone, email: p.email === '—' ? '' : p.email, tier: p.tier,
@@ -503,7 +515,7 @@ export function People() {
   );
 
   const tierFor: Record<string, Person['tier']> = { Staff: 'Internal', Client: 'Client', Consultant: 'Consultant', Sub: 'Consultant', Authority: 'Consultant', Vendor: 'Consultant' };
-  const isCompany = ['Consultant', 'Sub', 'Authority', 'Vendor'].includes(np.kind);
+  const isCompany = COMPANY_KINDS.includes(np.kind);
   const companyNames = [...new Set(all.map((p) => p.company).filter((c) => c && c !== '—'))].sort((a, b) => a.localeCompare(b));
   const needsComply = ['Consultant', 'Sub', 'Vendor'].includes(np.kind);
   const valid = np.name.trim().length > 1;
@@ -539,6 +551,7 @@ export function People() {
             <div key={v[0]} onClick={() => setView(v[0])} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', background: view === v[0] ? 'var(--seg-on)' : 'transparent', color: view === v[0] ? 'var(--ink)' : 'var(--body)' }}>{v[1]}</div>
           ))}
         </div>
+        {canManage && <button type="button" className="pp-btn is-ghost" onClick={() => navigate('/mass-texts')}>Mass text</button>}
         {canManage && <button type="button" className="pp-btn is-ghost" onClick={() => setImporting(true)}>Import</button>}
         {canManage && (
           <button type="button" className="pp-btn is-dark" onClick={openNew}>
@@ -597,6 +610,8 @@ export function People() {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: isNew ? 16 : 12 }}>
+      {canManage && <ConsultantFix onDone={reload} />}
+      {canManage && <PeopleProjectFix onDone={reload} />}
       {isNew ? newTop : <>
       {/* Stats */}
       {statsStrip}
@@ -637,7 +652,8 @@ export function People() {
       {/* Count + New */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>Showing {shown.length} of {all.length} records{pf === 'All projects' ? '' : ' on ' + pf}</div>
-        {canManage && <div onClick={() => setImporting(true)} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--surface)' }}>Import contacts</div>}
+        {canManage && <div role="button" onClick={() => navigate('/mass-texts')} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--surface)' }}>Mass text</div>}
+        {canManage && <div onClick={() => setImporting(true)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--surface)' }}>Import contacts</div>}
         {importing && <PeopleImport onClose={() => setImporting(false)} onDone={() => reload()} />}
         {canManage && (
           <div onClick={openNew} style={{ marginLeft: canManage ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(var(--rgb-forest), 0.22)' }}>
@@ -689,6 +705,7 @@ export function People() {
                 <TextClient entityType="person" entityId={String(sel.id)} phone={sel.phone} clientName={sel.contact || sel.name} label="Text" />
               </div>
             )}
+            {sel.email && sel.email !== '—' && <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}><ContactEmail email={sel.email} name={sel.contact || sel.name} /></div>}
             {!!(sel.businessCards?.front || sel.businessCards?.back) && (
               <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Business card</div>
@@ -826,8 +843,11 @@ export function People() {
               </>}
               {isCompany
                 ? <div>{lbl(np.kind === 'Sub' || np.kind === 'Vendor' ? 'Trade' : 'Discipline')}<PickOrType value={np.role} options={np.kind === 'Sub' || np.kind === 'Vendor' ? tradeNames : CONSULTANT_DISCIPLINES} placeholder="Type the trade" onChange={(role) => setNp({ ...np, role })} /></div>
-                : field('Role or title', 'role', 'e.g. Project Coordinator')}
-              <div>{lbl('Company shown in lists', isCompany ? 'same as above if left blank' : undefined)}<PickOrType value={np.company} options={companyNames} placeholder={isCompany ? 'Same as above if left blank' : 'e.g. Origami Design + Build'} newLabel="+ New company…" onChange={(company) => setNp({ ...np, company })} /></div>
+                : np.kind === 'Consultant'
+                  // A consultant is a person now (Nov 10), still with their discipline.
+                  ? <div>{lbl('Discipline')}<PickOrType value={np.role} options={CONSULTANT_DISCIPLINES} placeholder="e.g. Structural engineer" onChange={(role) => setNp({ ...np, role })} /></div>
+                  : field('Role or title', 'role', 'e.g. Project Coordinator')}
+              <div>{lbl(np.kind === 'Consultant' ? 'Firm' : 'Company shown in lists', isCompany ? 'same as above if left blank' : undefined)}<PickOrType value={np.company} options={companyNames} placeholder={isCompany ? 'Same as above if left blank' : 'e.g. Origami Design + Build'} newLabel="+ New company…" onChange={(company) => setNp({ ...np, company })} /></div>
               {isCompany && <>
                 <div>{lbl('Primary contact · first name')}<input value={np.contactFirst ?? splitName(np.contact)[0]} placeholder="e.g. Dana" aria-label="Primary contact first name" onChange={(e) => setNp({ ...np, contactFirst: e.target.value, contactLast: np.contactLast ?? splitName(np.contact)[1] })} style={textBox} /></div>
                 <div>{lbl('Primary contact · last name')}<input value={np.contactLast ?? splitName(np.contact)[1]} placeholder="e.g. Whitfield" aria-label="Primary contact last name" onChange={(e) => setNp({ ...np, contactLast: e.target.value, contactFirst: np.contactFirst ?? splitName(np.contact)[0] })} style={textBox} /></div>
@@ -837,9 +857,10 @@ export function People() {
               <div style={{ gridColumn: '1 / -1' }}>
                 {lbl('Projects they can access', np.projects.length ? np.projects.length + ' selected' : 'pick any number')}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {projectNames.map((o) => {
+                  {[...realProjects, ...np.projects.filter((o) => !realProjects.includes(o))].map((o) => {
                     const active = np.projects.includes(o);
-                    return <div key={o} onClick={() => setNp({ ...np, projects: active ? np.projects.filter((x) => x !== o) : [...np.projects, o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? 'var(--forest)' : 'var(--surface)', color: active ? 'white' : 'var(--muted)', border: '1px solid ' + (active ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o}</div>;
+                    const gone = realProjects.length > 0 && !realProjects.includes(o);
+                    return <div key={o} title={gone ? 'No project has this name now — untick it, or pick the right project' : undefined} onClick={() => setNp({ ...np, projects: active ? np.projects.filter((x) => x !== o) : [...np.projects, o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? 'var(--forest)' : 'var(--surface)', color: active ? 'white' : 'var(--muted)', border: '1px solid ' + (active ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o}{gone ? ' ⚠' : ''}</div>;
                   })}
                 </div>
               </div>

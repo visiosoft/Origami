@@ -27,7 +27,10 @@ import { RemindersModule } from './reminders/reminders.module';
 import { RfisModule } from './rfis/rfis.module';
 import { FileRoomModule } from './file-room/file-room.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { TagsModule } from './tags/tags.module';
+import { BackupModule } from './backup/backup.module';
 import { SmsModule } from './sms/sms.module';
+import { MailModule } from './mail/mail.module';
 import { TrackingModule } from './tracking/tracking.module';
 import { ProjectProgramModule } from './project-program/project-program.module';
 import { ProposalModule } from './proposals/proposal.module';
@@ -97,7 +100,10 @@ import { PermGuard } from './auth/guards/perm.guard';
     EmailTemplatesModule,
     DashboardModule,
     NotificationsModule,
+    TagsModule,
+    BackupModule,
     SmsModule,
+    MailModule,
     TrackingModule,
     ManpowerModule,
     FinanceModule,

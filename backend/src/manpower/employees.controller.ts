@@ -1,3 +1,4 @@
+import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -9,6 +10,7 @@ import { EmployeesService } from './employees.service';
 import { CreateEmployeeDto } from './dto/employee.dto';
 
 @Tiers('internal')
+@ManageWrites('manpower_con', 'fin_resources')
 @Controller('employees')
 export class EmployeesController {
   constructor(

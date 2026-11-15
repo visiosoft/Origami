@@ -1,7 +1,8 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, UseInterceptors } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { AuditService } from './audit.service';
 import { Perm } from '../auth/guards/perm.guard';
+import { ProjectScope } from '../auth/project-scope.interceptor';
 
 /**
  * A project's audit trail, under its Overview (Oct 27 sync: "restore the audit
@@ -10,6 +11,7 @@ import { Perm } from '../auth/guards/perm.guard';
  */
 @Tiers('internal')
 @Perm('projects')
+@UseInterceptors(ProjectScope)
 @Controller('audit-project')
 export class ProjectAuditController {
   constructor(private readonly audit: AuditService) {}

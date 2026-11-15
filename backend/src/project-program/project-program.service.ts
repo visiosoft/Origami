@@ -76,7 +76,7 @@ export class ProjectProgramService {
   /** Verifies the caller is the client on record for this project before handing back anything. */
   private async assertClientAccess(projectId: number, email: string) {
     const project = await this.projects.findOneBy({ id: projectId });
-    if (!project || !(await this.people.isClientOnProject(email, project.name))) {
+    if (!project || !(await this.people.isClientOnProject(email, { id: project.id, name: project.name }))) {
       throw new ForbiddenException('This project is not linked to your account.');
     }
     return project;

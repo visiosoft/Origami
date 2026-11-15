@@ -1,3 +1,4 @@
+import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
 import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Tiers } from '../auth/guards/roles.decorator';
@@ -31,6 +32,7 @@ export class RepayDto {
 }
 
 @Tiers('internal')
+@ManageWrites('manpower_con', 'fin_resources')
 @Controller('advances')
 export class AdvancesController {
   constructor(

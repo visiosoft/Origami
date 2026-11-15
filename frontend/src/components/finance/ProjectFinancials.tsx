@@ -11,10 +11,11 @@ import { InvoiceDrawer } from './InvoiceDrawer';
 import { ReimbursableList } from './Reimbursables';
 import { RetentionPanel } from './Retention';
 import { JobCostPanel, ProfitabilityPanel } from './JobCost';
+import { FundingPanel } from './Funding';
 import { Skeleton } from '../Skeleton';
 import { ChangeOrderWorkspace } from './ChangeEvents';
 
-type View = 'sov' | 'changes' | 'reimbursables' | 'retention' | 'invoices' | 'payments' | 'jobcost' | 'profit' | 'activity';
+type View = 'sov' | 'changes' | 'reimbursables' | 'retention' | 'funding' | 'invoices' | 'payments' | 'jobcost' | 'profit' | 'activity';
 type Filter = 'all' | 'design' | 'construction' | 'other' | 'unphased';
 
 /**
@@ -109,7 +110,7 @@ export function ProjectFinancials({ projectId, category, initialView }: { projec
         {([
           // Schedule of values, invoices, payments, change orders -- in that order, as the office reads them.
           ['sov', 'Schedule of values'], ['invoices', `Invoices${invoices ? ` (${invoices.length})` : ''}`],
-          ['payments', 'Payments'], ...(r.viewChangeOrders ? [['changes', 'Change orders']] : []), ...(r.viewReimbursables ? [['reimbursables', 'Reimbursables']] : []), ['retention', 'Retention'],
+          ['payments', 'Payments'], ...(r.viewChangeOrders ? [['changes', 'Change orders']] : []), ...(r.viewReimbursables ? [['reimbursables', 'Reimbursables']] : []), ['retention', 'Retention'], ['funding', 'Funding'],
           ...(r.viewProfitability || r.manageCosts ? [['jobcost', 'Job cost']] : []), ...(r.viewProfitability ? [['profit', 'Profitability']] : []), ['activity', 'Activity'],
         ] as [View, string][]).map(([k, l]) => (
           <div key={k} onClick={() => setView(k)} style={{ padding: '9px 13px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: view === k ? ACCENT : MUTED, borderBottom: '2px solid ' + (view === k ? ACCENT : 'transparent'), marginBottom: -1 }}>{l}</div>
@@ -126,6 +127,7 @@ export function ProjectFinancials({ projectId, category, initialView }: { projec
       {view === 'changes' && <ChangeOrderWorkspace projectId={projectId} rights={r} onChanged={load} />}
       {view === 'reimbursables' && <ReimbursableList key={tick} projectId={projectId} overview={data} rights={r} onChanged={load} onBill={(ids) => newInvoice(false, ids)} />}
       {view === 'jobcost' && <JobCostPanel key={tick} projectId={projectId} overview={data} initialSub={initialView === 'subcontracts' ? 'commitments' : undefined} />}
+      {view === 'funding' && <FundingPanel key={tick} projectId={projectId} />}
       {view === 'profit' && <ProfitabilityPanel key={tick} projectId={projectId} />}
       {view === 'retention' && <RetentionPanel key={tick} projectId={projectId} overview={data} rights={r} onOpenInvoice={setOpenInvoice} onChanged={() => Promise.all([load(), loadInvoices()])} />}
       {view === 'invoices' && (
@@ -381,6 +383,13 @@ function SettingsForm({ data, f, set }: { data: Overview; f: Record<string, any>
       <div><Label text="Reimbursable markup %" /><input type="number" min={0} max={100} step={0.5} value={f.reimbursableMarkupPct} onChange={(e) => set('reimbursableMarkupPct', e.target.value)} style={input} /></div>
       <div><Label text="Contract number" /><input value={f.contractNumber} onChange={(e) => set('contractNumber', e.target.value)} style={input} /></div>
       <div><Label text="Client PO number" /><input value={f.poNumber} onChange={(e) => set('poNumber', e.target.value)} style={input} /></div>
+      <div><Label text="Book type (what the client’s estimate shows)" />
+        <select value={f.bookType} onChange={(e) => set('bookType', e.target.value)} style={input} title="The client’s copy of an estimate shows what this client role may see in User Access & Roles">
+          <option value="open">Open book — costs and markups</option>
+          <option value="modified">Modified open book</option>
+          <option value="closed">Closed book — prices only</option>
+          <option value="lump_sum">Lump sum closed book</option>
+        </select></div>
       <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, color: INK, alignSelf: 'end', paddingBottom: 8 }}>
         <input type="checkbox" checked={!!f.requireProgressApproval} onChange={(e) => set('requireProgressApproval', e.target.checked)} />Progress must be approved before billing
       </label>
@@ -395,13 +404,13 @@ const formFrom = (data: Overview, s: Settings) => ({
   originalContractValue: s.exists ? s.originalContractValue : data.suggestedContract || '',
   originalBudget: s.originalBudget ?? '', retentionPct: s.exists ? s.retentionPct : 10, taxPct: s.taxPct ?? 0, paymentTermsDays: s.paymentTermsDays ?? 30,
   reimbursableMarkupPct: s.reimbursableMarkupPct ?? 0, laborBurdenPct: s.laborBurdenPct ?? 0,
-  requireProgressApproval: !!s.requireProgressApproval, contractNumber: s.contractNumber || '', poNumber: s.poNumber || '',
+  requireProgressApproval: !!s.requireProgressApproval, contractNumber: s.contractNumber || '', poNumber: s.poNumber || '', bookType: s.bookType || 'closed',
   billToName: s.billToName || data.billToDefaults?.name || '', billToEmail: s.billToEmail || data.billToDefaults?.email || '', billToAddress: s.billToAddress || data.billToDefaults?.address || '',
 });
 const payloadFrom = (f: Record<string, any>, locked: boolean) => ({
   ...(locked ? {} : { originalContractValue: Number(f.originalContractValue) || 0 }),
   originalBudget: f.originalBudget === '' ? null : Number(f.originalBudget), retentionPct: Number(f.retentionPct) || 0, taxPct: Number(f.taxPct) || 0,
-  paymentTermsDays: Number(f.paymentTermsDays) || 0, requireProgressApproval: !!f.requireProgressApproval, contractNumber: f.contractNumber, poNumber: f.poNumber,
+  paymentTermsDays: Number(f.paymentTermsDays) || 0, requireProgressApproval: !!f.requireProgressApproval, contractNumber: f.contractNumber, poNumber: f.poNumber, bookType: f.bookType || 'closed',
   reimbursableMarkupPct: Number(f.reimbursableMarkupPct) || 0, laborBurdenPct: Number(f.laborBurdenPct) || 0,
   billToName: f.billToName, billToEmail: f.billToEmail, billToAddress: f.billToAddress,
 });

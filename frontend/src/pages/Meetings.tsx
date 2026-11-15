@@ -18,6 +18,7 @@ import { SortSelect, sortFromString, sortToString, useSort } from '../components
 import './Meetings.css';
 import { Skeleton } from '../components/Skeleton';
 import { MeetingNotesImport } from '../components/MeetingNotesImport';
+import { parseMeetingNotes } from '../data/meetingNotes';
 import { TagPicker } from '../components/TagPicker';
 import { OutsideMeeting } from '../components/OutsideMeeting';
 
@@ -46,8 +47,8 @@ const linkOk = (u?: string) => !!u && /^https?:\/\//i.test(u.trim());
  * Complete by itself once everything raised in it is done. Past meetings
  * recorded only in the Special Actions Log (its meeting type and date) are listed too.
  */
-/** `projectName`: shown inside a project (its Special Actions tab) -- that project's only, no project picker. */
-export function Meetings({ projectName }: { projectName?: string } = {}) {
+/** `projectName`/`projectId`: shown inside a project (its Special Actions tab) -- that project's only, no project picker. */
+export function Meetings({ projectName, projectId }: { projectName?: string; projectId?: number } = {}) {
   const { can } = useApp();
   const [meetings, setMeetings] = useState<Meeting[] | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -63,6 +64,9 @@ export function Meetings({ projectName }: { projectName?: string } = {}) {
   // ?open=<meeting id> opens that meeting (links from Special Actions).
   const [params] = useSearchParams();
   const [openKey, setOpenKey] = useState<string | null>(params.get('open'));
+  const [googleOpen, setGoogleOpen] = useState(false);
+  /** A meeting just filled in from Google opens straight on its review. */
+  const [reviewFirst, setReviewFirst] = useState<string | null>(null);
   const canEdit = can('meetings', 'manage') || can('tasks', 'manage');
 
   useEffect(() => {
@@ -75,7 +79,9 @@ export function Meetings({ projectName }: { projectName?: string } = {}) {
 
   const today = akToday();
   const items = useMemo<Item[]>(() => {
-    const out: Item[] = (meetings || []).filter((m) => !projectName || m.project === projectName).map((m) => ({
+    // In a project: matched by id (a renamed project kept its meetings hidden when matched by name), else by name.
+    const inProject = (m: Meeting) => (!projectName && projectId == null) || (projectId != null && m.projectId === projectId) || (!!projectName && m.project === projectName);
+    const out: Item[] = (meetings || []).filter(inProject).map((m) => ({
       key: m.id, kind: 'meeting', date: m.date, time: m.time, title: m.title, type: m.type, project: m.project, status: meetingStatus(m.status), meeting: m,
       actions: tasks.filter((t) => t.meetingId === m.id),
     }));
@@ -91,7 +97,7 @@ export function Meetings({ projectName }: { projectName?: string } = {}) {
       out.push({ key: 'legacy:' + k, kind: 'legacy', date: isoDay(md) || raisedOn(list[0]) || '', title: `${type} meeting${isoDay(md) ? '' : ' · ' + md}`, type, project: proj, status: 'legacy', actions: list });
     }
     return out;
-  }, [meetings, tasks, projectName]);
+  }, [meetings, tasks, projectName, projectId]);
 
   const real = items.filter((i) => i.kind === 'meeting');
   const isUpcoming = (i: Item) => i.kind === 'meeting' && isPlanned(i.status) && i.date >= today;
@@ -123,7 +129,10 @@ export function Meetings({ projectName }: { projectName?: string } = {}) {
   return (
     <AkPage
       lead="Plan meetings, keep their notes, recordings and transcripts, then review them: pull out the tasks, RFIs and change orders, and the observations, FYIs and decisions to keep FOR RECORD."
-      action={canEdit ? <button type="button" className="ak-btn is-dark" onClick={() => setOpenKey('new')}>+ Meeting</button> : undefined}
+      action={canEdit ? <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" className="ak-btn" onClick={() => setGoogleOpen(true)} title="Bring in the “Notes by Gemini” from a Google Meet">Import notes from Google</button>
+        <button type="button" className="ak-btn is-dark" onClick={() => setOpenKey('new')}>+ Meeting</button>
+      </span> : undefined}
     >
       <AkStats items={[
         { key: 'next', label: 'Next meeting', value: upcoming[0] ? akDay(upcoming[0].date) : '—', sub: upcoming[0] ? [upcoming[0].title, timeLabel(upcoming[0].time)].filter(Boolean).join(' · ') : 'nothing scheduled', tone: upcoming[0] ? 'yellow' : undefined, onClick: upcoming[0] ? () => setOpenKey(upcoming[0].key) : undefined },
@@ -157,8 +166,10 @@ export function Meetings({ projectName }: { projectName?: string } = {}) {
         {meetings === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {meetings && !shown.length && (
           <div className="ak-empty">
-            {view === 'upcoming' && status === 'all' ? 'Nothing scheduled.' : 'No meetings here.'}
-            {canEdit && <> <button type="button" className="ak-link" onClick={() => setOpenKey('new')}>Schedule one</button></>}
+            {view === 'upcoming' && status === 'all' ? 'Nothing coming up.' : 'No meetings here.'}
+            {/* Nov 10: meetings that already happened (or are still marked Scheduled with a past date) live under Past -- say so. */}
+            {view === 'upcoming' && real.length > 0 && <> <button type="button" className="ak-link" onClick={() => setView('all')}>Show all {real.length} meeting{real.length === 1 ? '' : 's'}</button></>}
+            {canEdit && <> · <button type="button" className="ak-link" onClick={() => setOpenKey('new')}>Schedule one</button></>}
           </div>
         )}
         {sorted.map((i, n) => {
@@ -188,8 +199,14 @@ export function Meetings({ projectName }: { projectName?: string } = {}) {
         <NewMeeting projects={projects} onClose={() => setOpenKey(null)}
           onCreated={(m) => { setMeetings((p) => [m, ...(p || [])]); setOpenKey(m.id); }} />
       )}
+      {googleOpen && (
+        <GoogleNotesPicker onClose={() => setGoogleOpen(false)} onImported={(m) => {
+          setMeetings((p) => [m, ...(p || []).filter((x) => x.id !== m.id)]);
+          setGoogleOpen(false); setReviewFirst(m.id); setOpenKey(m.id);
+        }} />
+      )}
       {opened && (
-        <MeetingPanel key={opened.key} item={opened} projects={projects} rfis={rfis} cos={cos} canEdit={canEdit}
+        <MeetingPanel key={opened.key} item={opened} startReview={reviewFirst === opened.key} projects={projects} rfis={rfis} cos={cos} canEdit={canEdit}
           onClose={() => setOpenKey(null)}
           onSaved={(m) => setMeetings((p) => (p || []).map((x) => (x.id === m.id ? m : x)))}
           onDeleted={(id) => { setMeetings((p) => (p || []).filter((x) => x.id !== id)); setTasks((ts) => ts.map((t) => (t.meetingId === id ? { ...t, meetingId: undefined } : t))); setOpenKey(null); }}
@@ -262,6 +279,63 @@ function NewMeeting({ projects, onClose, onCreated }: { projects: { id: number; 
   );
 }
 
+// ------------------------------------------------------------------ notes from Google
+
+/**
+ * "Import notes from Google" (Nov 5): the Gemini notes Docs the connected
+ * Google account can open, newest first. Importing one fills in its meeting,
+ * or makes the meeting when it isn't in Origami yet, and opens its review.
+ */
+function GoogleNotesPicker({ onClose, onImported }: { onClose: () => void; onImported: (m: Meeting) => void }) {
+  const { toast } = useApp();
+  const [docs, setDocs] = useState<Awaited<ReturnType<typeof api.meetings.googleNotes>> | null>(null);
+  const [error, setError] = useState('');
+  const [link, setLink] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => { api.meetings.googleNotes().then(setDocs).catch((e: Error) => { setDocs([]); setError(e.message || 'Could not reach Google.'); }); }, []);
+  const go = async (d: { docId?: string; link?: string }) => {
+    setBusy(d.docId || 'link');
+    try {
+      const r = await api.meetings.importGoogleDoc(d);
+      toast(r.created ? `Meeting “${r.meeting.title}” made from the notes — review the suggested items` : `Notes added to “${r.meeting.title}” — review the suggested items`);
+      onImported(r.meeting);
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not imported')); } finally { setBusy(null); }
+  };
+  const when = (d: { date: string | null; time: string | null }) => (d.date ? `${akDay(d.date)}${d.time ? ' · ' + timeLabel(d.time) : ''}` : 'No date in the name');
+  return createPortal(
+    <div className="mt-bg" onClick={onClose}>
+      <aside className="mt-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Import notes from Google">
+        <div className="mt-head"><h2>Import notes from Google</h2><button type="button" className="mt-x" onClick={onClose} aria-label="Close">×</button></div>
+        <p className="mt-muted" style={{ margin: 0 }}>“Notes by Gemini” from Google Meet in the last 30 days that the connected Google account can open. Pick one: its notes and transcript go on the meeting — or on a new meeting if it isn’t in Origami — and you review the suggested tasks, decisions and FOR RECORD items before anything is created.</p>
+        <div className="mt-gn-list">
+          {docs === null ? <div className="mt-muted">Looking in Google Drive…</div>
+            : error ? <div className="mt-notice" role="alert"><span>{error}</span></div>
+              : !docs.length ? <div className="mt-muted">No “Notes by Gemini” shared with the connected Google account yet. Invite that account to your meetings (or share the notes Doc with it), or paste a Doc link below.</div>
+                : docs.map((d) => (
+                  <div key={d.id} className="mt-gn-row">
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <b>{d.title}</b>
+                      <div className="mt-muted">{when(d)} · {d.imported ? <>already on “{d.meetingTitle}”</> : d.meetingId ? <>goes on “{d.meetingTitle}”</> : <>a new meeting will be made</>}</div>
+                    </div>
+                    {d.link && <a className="ak-btn" href={d.link} target="_blank" rel="noreferrer">Open ↗</a>}
+                    <button type="button" className={'ak-btn' + (d.imported ? '' : ' is-dark')} disabled={!!busy} onClick={() => void go({ docId: d.id })}>{busy === d.id ? 'Importing…' : d.imported ? 'Import again' : 'Import'}</button>
+                  </div>
+                ))}
+        </div>
+        <div className="mt-row" style={{ alignItems: 'center' }}>
+          <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Or paste a Google Doc link" aria-label="Google Doc link" style={{ flex: 1, minWidth: 200 }} />
+          <button type="button" className="ak-btn" disabled={!link.trim() || !!busy} onClick={() => void go({ link: link.trim() })}>{busy === 'link' ? 'Importing…' : 'Import link'}</button>
+        </div>
+        <div className="mt-foot">
+          <span>Notes also arrive by themselves within the hour for meetings already in Origami.</span>
+          <button type="button" className="ak-btn" onClick={onClose}>Close</button>
+        </div>
+      </aside>
+    </div>,
+    document.body,
+  );
+}
+
 // ------------------------------------------------------------------ one meeting
 
 type Ctx = {
@@ -271,8 +345,8 @@ type Ctx = {
   onAction: (t: Task) => void; onRfi: (r: any) => void; onCo: (c: any) => void;
 };
 
-function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, onDeleted, onAction, onRfi, onCo }: {
-  item: Item; projects: { id: number; name: string }[]; rfis: any[]; cos: any[]; canEdit: boolean;
+function MeetingPanel({ item, projects, rfis, cos, canEdit, startReview, onClose, onSaved, onDeleted, onAction, onRfi, onCo }: {
+  item: Item; projects: { id: number; name: string }[]; rfis: any[]; cos: any[]; canEdit: boolean; startReview?: boolean;
   onClose: () => void; onSaved: (m: Meeting) => void; onDeleted: (id: string) => void; onAction: (t: Task) => void; onRfi: (r: any) => void; onCo: (c: any) => void;
 }) {
   const navigate = useNavigate();
@@ -280,8 +354,9 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
   const m0 = item.meeting;
   const [saved, setSaved] = useState<Meeting | null>(m0 || null);
   const [draft, setDraft] = useState<Meeting>(m0 ? { ...m0, status: meetingStatus(m0.status) } : ({} as Meeting));
-  const [reviewing, setReviewing] = useState(false);
   const editable = canEdit && item.kind === 'meeting';
+  const [reviewing, setReviewing] = useState(!!startReview && editable);
+  const [fetchingNotes, setFetchingNotes] = useState(false);
   const applyServer = (r: Meeting) => {
     setSaved(r); onSaved(r);
     // Keep fields the server owns in step, so autosave doesn't send them back.
@@ -319,7 +394,7 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
       description: [draft.project && `Project: ${draft.project}`, draft.agenda && `Agenda:\n${draft.agenda}`].filter(Boolean).join('\n\n') || undefined,
       attendees: attendees.map((a) => a.email || users.find((u) => u.id === a.id)?.email).filter(Boolean) as string[],
       video: draft.locationType === 'virtual' || /meet|zoom|teams|video|http/i.test(draft.location || ''),
-    }).then((ev) => toast(ev?.htmlLink ? 'Added to your Google Calendar — invites sent' : 'Added to your Google Calendar'))
+    }).then((ev) => { if (ev?.id) set({ calendarEventId: ev.id }); toast(ev?.htmlLink ? 'Added to your Google Calendar — invites sent' : 'Added to your Google Calendar'); })
       .catch((e: Error) => toast('⚠ ' + (e.message || 'Connect your Google Calendar in Settings → My account')));
   };
   const remove = () => {
@@ -350,6 +425,21 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
               {(st === 'reviewed' || st === 'complete') && draft.reviewedBy ? ` Reviewed by ${draft.reviewedBy}${draft.reviewedAt ? ' on ' + akDay(draft.reviewedAt) : ''}.` : ''}
               {st === 'reviewed' ? ' It turns Complete by itself once every task, RFI and change order from it is done.' : ''}
             </p>
+            {editable && st !== 'cancelled' && (
+              <div className="mt-row" style={{ alignItems: 'center' }}>
+                <button type="button" className="ak-btn" disabled={fetchingNotes} title="Fetch this meeting’s “Notes by Gemini” from Google Drive (found by title and date)" onClick={async () => {
+                  setFetchingNotes(true);
+                  try {
+                    const r = await api.meetings.importGoogle(draft.id);
+                    applyServer(r);
+                    setDraft((d) => ({ ...d, minutes: r.minutes || '', transcript: r.transcript || '', transcriptUrl: r.transcriptUrl || '', notesDocId: r.notesDocId, notesImportedAt: r.notesImportedAt, status: meetingStatus(r.status) }));
+                    toast('Notes imported from Google — review the suggested items');
+                    setReviewing(true);
+                  } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not imported')); } finally { setFetchingNotes(false); }
+                }}>{fetchingNotes ? 'Fetching…' : draft.notesImportedAt ? 'Import notes from Google again' : 'Import notes from Google'}</button>
+                {draft.notesImportedAt && <span className="mt-muted">Imported {new Date(draft.notesImportedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
+              </div>
+            )}
             {editable && st !== 'scheduled' && st !== 'rescheduled' && st !== 'cancelled' && (
               <button type="button" className={'ak-btn mt-review-btn' + (st === 'occurred' ? ' is-dark' : '')} onClick={() => setReviewing(true)}>
                 {st === 'occurred' ? 'Review notes & transcript for special actions →' : 'Open the review →'}
@@ -569,11 +659,32 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
   item: Item; draft: Meeting; set: (p: Partial<Meeting>) => void; auto: Autosave; ctx: Ctx; rfis: any[]; cos: any[]; onClose: () => void;
 }) {
   const navigate = useNavigate();
-  const [src, setSrc] = useState<'minutes' | 'transcript'>(draft.transcript?.trim() ? 'transcript' : 'minutes');
+  // Notes brought in from Google open on the notes, where their suggested items are.
+  const [src, setSrc] = useState<'minutes' | 'transcript'>(draft.transcript?.trim() && !draft.notesImportedAt ? 'transcript' : 'minutes');
   const [sel, setSel] = useState('');
   const [seed, setSeed] = useState<{ text: string; n: number }>({ text: '', n: 0 });
   const [importing, setImporting] = useState(false);
+  const { toast } = useApp();
   const st = meetingStatus(draft.status);
+  // Notes from Google (Nov 3 sync): they arrive by themselves after the meeting, or on demand here.
+  const [docLink, setDocLink] = useState('');
+  const [fetching, setFetching] = useState(false);
+  const fetchGoogle = async () => {
+    setFetching(true);
+    try {
+      const m = await api.meetings.importGoogle(draft.id, docLink.trim() || undefined);
+      ctx.applyServer(m);
+      set({ minutes: m.minutes || '', transcript: m.transcript || '', transcriptUrl: m.transcriptUrl || '', notesDocId: m.notesDocId, notesImportedAt: m.notesImportedAt });
+      setSrc('minutes'); setDocLink('');
+      toast('Notes imported from Google — review the suggested items');
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not imported')); }
+    finally { setFetching(false); }
+  };
+  const suggested = useMemo(() => {
+    if (!draft.notesImportedAt || !draft.minutes) return 0;
+    const p = parseMeetingNotes(draft.minutes, draft.date);
+    return p.records.length + p.tasks.length;
+  }, [draft.notesImportedAt, draft.minutes, draft.date]);
   const pickSel = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     const el = e.currentTarget;
     setSel(el.value.slice(el.selectionStart, el.selectionEnd).trim());
@@ -606,10 +717,22 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
               <span className="mt-muted">{sel ? `${sel.length} characters selected` : 'Select a passage to raise it as an item.'}</span>
               <button type="button" className="ak-btn is-dark" disabled={!sel} onClick={() => setSeed((s) => ({ text: sel, n: s.n + 1 }))}>Use selection →</button>
             </div>
+            {src === 'minutes' && draft.notesImportedAt && suggested > 0 && (
+              <div className="mt-notice" role="status">
+                <span><b>Notes imported from Google</b> {new Date(draft.notesImportedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} — {suggested} suggested item{suggested === 1 ? '' : 's'} to review.</span>
+                <button type="button" className="ak-btn is-dark" onClick={() => setImporting(true)}>Review items</button>
+              </div>
+            )}
             {src === 'minutes' && (
               <div className="mt-row" style={{ alignItems: 'center' }}>
-                <span className="mt-muted">Pasted Google Meet notes? Each summary bullet becomes a FOR RECORD item and each next step a task — you check them first.</span>
+                <span className="mt-muted">Google Meet notes? Each summary point becomes a FOR RECORD item, each decision a Decision and each next step a task — you check them first.</span>
                 <button type="button" className="ak-btn" disabled={!text.trim()} onClick={() => setImporting(true)}>Turn notes into items</button>
+              </div>
+            )}
+            {src === 'minutes' && (
+              <div className="mt-row" style={{ alignItems: 'center' }}>
+                <input value={docLink} onChange={(e) => setDocLink(e.target.value)} placeholder="Notes by Gemini — paste the Doc link, or leave empty to find it" aria-label="Google Doc link" style={{ flex: 1, minWidth: 200 }} />
+                <button type="button" className="ak-btn" disabled={fetching} onClick={() => void fetchGoogle()} title="Fetch the meeting's “Notes by Gemini” from Google Drive (it must be shared with the connected Google account)">{fetching ? 'Fetching…' : 'Import from Google'}</button>
               </div>
             )}
           </section>

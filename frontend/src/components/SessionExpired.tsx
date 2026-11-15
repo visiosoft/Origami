@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { PasswordInput } from './PasswordInput';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { TwoFactorStep, type TwoFactorTicket } from './TwoFactorStep';
 
 /**
  * Shown over the page when the session ran out while someone was working. They
@@ -14,14 +15,15 @@ export function SessionExpired() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  useEffect(() => { if (sessionExpired) { setEmail(currentUser?.email || ''); setPassword(''); setError(''); } }, [sessionExpired]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [twofa, setTwofa] = useState<TwoFactorTicket | null>(null);
+  useEffect(() => { if (sessionExpired) { setEmail(currentUser?.email || ''); setPassword(''); setError(''); setTwofa(null); } }, [sessionExpired]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!sessionExpired) return null;
 
   const submit = () => {
     if (!email.trim() || !password) { setError('Enter your password to continue.'); return; }
     setBusy(true); setError('');
     api.auth.login(email.trim(), password)
-      .then((r) => restoreSession(r.token, r.user as any))
+      .then((r) => { if (r.twoFactor && r.ticket) setTwofa({ step: r.twoFactor, ticket: r.ticket, name: r.name, email: r.email }); else restoreSession(r.token!, r.user as any); })
       .catch((e: Error) => setError(e.message || 'Sign in failed.'))
       .finally(() => setBusy(false));
   };
@@ -41,12 +43,14 @@ export function SessionExpired() {
         <div style={{ fontSize: 13.5, color: 'var(--body)', lineHeight: 1.55 }}>
           Your session ended. Sign in again to keep going — <b>this page stays open and nothing you typed is lost</b>; anything not saved yet is sent as soon as you’re back.
         </div>
+        {twofa ? <TwoFactorStep t={twofa} onCancel={() => setTwofa(null)} onSignedIn={(token, user) => restoreSession(token, user as any)} /> : <>
         <input style={input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" autoComplete="username" />
         <PasswordInput style={input} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoComplete="current-password" autoFocus
           onKeyDown={(e) => { if (e.key === 'Enter') submit(); }} />
         {error && <div style={{ fontSize: 13, color: '#9A4318' }}>{error}</div>}
         <button type="button" style={btn(true)} disabled={busy} onClick={submit}>{busy ? 'Signing in…' : 'Sign in and continue'}</button>
         <button type="button" style={btn(false)} disabled={busy} onClick={google}>Continue with Google</button>
+        </>}
         <button type="button" onClick={signOut} style={{ border: 0, background: 'none', padding: 0, font: 'inherit', fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer', justifySelf: 'center' }}>Sign out instead</button>
       </div>
     </div>

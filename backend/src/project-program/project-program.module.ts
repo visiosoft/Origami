@@ -1,3 +1,4 @@
+import { FileRoomModule } from '../file-room/file-room.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProjectProgramEntity, ProjectEntity, LeadProgramEntity, LeadEntity, ProjectProgramVersionEntity } from '../database/entities';
@@ -8,7 +9,7 @@ import { SettingsModule } from '../settings/settings.module';
 import { PeopleModule } from '../people/people.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProjectProgramEntity, ProjectEntity, LeadProgramEntity, LeadEntity, ProjectProgramVersionEntity]), GoogleModule, SettingsModule, PeopleModule],
+  imports: [TypeOrmModule.forFeature([ProjectProgramEntity, ProjectEntity, LeadProgramEntity, LeadEntity, ProjectProgramVersionEntity]), GoogleModule, SettingsModule, PeopleModule, FileRoomModule],
   controllers: [ProjectProgramController],
   providers: [ProjectProgramService],
   exports: [ProjectProgramService],

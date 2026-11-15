@@ -5,9 +5,10 @@ import { GoogleModule } from '../google/google.module';
 import { GoogleController } from '../google/google.controller';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { SmsModule } from '../sms/sms.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEntity, RoleEntity, GuestAccessEntity, EmployeeEntity]), GoogleModule],
+  imports: [TypeOrmModule.forFeature([UserEntity, RoleEntity, GuestAccessEntity, EmployeeEntity]), GoogleModule, SmsModule],
   controllers: [AuthController, GoogleController],
   providers: [AuthService],
   exports: [AuthService],

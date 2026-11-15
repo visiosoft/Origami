@@ -9,7 +9,7 @@ import { AUTO_REVIEW_REASON } from './contact-status';
 export const INTERACTION_KINDS = ['call', 'email', 'meeting', 'site_visit', 'note'] as const;
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const latest = (...xs: (string | null | undefined)[]) => xs.filter(Boolean).sort().pop() || null;
-const companyKey = (p: Pick<PersonEntity, 'company' | 'name' | 'kind'>) => String(['Consultant', 'Sub', 'Authority', 'Vendor'].includes(p.kind) ? p.name : p.company || '').trim().toLowerCase();
+const companyKey = (p: Pick<PersonEntity, 'company' | 'name' | 'kind'>) => String(['Sub', 'Authority', 'Vendor'].includes(p.kind) ? p.name : p.company || '').trim().toLowerCase();
 
 /**
  * A contact's Activity (Oct 27 backlog): interactions logged by hand, their

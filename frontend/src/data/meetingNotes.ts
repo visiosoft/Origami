@@ -13,7 +13,7 @@
  * Nothing leaves the browser; the team checks every item before it's added.
  */
 
-export interface NoteRecord { title: string; description: string }
+export interface NoteRecord { title: string; description: string; kind?: 'Decision' }
 export interface NoteTask { title: string; description: string; names: string[]; dueDate?: string; priority?: 'High' }
 export interface ParsedNotes { records: NoteRecord[]; tasks: NoteTask[] }
 
@@ -21,7 +21,13 @@ const BULLET = /^\s*(?:[•●▪◦*\-–]|\d+[.)])\s+/;
 const CHECKBOX = /^\s*(?:☐|☑|☒|\[\s?[xX]?\s?\]|[•●*\-–])\s*/;
 const isBullet = (l: string) => BULLET.test(l);
 const stripBullet = (l: string) => l.replace(BULLET, '').trim();
-const NEXT_STEPS = /^\s*(?:#+\s*)?next\s+steps\s*:?\s*$/i;
+const NEXT_STEPS = /^\s*(?:#+\s*)?(?:suggested\s+)?(?:next\s+steps|action\s+items)\s*:?\s*$/i;
+/** Where a list of next steps ends in Gemini's notes (Nov 3 sync): its footer, or the next section. */
+const STEPS_END = /^\s*(?:#+\s*)?(?:you should review gemini|want to see more|details|summary|decisions|invited\b|attachments\b|meeting records\b|how is the quality|please rate|[a-z]{3} \d{1,2}, \d{4}$)/i;
+const DECISIONS = /^\s*(?:#+\s*)?decisions\s*:?\s*$/i;
+const DECISION_GROUP = /^\s*(?:aligned|needs further discussion|agreed|open)\s*$/i;
+/** A sentence line under a heading (Gemini writes plain sentences, not bullets). */
+const isSentence = (l: string) => /[.!?]$/.test(l.trim()) && l.trim().split(/\s+/).length >= 4;
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
@@ -77,7 +83,8 @@ export function parseNextStep(line: string, meetingDate: string): NoteTask | nul
   const raw = line.replace(CHECKBOX, '').trim();
   if (!raw) return null;
   const m = /^\[([^\]]+)\]\s*(.*)$/.exec(raw);
-  const names = m ? m[1].split(/\s*(?:,|&|\band\b)\s*/).map((n) => n.trim()).filter(Boolean) : [];
+  // Split on commas, & and "and" -- but not inside a team's name ("IT and Systems Department").
+  const names = m ? m[1].split(/\s*,\s*/).flatMap((part) => (/\b(department|team|group|committee|office|services)\b/i.test(part) ? [part] : part.split(/\s*(?:&|\band\b)\s*/))).map((n) => n.trim()).filter(Boolean) : [];
   const rest = (m ? m[2] : raw).trim();
   const colon = rest.indexOf(':');
   const title = (colon > 0 && colon <= 80 ? rest.slice(0, colon) : rest.split(/(?<=[.!?])\s/)[0]).trim().replace(/[.:]$/, '');
@@ -91,24 +98,51 @@ export function parseMeetingNotes(text: string, meetingDate: string): ParsedNote
   const lines = String(text || '').replace(/\r/g, '').split('\n');
   const stop = lines.findIndex((l) => NEXT_STEPS.test(l));
   const summary = stop >= 0 ? lines.slice(0, stop) : lines;
-  const steps = stop >= 0 ? lines.slice(stop + 1) : [];
 
   const records: NoteRecord[] = [];
   let heading = '';
   for (let i = 0; i < summary.length; i++) {
     const l = summary[i].trim();
     if (!l) continue;
-    if (isBullet(summary[i])) {
-      if (heading) records.push({ title: heading, description: stripBullet(summary[i]) });
+    if (isBullet(summary[i]) || (heading && isSentence(l))) {
+      if (heading) records.push({ title: heading, description: isBullet(summary[i]) ? stripBullet(summary[i]) : l });
       continue;
     }
-    // A heading is a short plain line with a bullet straight after it (blank lines aside).
+    // A heading is a short plain line with a bullet -- or, in Gemini's notes, a sentence -- straight after it.
     let j = i + 1;
     while (j < summary.length && !summary[j].trim()) j++;
-    heading = j < summary.length && isBullet(summary[j]) && l.length <= 120 ? l.replace(/^#+\s*/, '').replace(/:$/, '') : '';
+    const next = j < summary.length ? summary[j] : '';
+    const dateLine = /^(?:[a-z]+,?\s+)?[a-z]{3,9}\.? \d{1,2},? \d{4}\b/i.test(l) || /^\d{1,4}[/-]\d{1,2}[/-]\d{1,4}/.test(l);
+    heading = (isBullet(next) || (isSentence(next) && !dateLine)) && l.length <= 120 && !/[.!?]$/.test(l) ? l.replace(/^#+\s*/, '').replace(/:$/, '') : '';
   }
 
-  const tasks = steps.map((l) => parseNextStep(l, meetingDate)).filter((t): t is NoteTask => !!t);
+  // Decisions (Gemini: "Aligned" / "Needs Further Discussion" groups of one-line decisions).
+  const d = lines.findIndex((l) => DECISIONS.test(l));
+  if (d >= 0) {
+    let group = '';
+    for (let i = d + 1; i < lines.length; i++) {
+      const l = lines[i].trim();
+      if (!l) continue;
+      if (NEXT_STEPS.test(l) || (STEPS_END.test(l) && !DECISIONS.test(l))) break;
+      if (DECISION_GROUP.test(l)) { group = l; continue; }
+      records.push({ title: group ? `Decision — ${group}` : 'Decision', description: stripBullet(l), kind: 'Decision' });
+    }
+  }
+
+  // Every "Next steps" list (Gemini repeats it), each up to its footer or the next section; the same step once.
+  const tasks: NoteTask[] = [];
+  const seen = new Set<string>();
+  lines.forEach((l, i) => {
+    if (!NEXT_STEPS.test(l)) return;
+    for (let k = i + 1; k < lines.length; k++) {
+      const line = lines[k];
+      if (!line.trim()) continue;
+      if (NEXT_STEPS.test(line) || STEPS_END.test(line.trim())) break;
+      const t = parseNextStep(line, meetingDate);
+      const key = t ? (t.title + '|' + t.names.join(',')).toLowerCase() : '';
+      if (t && !seen.has(key)) { seen.add(key); tasks.push(t); }
+    }
+  });
   return { records, tasks };
 }
 

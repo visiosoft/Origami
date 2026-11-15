@@ -1,7 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { MAIN_STRUCTURE, baseKey, programmeFor, scopedDeps, structureKey, type Structure } from './structures';
+import { fillByRole, PROJECT_ROLES, roleSummary } from './project-roles';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
+import { ChecklistTemplateEntity, ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity, UserEntity } from '../database/entities';
+import { withAutoChecklists } from './auto-checklist';
 import { RETIRED_PHASE_KEYS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
 import {
   DEFAULT_PROGRAMME, DEFAULT_LIBRARY, DEFAULT_TEMPLATE_KEY, parseProgramme, parseLibrary, slugifyTemplateKey, phaseCategorizer,
@@ -49,7 +52,52 @@ export class PhasesService implements OnApplicationBootstrap {
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     private readonly sections: SectionsService,
     private readonly settings: SettingsService,
+    @Optional() @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
+    @Optional() @InjectRepository(ChecklistTemplateEntity) private readonly checklistTemplates?: Repository<ChecklistTemplateEntity>,
   ) {}
+
+  // ------------------------------------------------------------- the project team (Nov 13)
+
+  private async nameOfUser(): Promise<(id: string) => string | null> {
+    const rows = this.users ? await this.users.find({ select: { id: true, name: true, status: true } as any }) : [];
+    const m = new Map(rows.filter((u) => u.status !== 'suspended').map((u) => [u.id, u.name]));
+    return (id) => m.get(id) || null;
+  }
+
+  /** Tasks given to a role and nobody yet get whoever fills that role on the project. */
+  async fillTeam(projectId: number, rows?: ProjectTaskEntity[]) {
+    const project = await this.projects.findOne({ where: { id: projectId }, select: { id: true, roles: true } as any });
+    if (!project?.roles || !Object.keys(project.roles).length) return 0;
+    const tasks = rows || (await this.tasks.find({ where: { projectId } }));
+    const changed = fillByRole(tasks, project.roles, await this.nameOfUser());
+    if (changed.length && !rows) await this.tasks.save(changed);
+    return changed.length;
+  }
+
+  /** Who fills each role, and how many open tasks wait on each empty one. */
+  async team(projectId: number) {
+    const project = await this.projects.findOne({ where: { id: projectId }, select: { id: true, roles: true } as any });
+    if (!project) throw new NotFoundException('Project not found');
+    const tasks = await this.tasks.find({ where: { projectId }, select: { id: true, team: true, assignee: true, assigneeId: true, completed: true, status: true } as any });
+    const nameOf = await this.nameOfUser();
+    return { roles: project.roles || {}, summary: roleSummary(tasks, project.roles).map((r) => ({ ...r, name: r.userId ? nameOf(r.userId) : null })) };
+  }
+
+  /** Change who fills the roles; their open, unassigned tasks follow. */
+  async setTeam(projectId: number, roles: Record<string, unknown>) {
+    const project = await this.projects.findOneBy({ id: projectId });
+    if (!project) throw new NotFoundException('Project not found');
+    const keys = new Set(PROJECT_ROLES.map((r) => r.key));
+    const next: Record<string, string> = { ...(project.roles || {}) };
+    for (const [k, v] of Object.entries(roles || {})) {
+      if (!keys.has(k)) throw new BadRequestException(`Unknown role "${k}".`);
+      const id = String(v ?? '').trim();
+      if (id) next[k] = id; else delete next[k];
+    }
+    await this.projects.update({ id: projectId }, { roles: Object.keys(next).length ? next : null } as any);
+    const filled = await this.fillTeam(projectId);
+    return { ...(await this.team(projectId)), filled };
+  }
 
   /**
    * The office's library of named programmes -- a kitchen remodel and a
@@ -141,6 +189,7 @@ export class PhasesService implements OnApplicationBootstrap {
       if (touched) enriched.push(task);
     }
     if (enriched.length) await this.tasks.save(enriched);
+    await this.fillTeam(projectId);
 
     const extraPhases = phases.filter((ph) => !plan.some((d) => d.key === ph.key)).map((ph) => ph.name);
     this.log.log(`Applied template to project ${projectId}: +${missingPhases.length} phase(s), +${after - before} task(s)`);
@@ -260,6 +309,8 @@ export class PhasesService implements OnApplicationBootstrap {
     const sectionId = (sections[0])?.id ?? `S-${projectId}-0`;
     const existing = await this.tasks.find({ where: { projectId } });
     const stamp = new Date().toISOString();
+    // QA/QC checklists tied to a programme task or a label go on as the task is set up (Nov 13).
+    const qaqc = this.checklistTemplates ? (await this.checklistTemplates.find()).filter((t) => t.kind === 'qaqc') : [];
     const rows: ProjectTaskEntity[] = [];
     const touched: ProjectTaskEntity[] = [];
 
@@ -300,7 +351,7 @@ export class PhasesService implements OnApplicationBootstrap {
           completed: false,
           order: i,
           team: tpl.team || '',
-          attachments: [], comments: [], checklist: [], labels: tpl.labels || [],
+          attachments: [], comments: [], checklist: qaqc.length ? withAutoChecklists(qaqc, { kind: 'task', labels: tpl.labels || [], programmeId: tpl.id }, []) : [], labels: tpl.labels || [],
           activity: [event('created', { name: 'System' }, { text: 'added from the standard programme' })],
           createdAt: stamp.slice(0, 10),
           updatedAt: stamp,
@@ -309,6 +360,8 @@ export class PhasesService implements OnApplicationBootstrap {
       phase.seededAt = stamp;
     }
 
+    // Given to a role: the person who fills it on this project (Nov 13).
+    if (rows.length) await this.fillTeam(projectId, rows);
     if (rows.length) await this.tasks.save(rows);
     if (touched.length) await this.tasks.save(touched);
     await this.repo.save(pending);
@@ -368,7 +421,7 @@ export class PhasesService implements OnApplicationBootstrap {
           const c = byPhase.get(ph.id) || { total: 0, done: 0 };
           return {
             id: ph.id, key: ph.key, name: ph.name, color: ph.color, order: ph.order,
-            category: categoryOf(ph.key),
+            category: categoryOf(baseKey(ph.key)), structureKey: (ph as any).structureKey || null,
             total: c.total, done: c.done,
             progress: c.total ? Math.round((c.done / c.total) * 100) : 0,
             complete: c.total > 0 && c.done === c.total,
@@ -415,6 +468,7 @@ export class PhasesService implements OnApplicationBootstrap {
         holdUntil: project.holdUntil || '',
         holdReason: project.holdReason || '',
         currentPhaseKey: current?.key ?? null,
+        structures: project.structures || [],
         phases: own,
         taskTotal: total,
         taskDone: done,
@@ -453,8 +507,8 @@ export class PhasesService implements OnApplicationBootstrap {
       return {
         projectId: r.projectId, name: r.name, stage: r.stage, contractType: r.contractType, estStart: r.estStart, duration: r.duration,
         holdSince: r.holdSince, holdUntil: r.holdUntil, progress: r.progress, currentPhaseKey: r.currentPhaseKey,
-        start: span?.start || null, end: span?.end || null,
-        phases: r.phases.map((ph) => ({ id: ph.id, key: ph.key, name: ph.name, color: ph.color, progress: ph.progress, complete: ph.complete, total: ph.total, start: phaseSpan.get(ph.id)?.start || null, end: phaseSpan.get(ph.id)?.end || null })),
+        start: span?.start || null, end: span?.end || null, structures: r.structures,
+        phases: r.phases.map((ph) => ({ id: ph.id, key: ph.key, structureKey: ph.structureKey, name: ph.name, color: ph.color, progress: ph.progress, complete: ph.complete, total: ph.total, start: phaseSpan.get(ph.id)?.start || null, end: phaseSpan.get(ph.id)?.end || null })),
       };
     });
   }
@@ -524,7 +578,8 @@ export class PhasesService implements OnApplicationBootstrap {
     const dependsOn = new Map<string, string[]>(
       plan.map((d, i) => [d.key, d.dependsOn?.length ? d.dependsOn : d.gated && i > 0 ? [plan[i - 1].key] : []]),
     );
-    const phases = rowPhases.map((ph) => ({ ...ph, category: categoryOf(ph.key), gated: gated.has(ph.key), dependsOn: dependsOn.get(ph.key) || [], weeks: weeks.get(ph.key) || 0 }));
+    // A structure's copies ("framing@adu") read the template by their base key, and depend on phases of the same structure.
+    const phases = rowPhases.map((ph) => ({ ...ph, category: categoryOf(baseKey(ph.key)), gated: gated.has(baseKey(ph.key)), dependsOn: scopedDeps(ph.key, dependsOn.get(baseKey(ph.key)) || []), weeks: weeks.get(baseKey(ph.key)) || 0 }));
 
     // How long each task is meant to take, read off the template by its stable
     // id so a change in the Library reaches every project at once. A task with
@@ -543,10 +598,67 @@ export class PhasesService implements OnApplicationBootstrap {
     }
     const withTargets = tasks.map((row) => {
       const m = /^T-\d+-(.+)$/.exec(row.id);
-      const hit = m ? target.get(m[1]) : undefined;
+      const hit = m ? target.get(m[1].split('@')[0]) : undefined;
       return { ...row, targetDays: hit?.days || 0, targetDerived: !!hit?.derived };
     });
-    return { phases, tasks: withTargets };
+    return { phases, tasks: withTargets, structures: project?.structures || [] };
+  }
+
+  // ------------------------------------------------------------- structures (Batch 6)
+
+  /**
+   * Add a building to the lot (e.g. the ADU): the programme's phases are
+   * copied for it, with their template tasks, keyed "<phase>@<structure>".
+   * The first one added also names the existing phases' building (Main house).
+   */
+  async addStructure(projectId: number, name: string, mainName?: string) {
+    const project = await this.projects.findOneBy({ id: projectId });
+    if (!project) throw new BadRequestException('Which project?');
+    const clean = String(name || '').trim().slice(0, 60);
+    if (!clean) throw new BadRequestException('Name the structure, e.g. “ADU”.');
+    await this.forProject(projectId); // the main structure's phases exist first
+    const list: Structure[] = project.structures?.length ? [...project.structures] : [{ ...MAIN_STRUCTURE, name: String(mainName || '').trim().slice(0, 60) || MAIN_STRUCTURE.name }];
+    if (list.some((s) => s.name.toLowerCase() === clean.toLowerCase())) throw new BadRequestException(`There’s already a structure called ${clean}.`);
+    const key = structureKey(clean, list.map((s) => s.key));
+    list.push({ key, name: clean });
+    const plan = programmeFor(await this.programmeFor(projectId), key);
+    const existing = await this.repo.find({ where: { projectId } });
+    const start = existing.reduce((m, p) => Math.max(m, p.order), -1) + 1;
+    const created = await this.repo.save(plan.map((d, i) => this.repo.create({
+      id: `PH-${projectId}-${d.key}`, projectId, key: d.key, name: (d as any).name, color: (d as any).color, order: start + i, structureKey: key,
+    } as Partial<ProjectPhaseEntity>)));
+    await this.seedChecklists(projectId, created, plan as any);
+    project.structures = list;
+    await this.projects.save(project);
+    return { structures: list, phasesAdded: created.length };
+  }
+
+  async renameStructure(projectId: number, key: string, name: string) {
+    const project = await this.projects.findOneBy({ id: projectId });
+    const s = project?.structures?.find((x) => x.key === key);
+    if (!project || !s) throw new BadRequestException('Structure not found.');
+    const clean = String(name || '').trim().slice(0, 60);
+    if (!clean) throw new BadRequestException('Give it a name.');
+    s.name = clean;
+    await this.projects.save(project);
+    return { structures: project.structures };
+  }
+
+  /** Take a structure off again -- only while none of its work has started. */
+  async removeStructure(projectId: number, key: string) {
+    const project = await this.projects.findOneBy({ id: projectId });
+    if (!project?.structures?.some((x) => x.key === key)) throw new BadRequestException('Structure not found.');
+    if (key === MAIN_STRUCTURE.key) throw new BadRequestException('The main structure stays; rename it instead.');
+    const phases = await this.repo.find({ where: { projectId, structureKey: key } });
+    const ids = new Set(phases.map((p) => p.id));
+    const tasks = (await this.tasks.find({ where: { projectId } as any })).filter((t) => t.phaseId && ids.has(t.phaseId));
+    if (tasks.some((t) => t.completed || (t.status && t.status !== 'Not started'))) throw new BadRequestException('Work on this structure has started, so it can’t be removed. Hide its phases instead.');
+    if (tasks.length) await this.tasks.remove(tasks);
+    if (phases.length) await this.repo.remove(phases);
+    const left = project.structures.filter((x) => x.key !== key);
+    project.structures = left.length > 1 ? left : null;
+    await this.projects.save(project);
+    return { structures: project.structures || [] };
   }
 
   /**

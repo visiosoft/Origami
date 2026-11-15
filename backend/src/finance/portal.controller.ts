@@ -43,6 +43,21 @@ export class PortalController {
     return this.portal.attachToInvoice(c, batchId, files, { name: c?.name || 'Subcontractor', id: c?.sub });
   }
 
+  /** Lien releases (Batch 6): on an invoice, or a final one on a subcontract; the retention held. */
+  @Post('invoices/:batchId/releases')
+  @UseInterceptors(FilesInterceptor('files', 1, { limits: { fileSize: MAX_FILE_BYTES } }))
+  invoiceRelease(@Param('batchId') batchId: string, @UploadedFiles() files: any[], @Body() body: any, @Claims() c: SessionClaims | null) {
+    return this.portal.uploadRelease(c, { invoiceId: batchId }, files, body?.kind);
+  }
+
+  @Post('subcontracts/:id/releases')
+  @UseInterceptors(FilesInterceptor('files', 1, { limits: { fileSize: MAX_FILE_BYTES } }))
+  finalRelease(@Param('id') id: string, @UploadedFiles() files: any[], @Body() body: any, @Claims() c: SessionClaims | null) {
+    return this.portal.uploadRelease(c, { commitmentId: id }, files, body?.kind);
+  }
+
+  @Get('retention') retention(@Claims() c: SessionClaims | null) { return this.portal.retention(c); }
+
   @Get('bills/:entryId/files/:attId')
   async billFile(@Param('entryId') entryId: string, @Param('attId') attId: string, @Query('thumb') thumb: string, @Claims() c: SessionClaims | null, @Res() res: Response) {
     await stream(this.attachments, await this.portal.file(c, { entryId }, attId), thumb === '1', res);

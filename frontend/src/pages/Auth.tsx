@@ -7,6 +7,7 @@ import { useApp } from '../AppContext';
 import { takeReturnTo } from '../returnTo';
 import { AuthLayout, authInput, label as fieldLabel } from './AuthLayout';
 import { LoginNotice } from '../components/ServerStatusBanner';
+import { TwoFactorStep, type TwoFactorTicket } from '../components/TwoFactorStep';
 
 export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   const navigate = useNavigate();
@@ -31,10 +32,19 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   const [notice, setNotice] = useState(params.get('notice') ?? '');
   const [busy, setBusy] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
+  // Staff: the second step after the password or Google (Nov 13).
+  const [twofa, setTwofa] = useState<TwoFactorTicket | null>(null);
 
   // Google sends the browser back to /login#token=… after a successful sign-in.
   useEffect(() => {
     const hash = window.location.hash;
+    // Back from Google with a second step to do.
+    const tf = /twofa=([^&]+)/.exec(hash);
+    if (tf) {
+      window.history.replaceState(null, '', window.location.pathname);
+      setTwofa({ ticket: decodeURIComponent(tf[1]), step: /step=setup/.test(hash) ? 'setup' : 'code' });
+      return;
+    }
     const match = /token=([^&]+)/.exec(hash);
     if (!match) return;
     window.history.replaceState(null, '', window.location.pathname);
@@ -63,7 +73,8 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
     setBusy(true);
     api.auth.login(email.trim(), password)
       .then((res) => {
-        signIn(res.token, res.user as any);
+        if (res.twoFactor && res.ticket) { setTwofa({ step: res.twoFactor, ticket: res.ticket, name: res.name, email: res.email }); return; }
+        signIn(res.token!, res.user as any);
         leave();
       })
       .catch((e: Error) => setError(e.message || 'Sign in failed.'))
@@ -99,6 +110,18 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
           choose your password, and can then sign in with that password or with your Google account.
         </div>
         <div onClick={() => navigate('/login')} style={{ padding: '14px 0', borderRadius: 10, background: 'var(--forest)', color: '#fff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Back to log in</div>
+      </AuthLayout>
+    );
+  }
+
+  if (twofa) {
+    return (
+      <AuthLayout showBrand={width > 760} title={twofa.step === 'setup' ? 'Set up two-step sign-in' : 'Two-step sign-in'} subtitle={twofa.name ? `Signed in as ${twofa.name}. One more step.` : 'One more step.'}>
+        <TwoFactorStep t={twofa} onCancel={() => { setTwofa(null); setPassword(''); }} onSignedIn={(token, user) => {
+          // Opened from "You were signed out": hand the session back to the waiting page.
+          if (window.name === 'origami-reauth' && window.opener) { session.set(token); window.close(); return; }
+          signIn(token, user as any); leave();
+        }} />
       </AuthLayout>
     );
   }

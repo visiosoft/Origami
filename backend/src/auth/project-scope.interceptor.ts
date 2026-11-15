@@ -28,6 +28,8 @@ export class ProjectScope implements NestInterceptor {
     const path = String(req.route?.path || '');
     if (/projects\/:id\b/.test(path) && !mine(req.params?.id)) throw new ForbiddenException('You don’t have access to this project.');
     if (req.query?.projectId && !mine(req.query.projectId)) throw new ForbiddenException('You don’t have access to this project.');
+    // Routes that name it `:projectId` (audit-project/:projectId, lead-files/project/:projectId/all, ...) -- Nov 10.
+    if (req.params?.projectId && !mine(req.params.projectId)) throw new ForbiddenException('You don’t have access to this project.');
     const out = await lastValueFrom(next.handle());
     return narrow(out, allowed);
   }

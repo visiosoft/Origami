@@ -32,6 +32,8 @@ export interface ChecklistItem {
   id: string;
   item: string;
   done: boolean;
+  /** The checklist template it came from (Nov 13: QA/QC checklists are found by it). */
+  templateId?: string;
 }
 
 /** One entry in a task's history — field edits, comments, files, assignment. */

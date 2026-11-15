@@ -1,3 +1,4 @@
+import { isPhoto, photoPlace } from '../file-room/layout';
 import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { activityPage } from '../common/activity-page';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -5,6 +6,8 @@ import { In, IsNull, Not, Repository } from 'typeorm';
 import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '../database/slim-tasks';
 import { ListCache } from '../database/list-cache';
 import { NotifyHub } from '../notifications/notify-hub.service';
+import { TagsService } from '../tags/tags.service';
+import { cleanTags } from '../database/task.types';
 import { mentionedIds } from '../tasks/mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from '../tasks/task-rules';
 import { ChecklistTemplateEntity, LeadEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
@@ -41,6 +44,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     @Optional() private readonly hub?: NotifyHub,
     @Optional() @InjectRepository(TaskEntity) private readonly logTasks?: Repository<TaskEntity>,
     @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
+    @Optional() private readonly tagBank?: TagsService,
   ) {}
 
   /**
@@ -129,6 +133,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       activity: normalizeList<ActivityEvent>(task.activity),
       checklist: normalizeList(task.checklist),
       labels: normalizeList<string>(task.labels),
+      tags: Array.isArray(task.tags) ? task.tags : [],
       dependsOn: normalizeList<string>(task.dependsOn),
       status: task.status || (task.completed ? 'Done' : 'Not started'),
     } as ProjectTaskEntity;
@@ -331,6 +336,12 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     }
     const assignee = await resolveAssignee(this.users, { id: dto.assigneeId, name: dto.assignee });
     if (dto.leadId !== undefined) dto = { ...dto, ...(await resolveLead(this.leads, dto.leadId)) };
+    // Tags (Oct 30 sync) on board tasks: Internal by default, where it was made; custom ones join the shared list.
+    // Phase Board tasks are the project's programme, so they keep only what was picked.
+    if (this.tagBank && !dto.phaseId) {
+      const t = await this.tagBank.newItemTags({ tags: dto.tags, labels: normalizeList<string>(dto.labels), actor, assigneeId: assignee.id, leadId: dto.leadId || null, projectId: dto.projectId == null ? null : Number(dto.projectId) });
+      dto = { ...dto, tags: t.tags, labels: t.labels };
+    } else dto = { ...dto, tags: cleanTags(dto.tags) };
     // Checklist templates marked "add automatically to" tasks (not subtasks).
     const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
     const checklist = withAutoChecklists(templates, { kind: 'task', labels: normalizeList<string>(dto.labels) }, normalizeList(dto.checklist));
@@ -374,7 +385,23 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if (defer) (task as any).pendingNotices = holdNotices(null, notices);
     const saved = await this.repo.save(this.repo.create(task as Partial<ProjectTaskEntity>));
     if (!defer) this.sendNotices(saved, notices);
+    if (saved.priority === 'Emergency') this.alertEmergency(saved, actor);
     return this.hydrate(saved);
+  }
+
+  /** Set to Emergency (Oct 30 sync): the people on it and every admin hear at once. Never blocks the save. */
+  private alertEmergency(t: ProjectTaskEntity, actor: UploadActor) {
+    if (!this.hub) return;
+    const due = t.dueDate ? `Due ${t.dueDate}. ` : '';
+    void (async () => {
+      const project = t.projectId != null && this.projects ? (await this.projects.findOneBy({ id: t.projectId }))?.name : null;
+      await this.hub!.emergency(this.involved(t), {
+        title: `🚨 EMERGENCY: ${t.title}${project ? ' — ' + project : ''}`,
+        body: `${due}${t.description || ''}`.trim() || undefined,
+        path: `/tasks?task=${encodeURIComponent(t.id)}${t.projectId != null ? `&project=${t.projectId}` : ''}`,
+        actorId: actor.id,
+      });
+    })().catch(() => undefined);
   }
 
   /** The task card an email carries. */
@@ -404,6 +431,12 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       const src = await resolveAssignee(this.users, { id: patch.requestedById, name: patch.requestedBy });
       patch.requestedBy = src.name;
       patch.requestedById = src.id ?? null;
+    }
+    if ('tags' in patch) patch.tags = cleanTags(patch.tags, task.tags);
+    if ('labels' in patch && this.tagBank) {
+      const t = await this.tagBank.editedTags({ tags: 'tags' in patch ? patch.tags : task.tags, labelsBefore: task.labels, labels: normalizeList<string>(patch.labels), actor });
+      patch.labels = t.labels;
+      patch.tags = cleanTags(t.tags, task.tags);
     }
     const note = cleanCompletionNote(patch.completionNote); delete patch.completionNote;
     if ('status' in patch) patch.status = normalizeTaskStatus(patch.status);
@@ -462,6 +495,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       ...(finished ? [{ kind: 'done' as const, ids: [], actor: who, at }] : []),
       ...(moved ? [{ kind: 'status' as const, ids: [], actor: who, at, status: patch.status }] : []),
     ];
+    const nowEmergency = patch.priority === 'Emergency' && task.priority !== 'Emergency';
     Object.assign(task, patch, { id });
     task.activity = [...normalizeList<ActivityEvent>(task.activity), ...events];
     task.updatedAt = new Date().toISOString();
@@ -470,6 +504,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     // Its subtasks (all finished -- checked above) go into the archive with it.
     if (closing) for (const s of await this.repo.findBy({ parentId: id })) if (!s.archivedAt) await this.repo.update({ id: s.id }, { archivedAt: saved.archivedAt } as any);
     if (!defer) this.sendNotices(saved, notices);
+    if (nowEmergency) this.alertEmergency(saved, actor);
     // High Viz work: everyone who follows High Viz hears when it moves.
     if (moved || finished) {
       void this.hub?.highVizTask({ labels: normalizeList<string>(saved.labels), projectId: saved.projectId },
@@ -598,13 +633,26 @@ export class ProjectTasksService implements OnApplicationBootstrap {
 
   // ------------------------------------------------------------- attachments
 
+  /** Photos on a project's task go to its File Room "Photos / Tasks" folder (Batch 6); other files as before. */
+  private async uploadSorted(files: any[], scope: string, actor: UploadActor, projectId: number | null) {
+    const project = projectId != null && this.projects ? await this.projects.findOneBy({ id: Number(projectId) }) : null;
+    const photos = project ? (files || []).filter(isPhoto) : [];
+    const rest = (files || []).filter((f) => !photos.includes(f));
+    if (!photos.length) return this.attachments.upload(files, scope, actor);
+    if (rest.length) this.attachments.assertCount(files);
+    return [
+      ...(await this.attachments.upload(photos, scope, actor, photoPlace(project!.name, false))),
+      ...(rest.length ? await this.attachments.upload(rest, scope, actor) : []),
+    ];
+  }
+
   private scopeFor(task: ProjectTaskEntity) {
     return task.projectId == null ? 'General Tasks' : `Project ${task.projectId}`;
   }
 
   async addAttachments(id: string, files: any[], actor: UploadActor) {
     const task = await this.load(id);
-    const added = await this.attachments.upload(files, this.scopeFor(task), actor);
+    const added = await this.uploadSorted(files, this.scopeFor(task), actor, task.projectId);
     task.attachments = [...normalizeAttachments(task.attachments), ...added];
     task.activity = [
       ...normalizeList<ActivityEvent>(task.activity),

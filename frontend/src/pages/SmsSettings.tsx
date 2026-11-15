@@ -18,9 +18,9 @@ const card: React.CSSProperties = {
 
 type Form = {
   'sms.accountSid': string; 'sms.authToken': string; 'sms.fromNumber': string; 'sms.enabled': string;
-  'sms.provider': string; 'sms.quoApiKey': string; 'sms.quoFrom': string;
+  'sms.provider': string; 'sms.quoApiKey': string; 'sms.quoFrom': string; 'sms.quoWebhookSecret': string;
 };
-const EMPTY: Form = { 'sms.accountSid': '', 'sms.authToken': '', 'sms.fromNumber': '', 'sms.enabled': 'true', 'sms.provider': 'twilio', 'sms.quoApiKey': '', 'sms.quoFrom': '' };
+const EMPTY: Form = { 'sms.accountSid': '', 'sms.authToken': '', 'sms.fromNumber': '', 'sms.enabled': 'true', 'sms.provider': 'twilio', 'sms.quoApiKey': '', 'sms.quoFrom': '', 'sms.quoWebhookSecret': '' };
 const QUO_LINE = '+16507614661';
 
 interface Status { provider?: 'twilio' | 'quo'; configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }
@@ -133,6 +133,14 @@ export function SmsSettings() {
               <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)' }}>Send from</label>
               <input style={inputStyle} value={form['sms.quoFrom']} onChange={(e) => set('sms.quoFrom', e.target.value)} placeholder={QUO_LINE} aria-label="Quo number" />
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>The Quo number texts come from. Blank = the office line, (650) 761-4661.</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)' }}>STOP replies — webhook signing secret</label>
+              <input style={inputStyle} type="password" value={form['sms.quoWebhookSecret']} onChange={(e) => set('sms.quoWebhookSecret', e.target.value)} placeholder={MASK} aria-label="Quo webhook signing secret" />
+              <span style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+                In Quo, add a webhook for <b>message.received</b> pointing to <code>{window.location.origin}/api/texts/quo-webhook</code> and paste its signing secret here.
+                People who reply STOP then stop getting texts; START turns them back on. Every text ends with “Reply STOP to opt out” and a link to choose which texts they get.
+              </span>
             </div>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>

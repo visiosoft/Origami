@@ -99,3 +99,11 @@ export const SAMPLE_TOKENS: Record<string, string> = {
   projectScope: 'Kitchen remodel and a rear addition', invoiceNumber: 'INV-0042', documentName: 'Project Program',
   date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
 };
+
+/** Fill the fields a template uses (Batch 6, My Mail); fields with no value stay as they are, so they show. */
+export function fillPlaceholders(text: string, values: Record<string, string | null | undefined>): string {
+  return String(text || '').replace(PLACEHOLDER_RE, (m, a, b) => {
+    const v = values[canonical(a || b)];
+    return v == null || v === '' ? m : v;
+  });
+}

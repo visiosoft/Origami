@@ -1,3 +1,4 @@
+import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put } from '@nestjs/common';
 import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Tiers } from '../auth/guards/roles.decorator';
@@ -41,6 +42,7 @@ export class IssueUpdateDto {
 }
 
 @Tiers('internal')
+@ManageWrites('manpower_con', 'fin_resources')
 @Controller('accommodation')
 export class AccommodationController {
   constructor(private readonly service: AccommodationService, private readonly access: ManpowerAccess) {}

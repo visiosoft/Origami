@@ -1,3 +1,4 @@
+import { viewAsMiddleware } from './auth/view-as';
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
@@ -11,7 +12,8 @@ import * as compression from 'compression';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody: the Quo webhook's signature is over the exact bytes sent (Nov 13).
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   app.setGlobalPrefix('api');
 
@@ -34,6 +36,8 @@ async function bootstrap() {
   });
 
   // Gzip responses: the app's JavaScript and the task lists are several MB as plain text.
+  // View as (Nov 13): the X-View-As header, for the length of each request.
+  app.use(viewAsMiddleware);
   app.use(compression());
 
   // Azure App Service terminates TLS and proxies every request, so without

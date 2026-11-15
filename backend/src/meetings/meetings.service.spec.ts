@@ -36,6 +36,15 @@ describe('MeetingsService', () => {
     expect(m).toMatchObject({ title: 'OAC meeting', status: 'scheduled', type: 'Internal', locationType: 'virtual', createdBy: 'Sara R.' });
   });
 
+  it('the creator attends their own meeting, so it never disappears for them (Nov 10)', async () => {
+    const { svc } = setup();
+    const m = await svc.create({ title: 'Site walk', date: '2026-11-10', attendees: [{ name: 'Jerrod' }] } as any, { name: 'George', id: 'U-G' });
+    expect(m.attendees).toEqual([{ name: 'Jerrod' }, { id: 'U-G', name: 'George' }]);
+    expect(m.createdById).toBe('U-G');
+    const again = await svc.create({ title: 'OAC', date: '2026-11-10', attendees: [{ id: 'U-G', name: 'George' }] } as any, { name: 'George', id: 'U-G' });
+    expect(again.attendees).toHaveLength(1);
+  });
+
   it('keeps an outside meeting’s organiser, company, platform and invite', async () => {
     const { svc } = setup();
     const m = await svc.create({ title: 'Plan check', date: '2026-11-04', type: 'Outside', organizer: 'Jane Ortiz', platform: 'teams', invite: 'Microsoft Teams meeting…' }, { name: 'A' });

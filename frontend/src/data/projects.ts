@@ -22,7 +22,12 @@ export interface Project {
   estStart: string;
   duration: string;
   scope: string;
-  stage: 'Kickoff' | 'Design' | 'Construction' | 'Closeout';
+  stage: 'Kickoff' | 'Design' | 'Construction' | 'Closeout' | 'Cancelled';
+  /** client (default) or internal, e.g. business development (Nov 13). */
+  kind?: 'client' | 'internal' | null;
+  /** When the stage last changed, and when it went to the archive (Nov 13). */
+  stageChangedAt?: string | null;
+  archivedAt?: string | null;
   progress: number;
   referral: string;
   contactedBy: string;
@@ -67,7 +72,11 @@ export const STAGE_CONFIG = [
   { name: 'Design', label: 'Design', color: 'var(--c-245c3a)' },
   { name: 'Construction', label: 'Construction', color: 'var(--forest)' },
   { name: 'Closeout', label: 'Closed', color: 'var(--sidebar)' },
+  // Nov 10 sync: projects that won't go ahead. Closed and Cancelled are hidden unless asked for.
+  { name: 'Cancelled', label: 'Cancelled', color: 'var(--muted)' },
 ] as const;
+/** Stages that are over: hidden from the board and lists by default. */
+export const ENDED_STAGES: readonly string[] = ['Closeout', 'Cancelled'];
 
 /** The name shown for a stored project stage. */
 export const stageLabel = (stage?: string) => STAGE_CONFIG.find((s) => s.name === stage)?.label || stage || '';
@@ -164,7 +173,7 @@ export interface ComputedPhase extends WfPhase {
 }
 
 /** A phase row as the board needs it, built from the project's real data. */
-export interface BoardPhase { id: string; key: string; name: string; color: string; order: number; gated?: boolean; dependsOn?: string[]; weeks?: number; hiddenAt?: string | null; /** From the programme template: design, construction or other. */ category?: 'design' | 'construction' | 'other' }
+export interface BoardPhase { id: string; key: string; name: string; color: string; order: number; gated?: boolean; dependsOn?: string[]; weeks?: number; hiddenAt?: string | null; /** From the programme template: design, construction or other. */ category?: 'design' | 'construction' | 'other'; /** Which structure (Batch 6); empty = the main one. */ structureKey?: string | null }
 export interface BoardTask {
   id: string; phaseId?: string; title: string; status?: string; completed?: boolean; order?: number;
   assignee?: string; team?: string; auto?: boolean; autoLabel?: string;

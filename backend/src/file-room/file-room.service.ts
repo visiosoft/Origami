@@ -1,3 +1,4 @@
+import { DEFAULT_FOLDER_TEMPLATE, FILE_ROOM_ROOT } from './layout';
 import { pageArgs, pageOf } from '../common/paging';
 import { TrackingService, type OpenSummary } from '../tracking/tracking.service';
 import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
@@ -8,6 +9,7 @@ import { GoogleService } from '../google/google.service';
 import { subId } from '../database/task.types';
 import type { UploadActor } from '../google/attachments.service';
 import { SettingsService } from '../settings/settings.service';
+import { FilePreviewsService } from './file-previews.service';
 
 /** "a@x.com; b@y.com" -> "a@x.com, b@y.com"; every address checked. */
 export function recipients(to: string): string {
@@ -22,6 +24,21 @@ export function recipients(to: string): string {
 const uniqueIds = (ids: unknown) => Array.from(new Set((Array.isArray(ids) ? ids : []).map(String).filter(Boolean)));
 
 export const FOLDER_TEMPLATE_KEY = 'fileRoom.folderTemplate';
+
+export { MARKUPS_PATH, TASK_PHOTOS_PATH, RECORD_PHOTOS_PATH, DEFAULT_FOLDER_TEMPLATE } from './layout';
+
+/** The template folders a project hasn't got yet (each path and its parents), from its folder list. */
+export function missingFolders(template: string[][], have: string[][]): string[][] {
+  const has = new Set(have.map((p) => p.join('>').toLowerCase()));
+  const out: string[][] = [];
+  for (const path of template) {
+    for (let i = 1; i <= path.length; i++) {
+      const k = path.slice(0, i).join('>').toLowerCase();
+      if (!has.has(k)) { has.add(k); out.push(path.slice(0, i)); }
+    }
+  }
+  return out;
+}
 
 /** "Drawings/Architectural" per line -> [['Drawings', 'Architectural'], ...]; blanks and duplicates dropped. */
 export function parseFolderTemplate(text: string): string[][] {
@@ -38,7 +55,7 @@ export function parseFolderTemplate(text: string): string[][] {
 }
 
 /** Where the File Room keeps everything inside the connected account's Drive. */
-const DRIVE_ROOT = 'Origami File Room';
+export const DRIVE_ROOT = FILE_ROOM_ROOT;
 
 /** The standard folders every project starts with; empty ones stay hidden. */
 export const DEFAULT_CATEGORIES = [
@@ -72,6 +89,25 @@ const extOf = (name: string) => {
   return dot > -1 ? name.slice(dot + 1).toUpperCase() : '';
 };
 
+/** A photo upload (by type or extension). */
+export const isImageUpload = (f: { originalname?: string; mimetype?: string }) => /^image\//i.test(f.mimetype || '') || /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(f.originalname || '');
+/** "image.jpg" if free in the folder, else "image (2).jpg", "image (3).jpg"… */
+export function freeName(name: string, taken: string[]): string {
+  const have = new Set(taken.map((t) => t.toLowerCase()));
+  if (!have.has(name.toLowerCase())) return name;
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '';
+  for (let n = 2; ; n++) { const next = `${stem} (${n})${ext}`; if (!have.has(next.toLowerCase())) return next; }
+}
+
+/** Where finished documents are kept, REV-numbered, in each project's Drive folder. */
+export const BACKUP_FOLDER = 'Backups of record';
+/** The next REV number for a document, from the names already in the folder ("Program REV2.pdf" -> 3). */
+export function nextRev(names: string[], base: string): number {
+  const re = new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' REV(\\d+)\\.pdf$', 'i');
+  return names.reduce((max, n) => { const m = re.exec(n); return m ? Math.max(max, Number(m[1])) : max; }, 0) + 1;
+}
+
 @Injectable()
 export class FileRoomService {
   private readonly log = new Logger('FileRoomService');
@@ -84,6 +120,7 @@ export class FileRoomService {
     private readonly settings: SettingsService,
     @InjectRepository(FileRoomShareEntity) private readonly shares: Repository<FileRoomShareEntity>,
     @Optional() private readonly tracking?: TrackingService,
+    @Optional() private readonly previews?: FilePreviewsService,
   ) {}
 
   /** The link to put in the email: tracked when tracking is on (Oct 27 backlog item 12), so the share shows when it was opened. */
@@ -94,7 +131,8 @@ export class FileRoomService {
 
   /** The standard folders every project gets: one path per line, '/' for subfolders. */
   async folderTemplate(): Promise<string[][]> {
-    return parseFolderTemplate((await this.settings.get(FOLDER_TEMPLATE_KEY)) || '');
+    const saved = await this.settings.get(FOLDER_TEMPLATE_KEY);
+    return parseFolderTemplate(saved && saved.trim() ? saved : DEFAULT_FOLDER_TEMPLATE);
   }
 
   /**
@@ -115,12 +153,45 @@ export class FileRoomService {
     return { created: after - before, template: template.length };
   }
 
+  /** Make sure a folder path exists for a project (File Room rows; Drive folders are made on upload). */
+  async ensurePath(projectId: number, path: string[]) {
+    for (let i = 1; i <= path.length; i++) await this.createFolder(projectId, path.slice(0, i - 1), path[i - 1]);
+  }
+
+  /**
+   * Existing projects and the template folders each is missing (Batch 6),
+   * shown before anything is made. Closed projects are left out.
+   */
+  async templatePreview() {
+    const template = await this.folderTemplate();
+    const [projects, folders] = await Promise.all([this.projects.find(), this.folders.find()]);
+    const rows = projects
+      .filter((p) => !/closed|cancel|lost|archiv/i.test(String(p.stage || '')))
+      .map((p) => ({ projectId: p.id, name: p.name, missing: missingFolders(template, folders.filter((f) => Number(f.projectId) === p.id).map((f) => (Array.isArray(f.path) ? f.path : []))).map((x) => x.join(' / ')) }))
+      .filter((r) => r.missing.length);
+    return { template: template.map((t) => t.join(' / ')), projects: rows, folders: rows.reduce((a, r) => a + r.missing.length, 0) };
+  }
+
+  /** Apply the template to the projects the preview listed (or the ones named). */
+  async templateApplyAll(projectIds?: number[]) {
+    const preview = await this.templatePreview();
+    const ids = preview.projects.map((p) => p.projectId).filter((id) => !projectIds?.length || projectIds.includes(id));
+    const done: { projectId: number; created: number; error?: string }[] = [];
+    for (const id of ids) {
+      try { const r = await this.applyTemplate(id); done.push({ projectId: id, created: r.created }); }
+      catch (e) { done.push({ projectId: id, created: 0, error: (e as Error).message.slice(0, 200) }); }
+    }
+    return { projects: done.length, created: done.reduce((a, d) => a + d.created, 0), failed: done.filter((d) => d.error) };
+  }
+
   private hydrate(f: FileRoomFileEntity): FileRoomFileEntity {
     return {
       ...f,
       folderPath: Array.isArray(f.folderPath) ? f.folderPath : [],
       size: Number(f.size) || 0,
       isLatest: f.isLatest !== false,
+      /** Changes when the small copies are remade, so the browser can cache them for good. */
+      thumbV: f.previewState === 'ready' && f.thumbDriveId ? f.thumbDriveId.slice(-10) : null,
     } as FileRoomFileEntity;
   }
 
@@ -148,17 +219,30 @@ export class FileRoomService {
    * each folder holds directly (counts[projectId][folder path joined by '>']),
    * and the totals. The files themselves come a page at a time (filesPage).
    */
-  async tree(ok: (projectId: unknown) => boolean = () => true) {
+  /** The build set: which top-level folders the project's Plan & File Room shows (Oct 30 sync). */
+  async setBuildSet(projectId: number, folders: unknown) {
+    const p = await this.projects.findOneBy({ id: projectId });
+    if (!p) throw new NotFoundException('Project not found');
+    const list = [...new Set((Array.isArray(folders) ? folders : []).map((f) => String(f).trim()).filter(Boolean))].slice(0, 50);
+    await this.projects.update({ id: projectId }, { buildSetFolders: list.length ? list : null } as any);
+    return { projectId, buildSet: list };
+  }
+  async buildSetOf(projectId: number): Promise<string[]> {
+    const p = await this.projects.findOne({ where: { id: projectId }, select: { id: true, buildSetFolders: true } as any });
+    return Array.isArray(p?.buildSetFolders) ? p!.buildSetFolders : [];
+  }
+
+  async tree(ok: (projectId: unknown, path?: string[] | null) => boolean = () => true) {
     const [rows, rawFolders, projects] = await Promise.all([
       this.files.find({ select: { id: true, projectId: true, folderPath: true, size: true, updatedAt: true } }),
       this.folders.find(),
-      this.projects.find({ select: { id: true, name: true, fileRoomSyncedAt: true } }),
+      this.projects.find({ select: { id: true, name: true, fileRoomSyncedAt: true, buildSetFolders: true } }),
     ]);
     const counts: Record<string, Record<string, number>> = {};
     const week = Date.now() - 7 * 864e5;
     let total = 0, recent = 0, bytes = 0;
     for (const f of rows) {
-      if (!ok(f.projectId)) continue;
+      if (!ok(f.projectId, f.folderPath)) continue;
       const key = (Array.isArray(f.folderPath) ? f.folderPath : []).join('>');
       const byFolder = (counts[String(f.projectId)] ||= {});
       byFolder[key] = (byFolder[key] || 0) + 1;
@@ -167,9 +251,9 @@ export class FileRoomService {
       if (Date.parse(f.updatedAt || '') > week) recent++;
     }
     return {
-      projects: projects.filter((p) => ok(p.id)).map((p) => ({ id: p.id, name: p.name, syncedAt: p.fileRoomSyncedAt || null })),
+      projects: projects.filter((p) => ok(p.id)).map((p) => ({ id: p.id, name: p.name, syncedAt: p.fileRoomSyncedAt || null, buildSet: Array.isArray(p.buildSetFolders) ? p.buildSetFolders : [] })),
       categories: DEFAULT_CATEGORIES,
-      folders: rawFolders.filter((f) => ok(f.projectId)).map((f) => ({ ...f, path: Array.isArray(f.path) ? f.path : [] })),
+      folders: rawFolders.filter((f) => ok(f.projectId, f.path)).map((f) => ({ ...f, path: Array.isArray(f.path) ? f.path : [] })),
       counts,
       totals: { total, recent, bytes },
     };
@@ -179,18 +263,22 @@ export class FileRoomService {
    * One page of files: a folder's (projectId + path), or every project's
    * (no projectId -- "All Files"), with the name search, latest-only and sort.
    */
-  async filesPage(q: Record<string, string>, ok: (projectId: unknown) => boolean = () => true) {
+  async filesPage(q: Record<string, string>, ok: (projectId: unknown, path?: string[] | null) => boolean = () => true) {
     const pid = Number(q.projectId);
     const rows = await this.files.find({ where: Number.isFinite(pid) && pid > 0 ? { projectId: pid } : {} });
     const folder = q.path === undefined ? null : String(q.path);
     const text = String(q.q || '').trim().toLowerCase();
     const list = rows
-      .filter((f) => ok(f.projectId))
+      .filter((f) => ok(f.projectId, f.folderPath))
       .map((f) => this.hydrate(f))
       .filter((f) => folder === null || (f.folderPath || []).join('>') === folder)
       .filter((f) => q.latest !== '1' || f.isLatest !== false)
       .filter((f) => !text || f.name.toLowerCase().includes(text))
-      .sort((a, b) => (q.dir === 'desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)));
+      // By name (A-Z / Z-A) or, with sort=date, by when it last changed (newest first with dir=desc) (Nov 3 sync).
+      .sort((a, b) => {
+        const by = q.sort === 'date' ? String(a.updatedAt || '').localeCompare(String(b.updatedAt || '')) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name, undefined, { numeric: true });
+        return q.dir === 'desc' ? -by : by;
+      });
     return pageOf(list, pageArgs(q.page, q.size));
   }
 
@@ -225,6 +313,21 @@ export class FileRoomService {
    * revision rather than a duplicate: the two share a version group and the new
    * one becomes latest.
    */
+  /**
+   * Drive as the backup of record (Oct 30 sync): a finished document -- a
+   * signed contract, the Project Program as sent -- filed as a PDF in the
+   * project's "Backups of record" folder, numbered REV1, REV2... by name.
+   */
+  async saveBackupOfRecord(projectId: number, docName: string, pdf: Buffer, actor: UploadActor) {
+    const base = String(docName || 'Document').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 150);
+    const inFolder = (await this.files.find({ where: { projectId } as any, select: { id: true, name: true, folderPath: true } as any }))
+      .filter((f) => Array.isArray(f.folderPath) && f.folderPath.length === 1 && f.folderPath[0] === BACKUP_FOLDER);
+    const rev = nextRev(inFolder.map((f) => f.name), base);
+    const name = `${base} REV${rev}.pdf`;
+    const [saved] = await this.upload(projectId, [BACKUP_FOLDER], [{ originalname: name, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], actor);
+    return { id: (saved as any)?.id as string | undefined, name, rev };
+  }
+
   async upload(
     projectId: number,
     folderPath: string[],
@@ -252,17 +355,21 @@ export class FileRoomService {
         throw new BadRequestException(`${file.originalname} is larger than ${MAX_FILE_BYTES / 1024 / 1024} MB.`);
       }
 
+      // Photos are never revisions of each other (Nov 3 sync: phones name every photo "image.jpg", so the
+      // older ones were hidden as old versions). A same-name photo gets "image (2).jpg" instead.
+      const inFolder = existing.filter((f) => (f.folderPath ?? []).join('>') === folderPath.join('>'));
+      const photo = isImageUpload(file);
+      const fileName = photo ? freeName(file.originalname, inFolder.map((f) => f.name)) : file.originalname;
+
       const drive = await this.google.uploadDriveFile({
-        name: file.originalname,
+        name: fileName,
         mimeType: file.mimetype,
         buffer: file.buffer,
         parentId,
       });
 
       // Same name, same folder → a new revision of that document.
-      const sibling = existing.find(
-        (f) => f.name === file.originalname && (f.folderPath ?? []).join('>') === folderPath.join('>'),
-      );
+      const sibling = photo ? undefined : inFolder.find((f) => f.name === file.originalname);
       const groupId = sibling ? sibling.groupId || subId('grp') : null;
       if (sibling && groupId) {
         await this.files.update({ groupId }, { isLatest: false });
@@ -273,8 +380,8 @@ export class FileRoomService {
         id: subId('fr'),
         projectId,
         folderPath,
-        name: file.originalname,
-        ext: extOf(file.originalname),
+        name: fileName,
+        ext: extOf(fileName),
         size: drive.size ? Number(drive.size) : file.size,
         mimeType: drive.mimeType || file.mimetype,
         driveId: drive.id,
@@ -283,10 +390,14 @@ export class FileRoomService {
         updatedAt: new Date().toISOString(),
         groupId: groupId ?? undefined,
         isLatest: true,
+        previewState: 'pending',
       } as Partial<FileRoomFileEntity>);
       saved.push(await this.files.save(row));
-      this.log.log(`Stored ${file.originalname} in ${[name, ...folderPath].join('/')}`);
+      existing.push(row);
+      this.log.log(`Stored ${fileName} in ${[name, ...folderPath].join('/')}`);
     }
+    // Make the thumbnails now rather than at the next background round.
+    void this.previews?.tick().catch(() => undefined);
     return saved.map((f) => this.hydrate(f));
   }
 
@@ -296,6 +407,13 @@ export class FileRoomService {
     const file = await this.files.findOneBy({ id });
     if (!file) throw new NotFoundException('File not found');
     return file;
+  }
+
+  /** A file's thumbnail or preview bytes (WebP), once made. */
+  async small(id: string, which: 'thumb' | 'preview') {
+    const file = await this.load(id);
+    if (!this.previews) throw new NotFoundException('No small copy yet.');
+    return { file: this.hydrate(file), body: await this.previews.variant(file, which) };
   }
 
   /** Stream a file's bytes; the record is resolved first, never a bare Drive id. */
@@ -381,6 +499,7 @@ export class FileRoomService {
       catch (err) { this.log.warn(`Could not trash ${file.driveId}: ${(err as Error).message}`); }
     }
     await this.files.remove(file);
+    await this.previews?.forget(file).catch(() => undefined);
     // Losing the latest revision promotes the next most recent in its group.
     if (file.groupId && file.isLatest !== false) {
       const rest = (await this.files.find()).filter((f) => f.groupId === file.groupId);
@@ -526,6 +645,8 @@ export class FileRoomService {
             existing.mimeType = child.mimeType;
             existing.folderPath = path;
             existing.updatedAt = child.modifiedTime || existing.updatedAt;
+            // Changed in Drive: its small copies are redone.
+            if (Number(existing.size) !== size || existing.mimeType !== child.mimeType) { existing.previewState = 'pending'; existing.previewTries = 0; existing.previewAt = null; }
             await this.files.save(existing);
             updated++;
           }
@@ -542,6 +663,7 @@ export class FileRoomService {
             uploadedBy: 'Google Drive',
             updatedAt: child.modifiedTime || new Date().toISOString(),
             isLatest: true,
+            previewState: 'pending',
           } as Partial<FileRoomFileEntity>));
           added++;
         }

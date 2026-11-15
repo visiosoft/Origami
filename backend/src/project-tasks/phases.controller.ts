@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { PhasesService } from './phases.service';
 import { CreatePhaseDto } from './dto/create-phase.dto';
@@ -58,8 +59,27 @@ export class PhasesController {
 
   @Tiers('internal')
   @Get('overview')
-  overview() {
-    return this.service.overview();
+  async overview(@Claims() claims: SessionClaims | null) {
+    const rows = await this.service.overview();
+    // The contract amount is a financial figure (K7): only for roles that see project financials.
+    if (await this.access.canView(claims, 'fin_project', 'fin_business')) return rows;
+    return (rows as any[]).map((r) => ({ ...r, contractAmt: null }));
+  }
+
+  /** The project team (Nov 13): who fills each role, and open tasks waiting on empty roles. */
+  @Get('team')
+  async team(@Query('projectId') projectId: string, @Claims() claims: SessionClaims | null) {
+    await this.access.assert(claims ?? null, Number(projectId));
+    return this.service.team(Number(projectId));
+  }
+
+  /** Change who fills the roles; their open, unassigned tasks follow. Staff who manage projects. */
+  @Tiers('internal')
+  @Put('team')
+  async setTeam(@Body() body: { projectId: number; roles: Record<string, string> }, @Claims() claims: SessionClaims | null) {
+    await this.access.assert(claims ?? null, Number(body?.projectId));
+    if (!(await this.access.canManage(claims ?? null, 'projects', 'pm'))) throw new ForbiddenException('Your role doesn’t allow changing the project team.');
+    return this.service.setTeam(Number(body?.projectId), body?.roles || {});
   }
 
   @Get('board')
@@ -74,6 +94,33 @@ export class PhasesController {
   @Post()
   create(@Body() dto: CreatePhaseDto) {
     return this.service.create(dto);
+  }
+
+  /** Structures on the lot (Batch 6): add one (its phases are copied from the programme), rename, remove. */
+  @Tiers('internal')
+  @Post('structures')
+  async addStructure(@Body() body: { projectId: number; name: string; mainName?: string }, @Claims() claims: SessionClaims | null) {
+    await this.structureAccess(claims, Number(body?.projectId));
+    return this.service.addStructure(Number(body?.projectId), body?.name, body?.mainName);
+  }
+
+  @Tiers('internal')
+  @Put('structures/:key')
+  async renameStructure(@Param('key') key: string, @Body() body: { projectId: number; name: string }, @Claims() claims: SessionClaims | null) {
+    await this.structureAccess(claims, Number(body?.projectId));
+    return this.service.renameStructure(Number(body?.projectId), key, body?.name);
+  }
+
+  @Tiers('internal')
+  @Delete('structures/:key')
+  async removeStructure(@Param('key') key: string, @Query('projectId') projectId: string, @Claims() claims: SessionClaims | null) {
+    await this.structureAccess(claims, Number(projectId));
+    return this.service.removeStructure(Number(projectId), key);
+  }
+
+  private async structureAccess(claims: SessionClaims | null, projectId: number) {
+    await this.access.assert(claims ?? null, projectId);
+    if (!(await this.access.canManage(claims ?? null, 'projects', 'pm'))) throw new ForbiddenException('Your role doesn’t allow changing the project’s structures.');
   }
 
   /** Give a project a phase (and its template tasks) it doesn't have yet. */

@@ -1,3 +1,4 @@
+import { internalOnly } from '../database/task.types';
 import {
   Controller, Get, Post, Put, Delete, Param, Query, Body, Headers, Res, UploadedFiles, UseInterceptors, ForbiddenException,
 } from '@nestjs/common';
@@ -36,6 +37,8 @@ export class ProjectTasksController {
     if (this.access.isStaff(claims)) { if (task.projectId) await this.access.assert(claims, task.projectId); return; }
     await this.access.assert(claims, task.projectId);
     if (!claims || !assignedTo(task as any, claims)) throw new ForbiddenException('That task isn’t assigned to you.');
+    // Internal / Financial stay with our own team (Oct 30 sync: board tasks have tags too).
+    if (internalOnly((task as any).tags)) throw new ForbiddenException('That task is internal.');
   }
 
   /**

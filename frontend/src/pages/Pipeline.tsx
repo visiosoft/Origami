@@ -1,3 +1,5 @@
+import { ContactEmail } from '../components/ContactEmail';
+import { LinkedMail } from '../components/LinkedMail';
 import { stageLabel } from '../data/projects';
 import { createContext, useContext, useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { NOT_APPLICABLE as NA_VALUE, isAnswered as intakeAnswered, isNA, missingIntake } from '../data/leadIntake';
@@ -418,6 +420,8 @@ export function Pipeline() {
   const { toast, currentUser, users } = useApp();
   const navigate = useNavigate();
   const [roleFilter, setRoleFilter] = useState<'all' | 'pc' | 'pm'>('all');
+  // Nov 10 sync: Cold/Lost and Cancelled/Pass columns are hidden unless asked for.
+  const [showClosed, setShowClosed] = useState(() => { try { return localStorage.getItem('origami.pipeline.showClosed') === '1'; } catch { return false; } });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Reject — Not a Fit expands into three outcomes before it actually moves the
   // deal: null = not started, 'choosing' = showing the three pills, an object
@@ -1302,6 +1306,10 @@ export function Pipeline() {
               <div key={r} onClick={() => setRoleFilter(r)} style={{ padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: active ? (r === 'pc' ? 'var(--c-d2ead3)' : r === 'pm' ? 'var(--mint)' : 'var(--ink)') : 'var(--surface)', color: active ? (r === 'all' ? 'white' : r === 'pc' ? 'var(--success)' : 'var(--forest)') : 'var(--muted)', border: '1px solid ' + (active ? 'transparent' : 'rgba(var(--rgb-shade), 0.08)') }}>{label}</div>
             );
           })}
+          <div onClick={() => setShowClosed((v) => { const n = !v; try { localStorage.setItem('origami.pipeline.showClosed', n ? '1' : ''); } catch { /* private mode */ } return n; })}
+            style={{ padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: showClosed ? 'var(--ink)' : 'var(--surface)', color: showClosed ? 'white' : 'var(--muted)', border: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
+            {showClosed ? '✓ ' : ''}Show closed & cancelled
+          </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
             {([['var(--success)', 'PC'], ['var(--forest)', 'PM'], ['var(--gold)', 'Auto']] as [string, string][]).map(([c, l]) => (
               <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1325,7 +1333,7 @@ export function Pipeline() {
         {/* Kanban */}
         <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', padding: isMobile ? '0 14px 16px' : '0 20px 20px' }}>
           <div style={{ display: 'flex', gap: 10, height: '100%', minWidth: 'max-content' }}>
-            {STAGES.filter((st) => roleFilter === 'all' || (roleFilter === 'pc' ? st.owner === 'PC' : st.owner === 'PM')).map((stage) => {
+            {STAGES.filter((st) => (showClosed || !st.isClosed) && (roleFilter === 'all' || (roleFilter === 'pc' ? st.owner === 'PC' : st.owner === 'PM'))).map((stage) => {
               const cards = filtered.filter((d) => d.stage === stage.key);
               const isDragOver = dragOver === stage.key;
               // Dim the columns the card being dragged is not allowed into.
@@ -2410,6 +2418,8 @@ export function Pipeline() {
                 <TextClient entityType="lead" entityId={selected.id} phone={leadDetails[selected.id]?.phone || selected.phone}
                   clientName={leadDetails[selected.id]?.goByName || leadDetails[selected.id]?.firstName || selected.client} projectTitle={selected.name} />
               </div>
+              <div style={{ flex: '1 1 100%' }}><ContactEmail email={leadDetails[selected.id]?.email || (selected as any).email} name={leadDetails[selected.id]?.goByName || selected.client} /></div>
+              <div style={{ flex: '1 1 100%' }}><LinkedMail entityType="lead" entityId={selected.id} /></div>
               <div onClick={() => openEdit(selected)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: 'var(--success)' }}>Edit Lead</div>
               <div onClick={() => deleteLead(selected.id)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: '#8E2E0A' }}>Delete</div>
               {(selectedStage.isHold || selectedStage.isClosed) && (

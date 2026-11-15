@@ -84,8 +84,10 @@ describe('MarkupsService', () => {
     const fileRow: any = { id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'], sheetNames: null };
     const files = { findOneBy: async () => fileRow, update: async (_w: any, patch: any) => Object.assign(fileRow, patch) };
     const uploads: any[] = [];
+    const ensured: any[] = [];
     const fileRoom = {
       content: async () => ({ file: { id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'] }, body: new Blob([await twoPages()]).stream() }),
+      ensurePath: async (pid: number, path: string[]) => { ensured.push([pid, path]); },
       upload: async (...a: any[]) => { uploads.push(a); return [{ id: 'F2', name: a[2][0].originalname }]; },
     };
     const symRows: any[] = [];
@@ -94,7 +96,7 @@ describe('MarkupsService', () => {
       save: async (x: any) => { const i = symRows.findIndex((r) => r.id === x.id); if (i >= 0) symRows[i] = x; else symRows.push(x); return x; },
       delete: async (w: any) => { const i = symRows.findIndex((r) => r.id === w.id); if (i >= 0) symRows.splice(i, 1); },
     };
-    return { svc: new MarkupsService(repo as any, files as any, fileRoom as any, undefined, symbolRepo as any), rows, uploads, symRows };
+    return { svc: new MarkupsService(repo as any, files as any, fileRoom as any, undefined, symbolRepo as any), rows, uploads, symRows, ensured };
   };
   const ed = { sub: 'U-1', name: 'Edward', roleKey: 'admin', tier: 'internal' } as any;
   const an = { sub: 'U-2', name: 'Andrea', roleKey: 'staff', tier: 'internal' } as any;
@@ -129,12 +131,13 @@ describe('MarkupsService', () => {
     expect((await svc.update(m.id, { linkType: 'invoice', linkId: 'X' } as any, an)).linkType).toBeNull();
   });
 
-  it('saves a marked-up copy beside the drawing, named so the drawing stays Current', async () => {
-    const { svc, uploads } = setup();
+  it('saves a marked-up copy in the project’s Markups folder, named so the drawing stays Current', async () => {
+    const { svc, uploads, ensured } = setup();
     await svc.create('F1', { kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.3, 0.3]] } }, an);
     await svc.saveCopy('F1', an);
     expect(uploads[0][0]).toBe(3);
-    expect(uploads[0][1]).toEqual(['Drawings']);
+    expect(uploads[0][1]).toEqual(['Drawings & Plans', 'Markups']);
+    expect(ensured).toEqual([[3, ['Drawings & Plans', 'Markups']]]);
     expect(uploads[0][2][0].originalname).toMatch(/^A-201 — markup \d{4}-\d{2}-\d{2}\.pdf$/);
   });
 
@@ -194,9 +197,10 @@ describe('MarkupsService', () => {
     expect(dicts[1].get(PDFName.of('A')).get(PDFName.of('URI')).decodeText()).toBe('https://app.example/planroom?file=F5');
   });
 
-  it('keeps a short note on any markup, tidied', () => {
+  it('keeps a note on any markup, tidied, line breaks kept (it stays in the list, not on the sheet)', () => {
     const m = cleanMarkup({ kind: 'cloud', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], color: '#FFFFFF', note: '  Patch   drywall \n here ' } });
-    expect(m.data.note).toBe('Patch drywall here');
+    expect(m.data.note).toBe('Patch drywall\nhere');
+    expect(cleanMarkup({ kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], note: 'x'.repeat(1500) } }).data.note).toHaveLength(1000);
     expect(m.data.color).toBe('#FFFFFF');
     expect(cleanMarkup({ kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], note: '   ' } }).data.note).toBeUndefined();
   });
@@ -222,7 +226,7 @@ describe('MarkupsService', () => {
   });
 
   it('keeps sheet names by page (Oct 31): merged, cleared, cleaned; links show them', async () => {
-    expect(cleanSheetNames({ 1: ' A100 ', 2: '', x: 'E1', 0: 'Z', 3: 'A-201 Floor plan level two extra long name' })).toEqual({ 1: 'A100', 3: 'A-201 Floor plan level two ext' });
+    expect(cleanSheetNames({ 1: ' A100 ', 2: '', x: 'E1', 0: 'Z', 3: 'A-201 Floor plan level two extra long name' })).toEqual({ 1: 'A100', 3: 'A-201 Floor plan level two extra long name' });
     expect(linkLabel({ type: 'page', page: 2 }, (n) => (n === 2 ? 'A501' : undefined))).toBe('→ A501');
     expect(linkLabel({ type: 'page', page: 3 }, () => undefined)).toBe('→ p. 3');
     const { svc } = setup();

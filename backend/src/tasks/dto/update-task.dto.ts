@@ -36,6 +36,7 @@ export class UpdateTaskDto {
   @IsString() @IsOptional() project?: string;
   @IsArray() @IsOptional() labels?: string[];
   @IsArray() @IsOptional() @IsString({ each: true }) tags?: string[];
+  @IsString() @IsOptional() @MaxLength(40) csiCodeId?: string | null;
   @IsArray() @IsOptional() collaborators?: Collaborator[];
   @IsArray() @IsOptional() checklist?: { id: string; item: string; done: boolean }[];
   /** FOR RECORD links: the tasks and change orders (ids) this entry drove or is attached to. */

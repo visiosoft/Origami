@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { Skeleton } from '../components/Skeleton';
+import { refreshBrand } from '../components/Logo';
 
 const BG = 'var(--font-display)';
 
@@ -27,7 +28,7 @@ type Brand = Record<
 export interface TeamMember { name: string; title: string; photoDataUrl: string; }
 
 const EMPTY: Brand = {
-  'brand.companyName': '', 'brand.tagline': '', 'brand.logoDataUrl': '', 'brand.accentColor': '#232321',
+  'brand.companyName': '', 'brand.tagline': '', 'brand.logoDataUrl': '', 'brand.accentColor': '#173326',
   'brand.address': '', 'brand.phone': '', 'brand.email': '', 'brand.website': '', 'brand.footerNote': '', 'brand.license': '',
   'brand.signatureName': '', 'brand.signatureTitle': '', 'brand.signatureDataUrl': '',
   'brand.footerLogoDataUrl': '', 'brand.aboutUsText': '', 'brand.team': '[]', 'brand.coverPhotoDataUrl': '',
@@ -91,14 +92,15 @@ export function BrandingSettings() {
     setSaving(true);
     setError('');
     api.settings.save(form)
-      .then((s) => { setForm({ ...EMPTY, ...(s as Partial<Brand>) }); toast('Branding saved'); })
+      .then((s) => { setForm({ ...EMPTY, ...(s as Partial<Brand>) }); refreshBrand(); toast('Branding saved'); })
       .catch((e: Error) => { setError(e.message); toast('⚠ Failed to save branding'); })
       .finally(() => setSaving(false));
   };
 
   if (loading) return <Skeleton label="Loading…" />;
 
-  const accent = form['brand.accentColor'] || '#232321';
+  // The same fallback documents use (Nov 10: the preview showed a different colour than what printed).
+  const accent = form['brand.accentColor'] || '#173326';
 
   const imageField = (label: string, key: keyof Brand, hint: string, height: number) => (
     <div>

@@ -1,3 +1,4 @@
+import { sharesEmail } from '../common/emails';
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -75,7 +76,7 @@ export class StaffDirectorySync implements OnApplicationBootstrap {
     const all = candidates || (await this.people.find());
     let person = all.find((p) => p.employeeId === e.id)
       // (never a subcontracting company's own entry -- that's the contractor, not one of its workers)
-      || (!blank(e.email) ? all.find((p) => !p.employeeId && !p.contractorId && norm(p.email) === norm(e.email)) : undefined)
+      || all.find((p) => !p.employeeId && !p.contractorId && sharesEmail(p, e))
       || all.find((p) => !p.employeeId && !p.contractorId && ['Staff', 'Sub'].includes(p.kind) && norm(p.name) === norm(e.name));
     const fields = personFieldsFor(e, await this.companyFor(e));
     if (!person) {
@@ -109,9 +110,8 @@ export class StaffDirectorySync implements OnApplicationBootstrap {
   async personChanged(p: PersonEntity, dto: Record<string, any>) {
     // Turned into Staff: link (or create) the employee now, not at the next restart, so timesheets work straight away.
     if (!p.employeeId && p.kind === 'Staff') {
-      const email = blank(p.email) ? '' : p.email.trim().toLowerCase();
       const taken = new Set((await this.people.find()).map((x) => x.employeeId).filter(Boolean));
-      const match = email ? (await this.employees.find()).filter((e) => !taken.has(e.id) && (e.email || '').trim().toLowerCase() === email) : [];
+      const match = blank(p.email) ? [] : (await this.employees.find()).filter((e) => !taken.has(e.id) && sharesEmail(e, p));
       if (match.length === 1) { p.employeeId = match[0].id; await this.people.save(p); }
       else await this.employeeForPerson(p);
       return;
