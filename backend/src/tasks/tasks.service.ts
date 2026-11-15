@@ -53,6 +53,13 @@ export class TasksService implements OnApplicationBootstrap {
     @Optional() private readonly tagBank?: TagsService,
   ) {}
 
+  /** Told when a task is closed or reopened (Quo tasks close back in Quo, Nov 15). Never blocks the save. */
+  private statusListeners: ((t: TaskEntity, change: 'closed' | 'reopened', actor: UploadActor) => void | Promise<void>)[] = [];
+  onStatusChange(fn: (t: TaskEntity, change: 'closed' | 'reopened', actor: UploadActor) => void | Promise<void>) { this.statusListeners.push(fn); }
+  private emitStatus(t: TaskEntity, change: 'closed' | 'reopened', actor: UploadActor) {
+    for (const fn of this.statusListeners) void Promise.resolve().then(() => fn(t, change, actor)).catch(() => undefined);
+  }
+
   /** What each priority means: the defaults, or the wording an administrator set in Settings. */
   async priorityDefinitions(): Promise<PriorityDef[]> {
     return parsePriorityDefs(this.settings ? await this.settings.get(PRIORITY_DEFS_KEY).catch(() => null) : null);
@@ -526,6 +533,8 @@ export class TasksService implements OnApplicationBootstrap {
     const saved = await this.repo.save(task);
     if (!defer) this.sendNotices(saved, notices);
     if (nowEmergency) this.alertEmergency(saved, actor);
+    if (finished) this.emitStatus(saved, 'closed', actor);
+    else if (wasClosed && !isClosedStatus(statuses, saved.status)) this.emitStatus(saved, 'reopened', actor);
     if (moved || finished) {
       void this.hub?.highVizTask({ labels: normalizeList<string>(saved.labels), projectName: saved.project || null },
         { title: `${taskTitle(saved)} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}&type=log`, actorId: actor.id }).catch(() => undefined);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, type QuoTasksStatus } from '../api';
 import { useApp } from '../AppContext';
 import { Skeleton } from '../components/Skeleton';
 
@@ -195,6 +195,66 @@ export function SmsSettings() {
         style={{ display: 'inline-block', padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>
         {saving ? 'Saving…' : 'Save SMS settings'}
       </div>
+      {form['sms.provider'] === 'quo' && <QuoTasksPanel />}
+    </div>
+  );
+}
+
+/**
+ * Quo tasks (D6, Nov 15): every task made in Quo comes in as a Task (with
+ * where it came from); done or reopened here changes it in Quo, and the other
+ * way round. Open Quo tasks from before are previewed, then imported.
+ */
+function QuoTasksPanel() {
+  const { toast } = useApp();
+  const [st, setSt] = useState<QuoTasksStatus | null>(null);
+  const [pv, setPv] = useState<Awaited<ReturnType<typeof api.quoTasks.preview>> | null>(null);
+  const [busy, setBusy] = useState('');
+  useEffect(() => { api.quoTasks.status().then(setSt).catch(() => setSt(null)); }, []);
+  const run = async (what: string, fn: () => Promise<void>) => {
+    setBusy(what);
+    try { await fn(); } catch (e) { toast('⚠ ' + (e as Error).message); } finally { setBusy(''); }
+  };
+  if (!st) return null;
+  const pill = (primary: boolean, off = false) => ({ padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: off ? 'default' : 'pointer', background: primary ? 'var(--forest)' : 'var(--mist)', color: primary ? '#fff' : 'var(--forest)', opacity: off ? 0.55 : 1 } as const);
+  return (
+    <div style={{ ...card, marginTop: 16 }} aria-label="Quo tasks">
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 12 }}>Quo tasks</div>
+      <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', lineHeight: 1.55, marginBottom: 12 }}>
+        Every task made in Quo comes in as a Task, with where it came from (e.g. “Quo, text from Alton HVAC to Edward on Oct 21”), given to the person with the same email in Quo. Marking it done or reopening it here does the same in Quo, and completing, reopening, editing or deleting it in Quo updates it here.
+        Connect this on one system only (staging or live), or both will receive the same tasks.
+      </div>
+      {!st.hasKey ? <div style={{ fontSize: 12.5, color: '#8E2E0A' }}>Add and save the Quo API key above first.</div> : (
+        <>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            {st.connected
+              ? <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--c-1e6b36)' }}>✓ Receiving Quo tasks</span>
+              : <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Not connected</span>}
+            {!st.connected
+              ? <div onClick={() => !busy && void run('connect', async () => { setSt(await api.quoTasks.connect()); toast('Quo will now send its tasks here'); })} style={pill(true, !!busy)}>{busy === 'connect' ? 'Connecting…' : 'Connect Quo tasks'}</div>
+              : <div onClick={() => !busy && confirm('Stop receiving Quo tasks? Tasks already here stay.') && void run('disconnect', async () => { setSt(await api.quoTasks.disconnect()); })} style={pill(false, !!busy)}>Disconnect</div>}
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>{st.imported} Quo task{st.imported === 1 ? '' : 's'} here{st.lastEvent ? ` · last from Quo ${new Date(st.lastEvent.at).toLocaleString()} (${st.lastEvent.action})` : ''}</span>
+          </div>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <b style={{ fontSize: 12.5 }}>Open tasks already in Quo</b>
+              <div onClick={() => !busy && void run('preview', async () => setPv(await api.quoTasks.preview()))} style={pill(false, !!busy)}>{busy === 'preview' ? 'Checking…' : 'Preview'}</div>
+            </div>
+            {pv && (!pv.toImport.length ? <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Every open Quo task ({pv.open}) is already here.</div> : (
+              <>
+                <div style={{ fontSize: 12.5 }}>{pv.toImport.length} of {pv.open} open Quo task{pv.open === 1 ? '' : 's'} would come in:</div>
+                <div style={{ maxHeight: 240, overflowY: 'auto', fontSize: 12, lineHeight: 1.6, background: 'var(--c-efede8)', borderRadius: 10, padding: '8px 12px' }}>
+                  {pv.toImport.map((t) => <div key={t.taskId}><b>{t.title}</b> — {t.assignee ? `for ${t.assignee}` : t.quoAssignee ? `${t.quoAssignee} (no ODIN user with that email: unassigned)` : 'unassigned'}{t.dueDate ? ` · due ${t.dueDate.slice(0, 10)}` : ''}</div>)}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div onClick={() => !busy && void run('import', async () => { const r = await api.quoTasks.importOpen(pv.toImport.map((t) => t.taskId)); toast(`${r.created} Quo task${r.created === 1 ? '' : 's'} imported${r.failed.length ? ` — ${r.failed.length} failed` : ''}`); setPv(await api.quoTasks.preview()); setSt(await api.quoTasks.status()); })} style={pill(true, !!busy)}>{busy === 'import' ? 'Importing…' : `Import ${pv.toImport.length}`}</div>
+                  <div onClick={() => setPv(null)} style={pill(false)}>Cancel</div>
+                </div>
+              </>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -158,7 +158,8 @@ export function ActionTrail({ sourceType, sourceId, sourceLabel, derived }: { so
   const chip: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, background: 'var(--panel)', color: 'var(--body)', textDecoration: 'none' };
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      {sourceId && sourceType && <Link to={actionHref(sourceType, sourceId)} style={chip} title="Made from this">↩ From {sourceLabel || sourceId}</Link>}
+      {sourceId && sourceType === 'quo' && <span style={chip} title="Came in from Quo">↩ From {sourceLabel || 'Quo'}</span>}
+      {sourceId && sourceType && sourceType !== 'quo' && <Link to={actionHref(sourceType, sourceId)} style={chip} title="Made from this">↩ From {sourceLabel || sourceId}</Link>}
       {list.map((d) => (
         <Link key={d.kind + d.id} to={actionHref(d.kind, d.id)} style={chip} title={`${d.how === 'converted' ? 'Converted' : 'Duplicated'} by ${d.by}`}>
           → {d.how === 'converted' ? 'Converted to' : 'Copied as'} {d.label}{d.projectName ? ` · ${d.projectName}` : ''}
