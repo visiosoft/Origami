@@ -38,6 +38,7 @@ import { GuestAccessModule } from './guest-access/guest-access.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import { ManpowerModule } from './manpower/manpower.module';
 import { FinanceModule } from './finance/finance.module';
+import { QuoModule } from './quo/quo.module';
 import { ViewsModule } from './views/views.module';
 import { SpecialActionsModule } from './special-actions/special-actions.module';
 import { SessionGuard } from './auth/guards/session.guard';
@@ -74,6 +75,7 @@ import { PermGuard } from './auth/guards/perm.guard';
     }),
     SeedModule,
     SettingsModule,
+    QuoModule,
     AuditModule,
     ContractsModule,
     GoogleModule,

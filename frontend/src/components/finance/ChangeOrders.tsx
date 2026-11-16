@@ -1,3 +1,4 @@
+import { PaidFromPicker } from './Funding';
 import { OpenedBadge, type Opened } from '../OpenedBadge';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api';
@@ -297,6 +298,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
           <div style={{ flex: 1 }} />
           <div onClick={() => printChangeOrder(co, describeTarget, overview?.project.name)} style={btn()}>Print / PDF</div>
         </div>
+        <div style={{ maxWidth: 280 }}><PaidFromPicker projectId={co.projectId} changeOrderId={co.id} value={(co as any).fundingSourceId} canEdit={!!(rights as any).manage} /></div>
 
         {impact && (impact.ok
           ? <div style={{ ...card, padding: '10px 14px', fontSize: 12.5, background: 'var(--c-f3f8f3)' }}>

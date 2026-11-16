@@ -16,6 +16,22 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-16a',
+    date: '2026-11-16',
+    title: 'Pick the funding source on invoices and change orders',
+    items: [
+      { area: 'Financials', kind: 'improved', text: 'An owner invoice and a change order now show “Paid from”: pick the loan, owner cash or other source that pays it right there. It appears once the project has funding sources.', where: 'Project → Financials → an invoice or change order' },
+    ],
+  },
+  {
+    id: '2026-11-15b',
+    date: '2026-11-15',
+    title: 'Quo tasks come into ODIN',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'A task made in Quo comes in as a Task, saying where it came from (“Quo, text from Alton HVAC to Edward on Oct 21…”) and given to the person with the same email. Done or reopened here changes it in Quo; completed, reopened, edited or deleted in Quo updates it here.', where: 'Settings → Text messages → Quo tasks (Connect, then Preview and Import the open ones)' },
+    ],
+  },
+  {
     id: '2026-11-15a',
     date: '2026-11-15',
     title: 'My Mail opens straight away',

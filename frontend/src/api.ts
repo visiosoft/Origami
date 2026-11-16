@@ -371,6 +371,8 @@ export interface DbBackupStatus {
   lastResult: { at: string; ok: boolean; name?: string; bytes?: number; tables?: number; rows?: number; removed?: number; link?: string | null; error?: string } | null;
 }
 
+export interface QuoTasksStatus { hasKey: boolean; connected: boolean; webhookId: string | null; url: string; imported: number; lastEvent: { at: string; type: string; taskId: string; action: string } | null }
+
 export const api = {
   auth: {
     /** A session, or -- for staff (Nov 13) -- a ticket for the second step. */
@@ -1419,6 +1421,14 @@ export const api = {
       request(`/workforce-requests/${id}/allocate`, { method: 'POST', body: JSON.stringify(data) }),
   },
   /** My mail (Nov 13): the caller's own Gmail, and mail linked to records. */
+  /** Quo tasks ↔ ODIN tasks (D6, Nov 15; administrators). */
+  quoTasks: {
+    status: () => request<QuoTasksStatus>('/quo/tasks', { cache: 'no-store' } as any),
+    connect: () => request<QuoTasksStatus>('/quo/tasks/connect', { method: 'POST' }),
+    disconnect: () => request<QuoTasksStatus>('/quo/tasks/disconnect', { method: 'POST' }),
+    preview: () => request<{ open: number; toImport: { taskId: string; title: string; dueDate: string | null; createdAt: string | null; assignee: string | null; quoAssignee: string | null }[] }>('/quo/tasks/preview', { cache: 'no-store' } as any),
+    importOpen: (taskIds?: string[]) => request<{ created: number; failed: { taskId: string; error: string }[] }>('/quo/tasks/import', { method: 'POST', body: JSON.stringify({ taskIds }) }),
+  },
   mail: {
     threads: (q = '', page = '', label = 'INBOX') => request<{ threads: MailThreadRow[]; nextPageToken: string | null }>(`/mail/threads?q=${encodeURIComponent(q)}&page=${encodeURIComponent(page)}&label=${encodeURIComponent(label)}`, { cache: 'no-store' } as any),
     /** Drafts (Batch 6): Gmail's own, so they show in Gmail too. */
