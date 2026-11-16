@@ -1,3 +1,4 @@
+import { PaidFromPicker } from './Funding';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
@@ -226,6 +227,7 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
           <div><Label text="Tax %" /><input disabled={!canEdit} type="number" min={0} max={100} value={h.taxPct} onChange={setHead('taxPct')} style={input} /></div>
           <div><Label text="Reference / contract" /><input disabled={!canEdit} value={h.reference} onChange={setHead('reference')} style={input} /></div>
           <div><Label text="Client PO" /><input disabled={!canEdit} value={h.poNumber} onChange={setHead('poNumber')} style={input} /></div>
+          <PaidFromPicker projectId={inv.projectId} invoiceId={inv.id} value={(inv as any).fundingSourceId} canEdit={!!r.manage} />
           <div><Label text="Bill to" /><input disabled={!canEdit} value={h.billToName} onChange={setHead('billToName')} style={input} /></div>
           <div><Label text="Billing email" /><input disabled={!canEdit} value={h.billToEmail} onChange={setHead('billToEmail')} style={input} /></div>
           <div style={{ gridColumn: 'span 2' }}><Label text="Billing address" /><input disabled={!canEdit} value={h.billToAddress} onChange={setHead('billToAddress')} style={input} /></div>
@@ -452,6 +454,7 @@ function IssuedView({ inv, overview, onChanged, onFail, onOpen }: { inv: Invoice
         <div><Label text="Bill to" /><b>{inv.billToName || '—'}</b><div style={{ color: MUTED, whiteSpace: 'pre-line' }}>{[inv.billToEmail, inv.billToAddress].filter(Boolean).join('\n')}</div></div>
         <div><Label text="Reference" />{inv.reference || '—'}{inv.poNumber ? <div style={{ color: MUTED }}>PO {inv.poNumber}</div> : null}</div>
         <div><Label text="Description" />{inv.description || '—'}</div>
+        {inv.kind !== 'credit' && <PaidFromPicker projectId={inv.projectId} invoiceId={inv.id} value={(inv as any).fundingSourceId} canEdit={!!overview.rights.manage} />}
       </div>
 
       <div style={{ ...card, overflow: 'hidden' }}>

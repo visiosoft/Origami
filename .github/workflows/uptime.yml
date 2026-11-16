@@ -25,9 +25,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Staging. Add Prod (Odin) here once it serves /api/status/health.
           - name: Staging
             url: https://dev-bzg9gyceeua8d5e9.canadacentral-01.azurewebsites.net/api/status/health
+          - name: Prod
+            url: https://odin.origamidb.com/api/status/health
     steps:
       - name: Check ${{ matrix.name }}
         id: check

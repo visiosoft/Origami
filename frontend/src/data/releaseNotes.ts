@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-16a',
+    date: '2026-11-16',
+    title: 'Pick the funding source on invoices and change orders',
+    items: [
+      { area: 'Financials', kind: 'improved', text: 'An owner invoice and a change order now show “Paid from”: pick the loan, owner cash or other source that pays it right there. It appears once the project has funding sources.', where: 'Project → Financials → an invoice or change order' },
+    ],
+  },
+  {
     id: '2026-11-15b',
     date: '2026-11-15',
     title: 'Quo tasks come into ODIN',

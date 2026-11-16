@@ -122,3 +122,32 @@ export function FundingPanel({ projectId }: { projectId: number }) {
     </div>
   );
 }
+
+/**
+ * "Paid from" on an owner invoice or change order (Batch 7): which funding
+ * source pays it. Hidden when the project has no funding sources.
+ */
+export function PaidFromPicker({ projectId, invoiceId, changeOrderId, value, canEdit }: { projectId: number; invoiceId?: string; changeOrderId?: string; value?: string | null; canEdit: boolean }) {
+  const { toast } = useApp();
+  const [sources, setSources] = useState<FundingView['sources'] | null>(null);
+  const [cur, setCur] = useState(value || '');
+  useEffect(() => { setCur(value || ''); }, [value]);
+  useEffect(() => { api.finance.funding(projectId).then((v) => setSources(v.sources)).catch(() => setSources([])); }, [projectId]);
+  if (!sources?.length) return null;
+  const pick = async (id: string) => {
+    const before = cur;
+    setCur(id);
+    try { await api.finance.assignFunding(projectId, { ...(invoiceId ? { invoiceId } : { changeOrderId }), fundingSourceId: id || null }); toast(id ? `Paid from ${sources.find((s) => s.id === id)?.name}` : 'Funding source cleared'); }
+    catch (e) { setCur(before); failed(toast, e); }
+  };
+  return (
+    <div><Label text="Paid from" />
+      {canEdit
+        ? <select aria-label="Paid from" value={cur} onChange={(e) => void pick(e.target.value)} style={input}>
+            <option value="">Not assigned</option>
+            {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        : <div style={{ fontSize: 12.5 }}>{sources.find((s) => s.id === cur)?.name || 'Not assigned'}</div>}
+    </div>
+  );
+}
