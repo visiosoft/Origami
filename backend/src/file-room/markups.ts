@@ -133,7 +133,7 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
   };
   if (typeof d.text === 'string') data.text = d.text.slice(0, 2000);
   if (kind === 'text' && !data.text?.trim()) throw new Error('Type some text.');
-  if (d.size !== undefined) data.size = Math.min(72, Math.max(6, Number(d.size) || 12));
+  if (d.size !== undefined) data.size = Math.min(400, Math.max(4, Math.round(Number(d.size)) || 12)); // big sheets need big text (Nov 16)
   if (typeof d.label === 'string') data.label = d.label.slice(0, 60);
   if (typeof d.csiCodeId === 'string' && d.csiCodeId.trim()) data.csiCodeId = d.csiCodeId.trim().slice(0, 40);
   if (FILLABLE.includes(kind) && d.fill === true) data.fill = true;

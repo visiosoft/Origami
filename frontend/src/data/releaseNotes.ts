@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-16b',
+    date: '2026-11-16',
+    title: 'Markup text: readable on big drawings, easy to move and size',
+    items: [
+      { area: 'Markups', kind: 'fixed', text: 'Text on large drawings (like a 36×24 sheet) came out tiny. New text now reads at a normal size on any sheet; the size menu shows “12 pt (×3)” on a big sheet.', where: 'Plan room → Mark up → Text' },
+      { area: 'Markups', kind: 'improved', text: 'Drag your text to move it, even with the Text tool still on, and drag its corner square to make the letters any size. A−/A+ still step through the sizes, now up to 72 pt.' },
+    ],
+  },
+  {
     id: '2026-11-16a',
     date: '2026-11-16',
     title: 'Pick the funding source on invoices and change orders',

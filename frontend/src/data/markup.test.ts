@@ -53,7 +53,8 @@ describe('markup quick fixes', () => {
   it('steps text sizes and stops at both ends', () => {
     expect(nextSize(12, 1)).toBe(14);
     expect(nextSize(12, -1)).toBe(10);
-    expect(nextSize(36, 1)).toBe(36);
+    expect(nextSize(36, 1)).toBe(48);
+    expect(nextSize(72, 1)).toBe(72);
     expect(nextSize(8, -1)).toBe(8);
     expect(nextSize(13, 1)).toBe(14);
   });

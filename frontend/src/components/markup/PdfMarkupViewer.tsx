@@ -5,7 +5,7 @@ import { useApp } from '../../AppContext';
 import { CsiSelect } from '../CsiSelect';
 import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
 import {
-  KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
+  KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, draggedSize, sheetTextScale, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
   FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, simplifyStroke, SCALE_KINDS, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, isDoubleTap, PHONE_RENDER_PIXELS, TOOL_GROUPS, groupOfTool, trianglePts, wrapLines, labelLayout, markupsBrief, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type MarkupLinkType, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
@@ -211,6 +211,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const cancelLongPress = () => { if (longPress.current) { window.clearTimeout(longPress.current.timer); longPress.current = null; } };
   /** Dragging a text box's edge to resize it. */
   const resizing = useRef<{ id: string; x0: number; orig: number; m: Markup; w?: number } | null>(null);
+  /** A text's corner being dragged: the letters scale freely (Nov 16). */
+  const scaling = useRef<{ id: string; m: Markup; b: { x0: number; y0: number; x1: number; y1: number }; fs0: number; w0?: number; fs?: number; w?: number } | null>(null);
+  const [liveSize, setLiveSize] = useState<number | null>(null);
   // Searching the drawing's own text (and the markups' notes).
   const [search, setSearch] = useState<{ q: string; hits: Hit[]; at: number; busy: boolean; noText: boolean } | null>(null);
   const pageText = useRef(new Map<number, TextRun[]>());
@@ -565,7 +568,10 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     if (!size) return null;
     const tol = 8 / (size.w * scale);
     for (const m of [...onPage].reverse()) {
-      const b = boxOf(m);
+      const b0 = boxOf(m);
+      // Small text on a big sheet: a grab area of at least ~24 screen pixels.
+      const minW = m.kind === 'text' ? 24 / (size.w * scale) : 0, minH = m.kind === 'text' ? 24 / (size.h * scale) : 0;
+      const b = { x0: b0.x0, y0: b0.y0, x1: Math.max(b0.x1, b0.x0 + minW), y1: Math.max(b0.y1, b0.y0 + minH) };
       if (p[0] >= b.x0 - tol && p[0] <= b.x1 + tol && p[1] >= b.y0 - tol && p[1] <= b.y1 + tol) return m;
     }
     return null;
@@ -609,6 +615,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     dropLive();
     if (drag.current) { unhide(drag.current.id); drag.current = null; }
     if (resizing.current) { unhide(resizing.current.id); resizing.current = null; }
+    if (scaling.current) { unhide(scaling.current.id); scaling.current = null; setLiveSize(null); }
     pan.current = null; rectAt.current = null;
   };
   const movePinch = () => {
@@ -645,6 +652,38 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     const pts = stroke.current, kind = tool as MarkupKind;
     if (!pts) { live.current?.show(null); return; }
     live.current?.show(() => ghost(kind, pts));
+  };
+
+  /**
+   * Your own selected text's handles (corner: letter size; right edge: box width), then your own
+   * text under the pointer, are grabbed with Select or with the Text tool (Nov 16). True when taken.
+   */
+  const grabText = (e: React.PointerEvent, p: Pt): boolean => {
+    if (!size) return false;
+    const reach = (coarse ? 22 : 9) / (size.w * scale), reachY = (coarse ? 22 : 9) / (size.h * scale);
+    if (selected?.kind === 'text' && mine(selected) && selected.page === pageNo) {
+      const b = boxOf(selected);
+      if (Math.abs(p[0] - b.x1) < reach && Math.abs(p[1] - b.y1) < reachY) {
+        scaling.current = { id: selected.id, m: selected, b, fs0: selected.data.size || 12, w0: selected.data.boxW };
+        rectAt.current = svg.current!.getBoundingClientRect();
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+        return true;
+      }
+      if (selected.data.boxW && Math.abs(p[0] - b.x1) < (coarse ? 22 : 8) / (size.w * scale) && p[1] >= b.y0 && p[1] <= b.y1) {
+        resizing.current = { id: selected.id, x0: b.x0, orig: selected.data.boxW, m: selected };
+        rectAt.current = svg.current!.getBoundingClientRect();
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+        return true;
+      }
+    }
+    if (tool !== 'text') return false;
+    const m = hit(p);
+    if (!m || m.kind !== 'text' || !mine(m)) return false;
+    setSelectedId(m.id);
+    drag.current = { id: m.id, from: p, orig: m.data.points, m };
+    rectAt.current = svg.current!.getBoundingClientRect();
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    return true;
   };
 
   const onDown = (e: React.PointerEvent) => {
@@ -694,6 +733,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         }, 500);
         longPress.current = lp;
       }
+      // Your own text (or its handles) is picked up to move or size it, even with the Text tool.
+      if (tool === 'text' && grabText(e, at(e))) { cancelLongPress(); return; }
       // Text and Pin open their box when the finger lifts, so a long press can still select instead.
       if (tool === 'text' || tool === 'pin') { tapAsk.current = { p: at(e), x: e.clientX, y: e.clientY }; return; }
     }
@@ -706,16 +747,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       return;
     }
     if (tool === 'select') {
-      // The text box's right edge, when it's selected: drag it to resize.
-      if (selected?.kind === 'text' && selected.data.boxW && mine(selected) && selected.page === pageNo && size) {
-        const b = boxOf(selected);
-        if (Math.abs(p[0] - b.x1) < (coarse ? 22 : 8) / (size.w * scale) && p[1] >= b.y0 && p[1] <= b.y1) {
-          resizing.current = { id: selected.id, x0: b.x0, orig: selected.data.boxW, m: selected };
-          rectAt.current = svg.current!.getBoundingClientRect();
-          (e.target as Element).setPointerCapture?.(e.pointerId);
-          return;
-        }
-      }
+      // A selected text's corner (letter size) or right edge (box width).
+      if (grabText(e, p)) return;
       const m = hit(p);
       // Someone else's link (or any link, for a viewer) goes where it points; your own is picked up to move.
       if (m?.kind === 'link' && !mine(m)) { follow(m); return; }
@@ -726,6 +759,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       return;
     }
     if (!canDraw) return;
+    if (tool === 'text' && grabText(e, p)) return;
     if (tool === 'text' || tool === 'pin') { setAsk(tool === 'pin' ? { kind: 'pin', at: p, value: '' } : { kind: 'text', at: p, value: '' }); return; }
     if (MULTI_POINT.includes(tool as MarkupKind)) {
       if (tool === 'measure_path' && !pageScale) { toast('Set the scale on this page first (⇔): draw over a dimension you know.'); return; }
@@ -753,6 +787,19 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       return;
     }
     const p = at(e);
+    if (scaling.current) {
+      // The letters scale with the corner; drawn on the live layer until the pen lifts.
+      const s = scaling.current;
+      const rx = (p[0] - s.b.x0) / Math.max(1e-6, s.b.x1 - s.b.x0), ry = (p[1] - s.b.y0) / Math.max(1e-6, s.b.y1 - s.b.y0);
+      const fs = draggedSize(s.fs0, Math.max(rx, ry));
+      if (s.fs === undefined) hide(s.id);
+      s.fs = fs;
+      s.w = s.w0 ? Math.max(0.03, Math.min(1 - s.b.x0, s.w0 * (fs / s.fs0))) : undefined;
+      setLiveSize(fs);
+      const data = { ...s.m.data, size: fs, ...(s.w ? { boxW: s.w } : {}) };
+      live.current?.show(() => lifted(s.m, data));
+      return;
+    }
     if (resizing.current) {
       // The box is drawn at its new width on the live layer; the markup itself waits for the pen to lift.
       const r = resizing.current;
@@ -804,6 +851,19 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       return;
     }
     if (pan.current) { pan.current = null; return; }
+    if (scaling.current) {
+      const s = scaling.current;
+      scaling.current = null;
+      setLiveSize(null);
+      unhide(s.id);
+      const m = marks.find((x) => x.id === s.id);
+      if (m && s.fs !== undefined && s.fs !== s.fs0) {
+        const data = { ...m.data, size: s.fs, ...(s.w ? { boxW: s.w } : {}) };
+        replace({ ...m, data });
+        void editMarkup(m, { data });
+      }
+      return;
+    }
     if (resizing.current) {
       const r = resizing.current;
       resizing.current = null;
@@ -869,7 +929,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     if (!ask || !size) return;
     if (ask.kind === 'text') {
       // New text wraps in a box (Oct 31); it can be dragged wider or narrower.
-      if (ask.value.trim()) await save('text', { points: [ask.at], color, width: 1, text: ask.value.trim(), size: textSize, boxW: Math.min(TEXT_BOX_W, 1 - ask.at[0]) });
+      // Sized for the sheet (Nov 16): 12 pt reads like 12 pt on a letter page, even on a 36x24 drawing.
+      if (ask.value.trim()) {
+        const m = await save('text', { points: [ask.at], color, width: 1, text: ask.value.trim(), size: textSize * sheetTextScale(size.w), boxW: Math.min(TEXT_BOX_W * Math.min(2, sheetTextScale(size.w)), 1 - ask.at[0]) });
+        if (m) setSelectedId(m.id); // ready to drag, or to size by its corner
+      }
     } else if (ask.kind === 'link') {
       let target: LinkTarget | null = null;
       if (ask.to === 'page') {
@@ -1148,7 +1212,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   }, [draft, tool, color, width, fill, scale, pageScale, size]);
 
   const selBox = selected && selected.page === pageNo && size ? boxOf(selected) : null;
-  const resizeHandle = selected && selBox && size && selected.kind === 'text' && selected.data.boxW && mine(selected) && tool === 'select';
+  const textHandles = selected && selBox && size && selected.kind === 'text' && mine(selected) && (tool === 'select' || tool === 'text');
+  const resizeHandle = textHandles && selected.data.boxW;
+  const sk = size ? sheetTextScale(size.w) : 1;
   const cursor = tool === 'pan' || spaceDown ? (pan.current ? 'grabbing' : 'grab') : tool === 'select' ? 'default' : tool === 'text' ? 'text' : tool === 'pin' ? 'copy' : 'crosshair';
   const pages = doc?.numPages || 0;
   const listed = (listAll ? shownMarks : onPage).slice().sort((a, b) => a.page - b.page || a.createdAt.localeCompare(b.createdAt));
@@ -1336,8 +1402,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           </>}
           {canDraw && tool === 'text' && <>
             <i className="mk-sep" />
-            <select aria-label="Text size (points)" title="Text size (points)" value={textSize} onChange={(e) => pickTextSize(Number(e.target.value))}>
-              {TEXT_SIZES.map((n) => <option key={n} value={n}>{n} pt</option>)}
+            <select aria-label="Text size (points)" title={sk > 1 ? `Text size — shown ×${sk} on this large sheet so it reads like on a letter page` : 'Text size (points)'} value={textSize} onChange={(e) => pickTextSize(Number(e.target.value))}>
+              {TEXT_SIZES.map((n) => <option key={n} value={n}>{n} pt{sk > 1 ? ` (×${sk})` : ''}</option>)}
             </select>
           </>}
           {pageScale && <span className="mk-scale" title="This page’s scale">⇔ set</span>}
@@ -1405,6 +1471,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 <g ref={selG}>
                   {selBox && <rect x={selBox.x0 * size.w - 4} y={selBox.y0 * size.h - 4} width={(selBox.x1 - selBox.x0) * size.w + 8} height={(selBox.y1 - selBox.y0) * size.h + 8} fill="none" stroke="#2563EB" strokeWidth={1} strokeDasharray="4 3" />}
                   {resizeHandle && <rect className="mk-resize" x={selBox.x1 * size.w - (coarse ? 9 : 4) / scale} y={((selBox.y0 + selBox.y1) / 2) * size.h - (coarse ? 20 : 10) / scale} width={(coarse ? 18 : 8) / scale} height={(coarse ? 40 : 20) / scale} rx={(coarse ? 5 : 2) / scale}><title>Drag to make the text box wider or narrower</title></rect>}
+                  {textHandles && <rect className="mk-resize mk-scale-handle" x={selBox.x1 * size.w - (coarse ? 11 : 6) / scale} y={selBox.y1 * size.h - (coarse ? 11 : 6) / scale} width={(coarse ? 22 : 12) / scale} height={(coarse ? 22 : 12) / scale} rx={(coarse ? 4 : 2) / scale} style={{ cursor: 'nwse-resize' }}><title>Drag the corner to make the letters bigger or smaller</title></rect>}
                 </g>
               </svg>
             )}
@@ -1494,9 +1561,10 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                   {mine(selected) && <>
                     {selected.kind === 'text' && <button type="button" className="mk-btn is-text" onClick={() => { const t = window.prompt('Edit the text', selected.data.text || ''); if (t !== null && t.trim()) void editMarkup(selected, { data: { ...selected.data, text: t.trim() } }); }}>Edit text</button>}
                     {selected.kind === 'text' && <span className="mk-size">
-                      <button type="button" className="mk-btn" aria-label="Smaller text" title="Smaller" disabled={(selected.data.size || 12) <= TEXT_SIZES[0]} onClick={() => void editMarkup(selected, { data: { ...selected.data, size: nextSize(selected.data.size || 12, -1) } })}>A−</button>
-                      <span>{selected.data.size || 12} pt</span>
-                      <button type="button" className="mk-btn" aria-label="Larger text" title="Larger" disabled={(selected.data.size || 12) >= TEXT_SIZES[TEXT_SIZES.length - 1]} onClick={() => void editMarkup(selected, { data: { ...selected.data, size: nextSize(selected.data.size || 12, 1) } })}>A+</button>
+                      <button type="button" className="mk-btn" aria-label="Smaller text" title="Smaller" disabled={(selected.data.size || 12) <= TEXT_SIZES[0] * sk} onClick={() => void editMarkup(selected, { data: { ...selected.data, size: nextSize(selected.data.size || 12, -1, sk) } })}>A−</button>
+                      <span title="Drag the text's corner for any size">{Math.round((liveSize ?? selected.data.size ?? 12) / sk)} pt{sk > 1 ? ` (×${sk})` : ''}</span>
+                      <button type="button" className="mk-btn" aria-label="Larger text" title="Larger" disabled={(selected.data.size || 12) >= TEXT_SIZES[TEXT_SIZES.length - 1] * sk} onClick={() => void editMarkup(selected, { data: { ...selected.data, size: nextSize(selected.data.size || 12, 1, sk) } })}>A+</button>
+                      <small className="mk-hint">Drag to move · drag the corner to size</small>
                     </span>}
                     {FILLABLE.includes(selected.kind) && <button type="button" className="mk-btn is-text" onClick={() => { const data: MarkupData = { ...selected.data, fill: !selected.data.fill }; if (!data.fill) delete data.fill; void editMarkup(selected, { data }); }}>{selected.data.fill ? 'Outline only' : 'Fill it'}</button>}
                     {selected.kind === 'text' && !selected.data.boxW && <button type="button" className="mk-btn is-text" title="Wrap the text in a box you can resize" onClick={() => void editMarkup(selected, { data: { ...selected.data, boxW: Math.min(TEXT_BOX_W, 1 - selected.data.points[0][0]) } })}>Wrap in a box</button>}

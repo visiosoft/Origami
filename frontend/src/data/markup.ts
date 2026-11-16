@@ -395,13 +395,33 @@ export function boundsOf(m: Pick<Markup, 'kind' | 'data'>, textW = 0.15, textH =
 
 // ------------------------------------------------------------------ text size, search, rendering
 
-/** Text sizes offered (PDF points). */
-export const TEXT_SIZES = [8, 10, 12, 14, 18, 24, 36] as const;
+/** Text sizes offered (points, as on a letter-size page; multiplied on bigger sheets). */
+export const TEXT_SIZES = [8, 10, 12, 14, 18, 24, 36, 48, 72] as const;
+/** Dragging a text's corner sizes it freely within these (page points). */
+export const TEXT_FREE_MIN = 4;
+export const TEXT_FREE_MAX = 400;
 
-/** The next size up (dir 1) or down (-1) from `size`, stopping at the ends. */
-export function nextSize(size: number, dir: 1 | -1): number {
-  if (dir > 0) return TEXT_SIZES.find((s) => s > size) ?? TEXT_SIZES[TEXT_SIZES.length - 1];
-  return [...TEXT_SIZES].reverse().find((s) => s < size) ?? TEXT_SIZES[0];
+/**
+ * How much bigger text has to be on this sheet to read like it does on a
+ * letter page (Nov 16): a 36x24 drawing is ~2,592 pt wide, so 12 pt there is
+ * a speck. 1 for letter/legal/tabloid-ish widths, ~3 for ARCH D, 4 for ARCH E.
+ */
+export function sheetTextScale(pageWidthPt: number | null | undefined): number {
+  const w = Number(pageWidthPt) || 0;
+  return Math.max(1, Math.round(w / 792));
+}
+
+/** The next size up (dir 1) or down (-1) from `size`, on this sheet's steps (`k` = sheetTextScale), stopping at the ends. */
+export function nextSize(size: number, dir: 1 | -1, k = 1): number {
+  const steps = TEXT_SIZES.map((s) => s * k);
+  if (dir > 0) return steps.find((s) => s > size + 0.01) ?? steps[steps.length - 1];
+  return [...steps].reverse().find((s) => s < size - 0.01) ?? steps[0];
+}
+
+/** The size scaled by a corner drag: `ratio` of the original, kept within the free range. */
+export function draggedSize(size0: number, ratio: number): number {
+  const v = Math.round(size0 * (Number.isFinite(ratio) && ratio > 0 ? ratio : 1));
+  return Math.max(TEXT_FREE_MIN, Math.min(TEXT_FREE_MAX, v));
 }
 
 /** One run of a page's text, as a box in page-relative (0-1, as shown) coordinates. */
