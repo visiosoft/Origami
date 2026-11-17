@@ -1,3 +1,4 @@
+import { HelpPolicies } from '../components/HelpPolicies';
 import { useEffect, useState } from 'react';
 import { releaseSeen } from '../data/releaseNotes';
 import { WhatsNew } from '../components/WhatsNew';
@@ -27,7 +28,7 @@ export function Help() {
   const { can, toast, currentUser } = useApp();
   const canManage = can('help', 'manage');
   // Release notes open first while there's something you haven't seen.
-  const [tab, setTab] = useState<'new' | 'center' | 'ticket' | 'faq'>(() => (releaseSeen() ? 'center' : 'new'));
+  const [tab, setTab] = useState<'new' | 'center' | 'ticket' | 'faq' | 'policies'>(() => (releaseSeen() ? 'center' : 'new'));
   const [theme] = useTheme();
   if (theme === 'coterie') return <HelpBoard />;
 
@@ -37,10 +38,12 @@ export function Help() {
       <div style={{ fontSize: 13, color: 'var(--c-5c6b65)', marginBottom: 18 }}>See what’s new, find answers, browse FAQs, or raise a support ticket.</div>
 
       <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999, marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
-        {([['new', 'What’s new'], ['center', 'Help Center'], ['ticket', 'Submit Ticket'], ['faq', 'FAQs']] as [typeof tab, string][]).map((t) => (
+        {([['new', 'What’s new'], ['center', 'Help Center'], ['policies', 'Policies'], ['ticket', 'Submit Ticket'], ['faq', 'FAQs']] as [typeof tab, string][]).map((t) => (
           <div key={t[0]} onClick={() => setTab(t[0])} style={{ padding: '8px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: tab === t[0] ? 'var(--seg-on)' : 'transparent', color: tab === t[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: tab === t[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{t[1]}</div>
         ))}
       </div>
+
+      {tab === 'policies' && <HelpPolicies />}
 
       {tab === 'center' && (
         <div>

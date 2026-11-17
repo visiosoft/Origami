@@ -1,3 +1,4 @@
+import { tradeLabel } from '../data/tradeCsi';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -205,7 +206,7 @@ function RequestEditor({ request, projects, trades, onClose, onSaved }: {
           <div key={i} style={bodyRow('1.3fr 1.3fr 90px 30px')}>
             <select value={l.tradeId} onChange={(e) => patch(i, { tradeId: e.target.value })} style={input}>
               <option value="">Select…</option>
-              {activeTrades.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {activeTrades.map((t) => <option key={t.id} value={t.id}>{tradeLabel(t.name)}</option>)}
             </select>
             <input value={l.designation || ''} onChange={(e) => patch(i, { designation: e.target.value })} placeholder="Optional" style={input} />
             <input type="number" min={1} value={l.quantity} onChange={(e) => patch(i, { quantity: e.target.value === '' ? ('' as any) : Number(e.target.value) })} style={input} />

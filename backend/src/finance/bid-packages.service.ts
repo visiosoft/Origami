@@ -119,13 +119,15 @@ export class BidPackagesService {
     const ids = [...new Set((dto?.contractorIds || []).map(String))];
     if (!ids.length) throw new BadRequestException('Pick the subs to invite.');
     const subs = await this.contractors.find({ where: { id: In(ids) } });
-    // Only prequalified subs with a current licence and insurance (Nov 13 sync).
-    const blocked = subs.map((c) => ({ c, why: prequalBlock(c) })).filter((x) => x.why);
-    if (blocked.length) throw new BadRequestException(`Can’t invite ${blocked.map((x) => `${x.c.companyName} (${x.why!.toLowerCase()})`).join(', ')}. Prequalify them first.`);
+    // Nov 17 sync (replaces Nov 13): subs won't prequalify unless there's work to price, so prequal is
+    // collected with the bid -- the invite carries the form -- and full qualification comes before
+    // construction. Only a sub whose prequal was turned down can't be invited.
+    const refused = subs.filter((c) => c.prequalStatus === 'rejected');
+    if (refused.length) throw new BadRequestException(`Can’t invite ${refused.map((c) => c.companyName).join(', ')}: prequalification was turned down.`);
     const project = await this.fin.project(projectId);
     const canMail = await this.google.isConnected().catch(() => false);
     const emailBrand = await loadEmailBrand(this.settings);
-    const out: { contractorId: string; vendorName: string; link: string; emailed: boolean }[] = [];
+    const out: { contractorId: string; vendorName: string; link: string; emailed: boolean; prequalLink?: string }[] = [];
     for (const c of subs) {
       let inv = await this.invites.findOne({ where: { packageId, contractorId: c.id } });
       if (!inv) inv = this.invites.create({ id: newId('BI'), packageId, projectId, contractorId: c.id, status: 'invited', createdAt: now() });
@@ -137,16 +139,19 @@ export class BidPackagesService {
       }
       await this.invites.save(inv);
       const link = await this.link(inv);
+      // Not prequalified yet: the same email asks for it (licence, insurance, references -- the W-9 comes at contract).
+      const needsPrequal = !!prequalBlock(c);
+      const prequalLink = needsPrequal ? `${(await this.settings.baseUrl()) || ''}/prequal?token=${encodeURIComponent(signState({ mode: 'prequal', contractorId: c.id }, await this.settings.jwtSecret()))}` : null;
       let emailed = false;
       if (canMail && inv.email && EMAIL.test(inv.email)) {
         await this.google.sendMail({
           to: inv.email, subject: `Bid request ${p.number} — ${project.name}`,
           html: emailShell({ brand: emailBrand as any, eyebrow: `Bid request · ${p.number}`, title: `Hello ${escapeHtml(c.companyName)},`,
-            body: `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">We’d like your price for <b>${escapeHtml(p.title)}</b> on ${escapeHtml(project.name)}${p.dueDate ? `, by <b>${escapeHtml(p.dueDate)}</b>` : ''}. The scope, lines and inclusions / exclusions are on the page below, where you can enter your price or decline.</p>${p.notes ? `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">${escapeHtml(p.notes).replace(/\n/g, '<br>')}</p>` : ''}` + viewButton(link).replace('View the change order', 'See the scope and send your price'),
+            body: (prequalLink ? `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">With your price, please fill in our short <a href="${prequalLink}">prequalification form</a> (licence, insurance, references). Full qualification is needed before work starts on site.</p>` : '') + `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">We’d like your price for <b>${escapeHtml(p.title)}</b> on ${escapeHtml(project.name)}${p.dueDate ? `, by <b>${escapeHtml(p.dueDate)}</b>` : ''}. The scope, lines and inclusions / exclusions are on the page below, where you can enter your price or decline.</p>${p.notes ? `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">${escapeHtml(p.notes).replace(/\n/g, '<br>')}</p>` : ''}` + viewButton(link).replace('View the change order', 'See the scope and send your price'),
             footer: `Sent by ${escapeHtml(actor.name)} at ${escapeHtml(emailBrand.companyName)}.` }),
         }).then(() => { emailed = true; }).catch(() => undefined);
       }
-      out.push({ contractorId: c.id, vendorName: c.companyName, link, emailed });
+      out.push({ contractorId: c.id, vendorName: c.companyName, link, emailed, ...(prequalLink ? { prequalLink } : {}) });
     }
     if (p.status === 'draft') { p.status = 'out'; p.updatedAt = now(); await this.packages.save(p); }
     await this.fin.log(null, { projectId, entityType: 'bid_package', entityId: p.id, action: 'subs_invited', reason: out.map((o) => o.vendorName).join(', ') }, actor);

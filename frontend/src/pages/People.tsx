@@ -1,3 +1,4 @@
+import { tradeLabel } from '../data/tradeCsi';
 import { ContactEmail } from '../components/ContactEmail';
 import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
@@ -93,7 +94,7 @@ function personPayload(np: NewPerson, profile: PersonProfile): Record<string, an
 const BLANK_PAYLOAD = personPayload(BLANK, normalizeProfile({}));
 
 /** Pick from a set list (trades, disciplines, companies) -- typing is the exception, behind "Other…". */
-function PickOrType({ value, options, onChange, placeholder, newLabel = 'Other…' }: { value: string; options: string[]; onChange: (v: string) => void; placeholder?: string; newLabel?: string }) {
+function PickOrType({ value, options, onChange, placeholder, newLabel = 'Other…', label = (o: string) => o }: { value: string; options: string[]; onChange: (v: string) => void; placeholder?: string; newLabel?: string; label?: (o: string) => string }) {
   const listed = options.includes(value);
   const [typing, setTyping] = useState(!!value && !listed);
   const box: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
@@ -106,7 +107,7 @@ function PickOrType({ value, options, onChange, placeholder, newLabel = 'Other�
   return (
     <select value={listed ? value : ''} onChange={(e) => { if (e.target.value === '__new') { setTyping(true); onChange(''); } else onChange(e.target.value); }} style={box}>
       <option value="">Choose…</option>
-      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      {options.map((o) => <option key={o} value={o}>{label(o)}</option>)}
       <option value="__new">{newLabel}</option>
     </select>
   );
@@ -843,7 +844,7 @@ export function People() {
                 <div>{lbl('Last name')}<input value={profile.lastName} placeholder="e.g. Whitfield" aria-label="Last name" onChange={(e) => setPersonName({ lastName: e.target.value })} style={textBox} /></div>
               </>}
               {isCompany
-                ? <div>{lbl(np.kind === 'Sub' || np.kind === 'Vendor' ? 'Trade' : 'Discipline')}<PickOrType value={np.role} options={np.kind === 'Sub' || np.kind === 'Vendor' ? tradeNames : CONSULTANT_DISCIPLINES} placeholder="Type the trade" onChange={(role) => setNp({ ...np, role })} /></div>
+                ? <div>{lbl(np.kind === 'Sub' || np.kind === 'Vendor' ? 'Trade' : 'Discipline')}<PickOrType value={np.role} options={np.kind === 'Sub' || np.kind === 'Vendor' ? tradeNames : CONSULTANT_DISCIPLINES} label={np.kind === 'Sub' || np.kind === 'Vendor' ? tradeLabel : undefined} placeholder="Type the trade" onChange={(role) => setNp({ ...np, role })} /></div>
                 : np.kind === 'Consultant'
                   // A consultant is a person now (Nov 10), still with their discipline.
                   ? <div>{lbl('Discipline')}<PickOrType value={np.role} options={CONSULTANT_DISCIPLINES} placeholder="e.g. Structural engineer" onChange={(role) => setNp({ ...np, role })} /></div>

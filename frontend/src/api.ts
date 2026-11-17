@@ -1170,6 +1170,13 @@ export const api = {
     update: (id: string, data: unknown) => request(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/tickets/${id}`, { method: 'DELETE' }),
   },
+  /** Nov 17: Help -> Policies (SOPs, SLA, disaster recovery) -- links, staff read, admins edit. */
+  helpDocuments: {
+    list: () => request<import('./components/HelpPolicies').HelpDoc[]>('/help-documents', { cache: 'no-store' } as any),
+    create: (d: unknown) => request('/help-documents', { method: 'POST', body: JSON.stringify(d) }),
+    update: (id: string, d: unknown) => request(`/help-documents/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/help-documents/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
   faqs: {
     list: () => request('/faqs'),
     create: (data: unknown) => request('/faqs', { method: 'POST', body: JSON.stringify(data) }),

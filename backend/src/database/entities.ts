@@ -740,6 +740,24 @@ export class FaqEntity {
   @Column('int') order!: number;
 }
 
+/**
+ * Nov 17 sync: the company's standard documents -- SOPs, service levels,
+ * disaster recovery -- listed under Help & Support -> Policies for the team.
+ * Each is a link to the document (usually in Google Drive).
+ */
+@Entity('help_documents')
+export class HelpDocumentEntity {
+  @PrimaryColumn() id!: string;
+  @Column({ type: 'nvarchar', length: 200 }) title!: string;
+  /** sop | sla | disaster | policy | other */
+  @Column({ type: 'nvarchar', length: 20, default: 'sop' }) kind!: string;
+  @Column({ type: 'nvarchar', length: 1000 }) url!: string;
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) summary!: string | null;
+  @Column('int', { default: 0 }) order!: number;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) updatedBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+}
+
 @Entity('consultants')
 export class ConsultantEntity {
   @PrimaryColumn() id!: string;

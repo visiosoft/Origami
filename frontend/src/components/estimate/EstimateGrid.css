@@ -8,6 +8,7 @@
 .eg-chip.is-draft { background: rgba(var(--rgb-gold), 0.25); color: var(--ink); }
 .eg-chip.is-sent { background: rgba(var(--rgb-success), 0.15); color: rgb(var(--rgb-success-deep)); }
 .eg-chip.is-accepted { background: rgb(var(--rgb-success)); color: #fff; }
+.eg-chip.is-late { background: #FBE3C8; color: #8A4B12; }
 .eg-btn { padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--rgb-shade), 0.14); background: var(--surface); font: 600 12.5px inherit; font-family: inherit; color: var(--body); cursor: pointer; white-space: nowrap; }
 .eg-btn:hover:not(:disabled) { border-color: rgba(var(--rgb-shade), 0.3); }
 .eg-btn:disabled { opacity: 0.45; cursor: default; }

@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-17h',
+    date: '2026-11-17',
+    title: 'Estimating timers, CSI codes on trades, prequal with the bid, Policies in Help',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'A sent estimate shows how long it has been waiting on the client (“Sent · waiting 9 days”), in amber after a week. It stays in Estimating, not on the dashboard.', where: 'Estimating → a project' },
+      { area: 'Trades', kind: 'improved', text: 'Trade lists show the CSI division next to each trade (e.g. “26 · Electrician”, “C-10 Electrical · CSI 26”) so trades line up with estimate line items.', where: 'Workforce, Contractors, People → Sub / Vendor' },
+      { area: 'Bids', kind: 'improved', text: 'Subs no longer have to be prequalified before you invite them to bid: the bid email carries the prequal form, and full qualification comes before construction. Only a sub whose prequal was turned down can’t be invited.', where: 'Estimating → Bid packages → Invite' },
+      { area: 'Prequal', kind: 'improved', text: 'The W-9 is asked for at contract signing, not on the prequal form.', where: 'Prequal form' },
+      { area: 'Help', kind: 'new', text: 'Policies & procedures: SOPs, service levels and the disaster-recovery plan in one place for the team. Administrators add each as a link to the document.', where: 'Help & Support → Policies' },
+    ],
+  },
+  {
     id: '2026-11-17g',
     date: '2026-11-17',
     title: 'RFIs: drawings and numbered callouts, kept off the set until answered',

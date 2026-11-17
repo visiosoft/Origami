@@ -91,7 +91,7 @@ export class PrequalService {
       await this.google.sendMail({
         to: c.email, subject: `Prequalification — ${brand.companyName}`,
         html: emailShell({ brand: brand as any, eyebrow: 'Prequalification', title: `Hello ${escapeHtml(c.companyName)},`,
-          body: `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">Before we invite you to bid, please fill in our short prequalification form: your licence, insurance, trades and references. You can upload your W-9 and certificates there too.</p><p style="margin:0 0 16px;"><a href="${link}" style="display:inline-block;padding:11px 20px;border-radius:999px;background:#1f3d33;color:#fff;font-weight:700;text-decoration:none;">Fill in the form</a></p>`,
+          body: `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">Please fill in our short prequalification form: your licence, insurance, trades and references, with your certificates. We only ask for your W-9 when we sign a contract.</p><p style="margin:0 0 16px;"><a href="${link}" style="display:inline-block;padding:11px 20px;border-radius:999px;background:#1f3d33;color:#fff;font-weight:700;text-decoration:none;">Fill in the form</a></p>`,
           footer: `Sent by ${escapeHtml(actorName)} at ${escapeHtml(brand.companyName)}. The link works for ${LINK_DAYS} days.` }),
       }).then(() => { emailed = true; }).catch(() => undefined);
     }

@@ -1,3 +1,4 @@
+import { estimateWaiting } from '../data/estimateWaiting';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -31,7 +32,11 @@ export function foldOf(stage?: string | null): string {
 const FOLDS_KEY = 'origami.est.folds';
 const loadFolds = (): string[] => { try { return JSON.parse(localStorage.getItem(FOLDS_KEY) || '[]'); } catch { return []; } };
 
-const chip = (status: string) => <span className={`eg-chip is-${status}`}>{status}</span>;
+/** Nov 17: how long a sent estimate has waited on the client (amber after a week). */
+const waitChip = (r: { status: string; sentAt?: string | null }) => {
+  const w = estimateWaiting(r);
+  return <span className={`eg-chip is-${r.status}${w.late ? ' is-late' : ''}`} title={w.days != null ? `Sent ${String(r.sentAt).slice(0, 10)}` : undefined}>{w.late ? '⏱ ' : ''}{w.label}</span>;
+};
 
 /**
  * Estimating (Precon): a project's estimates, each built like the team's
@@ -232,7 +237,7 @@ export function Estimating() {
               {rows.map((r) => (
                 <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => go({ estimate: r.id })}>
                   <td style={{ padding: '10px 14px' }}><b style={{ color: 'var(--ink)' }}>{r.number} · Rev {r.rev}</b> <span style={{ color: 'var(--muted)' }}>{r.title}</span></td>
-                  <td>{chip(r.status)}</td>
+                  <td>{waitChip(r)}</td>
                   <td style={{ color: 'var(--muted)' }}>{r.estimateDate || ''}</td>
                   <td className="is-num" style={{ paddingRight: 14, fontWeight: 600, color: 'var(--ink)' }}>{money(Math.round(r.totalProject * 100))}</td>
                 </tr>

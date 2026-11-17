@@ -64,8 +64,6 @@ describe('K10: sub bid packages', () => {
   it('inviting emails each sub a private link and adds their row on the Contractors page', async () => {
     const { svc, invites, bids, mails, packages } = setup();
     const p = await svc.create(7, 'E1', { scopeIds: ['S2'] }, actor);
-    // Nov 13: a sub that isn't prequalified can't be invited.
-    await expect(svc.invite(7, p.id, { contractorIds: ['K1', 'K3'] }, actor)).rejects.toThrow(/Can’t invite Nope LLC \(not prequalified yet\)/);
     const r = await svc.invite(7, p.id, { contractorIds: ['K1', 'K2'] }, actor);
     expect(r.invited.map((x) => x.vendorName)).toEqual(['Tile Co', 'Stone Inc']);
     expect(mails.map((m) => m.to)).toEqual(['tile@x.test', 'stone@x.test']);
@@ -73,6 +71,7 @@ describe('K10: sub bid packages', () => {
     expect(invites.rows).toHaveLength(2);
     expect(bids.rows.map((b) => b.outcome)).toEqual(['invited', 'invited']);
     expect(packages.rows[0].status).toBe('out');
+    expect(r.invited.some((x: any) => x.prequalLink)).toBe(false);
     await svc.invite(7, p.id, { contractorIds: ['K1'] }, actor);
     expect(invites.rows).toHaveLength(2);
     expect(bids.rows).toHaveLength(2);
@@ -122,6 +121,16 @@ describe('K10: sub bid packages', () => {
     await svc.useBid(7, p.id, invites.rows[0].id, actor);
     expect(draftLines.slice(0, 2).map((l) => l.cost)).toEqual([3000, 1000]);
     expect(draftLines[0].cost + draftLines[1].cost).toBe(4000);
+  });
+
+  // Nov 17 (replaces Nov 13): prequal comes with the bid, not before it.
+  it('a sub not prequalified yet is invited, and the same email asks for the prequal form', async () => {
+    const { svc, mails } = setup();
+    const p = await svc.create(7, 'E1', { scopeIds: ['S2'] }, actor);
+    const r = await svc.invite(7, p.id, { contractorIds: ['K3'] }, actor);
+    expect(r.invited[0]).toMatchObject({ vendorName: 'Nope LLC' });
+    expect((r.invited[0] as any).prequalLink).toContain('/prequal?token=');
+    if (mails.length) expect(mails.at(-1)!.html).toContain('prequalification form');
   });
 });
 

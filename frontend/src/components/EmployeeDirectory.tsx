@@ -1,3 +1,4 @@
+import { tradeLabel } from '../data/tradeCsi';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePicklists } from '../data/picklists';
 import { PickMany, PickOne } from './PicklistInputs';
@@ -223,7 +224,7 @@ function FieldInput({ def, value, onChange, disabled, employees, trades, contrac
     return (
       <select disabled={disabled} value={value || ''} onChange={(e) => onChange(e.target.value || null)} style={input}>
         <option value="">—</option>
-        {trades.filter((t) => t.active || t.id === value).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        {trades.filter((t) => t.active || t.id === value).map((t) => <option key={t.id} value={t.id}>{tradeLabel(t.name)}</option>)}
       </select>
     );
   }

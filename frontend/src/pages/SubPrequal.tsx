@@ -78,7 +78,7 @@ export function SubPrequal() {
             </div>
             <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--body)' }}>Trades<input disabled={!manage} value={form.trades || ''} onChange={(e) => setForm({ ...form, trades: e.target.value })} style={field} /></label>
             <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--body)' }}>References<textarea rows={3} disabled={!manage} value={form.references || ''} onChange={(e) => setForm({ ...form, references: e.target.value })} style={field} /></label>
-            <label style={{ display: 'flex', gap: 8, fontSize: 13 }}><input type="checkbox" disabled={!manage} checked={!!form.w9OnFile} onChange={(e) => setForm({ ...form, w9OnFile: e.target.checked })} />W-9 on file</label>
+            <label style={{ display: 'flex', gap: 8, fontSize: 13 }}><input type="checkbox" disabled={!manage} checked={!!form.w9OnFile} onChange={(e) => setForm({ ...form, w9OnFile: e.target.checked })} />W-9 on file <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(asked for at contract signing, not before)</span></label>
             <div style={{ fontSize: 12.5 }}><b>Files</b> — {open.attachments.length ? open.attachments.map((a) => a.name).join(', ') : 'none yet (the sub can upload from their link, or add them on the Contractors page)'}</div>
             {manage && (
               <>

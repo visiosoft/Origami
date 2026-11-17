@@ -1,3 +1,4 @@
+import { tradeCsi } from '../data/tradeCsi';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -20,7 +21,7 @@ export function TradeChips({ trades, ids, max = 2 }: { trades: SubcontractorTrad
     <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }} title={held.map((t) => `${t.code} ${t.name}`).join('\n')}>
       {held.slice(0, max).map((t) => (
         <span key={t.id} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 6, background: 'var(--mist)', color: ACCENT, whiteSpace: 'nowrap' }}>
-          <b>{t.code}</b> {t.name}
+          <b>{t.code}</b> {t.name}{tradeCsi(t.name) ? <span style={{ color: MUTED }}> · CSI {tradeCsi(t.name)}</span> : null}
         </span>
       ))}
       {held.length > max && <span style={{ fontSize: 11, color: MUTED, alignSelf: 'center' }}>+{held.length - max}</span>}
@@ -41,14 +42,14 @@ export function TradePicker({ trades, value, onChange, disabled }: { trades: Sub
   }, [open]);
   const held = value.map((id) => trades.find((t) => t.id === id)).filter(Boolean) as SubcontractorTrade[];
   const s = q.trim().toLowerCase();
-  const options = trades.filter((t) => t.active && !value.includes(t.id) && (!s || `${t.code} ${t.name}`.toLowerCase().includes(s)));
+  const options = trades.filter((t) => t.active && !value.includes(t.id) && (!s || `${t.code} ${t.name} ${tradeCsi(t.name) || ''}`.toLowerCase().includes(s)));
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: held.length ? 8 : 0 }}>
         {held.map((t) => (
           <span key={t.id} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--mist)', color: ACCENT, fontSize: 12 }}>
-            <b>{t.code}</b> {t.name}
+            <b>{t.code}</b> {t.name}{tradeCsi(t.name) ? <span style={{ color: MUTED }}> · CSI {tradeCsi(t.name)}</span> : null}
             {!disabled && <span onClick={() => onChange(value.filter((x) => x !== t.id))} style={{ cursor: 'pointer', color: MUTED }}>×</span>}
           </span>
         ))}
@@ -70,7 +71,7 @@ export function TradePicker({ trades, value, onChange, disabled }: { trades: Sub
                   <div key={t.id} onClick={() => { onChange([...value, t.id]); setQ(''); }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--c-f7f3ea)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
                     style={{ display: 'flex', gap: 10, padding: '7px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 13 }}>
-                    <b style={{ width: 44, color: ACCENT }}>{t.code}</b><span style={{ color: INK }}>{t.name}</span>
+                    <b style={{ width: 44, color: ACCENT }}>{t.code}</b><span style={{ color: INK, flex: 1 }}>{t.name}</span>{tradeCsi(t.name) && <span style={{ color: MUTED, fontSize: 11.5 }}>CSI {tradeCsi(t.name)}</span>}
                   </div>
                 ))}
               </div>
