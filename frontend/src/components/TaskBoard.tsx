@@ -40,6 +40,7 @@ import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, 
 import { linkPriorityDue, PRIORITY_HINT, priorityOption } from '../data/priority';
 import { filesFromClipboard, nameClipboardFile } from './Attachments';
 import { Skeleton } from './Skeleton';
+import { todayISO } from '../data/localDate';
 
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = {
@@ -935,7 +936,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     const total = topLevel.length;
     const completed = topLevel.filter((t) => t.completed).length;
     const incomplete = total - completed;
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayISO();
     const overdue = topLevel.filter((t) => !t.completed && t.dueDate && t.dueDate < todayStr).length;
 
     const bySection = sections.map((sec) => ({ name: sec.name, count: topLevelBySection(visibleTasks, sec.id).filter((t) => !t.completed).length }));

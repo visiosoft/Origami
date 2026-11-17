@@ -30,6 +30,7 @@ import {
 import { Skeleton } from '../components/Skeleton';
 import { ConsultantFix } from '../components/ConsultantFix';
 import { PeopleProjectFix } from '../components/PeopleProjectFix';
+import { todayISO } from '../data/localDate';
 
 const BG = 'var(--font-display)';
 // Internal people are split by level (Executive … Labor); everyone else by kind.
@@ -205,7 +206,7 @@ export function People() {
     const rows = [['Name', 'Type', 'Role', 'Company', 'Phone', 'Email', 'Projects', 'Since'],
       ...pickedShown.map((p) => [p.name, p.kind, p.role, p.company, p.phone, p.email, p.projects.join('; '), p.since])];
     const url = URL.createObjectURL(new Blob(['\uFEFF' + toCsv(rows)], { type: 'text/csv;charset=utf-8' }));
-    const a = document.createElement('a'); a.href = url; a.download = `people-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `people-${todayISO()}.csv`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 

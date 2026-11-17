@@ -50,10 +50,15 @@ export function ViewAsPicker() {
 }
 
 /** The yellow bar while viewing as someone, with Stop. */
-export function ViewAsBanner({ as, tier }: { as: string; tier?: string }) {
+export function ViewAsBanner({ as, tier, scope }: { as: string; tier?: string; scope?: 'all' | 'assigned' | 'linked' }) {
+  // Nov 17: say why they see the projects they do.
+  const why = tier === 'client' || tier === 'consultant' || scope === 'linked'
+    ? ' (outside account — only the projects they’re linked to)'
+    : scope === 'assigned' ? ' (only the projects they’re on)'
+      : scope === 'all' ? ' (their role sees every project — set it to “Assigned projects” in User Access & Roles to limit it)' : '';
   return (
     <div className="view-as-banner" role="status">
-      <span>Viewing as <b>{as}</b>{tier === 'client' || tier === 'consultant' ? ' (outside account — only the projects they’re linked to)' : ''} — read only.</span>
+      <span>Viewing as <b>{as}</b>{why} — read only.</span>
       <button type="button" onClick={() => switchTo(null)}>Stop viewing as</button>
     </div>
   );

@@ -17,6 +17,7 @@ import { STAGES } from '../data/pipeline';
 import { stageLabel } from '../data/projects';
 import './Dashboard.css';
 import { PageSkeleton } from '../components/Skeleton';
+import { localISO, todayISO } from '../data/localDate';
 
 const BG = 'var(--font-display)';
 const ocRamp = ['#C7D8CB', '#8AAE95', '#3E8558', '#173326'];
@@ -246,7 +247,7 @@ export function Dashboard() {
   // Real overdue/due-today items -- tasks from both task systems, plus
   // today's scheduled Google Meetings (My Calendar), not the demo fixture
   // this used to read from.
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayISO();
   const localDay = (e: CalEvent) => {
     if (e.allDay) return e.start.slice(0, 10);
     const d = new Date(e.start);
@@ -331,9 +332,9 @@ export function Dashboard() {
     to: `/projects?open=${featuredProject.id}`,
   } : null;
   const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
-  const wsIso = weekStart.toISOString().slice(0, 10);
+  const wsIso = localISO(weekStart);
   const weEnd = new Date(weekStart); weEnd.setDate(weekStart.getDate() + 6);
-  const weIso = weEnd.toISOString().slice(0, 10);
+  const weIso = localISO(weEnd);
   const overview = {
     name: (currentUser?.name || 'there').split(/\s+/)[0],
     pills: hasFinance ? [

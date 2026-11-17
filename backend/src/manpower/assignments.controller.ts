@@ -10,6 +10,8 @@ export class AssignDto {
   @IsArray() employeeIds: string[];
   @IsNumber() projectId: number;
   @IsString() @IsOptional() workArea?: string;
+  /** Nov 17: who they report to on site (a user id); their daily report lists this crew. */
+  @IsString() @IsOptional() supervisorId?: string;
   @IsString() @IsOptional() startDate?: string;
   @IsString() @IsOptional() endDate?: string;
   @IsIn(['regular', 'temporary']) @IsOptional() assignmentType?: string;
@@ -20,6 +22,8 @@ export class AssignDto {
 export class TransferDto {
   @IsNumber() projectId: number;
   @IsString() @IsOptional() workArea?: string;
+  /** Nov 17: who they report to on site (a user id); their daily report lists this crew. */
+  @IsString() @IsOptional() supervisorId?: string;
   @IsString() @IsOptional() startDate?: string;
   @IsString() @IsOptional() designation?: string;
   @IsString() @IsOptional() notes?: string;
@@ -37,6 +41,8 @@ export class DemobilizeDto {
 
 export class UpdateAssignmentDto {
   @IsString() @IsOptional() workArea?: string;
+  /** Nov 17: who they report to on site (a user id); their daily report lists this crew. */
+  @IsString() @IsOptional() supervisorId?: string;
   @IsString() @IsOptional() designation?: string;
   @IsString() @IsOptional() endDate?: string;
   @IsString() @IsOptional() notes?: string;

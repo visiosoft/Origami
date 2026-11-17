@@ -13,6 +13,7 @@ import { TradeChips, TradePicker, useSubcontractorTrades } from './Subcontractor
 import { ContractorBids } from './ContractorBids';
 import { bidSummary, owedAJob, OWED_A_JOB } from '../data/contractorBids';
 import { Skeleton } from './Skeleton';
+import { todayISO } from '../data/localDate';
 
 const STATUSES: [string, string, 'green' | 'amber' | 'grey'][] = [['active', 'Active', 'green'], ['suspended', 'Suspended', 'amber'], ['ended', 'Ended', 'grey']];
 const statusBadge = (s: string) => { const m = STATUSES.find(([k]) => k === s) || STATUSES[0]; return <Badge tone={m[2]}>{m[1]}</Badge>; };
@@ -458,7 +459,7 @@ export function SubContractorSummary({ contractorId, onOpen }: { contractorId: s
   if (c === undefined) return <Skeleton label="Loading the contractor record…" />;
   if (!c) return <div style={{ fontSize: 12, color: MUTED }}>The contractor record is being set up — refresh in a moment.</div>;
   const day = (d?: string) => (d ? fmtDate(d.slice(0, 10)) : '');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const exp = (d?: string) => (d ? (d.slice(0, 10) < today ? { color: DANGER, fontWeight: 700 } : {}) : { color: MUTED });
   return (
     <div>

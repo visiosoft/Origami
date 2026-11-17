@@ -8,6 +8,7 @@ import { RequestLogTaskDrawer } from './RequestLogTaskDrawer';
 import { askCompletionNote } from './CompletionNote';
 import { logTaskDetails, logTaskTitle, type Task } from '../data/tasks';
 import { Skeleton } from './Skeleton';
+import { todayISO } from '../data/localDate';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -70,7 +71,7 @@ export function DealTasksPanel({
     const completionNote = isLogClosed(status) && !isLogClosed(t.status) ? await askCompletionNote(logTaskTitle(t)) : undefined;
     if (completionNote === null) return;
     setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, status: status as Task['status'] } : x)));
-    api.tasks.update(t.id, { status, dateClosed: isLogClosed(status) ? new Date().toISOString().slice(0, 10) : '', ...(completionNote ? { completionNote } : {}) })
+    api.tasks.update(t.id, { status, dateClosed: isLogClosed(status) ? todayISO() : '', ...(completionNote ? { completionNote } : {}) })
       .catch((e: Error) => { toast('⚠ ' + (e.message || 'Not saved')); load(); });
   };
 

@@ -8,6 +8,7 @@ import { GoogleService } from '../google/google.service';
 import { docIdFrom, endedBefore, notesQuery, parseNotesDocName, sameMeeting, splitGeminiDoc } from './google-notes';
 import { MeetingsService } from './meetings.service';
 import type { Actor } from '../manpower/manpower-access.service';
+import { localToday } from '../common/local-date';
 
 /**
  * Meeting notes arrive by themselves (Nov 3 sync): every hour, meetings that
@@ -150,7 +151,7 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     let created = false;
     if (!m) {
       if (!this.meetingsService) throw new BadRequestException('Meetings aren’t available.');
-      m = await this.meetingsService.create({ title: p.title, date: p.date || new Date().toISOString().slice(0, 10), time: p.time || undefined, locationType: 'virtual', status: 'occurred' } as any, actor) as MeetingEntity;
+      m = await this.meetingsService.create({ title: p.title, date: p.date || localToday(), time: p.time || undefined, locationType: 'virtual', status: 'occurred' } as any, actor) as MeetingEntity;
       created = true;
     }
     const saved = await this.importFor(m, undefined, id);

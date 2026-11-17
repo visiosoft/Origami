@@ -42,6 +42,7 @@ import { SiteVisitGuests } from '../components/SiteVisitGuests';
 import { TextClient } from '../components/TextClient';
 import { inviteGuests, siteVisitDescription, zoningSections, type Guest } from '../data/siteVisitInvite';
 import { Skeleton } from '../components/Skeleton';
+import { localISO, todayISO } from '../data/localDate';
 
 const BG = 'var(--font-display)';
 const OPT = LEAD_DROPDOWN_OPTIONS;
@@ -230,7 +231,7 @@ const DELIVERY_STYLE: Record<string, { bg: string; c: string }> = {
   PDB: { bg: 'var(--amber-light)', c: '#93520F' },  // Progressive Design Build
 };
 
-const holdDue = (holdUntil?: string) => !!holdUntil && holdUntil <= new Date().toISOString().slice(0, 10);
+const holdDue = (holdUntil?: string) => !!holdUntil && holdUntil <= todayISO();
 
 /** Starting point for a scheduled meeting's agenda -- standardized per the
  *  team's request, but always editable before or after scheduling. */
@@ -842,7 +843,7 @@ export function Pipeline() {
       const target = STAGES.find((st) => st.key === o.stage);
       // A hold stage parks the lead until a date, so it can be brought back.
       const holdUntil = target?.isHold && target.holdMonths
-        ? addMonths(new Date(), target.holdMonths).toISOString().slice(0, 10)
+        ? localISO(addMonths(new Date(), target.holdMonths))
         : '';
       const action = holdUntil ? `Moved to ${stageName} — follow up ${holdUntil}` : `Moved to ${stageName}`;
       // A rejection outcome only means anything while the deal is actually

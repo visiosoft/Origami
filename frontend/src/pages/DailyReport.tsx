@@ -26,11 +26,11 @@ interface Report {
   signatureDataUrl: string;
 }
 interface Log {
-  id: string | null; status: string; version?: number; createdAt?: string; supervisorName?: string; rejectionNote?: string; signedAt?: string;
+  id: string | null; status: string; version?: number; createdAt?: string; supervisorId?: string; supervisorName?: string; rejectionNote?: string; signedAt?: string;
   autoReason?: string | null; dupFromDate?: string | null; dupBaseline?: { sections?: unknown; entries?: Entry[] } | null; sections?: unknown;
 }
 interface Version { id: string; version: number; status: string; autoReason?: string | null; supervisorName?: string }
-interface Assign { employeeId: string; projectId: number; startDate: string; endDate?: string; status?: string }
+interface Assign { employeeId: string; projectId: number; startDate: string; endDate?: string; status?: string; supervisorId?: string | null }
 interface Summary {
   percentInvoiced: number | null; percentDuration: number | null; scheduleEnd: string | null; changeOrderDays: number;
   tasks: Record<string, number>; rfis: Record<string, number>; changeOrders: Record<string, number>;
@@ -226,6 +226,13 @@ export function DailyReport() {
     }
     return m;
   }, [assignments, projectId, date]);
+  // Nov 17: the report's supervisor's own crew (people who report to them, or to no one yet).
+  const crew = useMemo(() => {
+    const me = log?.supervisorId || authUser?.id || '';
+    const mine = assignments.filter((a) => a.projectId === projectId && onSite.has(a.employeeId) && (!a.supervisorId || a.supervisorId === me));
+    const set = new Set(mine.map((a) => a.employeeId));
+    return set.size && set.size < onSite.size ? set : null;
+  }, [assignments, onSite, projectId, log?.supervisorId, authUser?.id]);
 
   const setSections = (fn: (s: Sections) => Sections) => setDraft((d) => ({ ...d, sections: fn(d.sections) }));
   const setEntries = (fn: (e: Entry[]) => Entry[]) => setDraft((d) => ({ ...d, entries: fn(d.entries) }));
@@ -520,7 +527,7 @@ export function DailyReport() {
                 setDraft((d) => ({ ...d, sections: { ...d.sections, crew: v }, entries: v === 'no' ? [] : d.entries }));
               }}
               summaryYes={`${draft.entries.length} on the timesheet · ${draft.entries.reduce((a, e) => a + (Number(e.hours) || 0), 0)} h`}>
-              <CrewSheet employees={employees} codes={codes} onSite={onSite} entries={draft.entries} setEntries={setEntries} editable={editable} carried={crewCarried} />
+              <CrewSheet employees={employees} codes={codes} onSite={onSite} crew={crew} entries={draft.entries} setEntries={setEntries} editable={editable} carried={crewCarried} />
             </YesNoSection>
 
             <SubsSection s={s} set={setSections} na={noWork} contractors={contractors} baseline={baseline} />

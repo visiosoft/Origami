@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-17c',
+    date: '2026-11-17',
+    title: 'From the Nov 17 meeting: View as, dates and the daily report crew',
+    items: [
+      { area: 'View as', kind: 'fixed', text: 'A project’s own team (its Project manager, Superintendent and so on) now counts as being on the project, and Dashboard items from other projects no longer show. The yellow bar says whether the person sees only their projects or, because of their role, every project.', where: 'Top bar → View as…' },
+      { area: 'Dates', kind: 'fixed', text: 'Some screens took “today” from world time, so in the evening a report or a week could show the next day. Dates now follow your own day.', where: 'Daily reports, Meetings, Dashboard' },
+      { area: 'Daily report', kind: 'improved', text: 'The worker list shows the supervisor’s own crew first, with a switch for everyone on the project. People not deployed on the project are only offered after “Add someone not on this project…”. Set who a worker reports to when you deploy or transfer them.', where: 'Daily report → Crew; Manpower → Deployment → Reports to' },
+    ],
+  },
+  {
     id: '2026-11-17b',
     date: '2026-11-17',
     title: 'The full menu on phones and tablets',

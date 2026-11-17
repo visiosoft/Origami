@@ -8,7 +8,7 @@ import { ProjectHoldService } from '../project-tasks/project-hold.service';
 import { emailShell, loadEmailBrand } from '../email/shell';
 
 const HOUR = 60 * 60 * 1000;
-const DEFAULT_TZ = 'America/Los_Angeles';
+import { DEFAULT_TZ, localToday } from '../common/local-date';
 /** Follow-up date for a stop order with no known end. */
 export const UNKNOWN_STOP_FOLLOW_UP_DAYS = 14;
 /** Days before a stop order's end when the team is reminded. */
@@ -74,10 +74,7 @@ export class DailyReportAutomationService implements OnApplicationBootstrap, OnA
 
   private async today(): Promise<string> {
     const tz = (await this.settings.get('reminders.timezone')) || DEFAULT_TZ;
-    try {
-      const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map((x) => [x.type, x.value]));
-      return `${p.year}-${p.month}-${p.day}`;
-    } catch { return new Date().toISOString().slice(0, 10); }
+    return localToday(tz);
   }
 
   /** Hourly; does the day's work once (the settings key doubles as a lock across instances). */

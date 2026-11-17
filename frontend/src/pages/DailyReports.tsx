@@ -5,6 +5,7 @@ import { useApp } from '../AppContext';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akToday } from '../components/ActionKit';
 import { WeeklyReport } from '../components/dailyReport/WeeklyReport';
 import { Skeleton } from '../components/Skeleton';
+import { weekStartISO } from '../data/localDate';
 
 interface LogRow {
   id: string; projectId: number; date: string; supervisorName?: string; notes?: string; status: string;
@@ -66,7 +67,7 @@ export function DailyReports() {
   const all = (logs || []).filter((l) => l.status !== 'draft' || (l.crewCount || 0) > 0);
   const inProject = project ? all.filter((l) => l.projectId === project) : all;
   const shown = inProject.filter((l) => status === 'all' || l.status === status);
-  const weekStart = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
+  const weekStart = weekStartISO();
   const thisWeek = inProject.filter((l) => l.date >= weekStart && l.date <= akToday() && l.status !== 'draft');
   const waiting = inProject.filter((l) => l.status === 'submitted' && !l.autoReason);
   const sentBack = inProject.filter((l) => l.status === 'rejected');

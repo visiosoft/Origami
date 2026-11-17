@@ -1531,6 +1531,8 @@ export class EmployeeAssignmentEntity {
   @Column('int') projectId!: number;
   /** Zone / block / area within the project's site, e.g. "Tower A". */
   @Column({ nullable: true }) workArea!: string;
+  /** Nov 17: the supervisor (user id) they report to here -- their daily report lists this crew. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) supervisorId!: string | null;
   @Column({ nullable: true }) tradeId!: string;
   @Column({ nullable: true }) designation!: string;
   @Column({ default: 'regular' }) assignmentType!: string; // regular | temporary

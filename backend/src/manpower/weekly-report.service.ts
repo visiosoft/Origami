@@ -7,6 +7,7 @@ import { SettingsService } from '../settings/settings.service';
 import { emailShell, escapeHtml, loadEmailBrand } from '../email/shell';
 import { DailyLogBackupService } from './daily-log-backup.service';
 import { mondayOf, weekDates } from './weekly-timesheets.service';
+import { localToday } from '../common/local-date';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const OPS: Record<string, string> = {
@@ -176,9 +177,14 @@ export class WeeklyReportService {
     private readonly settings: SettingsService,
   ) {}
 
+  /** The company time zone (Settings -> reminders), for "this week" and "as of". */
+  private async tz(): Promise<string | undefined> {
+    return ((await this.settings.get('reminders.timezone').catch(() => null)) as string | null) || undefined;
+  }
+
   async week(projectId: number, anyDay: string) {
     if (!Number.isFinite(projectId) || projectId <= 0) throw new BadRequestException('Pick a project.');
-    const weekStart = mondayOf(ISO.test(anyDay || '') ? anyDay : new Date().toISOString().slice(0, 10));
+    const weekStart = mondayOf(ISO.test(anyDay || '') ? anyDay : localToday(await this.tz()));
     const dates = weekDates(weekStart);
     const logs = (await this.logs.find({ where: { projectId } })).filter((l) => l.date >= dates[0] && l.date <= dates[6]);
     const ids = logs.map((l) => l.id);
@@ -186,7 +192,7 @@ export class WeeklyReportService {
       ids.length ? this.entries.find({ where: ids.map((id) => ({ dailyLogId: id })) }) : Promise.resolve([]),
       this.employees.find(), this.codes.find(),
     ]);
-    return buildWeekly(projectId, weekStart, logs, entries, employees, codes, new Date().toISOString().slice(0, 10));
+    return buildWeekly(projectId, weekStart, logs, entries, employees, codes, localToday(await this.tz()));
   }
 
   /** Email the week as PDF + Excel, to the daily-log backup list or to given addresses. */

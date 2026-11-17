@@ -229,7 +229,7 @@ export function AppShell() {
         <ServerStatusBanner />
         <TopProgress />
 
-        {authUser?.viewedBy && <ViewAsBanner as={authUser.viewedBy.as} tier={authUser.tier} />}
+        {authUser?.viewedBy && <ViewAsBanner as={authUser.viewedBy.as} tier={authUser.tier} scope={authUser.projectScope} />}
         <main className="content">
           <div className="content-inner">
             {/* The sidebar stays put while a page's code downloads. */}

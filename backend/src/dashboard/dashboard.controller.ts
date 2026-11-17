@@ -5,7 +5,8 @@ import { Tiers } from '../auth/guards/roles.decorator';
 import { Claims } from '../auth/guards/claims.decorator';
 import type { SessionClaims } from '../auth/crypto.util';
 import { ProjectAccessService } from '../auth/project-access.service';
-import { scopeTasks } from '../database/viewer.util';
+import { onMyProjects, scopeTasks } from '../database/viewer.util';
+import { localToday } from '../common/local-date';
 import { ProjectEntity } from '../database/entities';
 import { ProjectTasksService } from '../project-tasks/project-tasks.service';
 import { TasksService } from '../tasks/tasks.service';
@@ -35,7 +36,8 @@ export class DashboardController {
       this.boardTasks.findAll(undefined, { slim: true }), this.logTasks.findAll(undefined, undefined, { slim: true }), this.logTasks.statuses(),
     ]);
     const board = scopeTasks(await this.access.filter(claims, boardAll, (t: any) => t.projectId), claims);
-    const log = scopeTasks(logAll, claims);
+    // Request Log entries too keep to the caller's projects (Nov 17: View as showed other projects' items).
+    const log = onMyProjects(scopeTasks(logAll, claims), await this.access.allowedNames(claims), claims!);
     const ids = [...new Set(board.map((t: any) => t.projectId).filter((x: any) => x != null))] as number[];
     const names = new Map((ids.length ? await this.projects.find({ where: { id: In(ids) }, select: { id: true, name: true } }) : []).map((p) => [p.id, p.name]));
     return myTaskRows(board, log, { id: claims?.sub || '', name: (claims?.name || '').trim() }, {
@@ -58,10 +60,11 @@ export class DashboardController {
       this.boardTasks.findAll(undefined, { slim: true }), this.logTasks.findAll(undefined, undefined, { slim: true }), this.logTasks.statuses(),
     ]);
     const board = scopeTasks(await this.access.filter(claims, boardAll, (t: any) => t.projectId), claims);
-    const log = scopeTasks(logAll, claims);
+    // Request Log entries too keep to the caller's projects (Nov 17: View as showed other projects' items).
+    const log = onMyProjects(scopeTasks(logAll, claims), await this.access.allowedNames(claims), claims!);
     const ids = [...new Set(board.map((t: any) => t.projectId).filter((x: any) => x != null))] as number[];
     const names = new Map((ids.length ? await this.projects.find({ where: { id: In(ids) }, select: { id: true, name: true } }) : []).map((p) => [p.id, p.name]));
-    const day = /^\d{4}-\d{2}-\d{2}$/.test(today || '') ? today! : new Date().toISOString().slice(0, 10);
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(today || '') ? today! : localToday();
     return taskSummary(board, log, { id: claims?.sub || '', name: (claims?.name || '').trim() }, {
       today: day,
       projectName: (id) => (id == null ? 'General Tasks' : names.get(id) || `Project ${id}`),

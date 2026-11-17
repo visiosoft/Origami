@@ -21,6 +21,7 @@ import { MeetingNotesImport } from '../components/MeetingNotesImport';
 import { parseMeetingNotes } from '../data/meetingNotes';
 import { TagPicker } from '../components/TagPicker';
 import { OutsideMeeting } from '../components/OutsideMeeting';
+import { localISO, weekStartISO } from '../data/localDate';
 
 type View = 'upcoming' | 'past' | 'all';
 type StatusFilter = 'all' | 'review' | MeetingStatus;
@@ -115,8 +116,8 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
   const viewValue = { view, status, where, project, q, sort: sortToString(sort) };
   const upcoming = items.filter(isUpcoming).sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`));
   const reviewCount = real.filter(toReview).length;
-  const weekStart = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
-  const weekEnd = (() => { const d = new Date(weekStart + 'T12:00:00'); d.setDate(d.getDate() + 6); return d.toISOString().slice(0, 10); })();
+  const weekStart = weekStartISO();
+  const weekEnd = (() => { const d = new Date(weekStart + 'T12:00:00'); d.setDate(d.getDate() + 6); return localISO(d); })();
   const thisWeek = real.filter((i) => i.status !== 'cancelled' && i.date >= weekStart && i.date <= weekEnd).length;
   const openActions = items.reduce((a, i) => a + i.actions.filter((t) => !isForRecord(t) && !isLogClosed(t.status)).length, 0);
   const projectNames = useMemo(() => [...new Set(items.map((i) => i.project).filter(Boolean) as string[])].sort(), [items]);

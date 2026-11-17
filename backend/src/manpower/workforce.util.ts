@@ -1,6 +1,8 @@
 import type { EmployeeAssignmentEntity, EmployeeEntity } from '../database/entities';
 
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+import { localToday } from '../common/local-date';
+/** The company's day (Nov 17: not UTC, which is already tomorrow on a US evening). */
+export const todayISO = () => localToday();
 
 export const newId = (prefix: string) =>
   prefix + '-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();

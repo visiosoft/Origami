@@ -15,6 +15,7 @@ import { TaskLinkBadge } from '../components/TaskLinkBadge';
 import { PhaseTaskPanel } from '../components/PhaseTaskPanel';
 import { TEAM_COLORS } from '../data/projects';
 import { Skeleton } from '../components/Skeleton';
+import { localISO, todayISO } from '../data/localDate';
 
 const HEADING = 'var(--font-display)';
 
@@ -209,7 +210,7 @@ export function DesignProject() {
 
   const isDone = (t: ProjectTask) => isTaskDone(t);
   const isProgress = (t: ProjectTask) => !isDone(t) && t.status === 'In progress';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const isLate = (t: any) => !isDone(t) && !!t.dueDate && t.dueDate < today;
 
   const personOptions = ['All people', ...Array.from(new Set(filtered.map((r) => r.task.assignee).filter(Boolean))).sort() as string[]];
@@ -522,7 +523,7 @@ export function DesignProject() {
                     const picked = selected.includes(task.id);
                     const checklist = task.checklist ?? [];
                     const ticked = checklist.filter((c: any) => c.done).length;
-                    const overdue = !done && !!task.dueDate && task.dueDate < new Date().toISOString().slice(0, 10);
+                    const overdue = !done && !!task.dueDate && task.dueDate < todayISO();
                     return (
                       <div
                         key={task.id}
@@ -809,7 +810,7 @@ function ListView({ groups, allTasks, hiddenCols, onOpen, isDone, isLate }: {
 }
 
 const parseDate = (s?: string | null) => (s ? new Date(s + 'T00:00:00') : null);
-const fmtDay = (d: Date) => d.toISOString().slice(0, 10);
+const fmtDay = (d: Date) => localISO(d);
 
 /** A read-only Gantt: rows grouped by phase, bars from Start Date to Due Date. */
 function TimelineView({ stages, filtered, onOpen, isDone }: {
