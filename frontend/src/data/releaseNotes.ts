@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-17b',
+    date: '2026-11-17',
+    title: 'The full menu on phones and tablets',
+    items: [
+      { area: 'Menu', kind: 'fixed', text: 'On a phone or tablet the left menu showed only a few icons, and the other sections couldn’t be opened. Tap ☰ at the top of the icon strip for the full menu with names, every section and search; picking a page or tapping outside closes it.', where: 'Left menu → ☰' },
+    ],
+  },
+  {
     id: '2026-11-17a',
     date: '2026-11-17',
     title: 'View as works on a phone',

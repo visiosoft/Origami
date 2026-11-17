@@ -80,6 +80,15 @@ export function AppShell() {
 
   // The sidebar search narrows the menu as you type; Enter opens the first match.
   const [navQuery, setNavQuery] = useState('');
+  // Phones and tablets show an icon strip; ☰ opens the full menu over the page (Nov 17).
+  const [navExpanded, setNavExpanded] = useState(false);
+  useEffect(() => { setNavExpanded(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!navExpanded) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setNavExpanded(false); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [navExpanded]);
   const nq = navQuery.trim().toLowerCase();
   const shownGroups = !nq ? visibleGroups : visibleGroups
     .map((g) => ({ ...g, items: g.items.filter((it) => `${it.label} ${it.desc || ''} ${g.label}`.toLowerCase().includes(nq)) }))
@@ -106,7 +115,13 @@ export function AppShell() {
     <AutosaveProvider>
     <SessionExpired />
     <div className="app-shell">
-      <aside className="sidebar">
+      {navExpanded && <div className="nav-backdrop" onClick={() => setNavExpanded(false)} aria-hidden />}
+      <aside className={`sidebar${navExpanded ? ' is-expanded' : ''}`}>
+        <button type="button" className="nav-expand" onClick={() => setNavExpanded((v) => !v)} aria-expanded={navExpanded} aria-label={navExpanded ? 'Close the menu' : 'Open the full menu'} title={navExpanded ? 'Close the menu' : 'Full menu'}>
+          {navExpanded
+            ? <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6 6 18" /></svg>
+            : <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M4 7h16M4 12h16M4 17h16" /></svg>}
+        </button>
         <div className="brand">
           <div className="brand-full"><Logo markSize={30} /></div>
           <div className="brand-mark-only"><LogoMark size={28} /></div>
@@ -153,7 +168,7 @@ export function AppShell() {
                       key={item.route}
                       to={`/${item.route}`}
                       title={item.desc}
-                      onClick={() => setNavQuery('')}
+                      onClick={() => { setNavQuery(''); setNavExpanded(false); }}
                       className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${READY_FOR_TESTING.has(item.route) ? 'ready' : ''} ${firstMatch?.route === item.route ? 'is-first' : ''}`}
                     >
                       <Icon name={item.icon} size={16} style={{ flexShrink: 0, opacity: 0.8 }} />
