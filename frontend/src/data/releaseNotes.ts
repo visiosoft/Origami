@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-17i',
+    date: '2026-11-17',
+    title: 'Pre-construction in Financials',
+    items: [
+      { area: 'Financials', kind: 'new', text: 'A Pre-construction view lists every estimate and revision side by side — build cost, the high end of the range, the design / precon fee and the total — so you can compare how the numbers moved.', where: 'Project → Financials → Pre-construction' },
+      { area: 'Financials', kind: 'new', text: '“Invoice precon fees…” makes a draft invoice for design or pre-construction fees from an estimate, before the contract is signed. These invoices sit outside the contract value: they don’t use it up or lock it. Also available before client billing is set up.', where: 'Project → Financials → Pre-construction' },
+    ],
+  },
+  {
     id: '2026-11-17h',
     date: '2026-11-17',
     title: 'Estimating timers, CSI codes on trades, prequal with the bid, Policies in Help',

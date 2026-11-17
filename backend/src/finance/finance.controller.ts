@@ -141,6 +141,8 @@ export class FinanceController {
   @Delete('projects/:id/estimates/:eid') async estimateDelete(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.remove(Number(id), eid, await this.actor(a)); }
   @Get('projects/:id/activity') async activity(@Param('id') id: string, @Headers('authorization') a?: string) { return this.fin.activity(Number(id), await this.actor(a)); }
   @Get('projects/:id/invoices') async invoiceList(@Param('id') id: string, @Headers('authorization') a?: string) { return this.invoices.list(Number(id), await this.actor(a)); }
+  /** Nov 17: a draft for pre-construction / design fees from an estimate (outside the contract value). */
+  @Post('projects/:id/invoices/precon') async preconDraft(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.createPreconDraft(Number(id), dto || {}, await this.actor(a)); }
   @Post('projects/:id/invoices') async draft(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.createDraft(Number(id), dto, await this.actor(a)); }
   @Get('projects/:id/payments') async payments(@Param('id') id: string, @Headers('authorization') a?: string) { return this.invoices.projectPayments(Number(id), await this.actor(a)); }
   // --- change events -> CORs -> PCCO -> CCOs (Oct 26 review notes)

@@ -1285,6 +1285,8 @@ export const api = {
     activity: (projectId: number) => request(`/finance/projects/${projectId}/activity`),
     invoices: (projectId: number) => request(`/finance/projects/${projectId}/invoices`),
     createInvoice: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/invoices`, { method: 'POST', body: JSON.stringify(d) }),
+    /** Nov 17: a draft for pre-construction / design fees from an estimate, outside the contract value. */
+    createPreconInvoice: (projectId: number, d: { estimateLabel?: string; lines: { description: string; amount: number }[] }) => request<{ id: string }>(`/finance/projects/${projectId}/invoices/precon`, { method: 'POST', body: JSON.stringify(d) }),
     payments: (projectId: number) => request(`/finance/projects/${projectId}/payments`),
     updateItem: (kind: string, id: string, d: unknown) => request(`/finance/items/${kind}/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     reportProgress: (kind: string, id: string, d: unknown) => request(`/finance/items/${kind}/${encodeURIComponent(id)}/progress`, { method: 'POST', body: JSON.stringify(d) }),

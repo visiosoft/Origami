@@ -300,10 +300,12 @@ export class EstimatesService {
     const out = [];
     for (const e of rows) {
       const t = resultOf(e, await this.sheetOf(e.id)).totals;
-      out.push({ id: e.id, number: e.number, rev: e.rev, title: e.title, status: e.status, estimateDate: e.estimateDate, sentAt: e.sentAt, acceptedAt: e.acceptedAt, updatedAt: e.updatedAt, totalProject: fromCents(t.totalProject), totalBuild: fromCents(t.totalBuild) });
+      out.push({ id: e.id, number: e.number, rev: e.rev, title: e.title, status: e.status, estimateDate: e.estimateDate, sentAt: e.sentAt, acceptedAt: e.acceptedAt, updatedAt: e.updatedAt, totalProject: fromCents(t.totalProject), totalBuild: fromCents(t.totalBuild),
+        // Nov 17 (Financials -> Precon): the design / precon fee and the high end of the range.
+        designCost: fromCents(t.designCost), high: fromCents(t.high) });
     }
     const rights = await this.rights(actor);
-    if (!rights.money.total) for (const r of out) { (r as any).totalProject = null; (r as any).totalBuild = null; }
+    if (!rights.money.total) for (const r of out) { (r as any).totalProject = null; (r as any).totalBuild = null; (r as any).designCost = null; (r as any).high = null; }
     return { rights, rows: out };
   }
 

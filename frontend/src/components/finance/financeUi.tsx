@@ -47,7 +47,7 @@ export interface Overview {
   looseTasks?: { id: string; title: string }[];
 }
 export interface InvoiceLine {
-  id: string; kind: 'progress' | 'manual' | 'adjustment' | 'reimbursable' | 'retention_release'; reimbursableId?: string | null; retentionReleaseId?: string | null; creditsLineId?: string | null; targetType?: string | null; phaseId?: string | null; taskId?: string | null; lineOrder: number;
+  id: string; kind: 'progress' | 'manual' | 'adjustment' | 'reimbursable' | 'retention_release' | 'precon'; reimbursableId?: string | null; retentionReleaseId?: string | null; creditsLineId?: string | null; targetType?: string | null; phaseId?: string | null; taskId?: string | null; lineOrder: number;
   description: string; billingMethod?: string; contractValue: number | null; prevProgressPct: number | null; currentProgressPct: number | null;
   prevBilled: number | null; amount: number; quantity: number | null; unit?: string | null; rate: number | null; retentionApplies: boolean;
   retentionPct: number; retentionAmount: number; taxable: boolean; taxPct: number; taxAmount: number;
