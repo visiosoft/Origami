@@ -25,6 +25,8 @@ export class CreateProjectTaskDto {
   @IsString() @IsOptional() requestedBy?: string;
   @IsBoolean() @IsOptional() deferNotify?: boolean;
   @IsBoolean() @IsOptional() close?: boolean;
+  /** Nov 17: the epic it belongs to (null to take it out). */
+  @IsString() @IsOptional() @MaxLength(40) epicId?: string | null;
   @IsString() @IsOptional() status?: string;
   @IsNumber() @IsOptional() order?: number;
   @IsBoolean() @IsOptional() completed?: boolean;

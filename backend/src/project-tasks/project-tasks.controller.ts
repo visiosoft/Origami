@@ -1,3 +1,4 @@
+import { ArrayMaxSize, IsArray, IsString } from 'class-validator';
 import { internalOnly } from '../database/task.types';
 import {
   Controller, Get, Post, Put, Delete, Param, Query, Body, Headers, Res, UploadedFiles, UseInterceptors, ForbiddenException,
@@ -18,6 +19,11 @@ import type { SessionClaims } from '../auth/crypto.util';
 import { Perm } from '../auth/guards/perm.guard';
 
 @Perm('projects', 'tasks', 'design', 'pm')
+export class MergeTasksDto {
+  @IsString() keepId!: string;
+  @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) mergeIds!: string[];
+}
+
 @Controller('project-tasks')
 export class ProjectTasksController {
   constructor(
@@ -99,6 +105,14 @@ export class ProjectTasksController {
   @Put('reorder')
   reorder(@Body() dto: ReorderDto) {
     return this.service.reorder(dto.sectionId, dto.ids ?? []);
+  }
+
+  /** Nov 17: merge duplicates into one task (staff; same board; history and files kept). Before `:id`. */
+  @Tiers('internal')
+  @Post('merge')
+  async merge(@Body() dto: MergeTasksDto, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
+    for (const id of [dto.keepId, ...(dto.mergeIds || [])]) await this.mayTouch(id, claims ?? null);
+    return this.service.merge(dto.keepId, dto.mergeIds || [], await this.auth.actor(auth));
   }
 
   @Tiers('internal')

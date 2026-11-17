@@ -808,7 +808,16 @@ export const api = {
     remove: (key: string) => request(`/roles/${key}`, { method: 'DELETE' }),
     /** The PEOPLE ACCESS sheet's rows: a preview (dryRun) or applied. */
   },
+  /** Nov 17: a board's epics (named groups of tasks) with progress. projectId null = General Tasks. */
+  epics: {
+    list: (projectId: number | null) => request<import('./data/projectTasks').Epic[]>(`/project-epics?projectId=${projectId == null ? 'general' : projectId}`, { cache: 'no-store' } as any),
+    create: (data: { projectId: number | null; name: string; color?: string; dueDate?: string | null }) => request<import('./data/projectTasks').Epic>('/project-epics', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: { name?: string; color?: string; dueDate?: string | null; order?: number }) => request<import('./data/projectTasks').Epic>(`/project-epics/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request<{ ok: boolean }>(`/project-epics/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
   projectTasks: {
+    /** Nov 17: merge duplicates into one task -- files, comments and history move; duplicates become closed subtasks. */
+    merge: (keepId: string, mergeIds: string[]) => request<import('./data/projectTasks').ProjectTask>('/project-tasks/merge', { method: 'POST', body: JSON.stringify({ keepId, mergeIds }) }),
     /** Save pressed in the task editor: send the emails held on the task and its subtasks. */
     notify: (id: string) => request<{ sent: number }>(`/project-tasks/${encodeURIComponent(id)}/notify`, { method: 'POST' }),
     /** projectId: a number scopes to that project; null scopes to the

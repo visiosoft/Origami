@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-17e',
+    date: '2026-11-17',
+    title: 'Tasks: epics, and merging duplicates',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Epics tie related tasks together on a board (e.g. “PG&E service”, “Permits”). Add one with + Epic, pick it in a task’s Epic field, click it to see only its tasks, and see its progress and target date at a glance. “Group by epic” lays the List view out by epic.', where: 'Task board → Epics' },
+      { area: 'Tasks', kind: 'new', text: 'Merge duplicates: open the task to keep, press ⇲ Merge duplicates… and tick the copies. Their files, comments and full history move onto it, their subtasks move under it, and each copy becomes a closed subtask marked “Merged into …”. Nothing is deleted.', where: 'Task → ⇲ Merge duplicates…' },
+    ],
+  },
+  {
     id: '2026-11-17d',
     date: '2026-11-17',
     title: 'Tasks: a reason for moving an overdue date, and the same three close buttons',

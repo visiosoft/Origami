@@ -25,6 +25,7 @@ import { Avatar } from './Avatar';
 import { AssigneePicker } from './AssigneePicker';
 import { askCompletionNote, askDueReason, askHoldReason } from './CompletionNote';
 import { dueReasonNeeded } from '../data/dueReason';
+import { EpicSelect, EpicStrip, EpicTag, MergeDialog, NO_EPIC, useEpics } from './TaskEpics';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
 import { QuickAddTask, quickTaskFields } from './QuickAddTask';
 import { TaskLinkBadge } from './TaskLinkBadge';
@@ -69,7 +70,7 @@ function PriorityPill({ p }: { p?: Priority }) {
  */
 /** The fields the task panel edits; they autosave together. */
 /** `sectionId` isn't here: the server sets the column from the status (Nov 10). */
-const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'description', 'checklist', 'labels', 'tags', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy'];
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'description', 'checklist', 'labels', 'tags', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy', 'epicId'];
 
 /** "Q3 PRD draft" -> "QP": the card's tile. */
 const initialsOf = (title: string) => {
@@ -137,6 +138,12 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
   const [query, setQuery] = useState('');
   const [tagFilter, setTagFilter] = useState('');
+  // Nov 17: epics -- filter the board to one, or lay the list out by epic.
+  const { epics, reload: reloadEpics } = useEpics(projectId);
+  const [epicFilter, setEpicFilter] = useState('');
+  const [groupByEpic, setGroupByEpic] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const epicById = useMemo(() => new Map(epics.map((e) => [e.id, e])), [epics]);
   const canManage = can('tasks', 'manage');
   // New cards belong to one project's board, not the all-projects view.
   const canAdd = canManage && !all;
@@ -235,7 +242,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const inDoneCol = (id: string) => /^(done|complete|completed|confirmed)$/i.test(sections.find((s) => s.id === id)?.name.trim() || '');
   const placed = (t: ProjectTask): ProjectTask => (doneColId && !t.parentId && isFinished(t) && !inDoneCol(t.sectionId) ? { ...t, sectionId: doneColId } : t);
   // Search also finds the task's full number (NARV-T-2026-0007).
-  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query) || (!!query.trim() && numberOf(t).toLowerCase().includes(query.trim().toLowerCase()))).filter((t) => matchesTag(t, tagFilter)).map(placed);
+  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query) || (!!query.trim() && numberOf(t).toLowerCase().includes(query.trim().toLowerCase()))).filter((t) => matchesTag(t, tagFilter)).filter((t) => !epicFilter || (epicFilter === NO_EPIC ? !t.epicId : t.epicId === epicFilter)).map(placed);
   const phaseTaskCount = tasks.filter((t) => t.phaseId && !t.parentId).length;
   // Counts are absolute, not relative to the active scope.
   const mineCount = inScopeOfBoard.filter((t) => !t.parentId && isMine(t, currentUser)).length;
@@ -530,8 +537,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               {subs.length > 6 && <li className="tb-subtasks-more" onClick={(e) => { e.stopPropagation(); setSelectedId(t.id); }}>+{subs.length - 6} more</li>}
             </ul>
           )}
-          {(t.parentId || subs.length > 0 || (t.labels?.length || 0) > 0 || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
+          {(t.parentId || subs.length > 0 || (t.labels?.length || 0) > 0 || (t.epicId && epicById.has(t.epicId)) || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
             <div className="tb-tags">
+              {!t.parentId && <EpicTag epic={t.epicId ? epicById.get(t.epicId) : null} />}
               {linkBadge(t)}
               {t.status && t.status !== 'Not started' && t.status !== 'Done' && <span className="tb-status" title={STATUS_HINT[t.status]}>{statusLabel(t.status)}</span>}
               {(t.labels || []).map((l) => <LabelChip key={l} label={l} />)}
@@ -792,8 +800,13 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
         <span style={{ width: 58, flexShrink: 0, textAlign: 'right' }}><SortHeader k="who" sort={listSort} onSort={toggleListSort} align="right">Who</SortHeader></span>
       </div>
 
-      {sections.map((sec) => {
-        const secTasks = sortRows(topLevelBySection(visibleTasks, sec.id), LIST_BY, listSort);
+      {(groupByEpic && epics.length
+        // Nov 17: laid out by epic instead of by column.
+        ? [...epics.map((e) => ({ id: 'E:' + e.id, name: e.name, epic: true, rows: visibleTasks.filter((t) => !t.parentId && t.epicId === e.id) })),
+          { id: 'E:none', name: 'No epic', epic: true, rows: visibleTasks.filter((t) => !t.parentId && !t.epicId) }]
+        : sections.map((sec) => ({ id: sec.id, name: sec.name, epic: false, rows: topLevelBySection(visibleTasks, sec.id) }))
+      ).map((sec) => {
+        const secTasks = sortRows(sec.rows, LIST_BY, listSort);
         return (
           <div key={sec.id}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--forest)', marginBottom: 8 }}>
@@ -803,7 +816,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No tasks</div>}
               {sortRows(secTasks, LIST_BY, listSort).slice(0, limitOf(sec.id)).map((t) => listRow(t, 0))}
               {secTasks.length > limitOf(sec.id) && <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }}>{moreButton(sec.id, secTasks.length)}</div>}
-              {canAdd && (addingIn === sec.id ? (
+              {canAdd && !sec.epic && (addingIn === sec.id ? (
                 <QuickAddTask onAdd={(q) => addTask(sec.id, q.title, null, quickTaskFields(q))} onCancel={() => setAddingIn(null)} style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }} />
               ) : (
                 <div onClick={() => { setAddingIn(sec.id); }} style={{ padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', fontSize: 12, color: 'var(--c-9aa39d)', cursor: 'pointer' }}>
@@ -1068,6 +1081,11 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
       )}
       </div>
 
+      {projectId !== 'all' && !restricted && (
+        <EpicStrip projectId={projectId} epics={epics} tasks={tasks} active={epicFilter} onPick={setEpicFilter} onChanged={reloadEpics}
+          canManage={canManage} grouped={groupByEpic} onGrouped={(v) => { setGroupByEpic(v); if (v) setView('list'); }} />
+      )}
+
       {view === 'board' ? boardView() : view === 'list' ? listView() : view === 'timeline' ? timelineView() : dashboardView()}
 
       {/* Task detail panel */}
@@ -1110,7 +1128,11 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                   {!selected.parentId && (selected.archivedAt
                     ? <button type="button" onClick={() => reopenTask(selected.id)} title="Bring it back onto the board" style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
                     : <button type="button" onClick={() => closeTask(selected.id)} title="Mark it complete and move it to the archive now" style={{ padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  {!selected.parentId && !selected.archivedAt && !restricted && (
+                    <button type="button" onClick={() => setMerging(true)} title="Merge duplicate tasks into this one: their files, comments and history come here"
+                      style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--body)', cursor: 'pointer', whiteSpace: 'nowrap' }}>⇲ Merge duplicates…</button>
+                  )}
+                  <div style={{ flex: '1 1 320px', minWidth: 0 }}>
                     <SaveBar auto={auto} onDiscard={() => setSelectedId(null)} onDone={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }} />
                   </div>
                 </div>
@@ -1186,6 +1208,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                       style={{ ...inputStyle, width: '100%', resize: 'vertical', background: 'var(--amber-light)' }} />
                   </Field>
                 </div>
+              )}
+              {!selected.parentId && projectId !== 'all' && (epics.length > 0 || d.epicId) && (
+                <Field label="Epic"><EpicSelect epics={epics} value={d.epicId} disabled={!canManage} onChange={(v) => set({ epicId: v })} /></Field>
               )}
               <Field label="Lead">
                 <LeadSelect value={d.leadId} name={d.leadName} disabled={!canManage} onChange={(v) => set({ leadId: v })} style={{ ...inputStyle, width: '100%' }} />
@@ -1308,6 +1333,10 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 onComment={addComment}
               />
             </div>
+            {merging && (
+              <MergeDialog keep={selected} tasks={tasks} numberOf={(t) => numberOf(t) || '#' + t.id} onClose={() => setMerging(false)}
+                onMerged={(res) => { setMerging(false); replaceTask(res); load(); toast('Merged — the files, comments and history are on this task'); }} />
+            )}
           </div>
         </div>,
         document.body);

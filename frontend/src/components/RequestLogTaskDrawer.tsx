@@ -147,7 +147,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               {task.archivedAt
                 ? <button type="button" onClick={reopen} title="Bring it back into the Special Actions Log" style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
                 : <button type="button" onClick={closeTask} title="Mark it complete and move it to the archive now" style={{ padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: '1 1 320px', minWidth: 0 }}>
                 <SaveBar auto={auto} onDiscard={onClose} onDone={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }} />
               </div>
             </div>

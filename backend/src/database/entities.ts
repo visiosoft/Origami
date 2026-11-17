@@ -845,6 +845,8 @@ export class ProjectTaskEntity {
   @Column('int') order!: number;
   @Column({ default: false }) completed!: boolean;
   @Column({ nullable: true }) parentId!: string; // subtask -> parent task id
+  /** Nov 17: the epic it belongs to (ProjectEpicEntity id); subtasks follow their parent's. */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) epicId!: string | null;
   @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
   @Column({ type: 'simple-json', nullable: true }) comments!: TaskComment[];
   @Column() createdAt!: string;
@@ -880,6 +882,23 @@ export class ProjectTaskEntity {
   /** Moved to Confirmed by the originator; 7 days later it's archived. */
   @Column({ nullable: true }) confirmedAt!: string;
   @Column({ nullable: true }) archivedAt!: string;
+}
+
+/**
+ * An epic (Nov 17 sync): a named group that ties related tasks together on a
+ * board ("Permits", "PG&E service"), with a colour, an optional target date
+ * and progress from its tasks. projectId null = General Tasks.
+ */
+@Entity('project_epics')
+export class ProjectEpicEntity {
+  @PrimaryColumn() id!: string; // EP-<random>
+  @Column('int', { nullable: true }) projectId!: number | null;
+  @Column({ type: 'nvarchar', length: 120 }) name!: string;
+  @Column({ type: 'nvarchar', length: 20, default: '#5B7C99' }) color!: string;
+  @Column({ type: 'nvarchar', length: 10, nullable: true }) dueDate!: string | null;
+  @Column('int', { default: 0 }) order!: number;
+  @Column({ nullable: true }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) archivedAt!: string | null;
 }
 
 /**

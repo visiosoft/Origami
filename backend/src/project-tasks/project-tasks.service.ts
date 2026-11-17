@@ -14,6 +14,7 @@ import { ChecklistTemplateEntity, LeadEntity, ProjectEntity, ProjectTaskEntity, 
 import { resolveLead } from '../tasks/lead-link';
 import { holdNotices, overdue, stillTrue, type PendingNotice } from '../notifications/pending-notices';
 import { withAutoChecklists } from './auto-checklist';
+import { mergeProblem, planMerge } from './task-merge';
 import { DEFAULT_TASKS } from '../seed-data/project-tasks';
 import { SectionsService } from './sections.service';
 import {
@@ -323,6 +324,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     // 'T-' + Date.now() could repeat, and saving a repeat overwrote the other task.
     const id = newTaskId();
     delete dto.id;
+    // Nov 17: a subtask is in its parent's epic.
+    if (dto.parentId) dto.epicId = (await Promise.resolve(this.repo.findOneBy({ id: dto.parentId })).catch(() => null))?.epicId ?? null;
     if (dto.status) {
       dto = { ...dto, status: normalizeTaskStatus(dto.status) };
       const p: Record<string, any> = { status: dto.status };
@@ -407,6 +410,30 @@ export class ProjectTasksService implements OnApplicationBootstrap {
   /** The task card an email carries. */
   private notice(t: ProjectTaskEntity, actor: UploadActor) {
     return { surface: 'board' as const, taskId: t.id, title: t.title, description: t.description, projectId: t.projectId, dueDate: t.dueDate, priority: t.priority, status: t.status, actor };
+  }
+
+  /**
+   * Nov 17: merge duplicate tasks into one. The kept task gains the others'
+   * files, comments and history; each duplicate becomes a closed subtask of it
+   * and their subtasks move under it. All or nothing.
+   */
+  async merge(keepId: string, mergeIds: string[], actor: UploadActor = { name: 'Unknown' }) {
+    const ids = [...new Set((mergeIds || []).map(String))].filter((x) => x !== keepId);
+    return this.repo.manager.transaction(async (m) => {
+      const repo = m.getRepository(ProjectTaskEntity);
+      const keep = await repo.findOneBy({ id: keepId });
+      const dupes = await Promise.all(ids.map((id) => repo.findOneBy({ id })));
+      const problem = mergeProblem(keep as any, dupes as any);
+      if (problem) throw new BadRequestException(problem);
+      const plan = planMerge(keep as any, dupes as any, { name: actor.name, id: actor.id });
+      for (const d of plan.dupes) {
+        // The duplicate's own subtasks now sit under the kept task.
+        await repo.update({ parentId: d.id } as any, { parentId: keep!.id, epicId: keep!.epicId ?? null } as any);
+        await repo.update({ id: d.id } as any, d.patch as any);
+      }
+      Object.assign(keep!, plan.keep);
+      return repo.save(keep!);
+    });
   }
 
   async update(id: string, dto: any, actor: UploadActor = { name: 'Unknown' }) {
@@ -508,6 +535,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     const saved = await this.repo.save(task);
     // Its subtasks (all finished -- checked above) go into the archive with it.
     if (closing) for (const s of await this.repo.findBy({ parentId: id })) if (!s.archivedAt) await this.repo.update({ id: s.id }, { archivedAt: saved.archivedAt } as any);
+    // Nov 17: subtasks follow their parent's epic.
+    if ('epicId' in patch && !saved.parentId) await this.repo.update({ parentId: id } as any, { epicId: saved.epicId ?? null } as any);
     if (!defer) this.sendNotices(saved, notices);
     if (nowEmergency) this.alertEmergency(saved, actor);
     // High Viz work: everyone who follows High Viz hears when it moves.
