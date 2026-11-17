@@ -19,9 +19,11 @@ export function ViewAsPicker() {
     if (!open) return;
     (api.roles.list() as Promise<any>).then((r) => setRoles(Array.isArray(r) ? r : [])).catch(() => undefined);
     (api.users.list() as Promise<any>).then((r) => setUsers(Array.isArray(r) ? r : [])).catch(() => undefined);
-    const close = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    const close = (e: MouseEvent | TouchEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    // iOS Safari: a tap outside comes as touchstart first.
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    document.addEventListener('touchstart', close, { passive: true });
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('touchstart', close); };
   }, [open]);
   const qn = q.trim().toLowerCase();
   const people = users.filter((u) => u.roleKey !== 'admin' && u.status !== 'suspended' && (!qn || `${u.name} ${u.email}`.toLowerCase().includes(qn))).slice(0, 30);

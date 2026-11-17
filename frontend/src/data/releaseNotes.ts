@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-17a',
+    date: '2026-11-17',
+    title: 'View as works on a phone',
+    items: [
+      { area: 'Admin', kind: 'fixed', text: 'On an iPhone, the View as list opened off the edge of the screen under the side menu. It now spans the screen below the header, and the button stays on one line.', where: 'Top bar → View as…' },
+    ],
+  },
+  {
     id: '2026-11-16b',
     date: '2026-11-16',
     title: 'Markup text: readable on big drawings, easy to move and size',
