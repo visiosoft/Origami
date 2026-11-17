@@ -3,7 +3,7 @@ import { BadRequestException, ForbiddenException,
   Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
 } from '@nestjs/common';
 import { Claims } from '../auth/guards/claims.decorator';
-import { Tiers } from '../auth/guards/roles.decorator';
+import { Roles, Tiers } from '../auth/guards/roles.decorator';
 import { ProjectAccessService } from '../auth/project-access.service';
 import type { SessionClaims } from '../auth/crypto.util';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -174,8 +174,9 @@ export class FileRoomController {
     // Staff on "Assigned projects" are narrowed too (Oct 30 sync), not only outside accounts.
     const allowed = await this.access.allowedIds(claims ?? null);
     // And restricted folders (Nov 13): files and folders inside one the caller may not open are left out.
+    // Files also by their Internal / Client / External tag (Nov 17) -- the third argument, given for files only.
     const folderOk = await this.folders.gate(claims ?? null);
-    return (id: unknown, path?: string[] | null) => (allowed === 'all' || allowed.has(Number(id))) && folderOk(id, path);
+    return (id: unknown, path?: string[] | null, ...file: (string | null)[]) => (allowed === 'all' || allowed.has(Number(id))) && folderOk(id, path, ...file);
   }
 
   /** The tree without the files: projects, folders, file counts per folder and totals. */
@@ -210,7 +211,7 @@ export class FileRoomController {
     const all = await this.service.list(scoped);
     // Outside accounts, and staff on "Assigned projects", see only their projects; nobody sees inside a folder kept from them.
     const ok = await this.seeProject(claims);
-    return { ...all, projects: all.projects.filter((p: any) => ok(p.id)), files: all.files.filter((f: any) => ok(f.projectId, f.folderPath)), folders: all.folders.filter((f: any) => ok(f.projectId, f.path)) };
+    return { ...all, projects: all.projects.filter((p: any) => ok(p.id)), files: all.files.filter((f: any) => ok(f.projectId, f.folderPath, f.access ?? null)), folders: all.folders.filter((f: any) => ok(f.projectId, f.path)) };
   }
 
   @Tiers('internal')
@@ -278,7 +279,7 @@ export class FileRoomController {
   @Get('files/:id/small')
   async small(@Param('id') id: string, @Query('kind') kind: string, @Res() res: Response, @Claims() claims: SessionClaims | null) {
     const { file, body } = await this.service.small(id, kind === 'preview' ? 'preview' : 'thumb');
-    if (!(await this.access.canSee(claims, (file as any).projectId)) || !(await this.folders.gate(claims))((file as any).projectId, (file as any).folderPath)) {
+    if (!(await this.access.canSee(claims, (file as any).projectId)) || !(await this.folders.gate(claims))((file as any).projectId, (file as any).folderPath, (file as any).access ?? null)) {
       res.status(403).json({ message: 'You don’t have access to this file.' });
       return;
     }
@@ -314,7 +315,7 @@ export class FileRoomController {
     @Query('size') size?: string,
   ) {
     const { file, body, mimeType } = await this.service.content(id, thumb === '1', Number(size) || undefined);
-    if (!(await this.access.canSee(claims, (file as any).projectId)) || !(await this.folders.gate(claims))((file as any).projectId, (file as any).folderPath)) {
+    if (!(await this.access.canSee(claims, (file as any).projectId)) || !(await this.folders.gate(claims))((file as any).projectId, (file as any).folderPath, (file as any).access ?? null)) {
       await (body as any)?.cancel?.().catch?.(() => {});
       res.status(403).json({ message: 'You don’t have access to this file.' });
       return;
@@ -333,7 +334,7 @@ export class FileRoomController {
   @Get('files/:id/preview')
   async preview(@Param('id') id: string, @Res() res: Response, @Claims() claims: SessionClaims | null) {
     const { file, body, mimeType, pdf } = await this.service.preview(id);
-    if (!(await this.access.canSee(claims, (file as any).projectId)) || !(await this.folders.gate(claims))((file as any).projectId, (file as any).folderPath)) {
+    if (!(await this.access.canSee(claims, (file as any).projectId)) || !(await this.folders.gate(claims))((file as any).projectId, (file as any).folderPath, (file as any).access ?? null)) {
       await (body as any)?.cancel?.().catch?.(() => {});
       res.status(403).json({ message: 'You don’t have access to this file.' });
       return;
@@ -344,6 +345,26 @@ export class FileRoomController {
     res.setHeader('Cache-Control', 'private, max-age=300');
     if (pdf) { res.end(pdf); return; }
     Readable.fromWeb(body).pipe(res);
+  }
+
+  /** Nov 17: tag files Internal / Client / External (staff who manage files). */
+  @Put('files/access')
+  async setFileAccess(@Body() dto: { ids?: string[]; access?: string }, @Claims() claims?: SessionClaims | null) {
+    this.access.assertStaff(claims ?? null);
+    await this.assertManage(claims ?? null);
+    return this.service.setAccess(Array.isArray(dto?.ids) ? dto.ids : [], String(dto?.access || ''));
+  }
+
+  /** Nov 17: untagged files in each build set (which clients would stop seeing) -- preview, then apply (admin). */
+  @Roles('admin')
+  @Get('access/build-set-plan')
+  buildSetPlan() { return this.service.buildSetTagPlan(false); }
+
+  @Roles('admin')
+  @Post('access/build-set-plan/apply')
+  applyBuildSetPlan(@Body() dto: { confirm?: boolean }) {
+    if (dto?.confirm !== true) throw new BadRequestException('Confirm to tag these files Client.');
+    return this.service.buildSetTagPlan(true);
   }
 
   /** Restricted folders of a project (Nov 13): which are kept to some people (names of who, for managers). */

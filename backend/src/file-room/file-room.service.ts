@@ -227,14 +227,55 @@ export class FileRoomService {
     await this.projects.update({ id: projectId }, { buildSetFolders: list.length ? list : null } as any);
     return { projectId, buildSet: list };
   }
+  /** Nov 17: a new file's tag -- Client inside the build set (the drawings the client sees), Internal elsewhere. */
+  async defaultAccess(projectId: number, folderPath: string[] | null | undefined): Promise<string> {
+    const top = String((folderPath || [])[0] || '').trim().toLowerCase();
+    if (!top) return 'internal';
+    const set = (await Promise.resolve().then(() => this.buildSetOf(projectId)).catch(() => [] as string[])).map((f) => f.trim().toLowerCase());
+    return set.includes(top) ? 'client' : 'internal';
+  }
+
+  /** Nov 17: tag files Internal / Client / External (staff). */
+  async setAccess(ids: string[], access: string) {
+    if (!['internal', 'client', 'external'].includes(access)) throw new BadRequestException('Pick Internal, Client or External.');
+    const list = [...new Set((ids || []).map(String))].slice(0, 500);
+    if (!list.length) throw new BadRequestException('Pick at least one file.');
+    const rows = await this.files.findBy(list.map((id) => ({ id })));
+    for (const f of rows) f.access = access;
+    await this.files.save(rows);
+    return { updated: rows.length, access, projectIds: [...new Set(rows.map((f) => f.projectId))] };
+  }
+
+  /**
+   * Nov 17, before the tags hide anything: files not tagged yet count as
+   * Internal, so clients would lose the drawings they see today. This lists the
+   * untagged files in each project's build set; apply tags them Client.
+   */
+  async buildSetTagPlan(apply = false) {
+    const [files, projects] = await Promise.all([
+      this.files.find({ select: { id: true, projectId: true, folderPath: true, access: true, name: true } as any }),
+      this.projects.find({ select: { id: true, name: true, buildSetFolders: true } as any }),
+    ]);
+    const plan: { projectId: number; project: string; files: number; ids: string[] }[] = [];
+    for (const p of projects) {
+      const set = (Array.isArray(p.buildSetFolders) ? p.buildSetFolders : []).map((f: string) => f.trim().toLowerCase());
+      if (!set.length) continue;
+      const ids = files.filter((f) => f.projectId === p.id && !f.access && set.includes(String((f.folderPath || [])[0] || '').trim().toLowerCase())).map((f) => f.id);
+      if (ids.length) plan.push({ projectId: p.id, project: p.name, files: ids.length, ids });
+    }
+    const untagged = files.filter((f) => !f.access).length;
+    if (apply) for (const row of plan) for (let i = 0; i < row.ids.length; i += 200) await this.files.update(row.ids.slice(i, i + 200), { access: 'client' } as any);
+    return { applied: apply, untagged, toClient: plan.reduce((n, r) => n + r.files, 0), projects: plan.map(({ ids: _ids, ...r }) => r) };
+  }
+
   async buildSetOf(projectId: number): Promise<string[]> {
     const p = await this.projects.findOne({ where: { id: projectId }, select: { id: true, buildSetFolders: true } as any });
     return Array.isArray(p?.buildSetFolders) ? p!.buildSetFolders : [];
   }
 
-  async tree(ok: (projectId: unknown, path?: string[] | null) => boolean = () => true) {
+  async tree(ok: (projectId: unknown, path?: string[] | null, fileAccess?: string | null) => boolean = () => true) {
     const [rows, rawFolders, projects] = await Promise.all([
-      this.files.find({ select: { id: true, projectId: true, folderPath: true, size: true, updatedAt: true } }),
+      this.files.find({ select: { id: true, projectId: true, folderPath: true, size: true, updatedAt: true, access: true } }),
       this.folders.find(),
       this.projects.find({ select: { id: true, name: true, fileRoomSyncedAt: true, buildSetFolders: true } }),
     ]);
@@ -242,7 +283,7 @@ export class FileRoomService {
     const week = Date.now() - 7 * 864e5;
     let total = 0, recent = 0, bytes = 0;
     for (const f of rows) {
-      if (!ok(f.projectId, f.folderPath)) continue;
+      if (!ok(f.projectId, f.folderPath, f.access ?? null)) continue;
       const key = (Array.isArray(f.folderPath) ? f.folderPath : []).join('>');
       const byFolder = (counts[String(f.projectId)] ||= {});
       byFolder[key] = (byFolder[key] || 0) + 1;
@@ -263,13 +304,13 @@ export class FileRoomService {
    * One page of files: a folder's (projectId + path), or every project's
    * (no projectId -- "All Files"), with the name search, latest-only and sort.
    */
-  async filesPage(q: Record<string, string>, ok: (projectId: unknown, path?: string[] | null) => boolean = () => true) {
+  async filesPage(q: Record<string, string>, ok: (projectId: unknown, path?: string[] | null, fileAccess?: string | null) => boolean = () => true) {
     const pid = Number(q.projectId);
     const rows = await this.files.find({ where: Number.isFinite(pid) && pid > 0 ? { projectId: pid } : {} });
     const folder = q.path === undefined ? null : String(q.path);
     const text = String(q.q || '').trim().toLowerCase();
     const list = rows
-      .filter((f) => ok(f.projectId, f.folderPath))
+      .filter((f) => ok(f.projectId, f.folderPath, f.access ?? null))
       .map((f) => this.hydrate(f))
       .filter((f) => folder === null || (f.folderPath || []).join('>') === folder)
       .filter((f) => q.latest !== '1' || f.isLatest !== false)
@@ -380,6 +421,8 @@ export class FileRoomService {
         id: subId('fr'),
         projectId,
         folderPath,
+        // Nov 17: a new revision keeps its document's tag; otherwise the build set is for the client, the rest internal.
+        access: sibling?.access ?? (await this.defaultAccess(projectId, folderPath)),
         name: fileName,
         ext: extOf(fileName),
         size: drive.size ? Number(drive.size) : file.size,
@@ -655,6 +698,7 @@ export class FileRoomService {
             id: subId('fr'),
             projectId,
             folderPath: path,
+            access: await this.defaultAccess(projectId, path),
             name: child.name,
             ext: extOf(child.name),
             size,

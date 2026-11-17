@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-17f',
+    date: '2026-11-17',
+    title: 'Every file says who it’s for',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'Each file carries a tag: 🔒 Internal (our team only), 👤 Client (our team and the client) or 🌐 External (everyone on the project). Clients and outside people only see the files their tag allows; folder rules still apply too. Change it in the file’s panel, or pick several files and use “Who it’s for…”. New files in the build set start as Client, everything else as Internal.', where: 'File Room → a file → Who it’s for' },
+      { area: 'File Room', kind: 'new', text: 'Administrators: a one-time banner lists the existing build-set files clients would stop seeing (older files count as Internal). Preview it, then Apply to tag them Client. Nothing changes until you press Apply.', where: 'File Room (admins)' },
+    ],
+  },
+  {
     id: '2026-11-17e',
     date: '2026-11-17',
     title: 'Tasks: epics, and merging duplicates',

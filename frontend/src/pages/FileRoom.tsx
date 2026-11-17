@@ -15,6 +15,7 @@ import {
   extStyle, isImage, pathKey, prettySize, shortDate, subfoldersOf,
   type FileRoomData, type FileRoomFile,
 } from '../data/fileRoom';
+import { BuildSetTagBanner, FileAccessChip, FileAccessPicker } from '../components/FileAccessTag';
 import { Skeleton } from '../components/Skeleton';
 import { FolderAccessDialog, type FolderRule } from '../components/FolderAccessDialog';
 
@@ -63,7 +64,7 @@ const FolderIcon = ({ size = 15, c = 'var(--muted)' }: { size?: number; c?: stri
  * version grouping are held here.
  */
 export function FileRoom() {
-  const { can, toast } = useApp();
+  const { can, toast, authUser } = useApp();
   // Opened as All Files, that module's own permission counts too.
   const canManage = can('planroom', 'manage') || (window.location.pathname === '/allfiles' && can('allfiles', 'manage'));
   const isNarrow = useWindowWidth() < 900;
@@ -123,7 +124,7 @@ export function FileRoom() {
   const [emailOpen, setEmailOpen] = useState(false);
   // Several files picked at once (inside one project): share, email or move them together.
   const [picked, setPicked] = useState<Set<string>>(new Set());
-  const [bulk, setBulk] = useState<'' | 'email' | 'move'>('');
+  const [bulk, setBulk] = useState<'' | 'email' | 'move' | 'access'>('');
   const [bulkTo, setBulkTo] = useState('');
   const [bulkNote, setBulkNote] = useState('');
   const [bulkLinks, setBulkLinks] = useState<{ id: string; name: string; url: string }[]>([]);
@@ -506,14 +507,22 @@ export function FileRoom() {
   // ---- cards / rows -------------------------------------------------------
 
   const badge = (f: FileRoomFile) => {
-    if (!f.groupId) return null;
     const latest = f.isLatest !== false;
     return (
-      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: latest ? 'var(--c-d2ead3)' : 'var(--c-efede8)', color: latest ? 'var(--success-deep)' : 'var(--muted)' }}>
-        {latest ? 'Latest' : 'Older version'}
+      <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Nov 17: who it's for, on every file. */}
+        <FileAccessChip access={f.access} />
+        {f.groupId && (
+          <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: latest ? 'var(--c-d2ead3)' : 'var(--c-efede8)', color: latest ? 'var(--success-deep)' : 'var(--muted)' }}>
+            {latest ? 'Latest' : 'Older version'}
+          </span>
+        )}
       </span>
     );
   };
+  const tagFiles = (ids: string[], access: 'internal' | 'client' | 'external') => api.fileRoom.setAccess(ids, access)
+    .then((r) => { toast(`${r.updated} file${r.updated === 1 ? '' : 's'} tagged ${access[0].toUpperCase() + access.slice(1)}`); load(); })
+    .catch((e: Error) => toast('⚠ ' + (e.message || 'Could not change the tag')));
 
   const gridView = (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 }}>
@@ -608,6 +617,7 @@ export function FileRoom() {
         </div>
       </div>
 
+      {authUser?.roleKey === 'admin' && !authUser?.viewedBy && <BuildSetTagBanner onApplied={load} />}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
         {[['Total Files', String(stats.total), 'across all projects'],
           ['Added This Week', String(stats.recent), 'last 7 days'],
@@ -745,6 +755,7 @@ export function FileRoom() {
             {pill(bulkBusy ? 'Working…' : 'Copy share links', false, bulkBusy ? () => {} : bulkShare)}
             {pill('Email', bulk === 'email', () => setBulk((b) => (b === 'email' ? '' : 'email')))}
             {pill('Move to…', bulk === 'move', () => setBulk((b) => (b === 'move' ? '' : 'move')))}
+            {pill('Who it’s for…', bulk === 'access', () => setBulk((b) => (b === 'access' ? '' : 'access')))}
             {pill('Clear', false, () => { setPicked(new Set()); setBulk(''); setBulkLinks([]); })}
           </div>
           {picked.size > 25 && <div style={{ fontSize: 12, color: '#9A4318' }}>Up to 25 files at a time — untick {picked.size - 25}.</div>}
@@ -756,6 +767,12 @@ export function FileRoom() {
                 <span style={{ flex: 1, fontSize: 11, color: 'var(--muted)' }}>One email with a view link for each file — anyone with a link can view that file.</span>
                 {pill(bulkBusy ? 'Sending…' : `Send ${picked.size} file${picked.size === 1 ? '' : 's'}`, true, bulkBusy ? () => {} : bulkEmail)}
               </div>
+            </div>
+          )}
+          {bulk === 'access' && (
+            <div style={{ display: 'grid', gap: 6 }}>
+              <FileAccessPicker onPick={(a) => bulkRun(async () => { await tagFiles(pickedIds, a); setPicked(new Set()); setBulk(''); })} busy={bulkBusy} />
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>Internal: our team only · Client: our team and the client · External: everyone on the project.</span>
             </div>
           )}
           {bulk === 'move' && (
@@ -788,6 +805,12 @@ export function FileRoom() {
                 <div style={{ fontFamily: BG, fontSize: 16, fontWeight: 700, color: 'var(--ink)', wordBreak: 'break-word' }}>{selected.name}</div>
                 <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>{(selected.folderPath ?? []).join(' › ') || 'Project root'}</div>
                 <div style={{ marginTop: 6 }}>{badge(selected)}</div>
+                {canManage && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>Who it’s for</div>
+                    <FileAccessPicker value={selected.access ?? null} onPick={(a) => void tagFiles([selected.id], a)} />
+                  </div>
+                )}
               </div>
               <div onClick={() => setSelectedFileId(null)}
                    style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>

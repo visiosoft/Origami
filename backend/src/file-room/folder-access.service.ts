@@ -1,3 +1,4 @@
+import { fileAccessOk } from './folder-access';
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -39,20 +40,29 @@ export class FolderAccessService {
     const email = String(claims.email || '').trim().toLowerCase();
     const mine = (await this.people.find({ select: { id: true, userId: true, email: true, company: true } as any }))
       .filter((p) => (p.userId && p.userId === claims.sub) || (!!email && String(p.email || '').trim().toLowerCase() === email));
-    return { sub: claims.sub, roleKey: claims.roleKey, staff: this.access.isStaff(claims), companies: mine.map((p) => String(p.company || '').trim().toLowerCase()).filter(Boolean), manager: await this.isManager(claims) };
+    return { sub: claims.sub, roleKey: claims.roleKey, tier: claims.tier, staff: this.access.isStaff(claims), companies: mine.map((p) => String(p.company || '').trim().toLowerCase()).filter(Boolean), manager: await this.isManager(claims) };
   }
 
   /** (projectId, folder path) -> may this caller open it? Built once per request. */
-  async gate(claims: SessionClaims | null): Promise<(projectId: unknown, path?: string[] | null) => boolean> {
+  /**
+   * (projectId, folder path, file tag) -> may this caller open it? Built once per request.
+   * Pass the third argument for a file (its tag, null when untagged = internal); leave it out for a folder.
+   */
+  async gate(claims: SessionClaims | null): Promise<(projectId: unknown, path?: string[] | null, fileAccess?: string | null) => boolean> {
     const rules = await this.all();
-    if (!rules.length) return () => true;
+    const staff = this.access.isStaff(claims);
+    // Staff with no restricted folders anywhere: nothing to check.
+    if (!rules.length && staff) return () => true;
     const v = await this.viewer(claims);
-    return (projectId, path) => folderOpen(rules, v, Number(projectId), path);
+    return (projectId, path, ...file: (string | null | undefined)[]) =>
+      (file.length === 0 || fileAccessOk(v, file[0])) && (!rules.length || folderOpen(rules, v, Number(projectId), path));
   }
 
   /** One file: "not found" if its folder is kept from this caller. */
-  async assertFile(claims: SessionClaims | null, file: { projectId: number; folderPath?: string[] | null }) {
-    if (!(await this.gate(claims))(file.projectId, file.folderPath)) throw new ForbiddenException('This file is in a folder you don’t have access to.');
+  async assertFile(claims: SessionClaims | null, file: { projectId: number; folderPath?: string[] | null; access?: string | null }) {
+    const g = await this.gate(claims);
+    // A whole file row carries its tag (null = internal); a bare folder check doesn't.
+    if (!('access' in file ? g(file.projectId, file.folderPath, file.access ?? null) : g(file.projectId, file.folderPath))) throw new ForbiddenException('This file is in a folder you don’t have access to.');
   }
 
   /** Every restricted folder of a project (for the 🔒 in the tree). Names only for managers. */

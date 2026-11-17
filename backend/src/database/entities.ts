@@ -1276,6 +1276,11 @@ export class FileRoomFileEntity {
   @Column({ nullable: true, default: true }) isLatest!: boolean;
   /** Free notes about the document — what it is, what changed, what to watch. */
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) notes!: string;
+  /**
+   * Nov 17: who it is for -- internal (staff only; also when empty), client
+   * (staff and the client) or external (everyone on the project: consultants, trades).
+   */
+  @Column({ type: 'nvarchar', length: 12, nullable: true }) access!: string | null;
   /** A drawing's sheet numbers by page ("1": "A100"), read from the title blocks and correctable (Oct 31). */
   @Column({ type: 'simple-json', nullable: true }) sheetNames!: Record<string, string> | null;
   /**

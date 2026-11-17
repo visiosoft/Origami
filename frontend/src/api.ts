@@ -1005,6 +1005,11 @@ export const api = {
     url: (id: string, opts: { thumb?: boolean; download?: boolean; size?: number } = {}) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/content${opts.thumb ? `?thumb=1${opts.size ? `&size=${opts.size}` : ''}` : opts.download ? '?download=1' : ''}`,
   },
   fileRoom: {
+    /** Nov 17: tag files Internal / Client / External. */
+    setAccess: (ids: string[], access: 'internal' | 'client' | 'external') => request<{ updated: number; access: string }>('/file-room/files/access', { method: 'PUT', body: JSON.stringify({ ids, access }) }),
+    /** Nov 17 (admin): untagged build-set files clients would stop seeing -- preview, then apply (tags them Client). */
+    buildSetPlan: () => request<{ applied: boolean; untagged: number; toClient: number; projects: { projectId: number; project: string; files: number }[] }>('/file-room/access/build-set-plan', { cache: 'no-store' } as any),
+    applyBuildSetPlan: () => request<{ applied: boolean; untagged: number; toClient: number; projects: { projectId: number; project: string; files: number }[] }>('/file-room/access/build-set-plan/apply', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
     /** The tree without the files: projects, folders, file counts per folder (counts[projectId][path joined by '>']) and totals. */
     /** Restricted folders (Nov 13): which folders of a project are kept to some people; set who may open one. */
