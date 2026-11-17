@@ -9,7 +9,7 @@ import { NotifyHub } from '../notifications/notify-hub.service';
 import { TagsService } from '../tags/tags.service';
 import { cleanTags } from '../database/task.types';
 import { mentionedIds } from '../tasks/mentions';
-import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from '../tasks/task-rules';
+import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing, dueChangeReasonMissing, dueChangeNote, NEEDS_DUE_REASON } from '../tasks/task-rules';
 import { ChecklistTemplateEntity, LeadEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
 import { resolveLead } from '../tasks/lead-link';
 import { holdNotices, overdue, stillTrue, type PendingNotice } from '../notifications/pending-notices';
@@ -439,6 +439,10 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       patch.tags = cleanTags(t.tags, task.tags);
     }
     const note = cleanCompletionNote(patch.completionNote); delete patch.completionNote;
+    // Nov 17: moving an overdue task's due date needs a reason; it goes in the history.
+    const dueReason = String(patch.dueReason || '').trim(); delete patch.dueReason;
+    const dueEvents: ActivityEvent[] = dueReason && 'dueDate' in patch && (patch.dueDate || '') !== (task.dueDate || '')
+      ? [event('comment', actor, { text: dueChangeNote(task.dueDate, patch.dueDate, dueReason) })] : [];
     if ('status' in patch) patch.status = normalizeTaskStatus(patch.status);
     await this.syncBucketSection(task, patch);
     await this.syncStatus(task, patch, actor);
@@ -450,6 +454,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       if (('assignee' in patch || 'assigneeId' in patch) && (task.assigneeId || task.assignee) && !(patch.assigneeId || (patch.assignee || '').trim())) throw new BadRequestException('A subtask needs an assignee.');
     }
     if (isDoneStatus(patch.status) && !isDoneStatus(task.status) && !task.parentId) await this.assertSubtasksDone(id);
+    if (dueChangeReasonMissing(task, { ...patch, dueReason }, !isDoneStatus(task.status) && !task.archivedAt && !task.completed)) throw new BadRequestException(NEEDS_DUE_REASON);
 
     // Collaborators: a clean list, recorded in the activity, and newcomers told.
     let joined: { id: string; name: string }[] = [];
@@ -473,7 +478,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     }
 
     if (closing) { const at = new Date().toISOString(); patch.archivedAt = at; patch.closedAt = at; patch.completed = true; }
-    const events = [...diffEvents(task, patch, actor), ...collabEvents, ...noteEvents, ...(closing ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
+    const events = [...diffEvents(task, patch, actor), ...dueEvents, ...collabEvents, ...noteEvents, ...(closing ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
     const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
       ? String(patch.assigneeId)
       : null;

@@ -9,7 +9,7 @@ import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '
 import { ListCache } from '../database/list-cache';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from './mentions';
-import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from './task-rules';
+import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing, dueChangeReasonMissing, dueChangeNote, NEEDS_DUE_REASON } from './task-rules';
 import { SettingsService } from '../settings/settings.service';
 import { withAutoChecklists } from '../project-tasks/auto-checklist';
 import { backfillSerials, logSerialKind, nextSerial, serialYear } from '../database/serials';
@@ -462,6 +462,12 @@ export class TasksService implements OnApplicationBootstrap {
     }
 
     const note = cleanCompletionNote(patch.completionNote); delete patch.completionNote;
+    // Nov 17: moving an overdue entry's due date needs a reason; it goes in the history.
+    const dueReason = String(patch.dueReason || '').trim(); delete patch.dueReason;
+    const statusesNow = await this.statuses();
+    if (dueChangeReasonMissing(task, { ...patch, dueReason }, !isClosedStatus(statusesNow, task.status) && !task.archivedAt && !['Complete', 'Confirmed'].includes(task.status))) throw new BadRequestException(NEEDS_DUE_REASON);
+    const dueEvents: ActivityEvent[] = dueReason && 'dueDate' in patch && (patch.dueDate || '') !== (task.dueDate || '')
+      ? [event('comment', actor, { text: dueChangeNote(task.dueDate, patch.dueDate, dueReason) })] : [];
     await this.bucketRules(task, patch, actor);
     if ('priority' in patch) patch.priority = cleanPriority(patch.priority);
     if ('tags' in patch) patch.tags = cleanTags(patch.tags, task.tags);
@@ -506,7 +512,7 @@ export class TasksService implements OnApplicationBootstrap {
     }
 
     if (closingNow) { const at = new Date().toISOString(); patch.archivedAt = at; patch.closedAt = at; }
-    const events = [...diffEvents(task, patch, actor), ...collabEvents, ...noteEvents, ...(closingNow ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
+    const events = [...diffEvents(task, patch, actor), ...dueEvents, ...collabEvents, ...noteEvents, ...(closingNow ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
     const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
       ? String(patch.assignedToId)
       : null;

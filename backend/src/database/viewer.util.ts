@@ -45,7 +45,18 @@ export function scopeTasks<T extends Record<string, any>>(tasks: T[], claims: Se
   if (!claims) throw new UnauthorizedException('Sign in to view tasks.');
   if (!isRestrictedViewer(claims)) return tasks;
   // Internal or Financial items stay with our own team even when assigned out.
-  return tasks.filter((t) => assignedTo(t, claims) && !internalOnly(t.tags));
+  const ok = (t: T) => !internalOnly(t.tags);
+  const mine = tasks.filter((t) => assignedTo(t, claims) && ok(t));
+  // Nov 17 (subtask visibility): someone on a parent task sees its subtasks; someone on only a subtask
+  // sees its parent's title, so "Subtask of ..." makes sense -- nothing else of it.
+  const ids = new Set(mine.map((t) => t.id));
+  const children = tasks.filter((t) => t.parentId && ids.has(t.parentId) && !ids.has(t.id) && ok(t));
+  for (const c of children) ids.add(c.id);
+  const parents = [...new Set(mine.map((t) => t.parentId).filter((p) => p && !ids.has(p)))]
+    .map((pid) => tasks.find((t) => t.id === pid))
+    .filter((p): p is T => !!p && ok(p))
+    .map((p) => ({ id: p.id, title: p.title, projectId: p.projectId, sectionId: p.sectionId, status: p.status, completed: p.completed, parentId: null, contextOnly: true }) as unknown as T);
+  return [...mine, ...children, ...parents];
 }
 
 /**

@@ -15,6 +15,13 @@ export function askHoldReason(title?: string): Promise<string | null> {
   return ask(title, HOLD);
 }
 
+/** Nov 17: an overdue task's due date is moving -- why? Resolves with the reason text, or null. */
+export async function askDueReason(title?: string): Promise<string | null> {
+  const { DUE_REASONS, dueReasonText } = await import('../data/dueReason');
+  const r = await askChoice(DUE, DUE_REASONS, 'Other', title);
+  return r ? dueReasonText(r) : null;
+}
+
 /** A required reason for something else (e.g. a contact going Expired). */
 export function askReason(copy: Copy, title?: string): Promise<string | null> {
   return ask(title, copy);
@@ -39,6 +46,10 @@ export interface Copy { label: string; heading: string; why: string; placeholder
 const COMPLETION: Copy = {
   label: 'Completion note', heading: 'What was done?', why: 'A short note is needed to mark a task complete. The assigner reads it before confirming.',
   placeholder: 'e.g. Sent to the client on Oct 20; they have the revised drawings', button: 'Mark complete',
+};
+const DUE: Copy = {
+  label: 'Why is the due date changing', heading: 'This task is overdue — why is the date changing?', why: 'A reason is needed to move or clear an overdue task’s due date. It is kept in the task’s history.',
+  placeholder: 'e.g. Client is holding until the tile is picked', button: 'Change the date',
 };
 const HOLD: Copy = {
   label: 'Why is it on hold', heading: 'Why is it on hold?', why: 'A reason is needed to put a task on hold, so everyone on it knows what it is waiting for.',

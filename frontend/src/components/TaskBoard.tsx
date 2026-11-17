@@ -23,7 +23,8 @@ import {
 } from '../data/projectTasks';
 import { Avatar } from './Avatar';
 import { AssigneePicker } from './AssigneePicker';
-import { askCompletionNote, askHoldReason } from './CompletionNote';
+import { askCompletionNote, askDueReason, askHoldReason } from './CompletionNote';
+import { dueReasonNeeded } from '../data/dueReason';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
 import { QuickAddTask, quickTaskFields } from './QuickAddTask';
 import { TaskLinkBadge } from './TaskLinkBadge';
@@ -239,7 +240,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   // Counts are absolute, not relative to the active scope.
   const mineCount = inScopeOfBoard.filter((t) => !t.parentId && isMine(t, currentUser)).length;
   const allCount = inScopeOfBoard.filter((t) => !t.parentId).length;
-  const selected = tasks.find((t) => t.id === selectedId) || null;
+  // Nov 17: a parent shown only for context (an outside account is on one of its subtasks) doesn't open.
+  const selected = tasks.find((t) => t.id === selectedId && !(t as any).contextOnly) || null;
   // The open task in full -- its comments and history -- since the list leaves them out.
   const fetchingFull = useRef<string | null>(null);
   useEffect(() => {
@@ -270,6 +272,12 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     return patch.status === 'On hold' || holdColumn(into);
   };
   const withCompletionNote = async (t: ProjectTask | undefined, patch: Partial<ProjectTask>): Promise<Partial<ProjectTask> | null> => {
+    // Nov 17: an overdue task's date moves only with a reason.
+    if (t && 'dueDate' in patch && !(patch as any).dueReason && dueReasonNeeded(t.dueDate, patch.dueDate, !isFinished(t) && !t.archivedAt)) {
+      const why = await askDueReason(t.title);
+      if (!why) return null;
+      patch = { ...patch, dueReason: why } as Partial<ProjectTask>;
+    }
     if (needsHoldReason(t, patch)) {
       const reason = await askHoldReason(t!.title);
       return reason ? { ...patch, holdReason: reason } : null;
@@ -1076,6 +1084,16 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
           const open = (patch.completed === true || patch.status === 'Done' || patch.status === 'Confirmed') ? subsOf(selected.id).filter((s) => !s.completed).length : 0;
           if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
           // Finishing it asks what was done; the note saves with the status.
+          // Nov 17: moving an overdue date asks why, and saves the date with its reason straight away.
+          if ('dueDate' in patch && dueReasonNeeded(selected.dueDate, patch.dueDate, !isFinished(selected) && !selected.archivedAt)) {
+            void askDueReason(selected.title).then((why) => {
+              if (!why) return;
+              setDraft(patch);
+              api.projectTasks.update(selected.id, { dueDate: patch.dueDate || '', dueReason: why, deferNotify: true })
+                .then(replaceTask).catch((e: Error) => toast('⚠ ' + (e.message || 'Could not change the date')));
+            });
+            return;
+          }
           if (!needsNote(d, patch) && !needsHoldReason(d, patch)) { setDraft(patch); return; }
           void withCompletionNote(d, patch).then((p) => { if (p) setDraft(p); });
         };
@@ -1087,7 +1105,15 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
           <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 440, maxWidth: '96vw', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
             {canManage && (
               <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-                <SaveBar auto={auto} onDone={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }} />
+                {/* Nov 17: the same three buttons on every task -- finish it, save and close, or close without saving. */}
+                <div className="task-close-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                  {!selected.parentId && (selected.archivedAt
+                    ? <button type="button" onClick={() => reopenTask(selected.id)} title="Bring it back onto the board" style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
+                    : <button type="button" onClick={() => closeTask(selected.id)} title="Mark it complete and move it to the archive now" style={{ padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <SaveBar auto={auto} onDiscard={() => setSelectedId(null)} onDone={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }} />
+                  </div>
+                </div>
               </div>
             )}
             <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -1099,9 +1125,6 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             <div style={{ padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={projectName || (selected.projectId == null ? (selected.leadName ? leadLabel(selected.leadName) : 'General Tasks') : `Project ${selected.projectId}`)} source={d.requestedBy} by={selected.createdByName || createdByOf(selected)?.by} at={createdByOf(selected)?.at || selected.createdAt} number={numberOf(selected) || '#' + selected.id} /></div>
-                {canManage && !selected.parentId && (selected.archivedAt
-                  ? <button type="button" onClick={() => reopenTask(selected.id)} title="Bring it back onto the board" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
-                  : <button type="button" onClick={() => closeTask(selected.id)} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
               </div>
               {selected.parentId && (
                 <div onClick={() => setSelectedId(selected.parentId!)} style={{ fontSize: 12, color: 'var(--forest)', fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>

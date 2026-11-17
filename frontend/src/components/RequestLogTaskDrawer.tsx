@@ -16,7 +16,8 @@ import { isMine, raisedBy } from './TaskScope';
 import { api } from '../api';
 import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
 import { AssigneePicker } from './AssigneePicker';
-import { askCompletionNote, askHoldReason } from './CompletionNote';
+import { askCompletionNote, askDueReason, askHoldReason } from './CompletionNote';
+import { dueReasonNeeded } from '../data/dueReason';
 import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
@@ -74,6 +75,16 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   // Marking it complete (or confirmed straight away) asks what was done; the note saves with the status.
   const closedNames = new Set(statuses.filter((s) => s.closed).map((s) => s.name));
   const set = (patch: Partial<Task>) => {
+    // Nov 17: an overdue entry's date moves only with a reason, saved with it straight away.
+    if ('dueDate' in patch && dueReasonNeeded(task.dueDate, patch.dueDate, !closedNames.has(task.status) && !task.archivedAt)) {
+      void askDueReason(logTaskTitle(t)).then((why) => {
+        if (!why) return;
+        put(patch);
+        api.tasks.update(t.id, { dueDate: patch.dueDate || '', dueReason: why, deferNotify: true } as Partial<Task>)
+          .then((res: any) => apply(res)).catch((e: Error) => toast('⚠ ' + (e.message || 'Could not change the date')));
+      });
+      return;
+    }
     // Putting it on hold asks why (the reason is required).
     if (patch.status === 'On hold' && t.status !== 'On hold' && !(patch.holdReason || '').trim()) {
       void askHoldReason(logTaskTitle(t)).then((reason) => { if (reason) put({ ...patch, holdReason: reason }); });
@@ -131,7 +142,15 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 760, maxWidth: '95vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
         {canManage && (
           <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-            <SaveBar auto={auto} onDone={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }} />
+            {/* Nov 17: the same three buttons on every task. */}
+            <div className="task-close-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+              {task.archivedAt
+                ? <button type="button" onClick={reopen} title="Bring it back into the Special Actions Log" style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
+                : <button type="button" onClick={closeTask} title="Mark it complete and move it to the archive now" style={{ padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <SaveBar auto={auto} onDiscard={onClose} onDone={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }} />
+              </div>
+            </div>
           </div>
         )}
         {/* Header */}
@@ -149,9 +168,6 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--rgb-shade), 0.15)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; }} />
             <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={t.project || (t.leadName ? leadLabel(t.leadName) : 'General (no project)')} source={t.originator} by={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '') || t.originator} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={numberOf(task) || '#' + t.id} /></div>
-              {canManage && (task.archivedAt
-                ? <button type="button" onClick={reopen} title="Bring it back into the Special Actions Log" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
-                : <button type="button" onClick={closeTask} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
             </div>
             <div style={{ marginTop: 8 }}><ActionTrail sourceType={t.sourceType} sourceId={t.sourceId} sourceLabel={t.sourceLabel} derived={t.derivedRefs} /></div>
           </div>

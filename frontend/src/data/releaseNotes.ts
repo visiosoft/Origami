@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-17d',
+    date: '2026-11-17',
+    title: 'Tasks: a reason for moving an overdue date, and the same three close buttons',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Moving or clearing the due date of an overdue task now asks why (Client hold, Waiting on others, Scope change, Weather or your own words). The reason is kept in the task’s history.', where: 'Task → Due date' },
+      { area: 'Tasks', kind: 'improved', text: 'Every task panel has the same three buttons at the top: ✓ Close task (complete and archive), Close without saving (drops changes not saved yet) and Save & close.', where: 'Task boards and the Special Actions Log' },
+      { area: 'Tasks', kind: 'improved', text: 'Clients and consultants on a subtask now see the name of its parent task, and someone on a parent task sees its subtasks (except internal ones).', where: 'Task boards' },
+    ],
+  },
+  {
     id: '2026-11-17c',
     date: '2026-11-17',
     title: 'From the Nov 17 meeting: View as, dates and the daily report crew',

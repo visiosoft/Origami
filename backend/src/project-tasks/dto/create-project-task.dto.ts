@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, IsArray } from 'class-validator';
+import { MaxLength, IsString, IsOptional, IsNumber, IsBoolean, IsArray } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import type { ChecklistItem, Collaborator, TaskAttachment, TaskComment } from '../../database/task.types';
 
@@ -50,7 +50,10 @@ export class CreateProjectTaskDto {
  * A patch: every field optional. A real class (not `Partial<>`, which erases to
  * Object at runtime) so the ValidationPipe checks and whitelists it.
  */
-export class UpdateProjectTaskDto extends PartialType(CreateProjectTaskDto) {}
+export class UpdateProjectTaskDto extends PartialType(CreateProjectTaskDto) {
+  /** Nov 17: why an overdue task's due date is moving (required then). */
+  @IsString() @IsOptional() @MaxLength(600) dueReason?: string;
+}
 
 /** Body for the batch card-reorder endpoint. */
 export class ReorderDto {
