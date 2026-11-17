@@ -97,7 +97,9 @@ type Ask =
  * person's markups are a layer over it, saved one by one as they're drawn.
  * Team-visible by default; "Private draft" keeps new ones to yourself.
  */
-export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, initialPage, projectFiles, onOpenFile, back, onClose, onSavedCopy, onUploaded, revisions }: {
+export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, initialPage, projectFiles, onOpenFile, back, onClose, onSavedCopy, onUploaded, revisions, rfiDraft }: {
+  /** Nov 17: drawing for an RFI -- new markups go on its draft layer (our team only) and are linked to it. */
+  rfiDraft?: { rfiId: string; number: string; layer: string } | null;
   /** size + updatedAt (when given) let the drawing be kept in the browser and opened instantly next time (Nov 10). */
   file: { id: string; name: string; isLatest?: boolean; folderPath?: string[]; size?: number | null; updatedAt?: string | null };
   projectId?: number | null;
@@ -138,7 +140,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const [width, setWidth] = useState(2);
   const [privateDraft, setPrivateDraft] = useState(false);
   /** The named layer new markups go on ('' = your own layer). */
-  const [layer, setLayer] = useState('');
+  const [layer, setLayer] = useState(rfiDraft?.layer || '');
   const [photoView, setPhotoView] = useState<{ url: string; name: string; fileId?: string } | null>(null);
   const [draft, setDraft] = useState<Pt[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(focusMarkupId || null);
@@ -456,13 +458,14 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
 
   const save = useCallback(async (kind: MarkupKind, data: MarkupData, page = pageNo) => {
     try {
-      const m = await api.fileRoom.addMarkup(file.id, { kind, page, data, private: privateDraft, layer: layer || null });
+      const forRfi = rfiDraft && layer === rfiDraft.layer ? { linkType: 'rfi', linkId: rfiDraft.rfiId } : {};
+      const m = await api.fileRoom.addMarkup(file.id, { kind, page, data, private: privateDraft, layer: layer || null, ...forRfi });
       setMarks((prev) => [...prev, m]);
       undo.current.push({ type: 'add', after: m });
       redo.current = [];
       return m;
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Markup not saved')); return null; }
-  }, [file.id, pageNo, privateDraft, layer, toast]);
+  }, [file.id, pageNo, privateDraft, layer, toast, rfiDraft]);
 
   const replace = (m: Markup) => setMarks((prev) => prev.map((x) => (x.id === m.id ? m : x)));
   const editMarkup = async (m: Markup, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer'>>, record = true) => {
@@ -1307,6 +1310,12 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       <header className="mk-top">
         <button type="button" className="mk-btn is-text mk-close" onClick={close} aria-label="Close drawing" title="Close the drawing (your markups are already saved)">✕<span> Close drawing</span></button>
         <div className="mk-title" title={file.name}>{file.name}{file.isLatest === false && <span className="mk-old">older revision — these markups belong to it</span>}</div>
+        {rfiDraft && (
+          <span className="mk-rfi-draft" role="status" title="Markups on this layer are seen by our team only, until the RFI is answered and they’re published to the set"
+            style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: layer === rfiDraft.layer ? '#FBEBDD' : 'var(--c-efede8)', color: layer === rfiDraft.layer ? '#8A4B12' : 'var(--muted)' }}>
+            {layer === rfiDraft.layer ? `✎ ${rfiDraft.number} draft · our team only` : `${rfiDraft.number}: switch to its layer to add callouts`}
+          </span>
+        )}
         {canDraw && marks.length > 0 && <span className="mk-saved" title="Each markup is saved as soon as it’s drawn">✓ Saved</span>}
         <div className="mk-pages">
           {!phone && <button type="button" className="mk-btn" disabled={pageNo <= 1} onClick={() => setPageNo(pageNo - 1)} aria-label="Previous page">‹</button>}

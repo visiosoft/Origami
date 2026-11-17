@@ -141,7 +141,11 @@ export function FileRoom() {
   const linkedProject = params.get('project');
   // /planroom?file=<id>&markup=<id> (from an RFI or task made from a markup) opens the drawing at that markup.
   const linkedMarkup = params.get('markup');
-  const [markingUp, setMarkingUp] = useState<{ id: string; focus?: string | null; page?: number; from?: { id: string; page?: number; name: string }[] } | null>(linkedFile && linkedMarkup ? { id: linkedFile, focus: linkedMarkup } : null);
+  // /planroom?file=<id>&rfi=<id>&rfiNumber=&layer= (Nov 17: "Mark up for this RFI") draws on that RFI's own draft layer.
+  const linkedRfi = params.get('rfi');
+  const rfiDraft = linkedRfi && params.get('layer') ? { rfiId: linkedRfi, number: params.get('rfiNumber') || 'RFI', layer: params.get('layer')! } : null;
+  const [markingUp, setMarkingUp] = useState<{ id: string; focus?: string | null; page?: number; from?: { id: string; page?: number; name: string }[]; rfiDraft?: typeof rfiDraft } | null>(
+    linkedFile && (linkedMarkup || rfiDraft) ? { id: linkedFile, focus: linkedMarkup, rfiDraft } : null);
   const [filesTick, setFilesTick] = useState(0);
   const load = () => {
     setFilesTick((n) => n + 1);
@@ -1008,6 +1012,7 @@ export function FileRoom() {
             projectName={data.projects.find((p) => p.id === Number(f.projectId))?.name || null}
             focusMarkupId={markingUp.focus || null}
             initialPage={markingUp.page || null}
+            rfiDraft={markingUp.rfiDraft || null}
             projectFiles={viewer.projectFiles}
             // A link to another drawing opens it here; Back returns to this one.
             onOpenFile={(id, page, fromPage) => setMarkingUp({ id, page, from: [...(markingUp.from || []), { id: f.id, name: f.name, page: fromPage }] })}

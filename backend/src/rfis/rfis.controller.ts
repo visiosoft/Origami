@@ -1,3 +1,4 @@
+import { RfiMarkupsService } from './rfi-markups.service';
 import { queryRfis } from './rfi-query';
 import {
   Body, Controller, Delete, ForbiddenException, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
@@ -24,6 +25,7 @@ export class RfisController {
     private readonly access: ManpowerAccess,
     private readonly auth: AuthService,
     private readonly attachments: AttachmentsService,
+    private readonly rfiMarkups: RfiMarkupsService,
   ) {}
 
   private actor(a?: string) { return this.access.actor(a); }
@@ -87,6 +89,27 @@ export class RfisController {
   @Post(':id/mark-sent')
   async markSent(@Param('id') id: string, @Headers('authorization') a?: string) {
     return this.rfis.markSent(id, await this.actor(a));
+  }
+
+  // ---- Nov 17: the RFI's own drawing layer (draft, our team only) and publishing it to the set
+  @Get(':id/callouts')
+  async callouts(@Param('id') id: string, @Headers('authorization') a?: string) {
+    await this.rfis.get(id, await this.actor(a));
+    return this.rfiMarkups.callouts(id);
+  }
+
+  @Post(':id/draft-layer')
+  async draftLayer(@Param('id') id: string, @Body() dto: { fileId?: string }, @Headers('authorization') a?: string) {
+    const actor = await this.actor(a);
+    if (!(await this.rfis.rights(actor)).manage) throw new ForbiddenException("Your role doesn't allow changing RFIs.");
+    return this.rfiMarkups.draftLayer(id, String(dto?.fileId || ''), actor);
+  }
+
+  @Post(':id/publish-markups')
+  async publishMarkups(@Param('id') id: string, @Headers('authorization') a?: string) {
+    const actor = await this.actor(a);
+    if (!(await this.rfis.rights(actor)).manage) throw new ForbiddenException("Your role doesn't allow changing RFIs.");
+    return this.rfiMarkups.publish(id, actor);
   }
 
   @Post(':id/answer')

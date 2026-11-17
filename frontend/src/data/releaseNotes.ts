@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-17g',
+    date: '2026-11-17',
+    title: 'RFIs: drawings and numbered callouts, kept off the set until answered',
+    items: [
+      { area: 'RFIs', kind: 'new', text: 'An RFI now shows its drawings and numbered callouts near the top, so the reviewer knows where to look. “✎ Mark up for this RFI” opens the drawing on the RFI’s own layer, which only our team sees — trades aren’t confused by markups before the RFI is vetted.', where: 'RFI → Drawings & callouts' },
+      { area: 'RFIs', kind: 'new', text: 'Once the RFI is answered (or closed), “Publish to the drawing set” moves its markups onto a normal layer everyone on the drawing sees. It’s noted in the RFI’s history.', where: 'RFI → Drawings & callouts' },
+      { area: 'RFIs', kind: 'fixed', text: 'On the RFI page the RFI panel could be cut off at the bottom of the list; it now opens full height.', where: 'RFI' },
+    ],
+  },
+  {
     id: '2026-11-17f',
     date: '2026-11-17',
     title: 'Every file says who it’s for',

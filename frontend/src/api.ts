@@ -727,6 +727,10 @@ export const api = {
   },
   rfis: {
     access: () => request<{ view: boolean; manage: boolean }>('/rfis/access'),
+    /** Nov 17: the RFI's numbered callouts on its drawings; its own draft layer; publishing them to the set. */
+    callouts: (id: string) => request<{ id: string; n: number; fileId: string; page: number; kind: string; note: string; authorName: string; draft: boolean }[]>(`/rfis/${encodeURIComponent(id)}/callouts`, { cache: 'no-store' } as any),
+    draftLayer: (id: string, fileId: string) => request<{ layer: string; rfiId: string; number: string }>(`/rfis/${encodeURIComponent(id)}/draft-layer`, { method: 'POST', body: JSON.stringify({ fileId }) }),
+    publishMarkups: (id: string) => request<{ published: number; layer: string }>(`/rfis/${encodeURIComponent(id)}/publish-markups`, { method: 'POST' }),
     list: (projectId?: number) => request<any[]>(`/rfis${projectId ? `?projectId=${projectId}` : ''}`),
     /** One page of the RFI log, filtered and sorted on the server, with its counts and stat cards. */
     page: (o: { projectId?: number; status?: string; q?: string; csi?: string; sort?: string; dir?: string; page?: number; size?: number; today?: string }) => {
@@ -1073,7 +1077,7 @@ export const api = {
     /** A photo for marking up (Nov 10): Drive's JPEG at up to 2400 px instead of the 12-48 MP original, which froze phones. */
     photoBytes: (id: string) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/content?thumb=1&size=2400`),
     markups: (id: string) => request<Markup[]>(`/file-room/files/${encodeURIComponent(id)}/markups`),
-    addMarkup: (id: string, m: Pick<Markup, 'kind' | 'page' | 'data' | 'private'> & { layer?: string | null }) => request<Markup>(`/file-room/files/${encodeURIComponent(id)}/markups`, { method: 'POST', body: JSON.stringify(m) }),
+    addMarkup: (id: string, m: Pick<Markup, 'kind' | 'page' | 'data' | 'private'> & { layer?: string | null; linkType?: string; linkId?: string }) => request<Markup>(`/file-room/files/${encodeURIComponent(id)}/markups`, { method: 'POST', body: JSON.stringify(m) }),
     editMarkup: (mid: string, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer' | 'linkType' | 'linkId'>>) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'PUT', body: JSON.stringify(patch) }),
     removeMarkup: (mid: string) => request(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'DELETE' }),
     /** Rename a layer on a drawing (from: its name, or null for someone's own unnamed layer). */

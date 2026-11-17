@@ -147,7 +147,11 @@ export class MarkupsService {
     }
     return this.repo.save(this.repo.create({
       id: 'MK-' + randomUUID(), fileId, page: clean.page, kind: clean.kind, data: clean.data as any, private: clean.private, layer: clean.layer,
-      authorId: claims!.sub, authorName: claims!.name || 'Someone', linkType: null, linkId: null, createdAt: now, updatedAt: now,
+      authorId: claims!.sub, authorName: claims!.name || 'Someone',
+      // Nov 17: drawn for an RFI (its draft layer) -- linked to it from the start.
+      linkType: (raw as any)?.linkType === 'rfi' && (raw as any)?.linkId ? 'rfi' : null,
+      linkId: (raw as any)?.linkType === 'rfi' && (raw as any)?.linkId ? String((raw as any).linkId).slice(0, 80) : null,
+      createdAt: now, updatedAt: now,
     }));
   }
 

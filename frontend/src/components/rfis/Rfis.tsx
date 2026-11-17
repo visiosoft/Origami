@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom';
+import { RfiCallouts } from './RfiCallouts';
 import { CsiSelect } from '../CsiSelect';
 import { CloseButton } from '../CloseButton';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -368,7 +370,8 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
   );
   const ro = !editable;
 
-  return (
+  // Portalled (Nov 17): inside the animated page a transformed ancestor clipped the fixed panel to the list.
+  return createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 820, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
         {editable && (
@@ -462,6 +465,9 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           <div style={{ ...lbl, marginTop: 12 }}>Proposed solution <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500 }}>— optional, speeds up the answer</span></div>
           <textarea readOnly={ro} value={draft.suggestion || ''} onChange={(e) => set({ suggestion: e.target.value })} rows={3} style={{ ...input, resize: 'vertical', lineHeight: 1.55 }} />
         </>)}
+
+        {/* Nov 17: the drawings and numbered callouts up top, so the reviewer knows where to look. */}
+        {rec.id && section('Drawings & callouts', <RfiCallouts rfi={{ id: rec.id, number: rec.number, status: rec.status }} drawings={draft.drawings || []} canManage={canManage} />)}
 
         {(rec.answer || rec.status === 'answered' || rec.status === 'closed') && section('Answer', <>
           <textarea readOnly={ro} value={draft.answer || ''} onChange={(e) => set({ answer: e.target.value })} rows={4} style={{ ...input, resize: 'vertical', lineHeight: 1.55, background: '#F4F8F4' }} />
@@ -597,7 +603,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
         ))}
       </div>
     </div>
-  );
+  , document.body);
 }
 
 // ------------------------------------------------------------------ from a task
