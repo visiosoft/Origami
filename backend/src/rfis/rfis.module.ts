@@ -1,3 +1,4 @@
+import { NotificationsModule } from '../notifications/notifications.module';
 import { RfiMarkupsService } from './rfi-markups.service';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -10,7 +11,7 @@ import { RfisService } from './rfis.service';
 import { RfisController } from './rfis.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RfiEntity, ProjectEntity, UserEntity, RoleEntity, PdfMarkupEntity, MarkupLayerEntity]), AuthModule, GoogleModule, SettingsModule],
+  imports: [TypeOrmModule.forFeature([RfiEntity, ProjectEntity, UserEntity, RoleEntity, PdfMarkupEntity, MarkupLayerEntity]), AuthModule, GoogleModule, SettingsModule, NotificationsModule],
   controllers: [RfisController],
   providers: [RfiMarkupsService, RfisService, ManpowerAccess],
   exports: [RfisService],

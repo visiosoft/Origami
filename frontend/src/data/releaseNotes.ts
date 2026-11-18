@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-18e',
+    date: '2026-11-18',
+    title: 'Today on the dashboard, and RFI alerts',
+    items: [
+      { area: 'Dashboard', kind: 'new', text: 'A “Today” panel at the top: your Emergency and Urgent tasks, tasks overdue or due today, and your RFIs — overdue, due in the next two days, or waiting on you. Click any line to open it.', where: 'Dashboard → Today' },
+      { area: 'RFIs', kind: 'new', text: 'RFI alerts: you hear when you become an RFI’s owner or an RFI is sent to you, and when an open RFI you own or were sent is due tomorrow or past due. Choose how (text, email, daily digest…) under RFIs in your notification settings.', where: 'Settings → My account → Notifications → RFIs' },
+    ],
+  },
+  {
     id: '2026-11-18d',
     date: '2026-11-18',
     title: 'Fixes: text credits message, a meeting that wasn’t one',

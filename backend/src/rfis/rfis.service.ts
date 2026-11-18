@@ -1,4 +1,5 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { NotifyHub } from '../notifications/notify-hub.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectEntity, RfiEntity, UserEntity, type RfiContact, type RfiDrawingRef, type RfiEvent } from '../database/entities';
@@ -63,7 +64,22 @@ export class RfisService {
     private readonly google: GoogleService,
     private readonly settings: SettingsService,
     private readonly attachments?: AttachmentsService,
+    @Optional() private readonly hub?: NotifyHub,
   ) {}
+
+  /** Nov 17: tell someone an RFI is now theirs (owner set, or sent to them), their way. */
+  private async tellAssigned(r: RfiEntity, userIds: (string | null | undefined)[], actor: Actor, why: string) {
+    if (!this.hub) return;
+    const ids = userIds.filter((x): x is string => !!x);
+    if (!ids.length) return;
+    void this.hub.deliver(ids, 'rfi_assigned', { title: `${why}: ${r.number}${r.subject ? ` — ${r.subject}` : ''}`, body: r.dateDue ? `Due ${r.dateDue}.` : undefined, path: `/rfis?rfi=${encodeURIComponent(r.id)}`, actorId: actor.id }).catch(() => undefined);
+  }
+  private async userByEmail(email: string | null | undefined): Promise<string | null> {
+    const e = String(email || '').trim().toLowerCase();
+    if (!e) return null;
+    const u = (await this.users.find()).find((x) => String(x.email || '').toLowerCase() === e || ((x as any).altEmails || []).some((a: string) => String(a).toLowerCase() === e));
+    return u?.id || null;
+  }
 
   // ------------------------------------------------------------------ access
 
@@ -152,6 +168,7 @@ export class RfisService {
       this.event(r, actor, dto.sourceTaskId ? 'created from a task' : 'created');
       try { saved = await this.repo.save(r); } catch (e) { if (attempt === 2) throw e; }
     }
+    if (saved!.ownerId && saved!.ownerId !== actor.id) await this.tellAssigned(saved!, [saved!.ownerId], actor, 'You own a new RFI');
     return this.get(saved!.id, actor);
   }
 
@@ -188,9 +205,11 @@ export class RfisService {
     await this.need(actor, 'manage');
     const r = await this.load(id);
     if (r.status === 'closed' || r.status === 'void') throw new BadRequestException(`${r.number} is ${r.status} — reopen it to make changes.`);
+    const ownerBefore = r.ownerId;
     await this.applyFields(r, dto, actor);
     r.updatedAt = now(); r.updatedBy = actor.name;
     await this.repo.save(r);
+    if (r.ownerId && r.ownerId !== ownerBefore) await this.tellAssigned(r, [r.ownerId], actor, 'You now own an RFI');
     return this.get(id, actor);
   }
 
@@ -241,6 +260,8 @@ export class RfisService {
     this.event(r, actor, first ? `sent to ${r.to.name}` : `re-sent to ${r.to.name}`, cleanText(dto?.note, 500) || undefined);
     r.updatedAt = now(); r.updatedBy = actor.name;
     await this.repo.save(r);
+    // Nov 17: sent to someone with a login here -- it's on them now.
+    await this.tellAssigned(r, [await this.userByEmail(r.to?.email)], actor, 'An RFI was sent to you');
     return this.get(id, actor);
   }
 

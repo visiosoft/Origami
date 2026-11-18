@@ -1,3 +1,4 @@
+import { TodayPanel } from '../components/TodayPanel';
 import { CountUp } from '../components/CountUp';
 import { DashboardOverview } from '../components/DashboardOverview';
 import { useTheme } from '../theme';
@@ -384,6 +385,8 @@ export function Dashboard() {
 
   return (
     <div className="dashboard-page" style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 9 }}>
+      {/* Nov 17: what needs me today -- urgent and due tasks, and my RFIs. Staff only. */}
+      {!isClient && !isCons && <TodayPanel />}
       {isNew ? <>
         {summaryDone || isClient ? <DashboardOverview {...overview} /> : <PageSkeleton label="Loading your dashboard…" />}
         {/* The Classic look's money charts, on live figures (finance is role-gated: hidden without access). */}

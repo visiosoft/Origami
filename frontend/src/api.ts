@@ -519,6 +519,8 @@ export const api = {
   },
   dashboard: {
     /** The Dashboard's task cards, worked out on the server (today = the viewer's YYYY-MM-DD). */
+    /** Nov 17: the Today panel -- my urgent / due tasks and my RFIs. */
+    today: (today: string) => request<import('./components/TodayPanel').TodayData>(`/dashboard/today?today=${encodeURIComponent(today)}`, { cache: 'no-store' } as any),
     tasksSummary: (today: string) => request<TasksSummary>(`/dashboard/tasks-summary?today=${encodeURIComponent(today)}`),
     /** "My Tasks": my open work (assigned or collaborating), soonest due first -- `limit` rows and the total. */
     myTasks: (limit = 8) => request<{ total: number; rows: { key: string; title: string; context: string; dueDate?: string; priority?: string; where: 'board' | 'log'; to: string }[] }>(`/dashboard/my-tasks?limit=${limit}`),
