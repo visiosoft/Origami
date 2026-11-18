@@ -100,11 +100,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   const targets = useLinkTargets();
   /** "Close task": complete and into the archive at once (Reopen from Archived). */
   const closeTask = async () => {
-    if (!window.confirm('Close this task and move it to the archive? You can reopen it from Archived.')) return;
+    if (!window.confirm('Mark this task complete and move it to the archive? You can reopen it from Archived.')) return;
     try {
       if (auto.dirty) await auto.saveNow();
       const res = await api.tasks.update(t.id, { close: true } as Partial<Task>) as Task;
-      onChanged?.(res); toast('Task closed and archived'); onClose();
+      onChanged?.(res); toast('Task completed and archived'); onClose();
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not closed')); }
   };
   const reopen = async () => {

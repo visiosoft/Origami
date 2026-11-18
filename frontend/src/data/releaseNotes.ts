@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-18c',
+    date: '2026-11-18',
+    title: 'Clearer task buttons and tidier Meetings filters',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: '“✓ Close task” is now “✓ Complete task”, so it isn’t confused with “Save & close”. Complete task finishes the task and archives it; Save & close only closes the panel.', where: 'Any task' },
+      { area: 'Meetings', kind: 'improved', text: 'The filters fit on one row: status and meeting type are dropdowns (with counts) instead of two more rows of buttons.', where: 'Meetings' },
+    ],
+  },
+  {
     id: '2026-11-18b',
     date: '2026-11-18',
     title: 'Widen the task panel by dragging',

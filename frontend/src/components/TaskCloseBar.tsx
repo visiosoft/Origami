@@ -9,7 +9,7 @@ const pill = (dark: boolean) => ({
 /**
  * Nov 17/18: the one set of buttons at the top of every task panel (board,
  * Special Actions Log, Phase Board): finish it, close without saving, or save
- * and close. A main task's finish button is "✓ Close task" (complete and
+ * and close. A main task's finish button is "✓ Complete task" (complete and
  * archive); a subtask's is "✓ Mark done". Archived: "Reopen".
  */
 export function TaskCloseBar({ auto, archived, done, subtask, onFinish, onReopen, onDiscard, onSaveClose, extra }: {
@@ -31,7 +31,7 @@ export function TaskCloseBar({ auto, archived, done, subtask, onFinish, onReopen
     ? <button type="button" onClick={onReopen} title="Bring it back" style={pill(false)}>Reopen</button>
     : subtask
       ? (done ? null : <button type="button" onClick={onFinish} title="Mark this subtask complete" style={pill(true)}>✓ Mark done</button>)
-      : <button type="button" onClick={onFinish} title="Mark it complete and move it to the archive now" style={pill(true)}>✓ Close task</button>;
+      : <button type="button" onClick={onFinish} title="Mark it complete and move it to the archive now" style={pill(true)}>✓ Complete task</button>;
   return (
     <div className="task-close-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
       {first}

@@ -341,9 +341,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     if (!t) return;
     const open = subsOf(id).filter((s) => !isFinished(s)).length;
     if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
-    if (!window.confirm(`Close “${t.title}” and move it to the archive? You can reopen it from Archived.`)) return;
+    if (!window.confirm(`Mark “${t.title}” complete and move it to the archive? You can reopen it from Archived.`)) return;
     api.projectTasks.update(id, { close: true } as any)
-      .then(() => { if (selectedId === id) setSelectedId(null); toast('Task closed and archived'); load(); })
+      .then(() => { if (selectedId === id) setSelectedId(null); toast('Task completed and archived'); load(); })
       .catch((e: Error) => toast('⚠ ' + (e.message || 'Not closed')));
   };
   const reopenTask = (id: string) => {
@@ -567,7 +567,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               <select className="tb-move" value={t.sectionId} aria-label="Move to another column" title="Move to…"
                 onClick={(e) => e.stopPropagation()} onChange={(e) => moveTask(t.id, e.target.value)}>
                 {sections.map((sec) => <option key={sec.id} value={sec.id}>{sec.id === t.sectionId ? `Move ▾` : `→ ${sec.name}`}</option>)}
-                {!t.parentId && <option value={CLOSE_OPT}>✓ Close (archive)</option>}
+                {!t.parentId && <option value={CLOSE_OPT}>✓ Complete (archive)</option>}
               </select>
             )}
             <span className="tb-who"><AvatarStack people={taskPeople(t)} size={24} /></span>
@@ -617,7 +617,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 <select className="tb-move" value={t.sectionId} aria-label="Move to another column" title="Move to…"
                   onClick={(e) => e.stopPropagation()} onChange={(e) => moveTask(t.id, e.target.value)}>
                   {sections.map((sec) => <option key={sec.id} value={sec.id}>{sec.id === t.sectionId ? `Move ▾` : `→ ${sec.name}`}</option>)}
-                {!t.parentId && <option value={CLOSE_OPT}>✓ Close (archive)</option>}
+                {!t.parentId && <option value={CLOSE_OPT}>✓ Complete (archive)</option>}
                 </select>
               )}
               <span style={{ marginLeft: 'auto' }}><AvatarStack people={taskPeople(t)} size={22} /></span>

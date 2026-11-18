@@ -105,14 +105,14 @@ export function PhaseTaskPanel({
   const panelW = usePanelWidth('phase-task', 460);
   /** Save pressed: send the emails held on this task and its subtasks, then close. */
   const done = () => { void api.projectTasks.notify(draft.id).catch(() => undefined); onClose(); };
-  /** ✓ Close task (main task: complete and archive) or ✓ Mark done (subtask). Phase tasks need no completion note. */
+  /** ✓ Complete task (main task: complete and archive) or ✓ Mark done (subtask). Phase tasks need no completion note. */
   const closeOrDone = async () => {
     if (draft.parentId) { put({ status: 'Done', completed: true }); return; }
-    if (!window.confirm('Close this task and move it to the archive? You can reopen it.')) return;
+    if (!window.confirm('Mark this task complete and move it to the archive? You can reopen it.')) return;
     try {
       if (auto.dirty) await auto.saveNow();
       const res = await api.projectTasks.update(draft.id, { close: true } as any);
-      onSaved(res); toast('Task closed'); onClose();
+      onSaved(res); toast('Task completed and archived'); onClose();
     } catch (e: any) { toast('⚠ ' + (e.message || 'Not closed')); }
   };
   const reopen = async () => {

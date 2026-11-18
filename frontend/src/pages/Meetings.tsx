@@ -148,17 +148,21 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
           <option value="">All projects</option>
           {projectNames.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>}
+        {/* Nov 18: status and type are dropdowns in the one row, not two more rows of buttons. */}
+        <select className="ak-select" aria-label="Status" value={status} onChange={(e) => pickStatus(e.target.value as StatusFilter)}>
+          <option value="all">Any status</option>
+          <option value="review">To review ({reviewCount})</option>
+          {MEETING_STATUSES.map((st) => <option key={st.key} value={st.key}>{st.label} ({real.filter((i) => i.status === st.key).length})</option>)}
+        </select>
+        <select className="ak-select" aria-label="Meeting type" value={where} onChange={(e) => setWhere(e.target.value as WhereFilter)}>
+          <option value="all">Any type</option>
+          {MEETING_LOCATION_TYPES.map((l) => <option key={l.key} value={l.key}>{l.short} ({real.filter((i) => i.meeting?.locationType === l.key).length})</option>)}
+        </select>
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, project, attendee…" />
         <SortSelect className="ak-select" value={sort} onChange={setSort} options={[
           { key: 'default', dir: 'asc', label: view === 'upcoming' ? 'Soonest first' : 'Newest first' }, { key: 'date', dir: 'desc', label: 'Newest first' }, { key: 'date', dir: 'asc', label: 'Oldest first' },
           { key: 'title', dir: 'asc', label: 'A–Z' }, { key: 'project', dir: 'asc', label: 'Project' }, { key: 'type', dir: 'asc', label: 'Meeting type' },
         ]} />
-      </div>
-      <div className="ak-tools">
-        <AkSeg<StatusFilter> value={status} onChange={pickStatus}
-          options={[['all', 'Any status'], ['review', 'To review', reviewCount], ...MEETING_STATUSES.map((s) => [s.key, s.label, real.filter((i) => i.status === s.key).length] as [StatusFilter, string, number])]} />
-        <AkSeg<WhereFilter> value={where} onChange={setWhere}
-          options={[['all', 'Any way'], ...MEETING_LOCATION_TYPES.map((l) => [l.key, l.short, real.filter((i) => i.meeting?.locationType === l.key).length] as [WhereFilter, string, number])]} />
       </div>
       <SavedViews page="meetings" value={viewValue} defaults={{ view: 'upcoming', status: 'all', where: 'all', project: '', q: '', sort: '' }}
         onApply={(v) => { setView(v.view as View); setStatus(v.status as StatusFilter); setWhere(v.where as WhereFilter); setProject(String(v.project || '')); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
