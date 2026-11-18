@@ -1,3 +1,4 @@
+import { TaskCloseBar } from './TaskCloseBar';
 import { LinkedMail } from './LinkedMail';
 import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
@@ -6,7 +7,7 @@ import { useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from './PriorityHelp';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { api } from '../api';
-import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
+import { keepEdits, mergeSaved, useAutosave } from '../autosave';
 import { useApp } from '../AppContext';
 import { isMine } from './TaskScope';
 import { AssigneePicker } from './AssigneePicker';
@@ -101,6 +102,20 @@ export function PhaseTaskPanel({
   const [editingSub, setEditingSub] = useState<string | null>(null);
   /** Save pressed: send the emails held on this task and its subtasks, then close. */
   const done = () => { void api.projectTasks.notify(draft.id).catch(() => undefined); onClose(); };
+  /** ✓ Close task (main task: complete and archive) or ✓ Mark done (subtask). Phase tasks need no completion note. */
+  const closeOrDone = async () => {
+    if (draft.parentId) { put({ status: 'Done', completed: true }); return; }
+    if (!window.confirm('Close this task and move it to the archive? You can reopen it.')) return;
+    try {
+      if (auto.dirty) await auto.saveNow();
+      const res = await api.projectTasks.update(draft.id, { close: true } as any);
+      onSaved(res); toast('Task closed'); onClose();
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Not closed')); }
+  };
+  const reopen = async () => {
+    try { const res = await api.projectTasks.update(draft.id, { status: 'In progress' } as any); applied(res); toast('Task reopened'); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Not reopened')); }
+  };
 
   const addSubtask = async (sub: NewSubtask) => {
     try {
@@ -129,7 +144,9 @@ export function PhaseTaskPanel({
       <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(460px, 96vw)', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.2)', animation: 'scaleIn 0.2s ease' }}>
         {canManage && (
           <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-            <SaveBar auto={auto} onDone={done} />
+            {/* Nov 18: the same buttons as every other task panel. */}
+            <TaskCloseBar auto={auto} archived={!!draft.archivedAt} subtask={!!draft.parentId} done={!!draft.completed}
+              onFinish={closeOrDone} onReopen={reopen} onDiscard={() => { auto.discard(); onClose(); }} onSaveClose={done} />
           </div>
         )}
         <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -148,7 +165,7 @@ export function PhaseTaskPanel({
               style={{ width: '100%', border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)', background: 'transparent', lineHeight: 1.3 }}
             />
           </div>
-          <CloseButton onClick={onClose} />
+          {!canManage && <CloseButton onClick={onClose} />}
         </div>
 
         <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>

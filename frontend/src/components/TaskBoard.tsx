@@ -1,3 +1,4 @@
+import { TaskCloseBar } from './TaskCloseBar';
 import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -11,7 +12,7 @@ import { SavedViews } from './SavedViews';
 import { SortHeader, sortFromString, sortRows, sortToString, type SortState } from './SortHeader';
 import { ActionMenu, ActionTrail, OriginatorLine } from './ActionTools';
 import { CollaboratorPicker } from './CollaboratorPicker';
-import { DraftScope, SaveBar } from '../autosave';
+import { DraftScope } from '../autosave';
 import { api, persist } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
@@ -1124,24 +1125,19 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             {canManage && (
               <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                 {/* Nov 17: the same three buttons on every task -- finish it, save and close, or close without saving. */}
-                <div className="task-close-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                  {!selected.parentId && (selected.archivedAt
-                    ? <button type="button" onClick={() => reopenTask(selected.id)} title="Bring it back onto the board" style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
-                    : <button type="button" onClick={() => closeTask(selected.id)} title="Mark it complete and move it to the archive now" style={{ padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
-                  {!selected.parentId && !selected.archivedAt && !restricted && (
+                <TaskCloseBar auto={auto} archived={!!selected.archivedAt} subtask={!!selected.parentId} done={!!d.completed}
+                  onFinish={() => (selected.parentId ? set({ completed: true }) : closeTask(selected.id))} onReopen={() => reopenTask(selected.id)}
+                  onDiscard={() => setSelectedId(null)} onSaveClose={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }}
+                  extra={!selected.parentId && !selected.archivedAt && !restricted ? (
                     <button type="button" onClick={() => setMerging(true)} title="Merge duplicate tasks into this one: their files, comments and history come here"
                       style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--body)', cursor: 'pointer', whiteSpace: 'nowrap' }}>⇲ Merge duplicates…</button>
-                  )}
-                  <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-                    <SaveBar auto={auto} onDiscard={() => setSelectedId(null)} onDone={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }} />
-                  </div>
-                </div>
+                  ) : null} />
               </div>
             )}
             <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <input type="checkbox" checked={!!d.completed} disabled={!canManage} onChange={() => set({ completed: !d.completed })} style={{ marginTop: 5 }} />
               <textarea value={d.title || ''} disabled={!canManage} onChange={(e) => set({ title: e.target.value })} rows={1} style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)', background: 'transparent' }} />
-              <CloseButton onClick={() => setSelectedId(null)} />
+              {/* Nov 18: the bar above closes it; this ✕ only for people who can't edit (no bar). */}
+              {!canManage && <CloseButton onClick={() => setSelectedId(null)} />}
             </div>
             {/* Who raised it, when, and its number -- at the top (Oct 2026). */}
             <div style={{ padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>

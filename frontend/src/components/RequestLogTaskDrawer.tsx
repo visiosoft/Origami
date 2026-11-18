@@ -1,3 +1,4 @@
+import { TaskCloseBar } from './TaskCloseBar';
 import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
@@ -14,7 +15,7 @@ import { CollaboratorPicker } from './CollaboratorPicker';
 import { useApp } from '../AppContext';
 import { isMine, raisedBy } from './TaskScope';
 import { api } from '../api';
-import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
+import { keepEdits, mergeSaved, useAutosave } from '../autosave';
 import { AssigneePicker } from './AssigneePicker';
 import { askCompletionNote, askDueReason, askHoldReason } from './CompletionNote';
 import { dueReasonNeeded } from '../data/dueReason';
@@ -143,14 +144,8 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
         {canManage && (
           <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
             {/* Nov 17: the same three buttons on every task. */}
-            <div className="task-close-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-              {task.archivedAt
-                ? <button type="button" onClick={reopen} title="Bring it back into the Special Actions Log" style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
-                : <button type="button" onClick={closeTask} title="Mark it complete and move it to the archive now" style={{ padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>}
-              <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-                <SaveBar auto={auto} onDiscard={onClose} onDone={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }} />
-              </div>
-            </div>
+            <TaskCloseBar auto={auto} archived={!!task.archivedAt} onFinish={closeTask} onReopen={reopen}
+              onDiscard={onClose} onSaveClose={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }} />
           </div>
         )}
         {/* Header */}
@@ -171,7 +166,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             </div>
             <div style={{ marginTop: 8 }}><ActionTrail sourceType={t.sourceType} sourceId={t.sourceId} sourceLabel={t.sourceLabel} derived={t.derivedRefs} /></div>
           </div>
-          <span style={{ marginLeft: 16 }}><CloseButton onClick={onClose} /></span>
+          {!canManage && <span style={{ marginLeft: 16 }}><CloseButton onClick={onClose} /></span>}
         </div>
 
         {/* Meta */}

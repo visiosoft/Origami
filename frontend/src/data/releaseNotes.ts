@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-18a',
+    date: '2026-11-18',
+    title: 'Task panel: one set of buttons, the same everywhere',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'The checkbox and ✕ beside a task’s title are gone — they did the same as the buttons at the top. Every task panel (task boards, Special Actions Log, Phase Board) now has the same bar: ✓ Close task (or ✓ Mark done on a subtask), Close without saving, and Save & close. Esc or clicking outside still saves and closes.', where: 'Any task' },
+    ],
+  },
+  {
     id: '2026-11-17i',
     date: '2026-11-17',
     title: 'Pre-construction in Financials',
