@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-18d',
+    date: '2026-11-18',
+    title: 'Fixes: text credits message, a meeting that wasn’t one',
+    items: [
+      { area: 'Texts', kind: 'fixed', text: 'When Quo refuses a text for lack of credits, the message now says which allowance ran out and where to add more: texts sent from Origami use Quo’s API credits (Quo → Settings → Billing), which are separate from the plan’s included texts shown in Quo.', where: 'Sending a text' },
+      { area: 'Meetings', kind: 'fixed', text: 'Special Actions entries made without a meeting no longer show up as an “Internal meeting” on the day they were made (that was the Nov 16 meeting next to the real Nov 12 one).', where: 'Meetings' },
+    ],
+  },
+  {
     id: '2026-11-18c',
     date: '2026-11-18',
     title: 'Clearer task buttons and tidier Meetings filters',

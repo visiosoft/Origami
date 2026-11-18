@@ -26,6 +26,17 @@ export function quoRequest(cfg: QuoConfig, to: string, content: string) {
 export function quoError(status: number, payload: any): string {
   const msg = payload?.message || payload?.error?.message || (Array.isArray(payload?.errors) ? payload.errors.map((e: any) => e?.message).filter(Boolean).join('; ') : '');
   if (status === 401 || status === 403) return `Quo refused the API key${msg ? ` — ${msg}` : ''}. Check it in Settings → SMS.`;
+  // Nov 17: "not enough credits" while Quo showed ~500 of 1,000 left. A 402 names which allowance ran out
+  // (Not Enough Credits / Subscription Expired / Text Allowance Used Up). Texts sent through the API are paid
+  // from the workspace's API (prepaid) credits, which aren't the plan's included texts shown in the app.
+  if (status === 402) {
+    const title = String(payload?.title || '').trim();
+    const what = title || 'Out of texts';
+    const tip = /subscription/i.test(title)
+      ? 'Renew the Quo subscription.'
+      : 'Texts sent from Origami use Quo’s API credits (Quo → Settings → Billing → API credits), which are separate from the plan’s included texts. Add API credits there, then send again.';
+    return `Quo: ${what}${msg && msg !== title ? ` — ${msg}` : ''}. ${tip}`;
+  }
   return msg || `Quo could not send the text (${status}).`;
 }
 

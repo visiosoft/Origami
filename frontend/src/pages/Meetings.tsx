@@ -29,6 +29,16 @@ type WhereFilter = 'all' | MeetingLocationType;
 interface Item { key: string; kind: 'meeting' | 'legacy'; date: string; time?: string; title: string; type: string; project?: string; status: string; actions: Task[]; meeting?: Meeting }
 const CO_LABEL: Record<string, string> = { draft: 'Pending', internal_review: 'Internal review', submitted: 'With client', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' };
 const isoDay = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
+/** Made in the app with no meeting: its meeting date is just the day it was created. */
+export const stampedNotMet = (t: { meetingId?: string | null; meetingDate?: string | null; activity?: { type?: string; at?: string }[] | null }) => {
+  if (t.meetingId) return false;
+  const created = (t.activity || []).find((a) => a?.type === 'created')?.at;
+  if (!created) return false; // old spreadsheet rows: their date is the meeting's
+  const madeOn = new Date(created);
+  const local = `${madeOn.getFullYear()}-${String(madeOn.getMonth() + 1).padStart(2, '0')}-${String(madeOn.getDate()).padStart(2, '0')}`;
+  const md = isoDay(t.meetingDate || '');
+  return !!md && (md === local || md === String(created).slice(0, 10));
+};
 const timeLabel = (t?: string) => {
   if (!t || !/^\d{2}:\d{2}/.test(t)) return '';
   const [h, m] = t.split(':').map(Number);
@@ -90,6 +100,10 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
     const groups = new Map<string, Task[]>();
     for (const t of tasks) {
       if (t.meetingId || !String(t.meetingDate || '').trim()) continue;
+      // Nov 17: entries made in the app carry "today" as their meeting date by default -- that's not a meeting
+      // (it showed a made-up "Internal meeting" on Nov 16 next to the real Nov 12 one). Only entries whose date
+      // was given for a meeting (or imported from the old spreadsheet) group into one.
+      if (stampedNotMet(t)) continue;
       const k = `${t.meetingType || 'Internal'}|${t.meetingDate}|${t.project || ''}`;
       groups.set(k, [...(groups.get(k) || []), t]);
     }

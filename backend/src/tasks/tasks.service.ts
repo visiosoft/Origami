@@ -1,3 +1,4 @@
+import { localToday } from '../common/local-date';
 import { isPhoto, photoPlace } from '../file-room/layout';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { cleanTags } from '../database/task.types';
@@ -369,7 +370,7 @@ export class TasksService implements OnApplicationBootstrap {
     const task = this.repo.create({
       tab: 'internal',
       meetingType: 'Internal',
-      meetingDate: new Date().toISOString().slice(0, 10),
+      meetingDate: localToday(),
       status: 'To Do',
       topicType: 'Task',
       description: '',
