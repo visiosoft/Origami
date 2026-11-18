@@ -1,3 +1,4 @@
+import { PanelResizeHandle, usePanelWidth } from './PanelResize';
 import { TaskCloseBar } from './TaskCloseBar';
 import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
@@ -66,6 +67,8 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
 
   /** Edits stay in the draft until Save, or 3 seconds after typing stops; only changed fields are sent. */
   const numberOf = useTaskNumber();
+  // Nov 18: drag the left edge to resize; remembered in this browser.
+  const panelW = usePanelWidth('log-task', 760);
   const auto = useAutosave<Task>({
     draft: t, saved: task, fields: [...FIELDS], enabled: canManage, label: 'task',
     // Emails (assigned, added as a collaborator, done) wait for the Save button.
@@ -140,7 +143,8 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   };
   return (
     <div onClick={() => onClose()} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 760, maxWidth: '95vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
+      <PanelResizeHandle {...panelW} />
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: panelW.width, maxWidth: '95vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
         {canManage && (
           <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
             {/* Nov 17: the same three buttons on every task. */}

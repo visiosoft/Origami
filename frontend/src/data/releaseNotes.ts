@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-18b',
+    date: '2026-11-18',
+    title: 'Widen the task panel by dragging',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Drag the left edge of a task panel to make it wider or narrower. It remembers the width on this computer; double-click the edge to go back to the normal size.', where: 'Any task panel → its left edge' },
+    ],
+  },
+  {
     id: '2026-11-18a',
     date: '2026-11-18',
     title: 'Task panel: one set of buttons, the same everywhere',

@@ -1,3 +1,4 @@
+import { PanelResizeHandle, usePanelWidth } from './PanelResize';
 import { TaskCloseBar } from './TaskCloseBar';
 import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
@@ -250,6 +251,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const allCount = inScopeOfBoard.filter((t) => !t.parentId).length;
   // Nov 17: a parent shown only for context (an outside account is on one of its subtasks) doesn't open.
   const selected = tasks.find((t) => t.id === selectedId && !(t as any).contextOnly) || null;
+  // Nov 18: drag the panel's left edge to widen it; remembered in this browser.
+  const panelW = usePanelWidth('task', 440);
   // The open task in full -- its comments and history -- since the list leaves them out.
   const fetchingFull = useRef<string | null>(null);
   useEffect(() => {
@@ -1121,7 +1124,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
         // Portalled: a transformed ancestor would otherwise trap the fixed overlay inside the board.
         return createPortal(
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 440, maxWidth: '96vw', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
+          {!isMobile && <PanelResizeHandle {...panelW} />}
+          <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : panelW.width, maxWidth: '96vw', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
             {canManage && (
               <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                 {/* Nov 17: the same three buttons on every task -- finish it, save and close, or close without saving. */}

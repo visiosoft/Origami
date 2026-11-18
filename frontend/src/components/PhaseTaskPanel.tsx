@@ -1,3 +1,4 @@
+import { PanelResizeHandle, usePanelWidth } from './PanelResize';
 import { TaskCloseBar } from './TaskCloseBar';
 import { LinkedMail } from './LinkedMail';
 import { UnfilledRole } from './UnfilledRole';
@@ -100,6 +101,8 @@ export function PhaseTaskPanel({
     put(patch);
   };
   const [editingSub, setEditingSub] = useState<string | null>(null);
+  // Nov 18: drag the left edge to resize; remembered in this browser.
+  const panelW = usePanelWidth('phase-task', 460);
   /** Save pressed: send the emails held on this task and its subtasks, then close. */
   const done = () => { void api.projectTasks.notify(draft.id).catch(() => undefined); onClose(); };
   /** ✓ Close task (main task: complete and archive) or ✓ Mark done (subtask). Phase tasks need no completion note. */
@@ -141,7 +144,8 @@ export function PhaseTaskPanel({
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(460px, 96vw)', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.2)', animation: 'scaleIn 0.2s ease' }}>
+      <PanelResizeHandle {...panelW} />
+      <div onClick={(e) => e.stopPropagation()} style={{ width: `min(${panelW.width}px, 96vw)`, height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.2)', animation: 'scaleIn 0.2s ease' }}>
         {canManage && (
           <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
             {/* Nov 18: the same buttons as every other task panel. */}
