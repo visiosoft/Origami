@@ -1671,6 +1671,8 @@ export const api = {
     /** A project's week rolled up from its daily reports; `week` is any day in it. */
     weekly: (projectId: number, week: string) => request<WeeklyReport>(`/daily-logs/weekly?projectId=${projectId}&week=${week}`),
     /** Email the week as PDF + Excel -- to the usual backup list, or to `to` (comma-separated). */
+    /** Nov 17: save the week as a PDF in the project's files (Reports / Weekly). Mondays do last week by themselves. */
+    saveWeekly: (projectId: number, week: string) => request<{ saved: boolean; fileId: string | null; name: string; folder: string[]; weekStart: string }>('/daily-logs/weekly/save', { method: 'POST', body: JSON.stringify({ projectId, week }) }),
     emailWeekly: (projectId: number, week: string, to?: string) => request<{ sent: boolean; to: string[]; attachments: string[] }>('/daily-logs/weekly/email', { method: 'POST', body: JSON.stringify({ projectId, week, to }) }),
     /** Email the day as PDF + Excel -- to the usual backup list, or to `to` (comma-separated). */
     email: (id: string, to?: string) => request<{ sent: boolean; to: string[]; attachments: string[] }>(`/daily-logs/${id}/email`, { method: 'POST', body: JSON.stringify({ to }) }),

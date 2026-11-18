@@ -38,6 +38,12 @@ export class DailyLogsController {
   }
 
   /** Email the week as PDF + Excel, to the usual backup list or to `to`. */
+  /** Nov 17: save the week as a PDF in the project's files (Reports / Weekly). */
+  @Post('weekly/save')
+  async saveWeekly(@Body() body: { projectId?: number; week?: string }, @Headers('authorization') auth?: string) {
+    return this.weekly.saveToFiles(Number(body?.projectId), String(body?.week || ''), await this.auth.actor(auth));
+  }
+
   @Post('weekly/email')
   emailWeekly(@Body() body: { projectId?: number; week?: string; to?: string }) {
     const to = String(body?.to || '').split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);

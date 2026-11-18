@@ -1,3 +1,4 @@
+import { WeeklyReportService } from './weekly-report.service';
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -60,6 +61,7 @@ export class DailyReportAutomationService implements OnApplicationBootstrap, OnA
     private readonly settings: SettingsService,
     private readonly hold: ProjectHoldService,
     @Optional() private readonly google?: GoogleService,
+    @Optional() private readonly weekly?: WeeklyReportService,
   ) {}
 
   onApplicationBootstrap() {
@@ -123,6 +125,11 @@ export class DailyReportAutomationService implements OnApplicationBootstrap, OnA
       notices += await this.stopNotices(s, today);
     }
     if (created || notices) this.log.log(`Daily reports: ${created} made automatically, ${notices} stop-order reminders sent`);
+    // Nov 17: every Monday, last week's report goes into each active project's files as a PDF.
+    if (this.weekly && new Date(`${today}T12:00:00Z`).getUTCDay() === 1) {
+      const r = await this.weekly.saveLastWeekForAll(today).catch(() => ({ saved: 0 }));
+      if (r.saved) this.log.log(`Weekly reports: ${r.saved} saved to project files`);
+    }
     return { created, notices };
   }
 

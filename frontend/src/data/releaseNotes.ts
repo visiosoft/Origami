@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-18f',
+    date: '2026-11-18',
+    title: 'Weekly reports saved to the project files',
+    items: [
+      { area: 'Daily reports', kind: 'new', text: 'The weekly report can be saved as a PDF in the project’s files (Reports › Weekly), as a snapshot of that week. Every Monday, last week’s report is saved by itself for each project that filed reports. Saving a week again adds a new version of the same file.', where: 'Daily Reports → Weekly report → Save PDF to project files' },
+    ],
+  },
+  {
     id: '2026-11-18e',
     date: '2026-11-18',
     title: 'Today on the dashboard, and RFI alerts',
