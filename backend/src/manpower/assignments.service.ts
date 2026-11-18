@@ -185,6 +185,17 @@ export class AssignmentsService {
     });
   }
 
+  /** Nov 17 (Site crews): several open stints now report to one supervisor (null = no one). */
+  async setSupervisor(ids: string[], supervisorId: string | null) {
+    const list = [...new Set((ids || []).map(String))];
+    if (!list.length) throw new BadRequestException('Pick at least one worker.');
+    const rows = await this.repo.find({ where: { id: In(list) } });
+    const at = new Date().toISOString();
+    for (const a of rows) { a.supervisorId = supervisorId || null; a.updatedAt = at; }
+    await this.repo.save(rows, { chunk: 40 });
+    return { updated: rows.length, supervisorId: supervisorId || null };
+  }
+
   /** Small corrections on an open stint (area, designation, planned end, notes). Moving projects is a transfer. */
   async update(id: string, dto: { workArea?: string; supervisorId?: string; designation?: string; endDate?: string; notes?: string }) {
     return this.repo.manager.transaction(async (m) => {

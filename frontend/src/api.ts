@@ -1429,6 +1429,8 @@ export const api = {
     remove: () => request('/manpower/sample-data', { method: 'DELETE' }),
   },
   assignments: {
+    /** Nov 17 (Site crews): put several workers under one supervisor ('' = no one). */
+    setSupervisor: (ids: string[], supervisorId: string | null) => request<{ updated: number }>('/assignments/supervisor', { method: 'PUT', body: JSON.stringify({ ids, supervisorId: supervisorId || '' }) }),
     list: (opts?: { employeeId?: string; projectId?: number; status?: 'current' | 'ended'; workforceRequestId?: string }) => {
       const q = new URLSearchParams();
       if (opts?.employeeId) q.set('employeeId', opts.employeeId);

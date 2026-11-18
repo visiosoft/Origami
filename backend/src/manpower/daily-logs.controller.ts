@@ -1,3 +1,7 @@
+import { Claims } from '../auth/guards/claims.decorator';
+import type { SessionClaims } from '../auth/crypto.util';
+import { ProjectAccessService } from '../auth/project-access.service';
+import { crewLimited } from './site-crews';
 import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, UseInterceptors } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
@@ -19,6 +23,7 @@ export class DailyLogsController {
     private readonly backup: DailyLogBackupService,
     private readonly automation: DailyReportAutomationService,
     private readonly weekly: WeeklyReportService,
+    private readonly access: ProjectAccessService,
   ) {}
 
   @Get()
@@ -67,7 +72,9 @@ export class DailyLogsController {
   }
 
   @Post()
-  async save(@Body() dto: SaveDailyLogDto, @Headers('authorization') auth?: string) {
+  async save(@Body() dto: SaveDailyLogDto, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
+    // Nov 17: a supervisor reports on his own crew only.
+    if (claims && crewLimited(claims, await this.access.permissions(claims))) await this.service.assertCrew(dto as any, claims.sub);
     return this.service.save(dto, await this.auth.actor(auth));
   }
 

@@ -37,6 +37,22 @@ function SupervisorName({ id }: { id?: string | null }) {
   return u ? <div style={{ fontSize: 11, color: MUTED }}>Reports to {u.name}</div> : null;
 }
 
+/** Nov 17: change who an already-deployed worker reports to, right in the list. */
+function ReportsToInline({ assignmentId, value }: { assignmentId: string; value: string }) {
+  const { toast } = useApp();
+  const list = useSupervisors();
+  const [v, setV] = useState(value);
+  useEffect(() => setV(value), [value]);
+  return (
+    <select aria-label="Reports to" value={v} onClick={(e) => e.stopPropagation()}
+      onChange={(e) => { const next = e.target.value; setV(next); api.assignments.setSupervisor([assignmentId], next || null).then(() => toast(next ? `Reports to ${list.find((u) => u.id === next)?.name || 'them'} now` : 'Not in a crew')).catch((err: Error) => { setV(value); toast('⚠ ' + err.message); }); }}
+      style={{ display: 'block', marginTop: 3, fontSize: 11, padding: '2px 4px', borderRadius: 6, border: '1px solid rgba(var(--rgb-shade), .14)', background: 'var(--surface)', color: 'var(--muted)', maxWidth: 160 }}>
+      <option value="">Reports to: no one</option>
+      {list.map((u) => <option key={u.id} value={u.id}>Reports to {u.name}</option>)}
+    </select>
+  );
+}
+
 const LEFT = ['resigned', 'terminated', 'contract_expired', 'demobilized'];
 export const lifecycle = (e: Employee) => e.employmentStatus || (e.status === 'inactive' ? 'resigned' : 'active');
 export const isDeployable = (e: Employee) => lifecycle(e) === 'active';
@@ -159,7 +175,9 @@ export function DeploymentBoard(props: Ctx & { canManage: boolean; reload: () =>
                         </span>
                         <span style={{ fontSize: 12.5 }}>{tradeName(a.tradeId) || '—'}</span>
                         <span style={{ fontSize: 12.5 }}>{a.designation || '—'}</span>
-                        <span style={{ fontSize: 12.5 }}>{a.workArea || '—'}<SupervisorName id={a.supervisorId} /></span>
+                        <span style={{ fontSize: 12.5 }}>{a.workArea || '—'}{canManage
+                          ? <ReportsToInline assignmentId={a.id} value={a.supervisorId || ''} />
+                          : <SupervisorName id={a.supervisorId} />}</span>
                         <span style={{ fontSize: 12, color: MUTED }}>{fmtDate(a.startDate)}</span>
                         <span>{a.assignmentType === 'temporary' ? <Badge tone="amber">Temp · to {fmtDate(a.endDate)}</Badge> : <Badge tone="green">Regular</Badge>}</span>
                         {canManage && (

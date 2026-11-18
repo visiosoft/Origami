@@ -31,7 +31,9 @@ const pill = (on: boolean): CSSProperties => ({
  * the row; "fill down" sets everyone at once; ↑ ↓ and Enter move between rows.
  * Rows copied from the previous day and not changed are highlighted yellow.
  */
-export function CrewSheet({ employees, codes, onSite, crew, entries, setEntries, editable, carried }: {
+export function CrewSheet({ employees, codes, onSite, crew, crewOnly, entries, setEntries, editable, carried }: {
+  /** Nov 17: a supervisor -- only his crew, no switch, no one from outside it. */
+  crewOnly?: boolean;
   employees: Emp[]; codes: Code[]; onSite: Map<string, string>; entries: Entry[];
   /** Nov 17: the report supervisor's own crew, when it's narrower than everyone on the project. */
   crew?: Set<string> | null;
@@ -44,7 +46,7 @@ export function CrewSheet({ employees, codes, onSite, crew, entries, setEntries,
   // anyone else only on purpose.
   const [scope, setScope] = useState<'crew' | 'project'>('crew');
   const [anyone, setAnyone] = useState(false);
-  const shownSite = (id: string) => (crew && scope === 'crew' ? crew.has(id) : onSite.has(id));
+  const shownSite = (id: string) => (crewOnly ? !!crew?.has(id) : crew && scope === 'crew' ? crew.has(id) : onSite.has(id));
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const entryOf = (id: string) => entries.find((e) => e.employeeId === id);
@@ -99,7 +101,7 @@ export function CrewSheet({ employees, codes, onSite, crew, entries, setEntries,
             onChange={(ev) => setHours(id, Math.min(24, Math.max(0, Number(ev.target.value) || 0)))} onKeyDown={(ev) => move(ev, 'h', i)}
             style={{ ...cellInput, width: 52, textAlign: 'center', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} aria-label={`Hours for ${emp?.name || id}`} />
           {QUICK_HOURS.map((h) => <button key={h} type="button" disabled={!editable} onClick={() => setHours(id, on && e!.hours === h ? 0 : h)} style={cellBtn(on && Number(e!.hours) === h, !editable)}>{h}</button>)}
-          {on && editable && <button type="button" title="Take off the log" onClick={() => remove(id)} style={{ ...cellBtn(false), color: '#8E2E0A', minWidth: 26, padding: 0 }}>×</button>}
+          {on && editable && <button type="button" title="Remove from today’s report" aria-label="Remove from today" onClick={() => remove(id)} style={{ ...cellBtn(false), color: '#8E2E0A', minWidth: 26, padding: '0 8px' }}>× Remove</button>}
         </div>
         <select data-cell={`c-${i}`} disabled={!editable} value={e?.csiCodeId || ''} onChange={(ev) => patch(id, { csiCodeId: ev.target.value })} onKeyDown={(ev) => move(ev, 'c', i)}
           title={code ? `${code.code} — ${code.division}` : ''} style={{ ...cellInput, borderColor: on && !e!.csiCodeId ? '#D9B650' : 'rgba(var(--rgb-shade), .12)', color: code ? INK : MUTED }}>
@@ -128,10 +130,15 @@ export function CrewSheet({ employees, codes, onSite, crew, entries, setEntries,
       </div>
       {editable && (
         <div style={{ padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--panel)', borderRadius: 'var(--r-12)', position: 'relative', zIndex: 6 }}>
-          {crew && (
+          {crew && !crewOnly && (
             <span role="group" aria-label="Who to list" style={{ display: 'inline-flex', gap: 4 }}>
               <button type="button" onClick={() => setScope('crew')} style={pill(scope === 'crew')} aria-pressed={scope === 'crew'}>My crew ({crew.size})</button>
               <button type="button" onClick={() => setScope('project')} style={pill(scope === 'project')} aria-pressed={scope === 'project'}>All project staff ({onSite.size})</button>
+            </span>
+          )}
+          {crewOnly && crew && crew.size === 0 && (
+            <span role="status" style={{ fontSize: 12.5, color: '#7A4B00', background: '#FBEFD5', padding: '6px 10px', borderRadius: 9 }}>
+              No crew set up for you on this project yet — ask the office to add your workers (Project → People → Site crews).
             </span>
           )}
           {crewMissing > 0 && <button type="button" onClick={addCrew} style={pill(true)}>+ Put the crew on ({crewMissing}) · 8 h</button>}
@@ -139,7 +146,7 @@ export function CrewSheet({ employees, codes, onSite, crew, entries, setEntries,
             <button type="button" onClick={() => { setAdding((a) => !a); setPickQ(''); }} style={pill(adding)}>+ Add worker</button>
             {adding && (() => {
               const pq = pickQ.trim().toLowerCase();
-              const others = employees.filter((e) => !inLog.has(e.id) && (anyone || onSite.has(e.id)) && (!pq || [e.name, e.workerId, e.trade, e.designation].filter(Boolean).join(' ').toLowerCase().includes(pq)))
+              const others = employees.filter((e) => !inLog.has(e.id) && (crewOnly ? !!crew?.has(e.id) : anyone || onSite.has(e.id)) && (!pq || [e.name, e.workerId, e.trade, e.designation].filter(Boolean).join(' ').toLowerCase().includes(pq)))
                 .sort((a, b) => Number(onSite.has(b.id)) - Number(onSite.has(a.id)) || a.name.localeCompare(b.name)).slice(0, 8);
               return (
                 <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 20, width: 300, background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-12)', boxShadow: '0 12px 32px rgba(var(--rgb-ink), .14)', padding: 8 }}>
@@ -154,7 +161,7 @@ export function CrewSheet({ employees, codes, onSite, crew, entries, setEntries,
                       </button>
                     ))}
                     {!others.length && <span style={{ fontSize: 12.5, color: MUTED, padding: 8 }}>No one else {anyone ? 'matches' : 'on this project matches'}.</span>}
-                    {!anyone && (
+                    {!anyone && !crewOnly && (
                       <button type="button" onClick={() => { if (window.confirm('Show everyone in the company, not only people deployed on this project?')) setAnyone(true); }}
                         style={{ textAlign: 'left', padding: '7px 8px', border: 0, borderTop: '1px solid ' + LINE, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: ACCENT, fontWeight: 700 }}>
                         Add someone not on this project…

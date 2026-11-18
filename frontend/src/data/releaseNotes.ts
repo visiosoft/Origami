@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-18h',
+    date: '2026-11-18',
+    title: 'Site crews: each supervisor sees only his workers',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Site crews on a project’s People tab: a column for each supervisor (the project’s superintendent and foreman, or anyone you add) and one for workers not in a crew yet. Tick workers and press “Put in this crew”.', where: 'Project → People → Site crews' },
+      { area: 'Daily report', kind: 'improved', text: 'A supervisor’s daily report lists only his own crew on that project — no company-wide list, so no picking the wrong person. Each row has a clear “× Remove”. If no crew is set up for him yet, it says to ask the office. Admins, PMs and Manpower managers still see all project staff and can add anyone.', where: 'Daily Report (field)' },
+      { area: 'Manpower', kind: 'improved', text: 'Each deployed worker’s row has a “Reports to” menu, so existing deployments can be put in a crew too.', where: 'Manpower → Deployment' },
+    ],
+  },
+  {
     id: '2026-11-18g',
     date: '2026-11-18',
     title: 'Client approvals: several items, one signature',

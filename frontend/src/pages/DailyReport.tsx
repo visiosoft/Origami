@@ -98,7 +98,7 @@ function Modal({ children, onClose, width = 480 }: { children: ReactNode; onClos
  * Drafts save by themselves; Submit sends it for approval.
  */
 export function DailyReport() {
-  const { authUser, toast } = useApp();
+  const { authUser, toast, can } = useApp();
   const canFile = !!authUser?.isSuperintendent || authUser?.roleKey === 'admin';
   const [params, setParams] = useSearchParams();
   const [projects, setProjects] = useState<{ id: number; name: string; location?: string }[]>([]);
@@ -226,13 +226,16 @@ export function DailyReport() {
     }
     return m;
   }, [assignments, projectId, date]);
-  // Nov 17: the report's supervisor's own crew (people who report to them, or to no one yet).
+  // Nov 17: the report's supervisor's own crew (Project → People → Site crews).
+  // A supervisor in the field sees only his crew; the office sees everyone deployed here too.
+  const crewOnly = !!authUser?.isSuperintendent && authUser?.roleKey !== 'admin' && !can('manpower_con', 'manage');
   const crew = useMemo(() => {
     const me = log?.supervisorId || authUser?.id || '';
-    const mine = assignments.filter((a) => a.projectId === projectId && onSite.has(a.employeeId) && (!a.supervisorId || a.supervisorId === me));
+    const mine = assignments.filter((a) => a.projectId === projectId && onSite.has(a.employeeId) && a.supervisorId === me);
     const set = new Set(mine.map((a) => a.employeeId));
+    if (crewOnly) return set;
     return set.size && set.size < onSite.size ? set : null;
-  }, [assignments, onSite, projectId, log?.supervisorId, authUser?.id]);
+  }, [assignments, onSite, projectId, log?.supervisorId, authUser?.id, crewOnly]);
 
   const setSections = (fn: (s: Sections) => Sections) => setDraft((d) => ({ ...d, sections: fn(d.sections) }));
   const setEntries = (fn: (e: Entry[]) => Entry[]) => setDraft((d) => ({ ...d, entries: fn(d.entries) }));
@@ -527,7 +530,7 @@ export function DailyReport() {
                 setDraft((d) => ({ ...d, sections: { ...d.sections, crew: v }, entries: v === 'no' ? [] : d.entries }));
               }}
               summaryYes={`${draft.entries.length} on the timesheet · ${draft.entries.reduce((a, e) => a + (Number(e.hours) || 0), 0)} h`}>
-              <CrewSheet employees={employees} codes={codes} onSite={onSite} crew={crew} entries={draft.entries} setEntries={setEntries} editable={editable} carried={crewCarried} />
+              <CrewSheet employees={employees} codes={codes} onSite={onSite} crew={crew} crewOnly={crewOnly} entries={draft.entries} setEntries={setEntries} editable={editable} carried={crewCarried} />
             </YesNoSection>
 
             <SubsSection s={s} set={setSections} na={noWork} contractors={contractors} baseline={baseline} />

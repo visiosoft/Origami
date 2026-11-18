@@ -1,3 +1,5 @@
+import { todayISO } from './workforce.util';
+import { crewOf } from './site-crews';
 import { cleanAltEmails } from '../common/emails';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -23,6 +25,11 @@ export class EmployeesService {
   private async toPeople(e: EmployeeEntity) {
     try { await this.staff?.syncEmployee(e); } catch { /* the startup backfill catches up */ }
     return e;
+  }
+
+  /** Nov 17: the workers who report to this supervisor on any project (Site crews). */
+  async crewMembers(supervisorId: string): Promise<Set<string>> {
+    return crewOf(await this.assignments.find({ where: { supervisorId } as any }) as any, supervisorId, todayISO());
   }
 
   findAll() {

@@ -1,3 +1,4 @@
+import { SiteCrews } from '../components/SiteCrews';
 import { ClientApprovals } from '../components/ClientApprovals';
 import { LinkedMail } from '../components/LinkedMail';
 import { TeamBackfill } from '../components/TeamBackfill';
@@ -954,6 +955,8 @@ export function Projects() {
               // Project People (Oct 27 sync): who's on the project -- consultants, subs, client -- their subcontracts, and guest access, in one place.
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', display: 'grid', gap: 18, alignContent: 'start' }}>
                 <ProjectTeam projectId={sel.id} />
+                {/* Nov 17: which workers report to which supervisor here. */}
+                <SiteCrews projectId={sel.id} />
                 <ProjectPeople projectName={sel.name} />
                 <ProjectSubcontractors projectId={sel.id} onAddSubcontract={finView ? () => { setFinStart('subcontracts'); setTab('financial'); } : undefined} />
                 {canManage && <div style={{ margin: '0 -24px' }}><GuestAccessPanel projectId={sel.id} /></div>}
