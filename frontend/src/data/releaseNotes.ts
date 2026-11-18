@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-18g',
+    date: '2026-11-18',
+    title: 'Client approvals: several items, one signature',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Send RFIs, FOR RECORD decisions and observations, and change orders to the client together. They get one link, approve or decline each item (a decline needs a reason) and sign once. Each item’s history records the answer, an approved change order is recorded as client-approved (a declined one as rejected), and the signed PDF is saved in the project’s files under Approvals.', where: 'Project → Special Actions → Client approvals' },
+    ],
+  },
+  {
     id: '2026-11-18f',
     date: '2026-11-18',
     title: 'Weekly reports saved to the project files',

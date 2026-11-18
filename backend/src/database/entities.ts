@@ -758,6 +758,35 @@ export class HelpDocumentEntity {
   @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
 }
 
+/**
+ * Nov 17 sync (Edward): several RFIs, decisions, observations and change
+ * orders sent to the client together, approved or declined one by one and
+ * signed once online; the signed PDF is kept in the project's files.
+ */
+export interface BundleItem { kind: 'rfi' | 'record' | 'co'; id: string; label: string; summary: string; decision?: 'approved' | 'declined' | null; note?: string | null }
+@Entity('client_approval_bundles')
+export class ClientApprovalBundleEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column({ type: 'nvarchar', length: 20 }) number!: string; // AP-001
+  @Column({ type: 'nvarchar', length: 200 }) title!: string;
+  @Column({ type: 'simple-json' }) items!: BundleItem[];
+  /** draft | sent | signed */
+  @Column({ type: 'nvarchar', length: 12, default: 'draft' }) status!: string;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) sentTo!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) sentAt!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) sentBy!: string | null;
+  @Column({ type: 'nvarchar', length: 2000, nullable: true }) message!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) signedName!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) signedEmail!: string | null;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) signatureImage!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) signedIp!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) signedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 80, nullable: true }) signedFileId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) createdBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) createdAt!: string | null;
+}
+
 @Entity('consultants')
 export class ConsultantEntity {
   @PrimaryColumn() id!: string;

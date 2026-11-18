@@ -814,6 +814,15 @@ export const api = {
     remove: (key: string) => request(`/roles/${key}`, { method: 'DELETE' }),
     /** The PEOPLE ACCESS sheet's rows: a preview (dryRun) or applied. */
   },
+  /** Nov 17: client approval bundles -- RFIs, decisions and change orders sent together, signed once. */
+  clientApprovals: {
+    candidates: (projectId: number) => request<import('./components/ClientApprovals').Candidates>(`/client-approvals/candidates?projectId=${projectId}`, { cache: 'no-store' } as any),
+    list: (projectId: number) => request<import('./components/ClientApprovals').Bundle[]>(`/client-approvals?projectId=${projectId}`, { cache: 'no-store' } as any),
+    create: (d: { projectId: number; title?: string; items: { kind: string; id: string }[] }) => request<import('./components/ClientApprovals').Bundle>('/client-approvals', { method: 'POST', body: JSON.stringify(d) }),
+    send: (id: string, d: { to?: string; message?: string }) => request<{ sent: boolean; to: string }>(`/client-approvals/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
+    publicView: (token: string) => request<any>(`/client-approvals/public?token=${encodeURIComponent(token)}`, { cache: 'no-store' } as any),
+    publicSign: (token: string, d: unknown) => request<{ signed: boolean }>(`/client-approvals/public/sign?token=${encodeURIComponent(token)}`, { method: 'POST', body: JSON.stringify(d) }),
+  },
   /** Nov 17: a board's epics (named groups of tasks) with progress. projectId null = General Tasks. */
   epics: {
     list: (projectId: number | null) => request<import('./data/projectTasks').Epic[]>(`/project-epics?projectId=${projectId == null ? 'general' : projectId}`, { cache: 'no-store' } as any),

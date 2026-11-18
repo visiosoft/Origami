@@ -1,3 +1,4 @@
+import { ClientApprovals } from '../components/ClientApprovals';
 import { LinkedMail } from '../components/LinkedMail';
 import { TeamBackfill } from '../components/TeamBackfill';
 import { ArchiveBanner, ArchivedProjects } from '../components/ProjectArchive';
@@ -937,6 +938,8 @@ export function Projects() {
               </div>
             ) : tab === 'tasks' || tab === 'rfis' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+                {/* Nov 17: RFIs, decisions and change orders sent to the client together, signed once. */}
+                {canManage && <div style={{ marginBottom: 16 }}><ClientApprovals projectId={sel.id} /></div>}
                 <TasksAndRfis projectId={sel.id} projectName={sel.name} showRfis={rfiView} showChanges={finView} view={tab === 'rfis' ? 'rfis' : workView} onView={openWork} />
               </div>
             ) : tab === 'files' ? (

@@ -38,6 +38,7 @@ import { GuestAccessModule } from './guest-access/guest-access.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import { ManpowerModule } from './manpower/manpower.module';
 import { FinanceModule } from './finance/finance.module';
+import { ClientApprovalsModule } from './client-approvals/client-approvals.module';
 import { QuoModule } from './quo/quo.module';
 import { ViewsModule } from './views/views.module';
 import { SpecialActionsModule } from './special-actions/special-actions.module';
@@ -109,6 +110,7 @@ import { PermGuard } from './auth/guards/perm.guard';
     TrackingModule,
     ManpowerModule,
     FinanceModule,
+    ClientApprovalsModule,
     ViewsModule,
     SpecialActionsModule,
   ],
