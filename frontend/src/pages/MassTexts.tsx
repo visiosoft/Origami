@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, type MassRecipient } from '../api';
+import { api, type MassRecipient, type MassSaved } from '../api';
 import { useApp } from '../AppContext';
 import { onProject } from '../data/people';
 
@@ -28,6 +28,10 @@ export function MassTexts() {
   const [batch, setBatch] = useState<Awaited<ReturnType<typeof api.sms.massGet>> | null>(null);
   const [history, setHistory] = useState<Awaited<ReturnType<typeof api.sms.massList>>>([]);
   const [busy, setBusy] = useState(false);
+  // Nov 19 (Edward): saved message templates and saved groups.
+  const [saved, setSaved] = useState<MassSaved>({ templates: [], groups: [] });
+  const [tplId, setTplId] = useState('');
+  const [groupId, setGroupId] = useState('');
 
   useEffect(() => {
     (api.people.list() as Promise<any>).then((r) => setPeople(Array.isArray(r) ? r : [])).catch(() => undefined);
@@ -35,7 +39,29 @@ export function MassTexts() {
     (api.pipeline.list() as Promise<any>).then((r) => setDeals(Array.isArray(r) ? r : [])).catch(() => undefined);
     (api.pipeline.stages() as Promise<any>).then((r) => setStages(Array.isArray(r) ? r : [])).catch(() => undefined);
     api.sms.massList().then(setHistory).catch(() => undefined);
+    api.sms.massSaved().then(setSaved).catch(() => undefined);
   }, []);
+  const store = async (next: MassSaved, msg: string) => {
+    try { setSaved(await api.sms.massSaveAll(next)); toast(msg); } catch (e) { toast('⚠ ' + (e as Error).message); }
+  };
+  const pickGroup = (id: string) => {
+    setGroupId(id);
+    const g = saved.groups.find((x) => x.id === id);
+    if (!g) return;
+    setPickedPeople(new Set(g.people)); setPickedLeads(new Set(g.leads)); setPreview(null);
+    if (g.body && !body.trim()) setBody(g.body);
+  };
+  const saveGroup = () => {
+    const name = window.prompt(`Name this group of ${count}:`)?.trim();
+    if (!name) return;
+    const withMsg = body.trim() && window.confirm('Keep the current message with this group?');
+    void store({ ...saved, groups: [...saved.groups.filter((g) => g.name !== name), { id: '', name, people: [...pickedPeople], leads: [...pickedLeads], ...(withMsg ? { body: body.trim() } : {}) }] }, `Saved the group “${name}”`);
+  };
+  const saveTemplate = () => {
+    const name = window.prompt('Name this message template:')?.trim();
+    if (!name) return;
+    void store({ ...saved, templates: [...saved.templates.filter((t) => t.name !== name), { id: '', name, body: body.trim() }] }, `Saved the template “${name}”`);
+  };
   // While sending: follow progress.
   useEffect(() => {
     if (!batch || batch.status !== 'sending') return;
@@ -93,7 +119,16 @@ export function MassTexts() {
               <select aria-label="Stage" value={f.stage} onChange={(e) => setF({ ...f, stage: e.target.value })} style={field}><option value="">Any stage</option>{stages.map((s) => <option key={s.key} value={s.key}>{s.label || s.name || s.key}</option>)}</select>
             )}
           </div>
-          <button type="button" onClick={toggleAll} style={{ justifySelf: 'start', border: 0, background: 'none', color: 'var(--forest)', font: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', padding: 0 }}>Pick / unpick everyone shown</button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button type="button" onClick={toggleAll} style={{ border: 0, background: 'none', color: 'var(--forest)', font: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', padding: 0 }}>Pick / unpick everyone shown</button>
+            <span style={{ flex: 1 }} />
+            <select aria-label="Saved group" value={groupId} onChange={(e) => pickGroup(e.target.value)} style={field}>
+              <option value="">Saved groups ({saved.groups.length})…</option>
+              {saved.groups.map((g) => <option key={g.id} value={g.id}>{g.name} · {g.people.length + g.leads.length}</option>)}
+            </select>
+            {groupId && <button type="button" title="Delete this saved group" onClick={() => { const g = saved.groups.find((x) => x.id === groupId); if (g && confirm(`Delete the saved group “${g.name}”?`)) { setGroupId(''); void store({ ...saved, groups: saved.groups.filter((x) => x.id !== groupId) }, 'Group deleted'); } }} style={pill(false)}>Delete group</button>}
+            <button type="button" disabled={!count} onClick={saveGroup} style={pill(false)}>Save these {count} as a group</button>
+          </div>
           <div style={{ maxHeight: 420, overflow: 'auto', display: 'grid', gap: 2 }}>
             {tab === 'people' ? shownPeople.slice(0, 400).map((p) => (
               <label key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '5px 4px', fontSize: 13, cursor: 'pointer' }}>
@@ -111,10 +146,19 @@ export function MassTexts() {
           </div>
         </div>
         <div style={{ background: 'var(--surface)', borderRadius: 16, padding: 16, display: 'grid', gap: 10 }}>
-          <label htmlFor="mt-body" style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--ink)' }}>Message</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label htmlFor="mt-body" style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--ink)', flex: 1 }}>Message</label>
+            <select aria-label="Template" value={tplId} onChange={(e) => { setTplId(e.target.value); const t = saved.templates.find((x) => x.id === e.target.value); if (t && (!body.trim() || confirm('Replace the message with this template?'))) setBody(t.body); }} style={field}>
+              <option value="">Templates ({saved.templates.length})…</option>
+              {saved.templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            {tplId && <button type="button" onClick={() => { const t = saved.templates.find((x) => x.id === tplId); if (t && confirm(`Delete the template “${t.name}”?`)) { setTplId(''); void store({ ...saved, templates: saved.templates.filter((x) => x.id !== tplId) }, 'Template deleted'); } }} style={pill(false)}>Delete</button>}
+          </div>
           <textarea id="mt-body" rows={6} value={body} onChange={(e) => { setBody(e.target.value); }} placeholder="Hi {first name}, …" style={{ ...field, fontSize: 14, resize: 'vertical' }} />
           <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{body.length} characters · “Reply STOP to opt out” and a settings link are added at the end.</div>
           <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" disabled={!body.trim()} onClick={saveTemplate} style={pill(false)}>Save as template</button>
+            <span style={{ flex: 1 }} />
             <button type="button" disabled={busy || !count} onClick={() => void check()} style={pill(false)}>Check the list</button>
             <button type="button" disabled={busy || !preview || !body.trim() || !preview.some((r) => r.status === 'waiting')} onClick={() => void send()} style={pill(true)}>Send</button>
           </div>

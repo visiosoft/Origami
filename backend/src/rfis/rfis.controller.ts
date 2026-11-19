@@ -42,6 +42,10 @@ export class RfisController {
     return this.rfis.list(await this.actor(a), Number.isFinite(id) && id > 0 ? id : undefined);
   }
 
+  /** Nov 19: send the project's RFI Log -- who it can go to, then send it. */
+  @Get('log/recipients') async logRecipients(@Query('projectId') pid: string, @Headers('authorization') a?: string) { return this.rfis.logRecipients(Number(pid), await this.actor(a)); }
+  @Post('log/send') async sendLog(@Body() body: { projectId?: number; to?: string[]; note?: string }, @Headers('authorization') a?: string) { return this.rfis.sendLog(Number(body?.projectId), body || {}, await this.actor(a)); }
+
   /** One page of the RFI log -- filtered, searched and sorted here -- with the counts and stat cards. */
   @Get('page')
   async page(@Query() q: Record<string, string>, @Headers('authorization') a?: string) {

@@ -1,3 +1,4 @@
+import { SendRfiLog } from './SendRfiLog';
 import { createPortal } from 'react-dom';
 import { RfiCallouts } from './RfiCallouts';
 import { CsiSelect } from '../CsiSelect';
@@ -99,6 +100,7 @@ export function groupDrawings(list: { fileId: string; name: string; markupId?: s
 export function RfiLog({ projectId, projectName, openId, compact }: { projectId?: number; projectName?: string; openId?: string | null; compact?: boolean }) {
   const { toast } = useApp();
   const [rights, setRights] = useState<{ view: boolean; manage: boolean } | null>(null);
+  const [sendingLog, setSendingLog] = useState(false);
   // One page at a time, filtered and sorted on the server (with the counts for every RFI).
   const [data, setData] = useState<Awaited<ReturnType<typeof api.rfis.page>> | null>(null);
   const rows = (data?.rows || []) as Rfi[];
@@ -200,8 +202,10 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
           <option value="all">All</option>
           {(Object.keys(RFI_STATUS) as Rfi['status'][]).map((k) => <option key={k} value={k}>{RFI_STATUS[k].label}</option>)}
         </select>
+        {rights?.manage && !!projectId && <button type="button" onClick={() => setSendingLog(true)} style={btn()} title="Email this project's RFI Log as a PDF to the team and the people on the project">Send RFI Log</button>}
         {rights?.manage && <button type="button" onClick={() => setCreating(true)} style={btn(true)}>+ New RFI</button>}
       </div>
+      {sendingLog && !!projectId && <SendRfiLog projectId={projectId} projectName={projectName} onClose={() => setSendingLog(false)} />}
       {!compact && !loading && !!data?.any && (
         <div style={{ marginBottom: 14 }}><AkStats items={[
           { key: 'open', label: 'Awaiting an answer', value: counts.open, sub: 'sent, not answered', onClick: () => setStatus('open'), on: status === 'open' },

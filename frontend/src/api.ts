@@ -64,6 +64,7 @@ export type MailLink = { id: string; entityType: 'lead' | 'project' | 'task'; en
 export type MailThreadRow = { id: string; subject: string; from: string; to: string; date: string; snippet: string; count: number; unread: boolean; links: MailLink[] };
 export type MailMessage = { id: string; threadId: string; from: string; to: string; cc: string; subject: string; date: string; messageId: string; unread: boolean; snippet: string; html: string; text: string; attachments: { id: string; filename: string; mimeType: string; size: number }[]; /** Opens of a tracked email you sent (Batch 6). */ opens?: { count: number; last: string | null } | null };
 export type MailThread = { id: string; subject: string; messages: MailMessage[]; links: MailLink[] };
+export type MassSaved = { templates: { id: string; name: string; body: string }[]; groups: { id: string; name: string; people: number[]; leads: string[]; body?: string }[] };
 export type LinkedMailRow = { id: string; threadId: string; subject: string | null; ownerName: string | null; mine: boolean; auto: boolean; lastAt: string | null; messages: { from: string; to: string; date: string; subject: string; text: string; attachments: string[] }[] };
 
 export type MassRecipient = { type: 'person' | 'lead'; id: string; name: string; phone: string; status: 'waiting' | 'sent' | 'failed' | 'skipped'; note?: string };
@@ -446,6 +447,9 @@ export const api = {
     /** Mass texts (Nov 13): who would get it, then send each their own. */
     massPreview: (pick: { people?: number[]; leads?: string[] }) => request<MassRecipient[]>('/sms/mass/preview', { method: 'POST', body: JSON.stringify(pick) }),
     massSend: (pick: { people?: number[]; leads?: string[] }, body: string) => request<{ id: string }>('/sms/mass', { method: 'POST', body: JSON.stringify({ ...pick, body }) }),
+    /** Nov 19: saved message templates and groups for mass texts, shared by the office. */
+    massSaved: () => request<MassSaved>('/sms/mass/saved', { cache: 'no-store' } as any),
+    massSaveAll: (d: MassSaved) => request<MassSaved>('/sms/mass/saved', { method: 'PUT', body: JSON.stringify(d) }),
     massList: () => request<{ id: string; at: string; body: string; byName: string | null; status: string; total: number; sent: number }[]>('/sms/mass', { cache: 'no-store' } as any),
     massGet: (id: string) => request<{ id: string; status: string; body: string; recipients: MassRecipient[]; sent: number; failed: number; skipped: number; waiting: number }>(`/sms/mass/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
     massStop: (id: string) => request(`/sms/mass/${encodeURIComponent(id)}/stop`, { method: 'POST' }),
@@ -741,6 +745,9 @@ export const api = {
   },
   rfis: {
     access: () => request<{ view: boolean; manage: boolean }>('/rfis/access'),
+    /** Nov 19: send a project's RFI Log -- who it can go to, then send. */
+    logRecipients: (projectId: number) => request<{ name: string; email: string; kind: string }[]>(`/rfis/log/recipients?projectId=${projectId}`),
+    sendLog: (projectId: number, to: string[], note?: string) => request<{ sent: number; total: number; open: number; overdue: number }>('/rfis/log/send', { method: 'POST', body: JSON.stringify({ projectId, to, note }) }),
     /** Nov 17: the RFI's numbered callouts on its drawings; its own draft layer; publishing them to the set. */
     callouts: (id: string) => request<{ id: string; n: number; fileId: string; page: number; kind: string; note: string; authorName: string; draft: boolean }[]>(`/rfis/${encodeURIComponent(id)}/callouts`, { cache: 'no-store' } as any),
     draftLayer: (id: string, fileId: string) => request<{ layer: string; rfiId: string; number: string }>(`/rfis/${encodeURIComponent(id)}/draft-layer`, { method: 'POST', body: JSON.stringify({ fileId }) }),

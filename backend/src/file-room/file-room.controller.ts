@@ -1,3 +1,4 @@
+import { leadsMarkups } from './markups';
 import { FolderAccessService } from './folder-access.service';
 import { BadRequestException, ForbiddenException,
   Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
@@ -352,6 +353,8 @@ export class FileRoomController {
   async setFileAccess(@Body() dto: { ids?: string[]; access?: string }, @Claims() claims?: SessionClaims | null) {
     this.access.assertStaff(claims ?? null);
     await this.assertManage(claims ?? null);
+    // Nov 19 (Edward): who a file is for is decided by i-1 and i-2 (administrators and principals) only.
+    if (!leadsMarkups(claims?.roleKey)) throw new ForbiddenException('Only administrators and principals can change who a file is for.');
     return this.service.setAccess(Array.isArray(dto?.ids) ? dto.ids : [], String(dto?.access || ''));
   }
 

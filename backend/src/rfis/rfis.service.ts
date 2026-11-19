@@ -11,6 +11,8 @@ import { newId } from '../manpower/workforce.util';
 import { SettingsService } from '../settings/settings.service';
 import { emailShell, loadEmailBrand } from '../email/shell';
 import { RFI_DISCIPLINES, rfiDocumentHtml, rfiEmailBody } from './rfi.document';
+import { logCounts, rfiLogHtml } from './rfi-log';
+import { PersonEntity } from '../database/entities';
 
 export const RFI_MODULE = 'rfis';
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -65,7 +67,51 @@ export class RfisService {
     private readonly settings: SettingsService,
     private readonly attachments?: AttachmentsService,
     @Optional() private readonly hub?: NotifyHub,
+    @Optional() @InjectRepository(PersonEntity) private readonly people?: Repository<PersonEntity>,
   ) {}
+
+  /**
+   * Nov 19 (Edward): who the project's RFI Log can go to -- the project team
+   * (logins) and the people on the project with an email.
+   */
+  async logRecipients(projectId: number, actor: Actor) {
+    await this.need(actor, 'view');
+    const p = await this.projects.findOneBy({ id: projectId });
+    if (!p) throw new NotFoundException('Project not found');
+    const ids = new Set(Object.values(p.roles || {}));
+    const team = (await this.users.find()).filter((u) => ids.has(u.id) && u.email && u.status !== 'suspended').map((u) => ({ name: u.name, email: u.email, kind: 'Team' }));
+    const people = ((await this.people?.find().catch(() => [])) || [])
+      .filter((x) => (Array.isArray(x.projectIds) && x.projectIds.map(Number).includes(projectId)) || (x.projects || []).includes(p.name))
+      .filter((x) => /@/.test(String(x.email || '')))
+      .map((x) => ({ name: x.name, email: String(x.email), kind: String(x.kind || 'Contact') }));
+    const seen = new Set<string>();
+    return [...team, ...people].filter((r) => { const k = r.email.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  }
+
+  /** The RFI Log as a PDF, emailed to the people picked (Nov 19). */
+  async sendLog(projectId: number, dto: { to?: string[]; note?: string }, actor: Actor) {
+    await this.need(actor, 'manage');
+    const to = [...new Set((Array.isArray(dto?.to) ? dto.to : []).map((e) => String(e).trim().toLowerCase()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)))].slice(0, 60);
+    if (!to.length) throw new BadRequestException('Pick at least one person to send it to.');
+    if (!(await this.google.isConnected())) throw new BadRequestException('No Google account is connected for sending mail (Settings → Integrations).');
+    const p = await this.projects.findOneBy({ id: projectId });
+    if (!p) throw new NotFoundException('Project not found');
+    const rows = await this.list(actor, projectId);
+    const brand = await loadEmailBrand(this.settings);
+    const day = today();
+    const html = rfiLogHtml(rows as any, p.name, brand.companyName, day);
+    const pdf = await this.google.htmlToPdf(html, `RFI Log ${p.name}`);
+    const c = logCounts(rows as any, day);
+    const note = cleanText(dto?.note, 2000);
+    // One email, everyone in Bcc, so recipients don't see each other's addresses.
+    await this.google.sendMail({
+      to: (await this.settings.get('google.senderEmail')) || (await this.settings.get('google.connectedEmail')) || to[0], bcc: to.join(', '),
+      subject: `RFI Log — ${p.name} (${c.open} open${c.overdue ? `, ${c.overdue} overdue` : ''})`,
+      html: emailShell({ brand, eyebrow: 'RFI Log', title: p.name, body: `${note ? `<p>${note.replace(/[<>&]/g, (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[ch]!)).replace(/\n/g, '<br>')}</p>` : ''}<p>The project’s RFI Log is attached: ${c.total} RFIs — ${c.open} open${c.overdue ? ` (${c.overdue} overdue)` : ''}, ${c.answered} answered, ${c.closed} closed.</p>`, footer: `Sent by ${actor.name} at ${brand.companyName}.` }),
+      attachments: [{ filename: `RFI Log - ${p.name}.pdf`, mimeType: 'application/pdf', content: pdf }],
+    });
+    return { sent: to.length, ...c };
+  }
 
   /** Nov 17: tell someone an RFI is now theirs (owner set, or sent to them), their way. */
   private async tellAssigned(r: RfiEntity, userIds: (string | null | undefined)[], actor: Actor, why: string) {

@@ -15,6 +15,7 @@ import {
   extStyle, isImage, pathKey, prettySize, shortDate, subfoldersOf,
   type FileRoomData, type FileRoomFile,
 } from '../data/fileRoom';
+import { MARKUP_LEADS } from '../data/markup';
 import { BuildSetTagBanner, FileAccessChip, FileAccessPicker } from '../components/FileAccessTag';
 import { Skeleton } from '../components/Skeleton';
 import { FolderAccessDialog, type FolderRule } from '../components/FolderAccessDialog';
@@ -65,6 +66,8 @@ const FolderIcon = ({ size = 15, c = 'var(--muted)' }: { size?: number; c?: stri
  */
 export function FileRoom() {
   const { can, toast, authUser } = useApp();
+  // Nov 19 (Edward): only i-1 and i-2 (administrators and principals) say who a file is for.
+  const canTag = MARKUP_LEADS.includes(String(authUser?.roleKey || '')) && !authUser?.viewedBy;
   // Opened as All Files, that module's own permission counts too.
   const canManage = can('planroom', 'manage') || (window.location.pathname === '/allfiles' && can('allfiles', 'manage'));
   const isNarrow = useWindowWidth() < 900;
@@ -759,7 +762,7 @@ export function FileRoom() {
             {pill(bulkBusy ? 'Working…' : 'Copy share links', false, bulkBusy ? () => {} : bulkShare)}
             {pill('Email', bulk === 'email', () => setBulk((b) => (b === 'email' ? '' : 'email')))}
             {pill('Move to…', bulk === 'move', () => setBulk((b) => (b === 'move' ? '' : 'move')))}
-            {pill('Who it’s for…', bulk === 'access', () => setBulk((b) => (b === 'access' ? '' : 'access')))}
+            {canTag && pill('Who it’s for…', bulk === 'access', () => setBulk((b) => (b === 'access' ? '' : 'access')))}
             {pill('Clear', false, () => { setPicked(new Set()); setBulk(''); setBulkLinks([]); })}
           </div>
           {picked.size > 25 && <div style={{ fontSize: 12, color: '#9A4318' }}>Up to 25 files at a time — untick {picked.size - 25}.</div>}
@@ -809,10 +812,11 @@ export function FileRoom() {
                 <div style={{ fontFamily: BG, fontSize: 16, fontWeight: 700, color: 'var(--ink)', wordBreak: 'break-word' }}>{selected.name}</div>
                 <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>{(selected.folderPath ?? []).join(' › ') || 'Project root'}</div>
                 <div style={{ marginTop: 6 }}>{badge(selected)}</div>
-                {canManage && (
+                {canTag && (
                   <div style={{ marginTop: 10 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>Who it’s for</div>
                     <FileAccessPicker value={selected.access ?? null} onPick={(a) => void tagFiles([selected.id], a)} />
+                    {canPick && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Several files? Tick them in the list, then “Who it’s for…”.</div>}
                   </div>
                 )}
               </div>

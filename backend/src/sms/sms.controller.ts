@@ -1,4 +1,8 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { cleanSaved } from './mass-saved';
+import { SettingsService } from '../settings/settings.service';
+
+const SAVED_KEY = 'sms.massSaved';
 import { MassTextsService, type Pick } from './mass-texts.service';
 import { Claims } from '../auth/guards/claims.decorator';
 import type { SessionClaims } from '../auth/crypto.util';
@@ -12,7 +16,7 @@ import { ProjectAccessService } from '../auth/project-access.service';
 @Tiers('internal')
 @Controller('sms')
 export class SmsController {
-  constructor(private readonly sms: SmsService, private readonly texts: SmsLogService, private readonly access: ProjectAccessService, private readonly mass: MassTextsService) {}
+  constructor(private readonly sms: SmsService, private readonly texts: SmsLogService, private readonly access: ProjectAccessService, private readonly mass: MassTextsService, private readonly settings: SettingsService) {}
 
   // ------------------------------------------------------------ mass texts (Nov 13)
   /** People who change People may mass-text; picking CRM leads also needs sight of client contacts. */
@@ -32,6 +36,20 @@ export class SmsController {
     await this.massAllowed(claims, body);
     assertFilled(body?.body);
     return this.mass.start(body || {}, body?.body, claims ? { id: claims.sub, name: claims.name } : null);
+  }
+
+  /** Nov 19: saved message templates and groups, shared by the office. */
+  @Get('mass/saved')
+  async massSaved(@Claims() claims?: SessionClaims | null) {
+    await this.massAllowed(claims);
+    try { return cleanSaved(JSON.parse((await this.settings.get(SAVED_KEY)) || '{}')); } catch { return cleanSaved(null); }
+  }
+  @Put('mass/saved')
+  async massSave(@Body() body: unknown, @Claims() claims?: SessionClaims | null) {
+    await this.massAllowed(claims);
+    const clean = cleanSaved(body);
+    await this.settings.set(SAVED_KEY, JSON.stringify(clean));
+    return clean;
   }
 
   @Get('mass')
