@@ -8,9 +8,9 @@ import { Skeleton } from '../Skeleton';
 
 type Status = Reimbursable['status'];
 const STATUS: Record<Status, [string, string]> = {
-  submitted: ['Awaiting approval', 'rb-pill is-dark'], approved: ['Approved', 'rb-pill is-yellow'], billed: ['Billed', 'rb-pill is-soft'], rejected: ['Rejected', 'rb-pill is-grey'],
+  needs_details: ['Needs details', 'rb-pill is-grey'], submitted: ['Awaiting approval', 'rb-pill is-dark'], approved: ['Approved', 'rb-pill is-yellow'], billed: ['Billed', 'rb-pill is-soft'], rejected: ['Rejected', 'rb-pill is-grey'],
 };
-const FILTERS: [Status | 'all', string][] = [['all', 'All'], ['submitted', 'Awaiting'], ['approved', 'Approved'], ['billed', 'Billed'], ['rejected', 'Rejected']];
+const FILTERS: [Status | 'all', string][] = [['all', 'All'], ['needs_details', 'Needs details'], ['submitted', 'Awaiting'], ['approved', 'Approved'], ['billed', 'Billed'], ['rejected', 'Rejected']];
 /** What an expense is worth here: what it bills the client, or its cost if it is never billed. */
 const worth = (r: Reimbursable) => (r.billable ? r.billAmount : r.cost);
 const live = (r: Reimbursable) => r.status !== 'rejected';
@@ -87,7 +87,10 @@ export function ReimbursementBoard({ rights }: { rights: Rights }) {
     catch (e) { failed(toast, e); } finally { setBusy(null); }
   };
 
+  const details = (r: Reimbursable) => r.status === 'needs_details';
   const cards: { k: string; label: string; value: string; sub: string; tone?: string; onClick?: () => void }[] = [
+    // Nov 19: quick entries from the field, waiting for the project coordinator to fill in the rest.
+    ...(count(details) ? [{ k: 'details', label: 'Needs details', value: String(count(details)), sub: 'quick entries — add description, cost and date', tone: 'is-yellow', onClick: () => setStatus('needs_details') }] : []),
     { k: 'await', label: 'Waiting for approval', value: usd0(total(awaiting)), sub: `${count(awaiting)} ${count(awaiting) === 1 ? 'expense' : 'expenses'}`, tone: count(awaiting) ? 'is-yellow' : '', onClick: () => setStatus('submitted') },
     { k: 'bill', label: 'Approved · ready to bill', value: usd0(total(toBill)), sub: `${count(toBill)} not on an invoice yet`, onClick: () => setStatus('approved') },
     { k: 'billed', label: 'Billed to clients', value: usd0(total((r) => r.status === 'billed')), sub: `${count((r) => r.status === 'billed')} expenses`, onClick: () => setStatus('billed') },
@@ -144,7 +147,7 @@ export function ReimbursementBoard({ rights }: { rights: Rights }) {
                     onClick={() => setDrawer({ id: r.id })} onKeyDown={(e) => { if (e.key === 'Enter') setDrawer({ id: r.id }); }}>
                     <span className="rb-date"><b>{dayLabel(r.date).split(' ')[1]}</b>{dayLabel(r.date).split(' ')[0]}</span>
                     <span className="rb-main-text">
-                      <span className="rb-title">{r.description || 'Untitled expense'}</span>
+                      <span className="rb-title">{r.description || (r.status === 'needs_details' ? 'Quick entry — needs details' : 'Untitled expense')}</span>
                       <span className="rb-sub">{[r.number, project === 'all' ? r.projectName : '', r.vendor, label(REIMB_CATEGORIES, r.category), r.submittedBy ? 'by ' + r.submittedBy : ''].filter(Boolean).join(' · ')}</span>
                     </span>
                     <span className={'rb-receipt rb-hide-sm' + (files ? '' : ' is-missing')} title={files ? `${files} receipt${files === 1 ? '' : 's'}` : 'No receipt attached'}>

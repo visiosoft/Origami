@@ -10,7 +10,7 @@ export type Matrix = Record<string, Channel[]>;
 export interface NotifyEvent {
   key: string;
   label: string;
-  group: 'CRM' | 'Projects' | 'Tasks' | 'RFIs';
+  group: 'CRM' | 'Projects' | 'Tasks' | 'RFIs' | 'Finance';
   hint: string;
   /** The menu item someone needs to see to hear about it (company-wide events). */
   module?: string;
@@ -36,6 +36,8 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
   // Nov 17: "how do I know an RFI is coming?"
   { key: 'rfi_assigned', label: 'RFI assigned to me', group: 'RFIs', module: 'rfis', hint: 'You become an RFI’s owner, or an RFI is sent to you.', defaults: ['email_now'] },
   { key: 'rfi_due', label: 'RFIs coming due', group: 'RFIs', module: 'rfis', hint: 'An open RFI you own or were sent is due tomorrow, or past due (each day until it’s answered).', defaults: ['email_daily'] },
+  // Nov 19: quick reimbursables from the field wait for the project coordinator.
+  { key: 'reimbursable_details', label: 'Reimbursables needing details', group: 'Finance', hint: 'Someone sent a quick reimbursable (project, CSI code, photo) on a project where you’re the Project Coordinator — add the description, cost and date.', defaults: ['email_now'] },
 ];
 export const EVENT_KEYS = NOTIFY_EVENTS.map((e) => e.key);
 export const eventOf = (key: string) => NOTIFY_EVENTS.find((e) => e.key === key);

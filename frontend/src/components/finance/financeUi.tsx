@@ -139,7 +139,7 @@ export interface Reimbursable {
   /** The number printed on the receipt; `receiptDuplicates` are other expenses with the same one. */
   receiptNumber?: string; receiptDuplicates?: { id: string; number: string; projectName: string; date: string; cost: number; vendor?: string | null }[];
   cost: number; markupPct: number; markup: number; billAmount: number; billable: boolean; taxable: boolean; phaseId?: string; csiCodeId?: string;
-  status: 'submitted' | 'approved' | 'rejected' | 'billed'; submittedBy?: string; approvedAt?: string; approvedBy?: string; rejectedAt?: string; rejectedBy?: string;
+  status: 'needs_details' | 'submitted' | 'approved' | 'rejected' | 'billed'; submittedBy?: string; approvedAt?: string; approvedBy?: string; rejectedAt?: string; rejectedBy?: string;
   rejectedReason?: string; invoiceId?: string; notes?: string; attachments: any[]; approvals?: Approval[]; version: number;
 }
 export interface RetentionRelease {
@@ -180,7 +180,7 @@ const CO_STATUS: Record<ChangeOrder['status'], [string, 'grey' | 'amber' | 'blue
 };
 export const CoBadge = ({ s }: { s: ChangeOrder['status'] }) => { const [l, t] = CO_STATUS[s] || [String(s || '—'), 'grey' as const]; return <Badge tone={t}>{l}</Badge>; };
 const RE_STATUS: Record<Reimbursable['status'], [string, 'grey' | 'amber' | 'blue' | 'green' | 'red']> = {
-  submitted: ['Awaiting approval', 'amber'], approved: ['Approved · to bill', 'blue'], rejected: ['Rejected', 'red'], billed: ['Billed', 'green'],
+  needs_details: ['Needs details', 'grey'], submitted: ['Awaiting approval', 'amber'], approved: ['Approved · to bill', 'blue'], rejected: ['Rejected', 'red'], billed: ['Billed', 'green'],
 };
 export const ReimbBadge = ({ s }: { s: Reimbursable['status'] }) => <Badge tone={RE_STATUS[s][1]}>{RE_STATUS[s][0]}</Badge>;
 const RR_STATUS: Record<RetentionRelease['status'], [string, 'grey' | 'amber' | 'blue' | 'green' | 'red']> = {

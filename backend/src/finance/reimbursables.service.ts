@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectEntity, ReimbursableEntity } from '../database/entities';
@@ -9,12 +9,21 @@ import { newId, todayISO } from '../manpower/workforce.util';
 import { assertVersion, FinancialsService } from './financials.service';
 import { reimbursableBillC } from './invoices.service';
 import { fromCents, roundPct, toCents } from './money';
+import { NotifyHub } from '../notifications/notify-hub.service';
 
 export const REIMB_CATEGORIES = ['travel', 'printing', 'permits_fees', 'materials', 'consultants', 'shipping', 'equipment', 'other'];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const now = () => new Date().toISOString();
 export const normReceipt = (v?: string | null) => String(v ?? '').toLowerCase().replace(/[\s\-_#.]/g, '');
 const normVendor = (v?: string | null) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * Nov 19: a quick entry from the field needs only the project, a CSI code and a
+ * photo. Until the description and cost are filled in it waits as "needs_details"
+ * for the project coordinator; then it goes for approval as usual.
+ */
+export const reimbMissing = (r: { description?: string | null; cost?: number | string | null; date?: string | null }) =>
+  [!String(r.description || '').trim() && 'description', !(Number(r.cost) > 0) && 'cost', !ISO.test(String(r.date || '')) && 'date'].filter(Boolean) as string[];
 
 /**
  * Reimbursable expenses: submitted with receipts, approved (or rejected), then
@@ -27,7 +36,8 @@ export class ReimbursablesService {
     @InjectRepository(ReimbursableEntity) private readonly repo: Repository<ReimbursableEntity>,
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     private readonly fin: FinancialsService,
-    private readonly attachments?: AttachmentsService,
+    @Optional() private readonly attachments?: AttachmentsService,
+    @Optional() private readonly hub?: NotifyHub,
   ) {}
 
   private async load(id: string) {
@@ -82,11 +92,13 @@ export class ReimbursablesService {
 
   private fields(r: ReimbursableEntity, dto: any) {
     if (dto.date !== undefined) { if (!ISO.test(dto.date || '')) throw new BadRequestException('Give the date of the expense.'); r.date = dto.date; }
-    if (dto.description !== undefined) { const d = String(dto.description || '').trim(); if (!d) throw new BadRequestException('Describe the expense.'); r.description = d; }
+    // Description and cost may be left for the coordinator (Nov 19) -- an empty one is kept empty.
+    if (dto.description !== undefined) r.description = String(dto.description || '').trim();
     if (dto.category !== undefined) { if (!REIMB_CATEGORIES.includes(dto.category)) throw new BadRequestException('Unknown category.'); r.category = dto.category; }
     if (dto.cost !== undefined) {
-      const c = toCents(dto.cost);
-      if (!(c > 0)) throw new BadRequestException('The cost must be more than zero.');
+      const empty = dto.cost === null || String(dto.cost).trim() === '';
+      const c = empty ? 0 : toCents(dto.cost);
+      if (!empty && !(c > 0)) throw new BadRequestException('The cost must be more than zero.');
       r.cost = fromCents(c);
     }
     if (dto.markupPct !== undefined) {
@@ -106,17 +118,33 @@ export class ReimbursablesService {
     for (let attempt = 0; attempt < 3 && !saved; attempt++) {
       const r = this.repo.create({
         id: newId('RE'), projectId, number: await this.fin.nextProjectNumber(this.repo, projectId, 'RE'), date: todayISO(), category: 'other',
-        markupPct: Number(s.reimbursableMarkupPct) || 0, billable: true, taxable: false, status: 'submitted', submittedBy: actor.name, attachments: [],
+        markupPct: Number(s.reimbursableMarkupPct) || 0, billable: true, taxable: false, status: 'submitted', submittedBy: actor.name, attachments: [], description: '', cost: 0,
         createdAt: now(), createdBy: actor.name,
       } as Partial<ReimbursableEntity>);
-      this.fields(r, { date: dto.date || todayISO(), ...dto });
-      if (!r.description) throw new BadRequestException('Describe the expense.');
-      if (!r.cost) throw new BadRequestException('The cost must be more than zero.');
+      this.fields(r, { ...dto, date: dto.date || todayISO() });
+      // Nov 19: only the project and the CSI code are required; the rest the coordinator can fill in.
+      if (!r.csiCodeId) throw new BadRequestException('Pick the CSI code.');
+      if (reimbMissing(r).length) r.status = 'needs_details';
       try { saved = await this.repo.save(r); } catch (e) { if (attempt === 2) throw e; }
     }
-    await this.fin.approval(null, { projectId, entityType: 'reimbursable', entityId: saved!.id, decision: 'submitted', amount: saved!.cost }, actor);
-    await this.fin.log(null, { projectId, entityType: 'reimbursable', entityId: saved!.id, action: 'reimbursable_submitted', changes: { cost: { from: null, to: saved!.cost } } }, actor);
+    if (saved!.status === 'submitted') await this.fin.approval(null, { projectId, entityType: 'reimbursable', entityId: saved!.id, decision: 'submitted', amount: saved!.cost }, actor);
+    else void this.tellCoordinator(saved!, actor);
+    await this.fin.log(null, { projectId, entityType: 'reimbursable', entityId: saved!.id, action: 'reimbursable_submitted', changes: { cost: { from: null, to: saved!.cost }, status: { from: null, to: saved!.status } } }, actor);
     return this.get(saved!.id, actor);
+  }
+
+  /** The project's coordinator hears that a quick entry is waiting for its details. */
+  private async tellCoordinator(r: ReimbursableEntity, actor: Actor) {
+    try {
+      const p = await this.projects.findOneBy({ id: r.projectId });
+      const to = [p?.roles?.projectCoordinator].filter((x): x is string => !!x && x !== (actor as any).id);
+      if (!to.length || !this.hub) return;
+      await this.hub.deliver(to, 'reimbursable_details', {
+        title: `${r.number} needs details — ${p?.name || 'project'}`,
+        body: `${actor.name} sent a quick reimbursable. Add the description, cost and date, then it goes for approval.`,
+        path: `/reimbursement?open=${encodeURIComponent(r.id)}`, actorId: (actor as any).id,
+      });
+    } catch { /* a notice is best-effort */ }
   }
 
   async update(id: string, dto: any, actor: Actor) {
@@ -129,11 +157,17 @@ export class ReimbursablesService {
     this.fields(r, dto);
     // A rejected expense that is corrected goes back for approval.
     if (r.status === 'rejected') Object.assign(r, { status: 'submitted', rejectedAt: null, rejectedBy: null, rejectedReason: null });
+    // Nov 19: a quick entry goes for approval once its details are in; a submitted one with details taken out waits again.
+    const missing = reimbMissing(r);
+    const nowSubmitted = before.status === 'needs_details' && !missing.length;
+    if (nowSubmitted) r.status = 'submitted';
+    else if (r.status === 'submitted' && missing.length) r.status = 'needs_details';
     Object.assign(r, { updatedAt: now(), updatedBy: actor.name });
     await this.repo.save(r);
     const changes: Record<string, { from: unknown; to: unknown }> = {};
     for (const k of ['cost', 'markupPct', 'billable', 'taxable', 'description', 'status'] as const) if (String(before[k] ?? '') !== String(r[k] ?? '')) changes[k] = { from: before[k] ?? null, to: r[k] ?? null };
     await this.fin.log(null, { projectId: r.projectId, entityType: 'reimbursable', entityId: id, action: 'reimbursable_changed', changes }, actor);
+    if (nowSubmitted) await this.fin.approval(null, { projectId: r.projectId, entityType: 'reimbursable', entityId: id, decision: 'submitted', amount: r.cost }, actor);
     return this.get(id, actor);
   }
 
@@ -141,7 +175,9 @@ export class ReimbursablesService {
     await this.fin.need(actor, 'approveReimbursables');
     const r = await this.load(id);
     assertVersion(r, dto.version);
+    if (r.status === 'needs_details') throw new BadRequestException(`Fill in the ${reimbMissing(r).join(', ') || 'details'} first.`);
     if (r.status !== 'submitted') throw new BadRequestException(`This expense is ${r.status}.`);
+    if (dto.decision === 'approve' && reimbMissing(r).length) throw new BadRequestException(`Fill in the ${reimbMissing(r).join(', ')} first.`);
     const at = now();
     if (dto.decision === 'approve') Object.assign(r, { status: 'approved', approvedAt: at, approvedBy: actor.name });
     else {

@@ -42,6 +42,7 @@ export function ReimbursableList({ projectId, overview, rights, onChanged, onBil
     <div style={{ display: 'grid', gap: 12 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
         {[
+          ...(all.some((r) => r.status === 'needs_details') ? [['Needs details', String(all.filter((r) => r.status === 'needs_details').length), 'quick entries to complete']] : []),
           ['Awaiting approval', usd0(total((r) => r.status === 'submitted')), `${all.filter((r) => r.status === 'submitted').length} expenses`],
           ['Approved · to bill', usd0(total((r) => r.status === 'approved' && r.billable)), `${ready.length} ready for an invoice`],
           ['Billed', usd0(total((r) => r.status === 'billed')), ''],
@@ -57,7 +58,7 @@ export function ReimbursableList({ projectId, overview, rights, onChanged, onBil
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search expenses or receipt no." style={{ ...input, width: 240 }} />
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...input, width: 180 }}>
-          <option value="all">All statuses</option><option value="submitted">Awaiting approval</option><option value="approved">Approved</option>
+          <option value="all">All statuses</option><option value="needs_details">Needs details</option><option value="submitted">Awaiting approval</option><option value="approved">Approved</option>
           <option value="billed">Billed</option><option value="rejected">Rejected</option>
         </select>
         <div style={{ flex: 1 }} />
@@ -80,7 +81,7 @@ export function ReimbursableList({ projectId, overview, rights, onChanged, onBil
                   <b style={{ color: ACCENT }}>{r.number}</b>
                   {!projectId && <span style={{ color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.projectName}</span>}
                   <span>{fmtDate(r.date)}</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description}{r.vendor ? <span style={{ color: MUTED }}> · {r.vendor}</span> : null}{r.receiptNumber ? <span style={{ color: MUTED }}> · #{r.receiptNumber}</span> : null}{r.csiCodeId && codeOf[r.csiCodeId] ? <span style={{ color: MUTED }}> · CSI {codeOf[r.csiCodeId]}</span> : null}{r.attachments?.length ? <span style={{ color: MUTED }}> · 📎{r.attachments.length}</span> : null}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description || <i style={{ color: MUTED }}>Quick entry — needs details</i>}{r.vendor ? <span style={{ color: MUTED }}> · {r.vendor}</span> : null}{r.receiptNumber ? <span style={{ color: MUTED }}> · #{r.receiptNumber}</span> : null}{r.csiCodeId && codeOf[r.csiCodeId] ? <span style={{ color: MUTED }}> · CSI {codeOf[r.csiCodeId]}</span> : null}{r.attachments?.length ? <span style={{ color: MUTED }}> · 📎{r.attachments.length}</span> : null}</span>
                   <span style={{ color: MUTED }}>{label(REIMB_CATEGORIES, r.category)}</span>
                   <span style={{ textAlign: 'right' }}>{usd(r.cost)}</span>
                   <b style={{ textAlign: 'right' }}>{r.billable ? usd(r.billAmount) : <span style={{ color: MUTED, fontWeight: 400 }}>not billed</span>}</b>
@@ -112,11 +113,14 @@ export function ReimbursableDrawer({ id, projectId, overview, rights, onClose, o
   const [storageReady, setStorageReady] = useState(false);
   const [codes, setCodes] = useState<{ id: string; code: string; division: string; active?: boolean }[]>([]);
   const [dups, setDups] = useState<NonNullable<Reimbursable['receiptDuplicates']>>([]);
+  // Nov 19: a photo of the receipt can go with the first save.
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [busy, setBusy] = useState(false);
   const phases = overview ? overview.sov.groups.flatMap((g) => g.rows.filter((x) => x.kind === 'phase').map((x) => ({ id: x.id, name: x.name }))) : [];
 
   const apply = (x: Reimbursable) => {
     setR(x); setRejecting(false);
-    setF({ date: x.date, description: x.description, category: x.category, vendor: x.vendor || '', receiptNumber: x.receiptNumber || '', csiCodeId: x.csiCodeId || '', cost: String(x.cost), markupPct: String(x.markupPct), billable: x.billable, taxable: x.taxable, phaseId: x.phaseId || '', notes: x.notes || '', projectId: String(x.projectId) });
+    setF({ date: x.date, description: x.description, category: x.category, vendor: x.vendor || '', receiptNumber: x.receiptNumber || '', csiCodeId: x.csiCodeId || '', cost: Number(x.cost) > 0 ? String(x.cost) : '', markupPct: String(x.markupPct), billable: x.billable, taxable: x.taxable, phaseId: x.phaseId || '', notes: x.notes || '', projectId: String(x.projectId) });
   };
   const load = () => (id ? api.finance.reimbursable(id).then((x: any) => apply(x)).catch((e: any) => failed(toast, e)) : Promise.resolve());
   useEffect(() => { load(); api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => {}); }, [id]);
@@ -130,21 +134,27 @@ export function ReimbursableDrawer({ id, projectId, overview, rights, onClose, o
   }, [f.receiptNumber, f.vendor, r?.id]);
   useEffect(() => { if (!projectId && !id) api.projects.list().then((x: any) => setProjects(Array.isArray(x) ? x.map((p: any) => ({ id: p.id, name: p.name })) : [])).catch(() => {}); }, [projectId, id]);
 
-  const editable = !r || ((r.status === 'submitted' || r.status === 'rejected') && rights.submitReimbursables) || (r.status === 'approved' && rights.approveReimbursables);
+  const editable = !r || ((r.status === 'needs_details' || r.status === 'submitted' || r.status === 'rejected') && rights.submitReimbursables) || (r.status === 'approved' && rights.approveReimbursables);
   const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   const cost = Number(f.cost) || 0;
   const bill = f.billable ? Math.round((cost + cost * (Number(f.markupPct) || 0) / 100) * 100) / 100 : 0;
-  const payload = () => ({ ...f, cost: Number(f.cost), markupPct: f.markupPct === '' ? undefined : Number(f.markupPct), phaseId: f.phaseId || null, csiCodeId: f.csiCodeId || null, receiptNumber: String(f.receiptNumber || '').trim() || null, version: r?.version });
+  const payload = () => ({ ...f, cost: String(f.cost ?? '').trim() === '' ? '' : Number(f.cost), markupPct: f.markupPct === '' ? undefined : Number(f.markupPct), phaseId: f.phaseId || null, csiCodeId: f.csiCodeId || null, receiptNumber: String(f.receiptNumber || '').trim() || null, version: r?.version });
 
   const save = async () => {
     try {
       if (!r) {
         const pid = projectId || Number(f.projectId);
         if (!pid) { toast('⚠ Choose the project'); return; }
+        if (!f.csiCodeId) { toast('⚠ Pick the CSI code'); return; }
+        setBusy(true);
         const x = await api.finance.createReimbursable(pid, payload()) as Reimbursable;
-        toast('Submitted for approval — add the receipt'); onChanged(x.id);
+        let photoFailed = false;
+        if (photos.length) await api.finance.reUpload(x.id, photos).catch(() => { photoFailed = true; });
+        toast(photoFailed ? '⚠ Saved, but the photo didn’t upload — open it and add the photo again'
+          : x.status === 'needs_details' ? 'Sent — your project coordinator will complete the details' : 'Submitted for approval');
+        onChanged(x.id);
       } else { apply(await api.finance.updateReimbursable(r.id, payload()) as Reimbursable); onChanged(); toast('Saved'); }
-    } catch (e) { failed(toast, e); }
+    } catch (e) { failed(toast, e); } finally { setBusy(false); }
   };
   const decide = async (decision: 'approve' | 'reject', reason?: string) => {
     try { apply(await api.finance.decideReimbursable(r!.id, { decision, reason, version: r!.version }) as Reimbursable); onChanged(); toast(decision === 'approve' ? 'Approved' : 'Rejected'); }
@@ -156,10 +166,10 @@ export function ReimbursableDrawer({ id, projectId, overview, rights, onClose, o
   };
 
   return (
-    <Drawer title={r ? `${r.number} · ${r.description}` : 'New reimbursable expense'} subtitle={r ? `Submitted by ${r.submittedBy || '—'}${r.projectName ? ` · ${r.projectName}` : ''}` : 'Costs incurred for the client, billed back at cost plus markup'} width={680} onClose={onClose}
+    <Drawer title={r ? `${r.number} · ${r.description || 'Quick entry'}` : 'New reimbursable expense'} subtitle={r ? `Submitted by ${r.submittedBy || '—'}${r.projectName ? ` · ${r.projectName}` : ''}` : 'Costs incurred for the client, billed back at cost plus markup'} width={680} onClose={onClose}
       footer={<>
-        {r && rights.submitReimbursables && (r.status === 'submitted' || r.status === 'rejected') && <div onClick={remove} style={{ ...btn(), color: DANGER, marginRight: 'auto' }}>Delete</div>}
-        {editable && <div onClick={save} style={btn(!r || r.status !== 'submitted' || !rights.approveReimbursables)}>{r ? (r.status === 'rejected' ? 'Resubmit' : 'Save') : 'Submit'}</div>}
+        {r && rights.submitReimbursables && (r.status === 'needs_details' || r.status === 'submitted' || r.status === 'rejected') && <div onClick={remove} style={{ ...btn(), color: DANGER, marginRight: 'auto' }}>Delete</div>}
+        {editable && <div onClick={busy ? undefined : save} style={{ ...btn(!r || r.status !== 'submitted' || !rights.approveReimbursables), opacity: busy ? 0.6 : 1 }}>{busy ? 'Sending…' : r ? (r.status === 'rejected' ? 'Resubmit' : r.status === 'needs_details' ? 'Save details' : 'Save') : 'Send'}</div>}
         {r?.status === 'submitted' && rights.approveReimbursables && <>
           <div onClick={() => setRejecting(true)} style={{ ...btn(), color: DANGER }}>Reject</div>
           <div onClick={() => decide('approve')} style={btn(true)}>Approve</div>
@@ -169,19 +179,21 @@ export function ReimbursableDrawer({ id, projectId, overview, rights, onClose, o
         {r && <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <ReimbBadge s={r.status} />
           {r.status === 'approved' && <span style={{ fontSize: 12.5, color: MUTED }}>Approved by {r.approvedBy} · {fmtDate(r.approvedAt)}{r.billable ? ' · ready to go on an invoice' : ''}</span>}
+          {r.status === 'needs_details' && <span style={{ fontSize: 12.5, color: MUTED }}>Quick entry from {r.submittedBy || 'the team'}. Fill in what’s missing ({[!String(f.description || '').trim() && 'description', !(Number(f.cost) > 0) && 'cost', !f.date && 'date'].filter(Boolean).join(', ') || 'nothing'}) and save — it then goes for approval.</span>}
           {r.status === 'rejected' && <span style={{ fontSize: 12.5, color: DANGER }}>Rejected by {r.rejectedBy}: {r.rejectedReason}. Correct it and resubmit.</span>}
           {r.status === 'billed' && <span style={{ fontSize: 12.5, color: MUTED }}>Billed on an invoice — correct it with a credit note if needed.</span>}
         </div>}
         {rejecting && <ReasonBox title="Reject expense" tone="danger" confirm="Reject" onCancel={() => setRejecting(false)} onSubmit={(v) => decide('reject', v.reason)} fields={[{ key: 'reason', label: 'Why', type: 'textarea', required: true }]} />}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>
-          {!projectId && !r && <div style={{ gridColumn: '1 / -1' }}><Label text="Project" /><select value={f.projectId} onChange={set('projectId')} style={input}><option value="">Choose…</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>}
-          <div><Label text="Date" /><input disabled={!editable} type="date" value={f.date} onChange={set('date')} style={input} /></div>
-          <div><Label text="Category" /><select disabled={!editable} value={f.category} onChange={set('category')} style={input}>{REIMB_CATEGORIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-          <div style={{ gridColumn: '1 / -1' }}><Label text="Description" /><input disabled={!editable} value={f.description} onChange={set('description')} placeholder="e.g. Plan printing for permit submittal" style={input} /></div>
-          <div><Label text="Vendor" /><input disabled={!editable} value={f.vendor} onChange={set('vendor')} style={input} /></div>
-          <div><Label text="Receipt number" /><input disabled={!editable} value={f.receiptNumber} onChange={set('receiptNumber')} placeholder="As printed on the receipt" style={input} /></div>
-          <div><Label text="CSI code" /><select disabled={!editable} value={f.csiCodeId} onChange={set('csiCodeId')} style={input}>
-            <option value="">No cost code</option>
+          {!r && <div style={{ gridColumn: '1 / -1', fontSize: 12, color: MUTED }}>Only the <b style={{ color: INK }}>project</b> and <b style={{ color: INK }}>CSI code</b> are needed — add a photo of the receipt. Anything you leave empty, your project coordinator fills in.</div>}
+          {!projectId && !r && <div style={{ gridColumn: '1 / -1' }}><Label text="Project *" /><select value={f.projectId} onChange={set('projectId')} style={input}><option value="">Choose…</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>}
+          <div><Label text={r ? "Date" : "Date (optional)"} /><input disabled={!editable} type="date" value={f.date} onChange={set('date')} style={input} /></div>
+          <div><Label text={r ? "Category" : "Category (optional)"} /><select disabled={!editable} value={f.category} onChange={set('category')} style={input}>{REIMB_CATEGORIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+          <div style={{ gridColumn: '1 / -1' }}><Label text={r ? "Description" : "Description (optional)"} /><input disabled={!editable} value={f.description} onChange={set('description')} placeholder="e.g. Plan printing for permit submittal" style={input} /></div>
+          <div><Label text={r ? "Vendor" : "Vendor (optional)"} /><input disabled={!editable} value={f.vendor} onChange={set('vendor')} style={input} /></div>
+          <div><Label text={r ? "Receipt number" : "Receipt number (optional)"} /><input disabled={!editable} value={f.receiptNumber} onChange={set('receiptNumber')} placeholder="As printed on the receipt" style={input} /></div>
+          <div><Label text="CSI code *" /><select disabled={!editable} value={f.csiCodeId} onChange={set('csiCodeId')} style={{ ...input, borderColor: !f.csiCodeId && !r ? '#D9B650' : undefined }} aria-label="CSI code">
+            <option value="">Pick a code…</option>
             {codes.filter((c) => c.active !== false || c.id === f.csiCodeId).map((c) => <option key={c.id} value={c.id}>{c.code} {c.division}</option>)}
           </select></div>
           {dups.length > 0 && (
@@ -189,7 +201,7 @@ export function ReimbursableDrawer({ id, projectId, overview, rights, onClose, o
               ⚠ Receipt {String(f.receiptNumber).trim()} is already on {dups.map((d) => `${d.number} (${d.projectName}, ${fmtDate(d.date)}, ${usd(d.cost)})`).join('; ')}. Check it isn’t being claimed twice.
             </div>
           )}
-          <div><Label text="Cost ($)" /><input disabled={!editable} type="number" min={0} value={f.cost} onChange={set('cost')} style={input} /></div>
+          <div><Label text={r ? "Cost ($)" : "Cost ($) (optional)"} /><input disabled={!editable} type="number" min={0} value={f.cost} onChange={set('cost')} style={input} /></div>
           <div><Label text="Markup %" /><input disabled={!editable} type="number" min={0} max={100} value={f.markupPct} onChange={set('markupPct')} placeholder="Project default" style={input} /></div>
           {phases.length > 0 && <div><Label text="Milestone (optional)" /><select disabled={!editable} value={f.phaseId} onChange={set('phaseId')} style={input}><option value="">—</option>{phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>}
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5 }}><input disabled={!editable} type="checkbox" checked={!!f.billable} onChange={set('billable')} />Bill to the client</label>
@@ -204,7 +216,21 @@ export function ReimbursableDrawer({ id, projectId, overview, rights, onClose, o
           onUpload={async (files) => { await api.finance.reUpload(r.id, files); load(); }}
           onRemove={async (att) => { await api.finance.reRemoveAttachment(r.id, att.id); load(); }}
           onAddLink={async (name, url) => { await api.finance.reLink(r.id, name, url); load(); }} />
-          : <div style={{ fontSize: 11.5, color: MUTED }}>Receipts can be attached once the expense is submitted.</div>}
+          : (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ ...btn(true), display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                📷 {photos.length ? 'Add another photo' : 'Add photo of receipt'}
+                <input type="file" accept="image/*,application/pdf" capture="environment" multiple hidden aria-label="Photo of the receipt"
+                  onChange={(e) => { const fs = Array.from(e.target.files || []); if (fs.length) setPhotos((p) => [...p, ...fs]); e.target.value = ''; }} />
+              </label>
+              {photos.map((ph, i) => (
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '4px 10px', borderRadius: 999, background: 'var(--panel)' }}>
+                  {ph.name}<button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} aria-label={`Remove ${ph.name}`} style={{ border: 0, background: 'none', cursor: 'pointer', color: MUTED }}>×</button>
+                </span>
+              ))}
+              {!storageReady && <span style={{ fontSize: 11.5, color: MUTED }}>Photos are stored in Google Drive — connect Google in Settings first.</span>}
+            </div>
+          )}
         <ApprovalTrail items={r?.approvals} />
       </div>
     </Drawer>

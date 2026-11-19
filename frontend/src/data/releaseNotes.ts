@@ -22,6 +22,7 @@ export const RELEASES: Release[] = [
     items: [
       { area: 'Daily report', kind: 'improved', text: 'Hours buttons are now 4, 8, 9, 10, 11 and 12. You can still type any other number.', where: 'Daily Report → Crew' },
       { area: 'Meetings', kind: 'new', text: 'Archive and delete meetings. Open a meeting and press Archive (hidden, can be brought back) or Delete. To clean up several at once — test meetings, empty records — press Select, tick them, then Archive or Delete. Archived ones are under the Archived tab, with Bring back. Grouped meetings from the Special Actions Log can be archived; their entries stay in the log.', where: 'Special Actions → Meetings → Select' },
+      { area: 'Reimbursables', kind: 'improved', text: 'Quick expenses: only the project and the CSI code are needed, plus a photo of the receipt (on a phone the button opens the camera). Anything left empty waits as “Needs details” for the project’s Project Coordinator, who is told and fills in the description, cost and date — then it goes for approval as usual.', where: 'Financials → Reimbursables → + Expense' },
       { area: 'Daily report', kind: 'fixed', text: 'Pressing Delete or Backspace in the hours box only clears the hours — the worker stays on the sheet. Only “× Remove” takes a worker off. Workers with no hours are counted at the top.', where: 'Daily Report → Crew' },
     ],
   },
