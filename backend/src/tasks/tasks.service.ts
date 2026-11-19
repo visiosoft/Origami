@@ -1,3 +1,4 @@
+import { stageRoleKey } from './stage-role';
 import { localToday } from '../common/local-date';
 import { isPhoto, photoPlace } from '../file-room/layout';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
@@ -154,6 +155,26 @@ export class TasksService implements OnApplicationBootstrap {
   }
 
   /** A lead became a project: its tasks with no project go to it (and stay linked to the lead). */
+  /**
+   * Nov 19: a lead's roles changed -- its open stage tasks nobody was given go
+   * to the new role holder. Tasks someone picked a person for are left alone.
+   */
+  async followLeadRoles(leadId: string, roles: Record<string, string>) {
+    const statuses = await this.statuses().catch(() => DEFAULT_LOG_STATUSES as LogStatus[]);
+    const rows = (await this.repo.findBy({ leadId } as any)).filter((t) => !t.archivedAt && !isClosedStatus(statuses, t.status) && !t.assignedToId && !String(t.assignedTo || '').trim());
+    let n = 0;
+    for (const t of rows) {
+      const key = stageRoleKey(normalizeList<string>(t.labels));
+      const uid = key ? roles[key] : null;
+      if (!uid) continue;
+      const u = await resolveAssignee(this.users, { id: uid });
+      if (!u.id) continue;
+      await this.repo.update({ id: t.id }, { assignedToId: u.id, assignedTo: u.name, status: bucketOf(t.status || 'To Do', true) || 'Assigned' } as any);
+      n++;
+    }
+    return n;
+  }
+
   async adoptLead(leadId: string, projectName: string) {
     const rows = await this.repo.findBy({ leadId });
     for (const t of rows.filter((x) => !x.project)) await this.repo.update({ id: t.id }, { project: projectName });
@@ -357,6 +378,13 @@ export class TasksService implements OnApplicationBootstrap {
     dto = { ...dto, ...(await this.leadFields(dto)) };
     const defer = !!dto.deferNotify;
     delete dto.deferNotify; delete dto.pendingNotices;
+    // Nov 19 (Edward): a lead's stage task with no one picked goes to whoever holds that stage's role on the lead.
+    if (!dto.assignedToId && !String(dto.assignedTo || '').trim() && dto.leadId && this.deals) {
+      const key = stageRoleKey(normalizeList<string>(dto.labels));
+      const deal = key ? await this.deals.findOneBy({ id: dto.leadId } as any).catch(() => null) : null;
+      const uid = key ? (deal as any)?.roles?.[key] : null;
+      if (uid) dto = { ...dto, assignedToId: uid, assignedTo: undefined };
+    }
     const assignee = await resolveAssignee(this.users, { id: dto.assignedToId, name: dto.assignedTo });
     // Tags (Oct 30 sync): Internal by default, where it was made, money is Financial; custom ones join the shared list.
     const tagged = this.tagBank

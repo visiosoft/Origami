@@ -371,7 +371,10 @@ export class PipelineService implements OnApplicationBootstrap {
         this.event(`Role assignments updated: ${changed.join(', ')}`, actor),
       ];
     }
-    return this.repo.save(deal);
+    const saved = await this.repo.save(deal);
+    // Nov 19: the lead's unassigned stage tasks follow the people now in those roles.
+    if (changed.length) await this.tasks?.followLeadRoles(id, deal.roles || {}).catch(() => 0);
+    return saved;
   }
 
   /**

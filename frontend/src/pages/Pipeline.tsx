@@ -1494,18 +1494,35 @@ export function Pipeline() {
               )}
               <ClientScore compact score={(leadDetails[selected.id] as any)?.fitScore} />
             </div>
+            {/* Nov 19 (Edward): who's on this lead -- stage tasks go to the Project Coordinator / Project Manager set here. */}
+            {(() => {
+              const r = (selected.roles || {}) as Record<string, string>;
+              const nameOf = (id?: string) => (id ? users.find((u) => u.id === id)?.name || 'Someone' : '');
+              const team = [['PC', 'projectCoordinator'], ['PM', 'projectManager']].map(([short, key]) => ({ short, key, name: nameOf(r[key]) }));
+              return (
+                <div className="lead-team" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+                  {team.map((t) => (
+                    <button key={t.key} type="button" onClick={() => setDetailTab('roles')} title={t.name ? `${t.short === 'PC' ? 'Project Coordinator' : 'Project Manager'}: ${t.name} — their stages’ tasks go to them` : `No ${t.short === 'PC' ? 'Project Coordinator' : 'Project Manager'} yet — set one so this lead’s tasks find them`}
+                      style={{ padding: '3px 10px', borderRadius: 999, border: '1px solid ' + (t.name ? 'rgba(var(--rgb-shade), .14)' : '#E3B26B'), background: t.name ? 'var(--surface)' : '#FBEFD5', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: t.name ? 'var(--body)' : '#7A4B00', cursor: 'pointer' }}>
+                      {t.short} · {t.name || 'not set'}
+                    </button>
+                  ))}
+                  <button type="button" className="ak-link" onClick={() => setDetailTab('roles')} style={{ fontSize: 11.5 }}>Team & roles →</button>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Tabs -- Project Programming only while the lead is actually on that
               stage; otherwise Full Details takes its place, as before. */}
           <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', padding: '0 12px', overflowX: 'auto', scrollbarWidth: 'thin' }}>
-            {(['overview', 'tasks', 'client', 'files', ...(selected.stage === 'zoning' ? ['programming' as const] : []), 'details'] as const).map((t) => {
+            {(['overview', 'tasks', 'client', 'files', ...(selected.stage === 'zoning' ? ['programming' as const] : []), 'roles', 'details'] as const).map((t) => {
               // Special Actions holds the lead's tasks and its FYI notes (Oct 26 review notes).
               const on = detailTab === t || (t === 'tasks' && detailTab === 'notes');
               const count = t === 'tasks' ? (notesByDeal[selected.id] || []).length : t === 'files' ? leadFiles.files.length : 0;
               return (
                 <div key={t} onClick={() => setDetailTab(t)} style={{ flexShrink: 0, padding: '11px 9px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (on ? 'var(--forest)' : 'transparent'), color: on ? 'var(--ink)' : 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                  {t === 'overview' ? 'Current Stage' : t === 'client' ? 'Client Card' : t === 'tasks' ? 'Special Actions' : t === 'files' ? 'CRM Files' : t === 'programming' ? 'Project Programming' : 'Full Details'}
+                  {t === 'overview' ? 'Current Stage' : t === 'client' ? 'Client Card' : t === 'tasks' ? 'Special Actions' : t === 'files' ? 'CRM Files' : t === 'programming' ? 'Project Programming' : t === 'roles' ? 'Team & roles' : 'Full Details'}
                   {count > 0 && <span title={`${count} FYI note${count === 1 ? '' : 's'}`} style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: on ? 'var(--forest)' : 'var(--c-efede8)', color: on ? 'white' : 'var(--muted)' }}>{count}</span>}
                 </div>
               );
