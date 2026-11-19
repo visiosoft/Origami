@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-19b',
+    date: '2026-11-19',
+    title: 'Nightly database backup to Google Drive, checked',
+    items: [
+      { area: 'Backups', kind: 'improved', text: 'The database copy to Google Drive now runs every night at 3am (it was weekly). Each copy is read back from Drive and checked — every table opens and has all its rows. About a year is kept: the last 14 nights, 8 Sundays and 12 month-starts. Staging and Prod copies go in their own folders. Admins get an email if a copy fails or none is made for 36 hours. Each copy also lists where every uploaded file sits in Drive.', where: 'Settings → Google → Database copy' },
+    ],
+  },
+  {
     id: '2026-11-19a',
     date: '2026-11-19',
     title: 'Meetings from Google Calendar, meeting clean-up, quick reimbursables, daily report hours',
