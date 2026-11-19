@@ -6,8 +6,7 @@ import { CsiSelect } from '../CsiSelect';
 import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, draggedSize, sheetTextScale, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, simplifyStroke, SCALE_KINDS, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, isDoubleTap, PHONE_RENDER_PIXELS, TOOL_GROUPS, groupOfTool, trianglePts, wrapLines, labelLayout, markupsBrief, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type MarkupLinkType, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
-} from '../../data/markup';
+  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, simplifyStroke, SCALE_KINDS, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, sheetNameFromLines, isDoubleTap, PHONE_RENDER_PIXELS, TOOL_GROUPS, groupOfTool, trianglePts, wrapLines, labelLayout, markupsBrief, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type MarkupLinkType, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun, sheetNameInAreas, sheetNameFromAreaText, type TitleAreas, type TitleBox } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
 import { FOR_RECORD_TOPICS } from '../../data/tasks';
@@ -276,9 +275,24 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   // Sheet names and titles from each page's title block (Oct 31; titles Nov 3): read once when the drawing has
   // none, or again with ↻. Pages with no text (scans) go through Google Drive's OCR -- no AI.
   const [readingTitles, setReadingTitles] = useState<string | null>(null);
+  // Nov 19 (Edward): where the sheet number and title sit, picked by drawing two boxes -- this drawing's, else the last used.
+  const areasKey = `origami.titleAreas.${file.id}`;
+  const [areas, setAreas] = useState<TitleAreas>(() => { try { return JSON.parse(localStorage.getItem(areasKey) || localStorage.getItem('origami.titleAreas.last') || '{}'); } catch { return {}; } });
+  const [areaPick, setAreaPick] = useState<null | 'num' | 'title'>(null);
+  const [dragBox, setDragBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const areasRef = useRef<TitleAreas>(areas);
+  const saveAreas = (a: TitleAreas) => { areasRef.current = a; setAreas(a); try { localStorage.setItem(areasKey, JSON.stringify(a)); localStorage.setItem('origami.titleAreas.last', JSON.stringify(a)); } catch { /* private window */ } };
+  const ocrArea = async (full: HTMLCanvasElement, b: TitleBox) => {
+    const crop = document.createElement('canvas');
+    const x = Math.floor(full.width * b.x0), y = Math.floor(full.height * b.y0);
+    crop.width = Math.max(1, Math.ceil(full.width * (b.x1 - b.x0))); crop.height = Math.max(1, Math.ceil(full.height * (b.y1 - b.y0)));
+    crop.getContext('2d')!.drawImage(full, x, y, crop.width, crop.height, 0, 0, crop.width, crop.height);
+    return (await api.fileRoom.titleOcr(crop.toDataURL('image/png'))).text || '';
+  };
   const titleOf = async (n: number): Promise<string | null> => {
     const runs = await runsOf(n).catch(() => [] as TextRun[]);
-    if (runs.length) return sheetNameFrom(runs);
+    const ar = areasRef.current;
+    if (runs.length) return ar.num ? sheetNameInAreas(runs, ar) : sheetNameFrom(runs);
     // A scan: the bottom-right corner, as a picture, read by OCR.
     const page = await doc!.getPage(n);
     const base = page.getViewport({ scale: 1 });
@@ -286,6 +300,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     const full = document.createElement('canvas');
     full.width = Math.ceil(vp.width); full.height = Math.ceil(vp.height);
     await page.render({ canvasContext: full.getContext('2d')!, viewport: vp } as any).promise;
+    if (ar.num) return sheetNameFromAreaText(await ocrArea(full, ar.num), ar.title ? await ocrArea(full, ar.title) : '');
     const crop = document.createElement('canvas');
     const cx = Math.floor(full.width * 0.6), cy = Math.floor(full.height * 0.6);
     crop.width = full.width - cx; crop.height = full.height - cy;
@@ -1264,6 +1279,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           {otherRevisions.length > 0 && sheetRow(compare ? 'Stop comparing' : 'Compare with another revision', () => { if (compare) setCompare(null); else if (otherRevisions.length === 1) startCompare(otherRevisions[0]); else setComparePick(true); })}
           {canDraw && pages > 0 && sheetRow('Name this sheet', () => void renameSheet(pageNo))}
           {canDraw && pages > 0 && sheetRow('Read sheet titles again', () => void readTitles(true), !!readingTitles)}
+          {canDraw && pages > 0 && sheetRow('Pick where the sheet number and title are…', () => { setAreaPick('num'); setBs(null); }, !!readingTitles)}
           {canDraw && <label className="mk-bs-row"><input type="checkbox" checked={privateDraft} onChange={(e) => setPrivateDraft(e.target.checked)} /> Private drafts <small>Only you see what you draw while this is on</small></label>}
         </>}
         {bs === 'colour' && <>
@@ -1328,6 +1344,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           ) : <span>Page <input aria-label="Page" value={pageNo} onChange={(e) => { const n = Number(e.target.value); if (n >= 1 && n <= pages) setPageNo(n); }} /> of {pages || '…'}</span>}
           {canDraw && pages > 0 && !coarse && <button type="button" className="mk-btn" onClick={() => void renameSheet(pageNo)} aria-label="Name this sheet" title="Name this page by its sheet number (A100, E103…)">✎</button>}
           {canDraw && pages > 0 && !coarse && <button type="button" className="mk-btn" disabled={!!readingTitles} onClick={() => void readTitles(true)} aria-label="Read sheet titles" title="Read every page’s sheet number and title from its title block (scans by OCR)">↻</button>}
+          {canDraw && pages > 0 && !coarse && <button type="button" className="mk-btn" disabled={!!readingTitles} onClick={() => setAreaPick('num')} aria-label="Pick title areas" title="Draw a box around the sheet number, then one around the title — every page is read from there">⌗</button>}
           {readingTitles && <span className="mk-muted" role="status">{readingTitles}</span>}
           {!phone && <button type="button" className="mk-btn" disabled={pageNo >= pages} onClick={() => setPageNo(pageNo + 1)} aria-label="Next page">›</button>}
         </div>
@@ -1471,6 +1488,30 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           {!doc && !error && <div className="mk-msg">Opening the drawing…</div>}
           <div className="mk-page" style={{ width: size ? size.w * scale : undefined, height: size ? size.h * scale : undefined, display: doc ? 'block' : 'none' }}>
             <canvas ref={canvas} />
+            {areaPick && size && (
+              <div className="mk-areas" aria-label={areaPick === 'num' ? 'Draw a box around the sheet number' : 'Draw a box around the sheet title'}
+                style={{ position: 'absolute', inset: 0, zIndex: 6, cursor: 'crosshair', background: 'rgba(20,32,28,.08)', touchAction: 'none' }}
+                onPointerDown={(e) => { const r = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); setDragBox({ x0: x, y0: y, x1: x, y1: y }); }}
+                onPointerMove={(e) => { if (!dragBox) return; const r = e.currentTarget.getBoundingClientRect(); setDragBox({ ...dragBox, x1: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y1: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) }); }}
+                onPointerUp={() => {
+                  if (!dragBox) return;
+                  const b = { x0: Math.min(dragBox.x0, dragBox.x1), y0: Math.min(dragBox.y0, dragBox.y1), x1: Math.max(dragBox.x0, dragBox.x1), y1: Math.max(dragBox.y0, dragBox.y1) };
+                  setDragBox(null);
+                  if (b.x1 - b.x0 < 0.005 || b.y1 - b.y0 < 0.003) return;
+                  if (areaPick === 'num') { saveAreas({ ...areas, num: b }); setAreaPick('title'); }
+                  else { const next = { ...areas, title: b }; saveAreas(next); setAreaPick(null); toast('Reading every page from those two areas…'); setTimeout(() => void readTitles(true), 0); }
+                }}>
+                {[areas.num && areaPick === 'title' ? { b: areas.num, c: '#2563EB' } : null, dragBox ? { b: { x0: Math.min(dragBox.x0, dragBox.x1), y0: Math.min(dragBox.y0, dragBox.y1), x1: Math.max(dragBox.x0, dragBox.x1), y1: Math.max(dragBox.y0, dragBox.y1) }, c: '#D97706' } : null].filter(Boolean).map((x, i) => (
+                  <div key={i} style={{ position: 'absolute', left: `${x!.b.x0 * 100}%`, top: `${x!.b.y0 * 100}%`, width: `${(x!.b.x1 - x!.b.x0) * 100}%`, height: `${(x!.b.y1 - x!.b.y0) * 100}%`, border: `2px solid ${x!.c}`, background: 'rgba(255,255,255,.15)' }} />
+                ))}
+                <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 60, display: 'inline-flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', maxWidth: 'calc(100vw - 32px)', padding: '8px 12px', borderRadius: 10, background: 'var(--ink)', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,.25)' }} onPointerDown={(e) => e.stopPropagation()}>
+                  {areaPick === 'num' ? '1 of 2 — drag a box around the sheet number (e.g. A2.01)' : '2 of 2 — drag a box around the sheet title'}
+                  {areaPick === 'title' && <button type="button" className="mk-btn" onClick={() => { const next = { ...areas, title: null }; saveAreas(next); setAreaPick(null); setTimeout(() => void readTitles(true), 0); }}>No title — just the number</button>}
+                  <button type="button" className="mk-btn" onClick={() => { setAreaPick(null); setDragBox(null); }}>Cancel</button>
+                  {areas.num && <button type="button" className="mk-btn" onClick={() => { saveAreas({}); setAreaPick(null); toast('Back to finding the title block by itself'); }}>Forget the areas</button>}
+                </div>
+              </div>
+            )}
             {size && (
               <svg ref={svg} viewBox={`0 0 ${size.w} ${size.h}`} style={{ cursor, touchAction: 'none' }} aria-label="Markup layer"
                 onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onDragStart={(e) => e.preventDefault()}

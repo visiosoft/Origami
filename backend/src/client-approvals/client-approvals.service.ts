@@ -172,7 +172,12 @@ export class ClientApprovalsService {
           if (x) { x.history = [...(x.history || []), { at: now(), by: who.name, action: it.decision === 'approved' ? 'client approved' : 'client declined', note: `${r.number}${it.note ? ` — ${it.note}` : ''}` } as any]; await this.rfis.save(x); }
         } else if (it.kind === 'record') {
           const x = await this.logTasks.findOneBy({ id: it.id });
-          if (x) { x.activity = [...normalizeList<ActivityEvent>(x.activity), event('status', who, { text: said })]; await this.logTasks.save(x); }
+          if (x) {
+            x.activity = [...normalizeList<ActivityEvent>(x.activity), event('status', who, { text: said })];
+            // Nov 19 (Edward): signed and approved by the client -- it's codified, in this bundle.
+            if (it.decision === 'approved') { x.codifiedIn = r.number; x.codifiedAt = r.signedAt || now(); }
+            await this.logTasks.save(x);
+          }
         } else if (it.kind === 'co' && this.changeOrders) {
           const co = await this.cos.findOneBy({ id: it.id });
           if (co && it.decision === 'approved' && co.status === 'submitted') {

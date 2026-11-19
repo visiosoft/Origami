@@ -40,9 +40,13 @@ const KIND = { rfi: 'RFI', record: 'For record', co: 'Change order' } as const;
 /** The signed record, as HTML for the PDF. */
 export function bundleHtml(b: { number: string; title: string; items: BundleItem[]; signedName?: string | null; signedAt?: string | null; signatureImage?: string | null }, project: string, company: string) {
   const sig = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(b.signatureImage || '') ? `<img src="${b.signatureImage}" style="height:70px">` : '';
-  const rows = b.items.map((it) => `<tr><td><b>${esc(it.label)}</b>${it.summary ? `<div class="muted">${esc(it.summary)}</div>` : ''}${it.note ? `<div>Note: ${esc(it.note)}</div>` : ''}</td><td>${KIND[it.kind]}</td><td class="${it.decision === 'approved' ? 'ok' : 'no'}">${it.decision === 'approved' ? 'Approved' : it.decision === 'declined' ? 'Declined' : '—'}</td></tr>`).join('');
+  // Nov 19 (Edward): a table of contents first, then the detail of each item.
+  const verdict = (it: BundleItem) => (it.decision === 'approved' ? 'Approved' : it.decision === 'declined' ? 'Declined' : '—');
+  const rows = b.items.map((it, i) => `<tr><td>${i + 1}.</td><td>${esc(it.label)}</td><td>${KIND[it.kind]}</td><td class="${it.decision === 'approved' ? 'ok' : 'no'}">${verdict(it)}</td></tr>`).join('');
+  const details = b.items.map((it, i) => `<div style="margin-top:18px;page-break-inside:avoid"><div class="muted" style="font-size:10px;text-transform:uppercase">${i + 1}. ${KIND[it.kind]}</div><div style="font-size:14px;font-weight:700;margin:2px 0 6px">${esc(it.label)}</div>${it.summary ? `<div style="white-space:pre-wrap;line-height:1.5">${esc(it.summary)}</div>` : ''}<div style="margin-top:6px"><span class="${it.decision === 'approved' ? 'ok' : 'no'}">${verdict(it)}</span>${it.note ? ` — ${esc(it.note)}` : ''}</div></div>`).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Helvetica,Arial,sans-serif;color:#14201C;font-size:12px;margin:32px}h1{font-size:20px;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:14px}td,th{border-bottom:1px solid #ddd;padding:8px 6px;text-align:left;vertical-align:top}th{font-size:10px;text-transform:uppercase;color:#6B7A73}.ok{color:#1E6B36;font-weight:700}.no{color:#8E2E0A;font-weight:700}.muted{color:#6B7A73}</style></head><body>`
     + `<div class="muted">${esc(company)} · ${esc(project)}</div><h1>${esc(b.number)} — ${esc(b.title)}</h1>`
-    + `<table><tr><th>Item</th><th>Type</th><th>Decision</th></tr>${rows}</table>`
+    + `<h2 style="font-size:14px;margin:18px 0 0">Contents</h2><table><tr><th>#</th><th>Item</th><th>Type</th><th>Decision</th></tr>${rows}</table>`
+    + `<h2 style="font-size:14px;margin:24px 0 0">Details</h2>${details}`
     + `<div style="margin-top:28px">${sig}<div><b>${esc(b.signedName || '')}</b> — signed electronically${b.signedAt ? ` on ${esc(b.signedAt.slice(0, 10))}` : ''}</div></div></body></html>`;
 }

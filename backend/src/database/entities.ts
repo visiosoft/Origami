@@ -246,6 +246,9 @@ export class TrackedLinkEntity {
 @Index('IX_tasks_meetingId', ['meetingId'])
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** Nov 19 (Edward): a FOR RECORD entry the client approved and signed -- "codified" -- and in which bundle (AP-001). */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) codifiedIn!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) codifiedAt!: string | null;
   /** Who entered it (users.id); '' when no one was recorded. */
   @Column({ nullable: true }) createdById!: string;
   /** How many comments it has, so lists can show the count without loading them. */

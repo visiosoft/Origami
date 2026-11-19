@@ -533,3 +533,36 @@ export const groupOfTool = (tool: string) => TOOL_GROUPS.find((g) => g.tools.inc
 export function isDoubleTap(prev: { t: number; x: number; y: number } | null, next: { t: number; x: number; y: number }, ms = 320, px = 28): boolean {
   return !!prev && next.t - prev.t <= ms && Math.hypot(next.x - prev.x, next.y - prev.y) <= px;
 }
+
+/**
+ * Nov 19 (Edward: "let us select an area to read page numbers and an area to
+ * read titles"): where on the sheet its number and title are, as fractions of
+ * the page (0..1 from the top-left). Used for every page of the drawing.
+ */
+export type TitleBox = { x0: number; y0: number; x1: number; y1: number };
+export type TitleAreas = { num?: TitleBox | null; title?: TitleBox | null };
+
+const inBox = (r: { x0: number; y0: number; x1: number; y1: number }, b: TitleBox) => {
+  const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2;
+  return cx >= b.x0 && cx <= b.x1 && cy >= b.y0 && cy <= b.y1;
+};
+
+/** The sheet name from the text inside the chosen areas (null when the number area has nothing). */
+export function sheetNameInAreas(runs: { str: string; x0: number; y0: number; x1: number; y1: number }[], areas: TitleAreas): string | null {
+  if (!areas.num) return null;
+  const read = (b: TitleBox) => runs.filter((r) => r.str.trim() && inBox(r, b)).sort((a, z) => a.y0 - z.y0 || a.x0 - z.x0).map((r) => r.str.replace(/\s+/g, ' ').trim());
+  const numTexts = read(areas.num);
+  const num = numTexts.find((s) => SHEET_RE.test(s)) || numTexts.sort((a, b) => a.length - b.length)[0];
+  if (!num) return null;
+  const title = areas.title ? read(areas.title).filter((s) => s !== num).join(' ').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+  return sheetLabel(num, title || null);
+}
+
+/** From OCR of the two areas (a scanned sheet): the number area's text and the title area's text. */
+export function sheetNameFromAreaText(numText: string, titleText: string): string | null {
+  const lines = numText.split(/\r?\n/).map((l) => l.replace(/^sheet( no\.?| number)?[:\s]*/i, '').trim()).filter(Boolean);
+  const num = lines.find((l) => SHEET_RE.test(l)) || lines[0];
+  if (!num) return null;
+  const title = titleText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).join(' ').replace(/\s+/g, ' ').slice(0, 80);
+  return sheetLabel(num, title || null);
+}

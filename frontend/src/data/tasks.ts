@@ -6,6 +6,9 @@ import type { ActionTrailFields } from '../api';
 
 export interface Task extends ActionTrailFields {
   id: string;
+  /** Nov 19: approved and signed by the client in this bundle (AP-001) -- codified. */
+  codifiedIn?: string | null;
+  codifiedAt?: string | null;
   /** How many comments (lists leave the comments themselves out). */
   commentCount?: number | null;
   /** Who entered it (users.id). */

@@ -1,3 +1,4 @@
+import { ClientApprovals } from '../components/ClientApprovals';
 import { useEffect, useMemo, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
 import { createPortal } from 'react-dom';
@@ -52,6 +53,9 @@ export function Observations({ projectName }: { projectName?: string } = {}) {
   const setProject = (v: string) => { if (!projectName) setProjectRaw(v); };
   const [q, setQ] = useState('');
   const [tag, setTag] = useState('');
+  // Nov 19 (Edward): signed bundles -- route FOR RECORD to the client, then filter by what's been signed (codified).
+  const [bundle, setBundle] = useState('');
+  const [signing, setSigning] = useState(false);
   const [creating, setCreating] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(params.get('item'));
   const load = () => api.tasks.list().then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => setTasks([]));
@@ -66,7 +70,10 @@ export function Observations({ projectName }: { projectName?: string } = {}) {
   const all = useMemo(() => rows || [], [rows]);
   const projectNames = useMemo(() => [...new Set(all.map((t) => t.project).filter(Boolean))].sort(), [all]);
   const needle = q.trim().toLowerCase();
-  const inScope = all.filter((t) => (!project || t.project === project) && (kind === 'all' || t.topicType === kind) && (!tag || (t.tags || []).includes(tag)));
+  const inScope = all.filter((t) => (!project || t.project === project) && (kind === 'all' || t.topicType === kind) && (!tag || (t.tags || []).includes(tag))
+    && (!bundle || (bundle === 'none' ? !t.codifiedIn : bundle === 'any' ? !!t.codifiedIn : t.codifiedIn === bundle)));
+  const bundles = useMemo(() => [...new Set(all.map((t) => t.codifiedIn).filter((x): x is string => !!x))].sort(), [all]);
+  const signProject = projects.find((p) => p.name === (projectName || project)) || null;
   const shown = inScope
     .filter((t) => (state === 'all' || (state === 'open' ? !isLogClosed(t.status) : isLogClosed(t.status)))
       && (!needle || [t.serial, t.subject, t.description, t.project, t.assignedTo, t.originator].filter(Boolean).join(' ').toLowerCase().includes(needle)))
@@ -88,6 +95,8 @@ export function Observations({ projectName }: { projectName?: string } = {}) {
           <button type="button" className="ak-btn" onClick={() => setCreating('FYI')}>+ FYI</button>
           <button type="button" className="ak-btn" onClick={() => setCreating('Decision')}>+ Decision</button>
           <button type="button" className="ak-btn is-dark" onClick={() => setCreating('Observation')}>+ Observation</button>
+          <button type="button" className="ak-btn" title={signProject ? 'Send this project’s FYIs, decisions and observations to the client to sign' : 'Pick a project first'}
+            onClick={() => (signProject ? setSigning(true) : alert('Pick a project first — the client signs one project’s record at a time.'))}>Send for client signature…</button>
         </span>
       ) : undefined}
     >
@@ -105,6 +114,12 @@ export function Observations({ projectName }: { projectName?: string } = {}) {
         <select className="ak-select" aria-label="Access tag" value={tag} onChange={(e) => setTag(e.target.value)}>
           <option value="">Any tag</option>
           {ACTION_TAGS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+        <select className="ak-select" aria-label="Signed bundle" value={bundle} onChange={(e) => setBundle(e.target.value)}>
+          <option value="">Signed or not</option>
+          <option value="any">Codified (signed by the client)</option>
+          <option value="none">Not codified yet</option>
+          {bundles.map((b) => <option key={b} value={b}>Signed in {b}</option>)}
         </select>
         {!projectName && <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
           <option value="">All projects</option>
@@ -137,6 +152,7 @@ export function Observations({ projectName }: { projectName?: string } = {}) {
               sub={[numberOf(t), t.project || (t.leadName ? '' : 'No project'), leadLabel(t.leadName), t.originator && 'from ' + t.originator, t.assignedTo && 'to ' + t.assignedTo, t.meetingId ? 'from a meeting' : t.meetingType && t.meetingType !== 'Internal' ? t.meetingType + ' meeting' : ''].filter(Boolean).join(' · ')}
               right={<>
                 {nT + nC > 0 && <span className="ak-hide-sm" style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[nT && `${nT} ${nT === 1 ? 'task' : 'tasks'}`, nC && `${nC} CO`].filter(Boolean).join(' · ')}</span>}
+                {t.codifiedIn && <AkPill tone="green" title={`Approved and signed by the client in ${t.codifiedIn}`}>Codified · {t.codifiedIn}</AkPill>}
                 <AkPill tone={RECORD_TONE[t.topicType] || 'soft'}>{t.topicType}</AkPill>
                 <AkPill tone={isLogClosed(t.status) ? 'soft' : 'dark'}>{t.status}</AkPill>
               </>}
@@ -145,6 +161,13 @@ export function Observations({ projectName }: { projectName?: string } = {}) {
         })}
       </section>
 
+      {signing && signProject && createPortal(
+        <div onClick={() => setSigning(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), .45)', zIndex: 140, display: 'grid', placeItems: 'center', padding: 16 }}>
+          <div role="dialog" aria-label="Send for client signature" onClick={(e) => e.stopPropagation()} style={{ width: 720, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', borderRadius: 16, padding: 8 }}>
+            <ClientApprovals projectId={signProject.id} only="record" preselectAll startOpen onSent={() => setSigning(false)} />
+            <div style={{ fontSize: 12, color: 'var(--muted)', padding: '6px 16px 12px' }}>The client gets one link: a contents page, then each item to approve or decline, and one signature. Approved items show here as <b>Codified</b>; the signed PDF goes to the project’s Files › Approvals.</div>
+          </div>
+        </div>, document.body)}
       {creating && <NewTaskDrawer defaultTopic={creating} onClose={() => setCreating(null)} onCreated={() => { setCreating(null); load(); }} />}
       {opened && (
         <RecordPanel key={opened.id} item={opened} tasks={tasks || []} cos={cos} projects={projects} canEdit={canAdd}

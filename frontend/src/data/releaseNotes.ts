@@ -16,6 +16,20 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-19d',
+    date: '2026-11-19',
+    title: 'Edward’s notes, part 2: approvals, RFI Log, signed records, drawings',
+    items: [
+      { area: 'Daily report', kind: 'improved', text: 'Approve or send back a daily report right from Approvals, or when you open it in Daily Reports. Approving makes its hours count in payroll and the project’s labour cost; sending back asks the superintendent to fix it (with your note).', where: 'Approvals → Everything else → Daily report' },
+      { area: 'Files', kind: 'improved', text: 'Who a file is for (Internal / Client / External) is now set by administrators and principals (i-1, i-2) only. Several at once: tick the files, then “Who it’s for…”.', where: 'Plan & File Room' },
+      { area: 'RFIs', kind: 'new', text: '“Send RFI Log” on a project’s RFIs: a PDF of every RFI, open ones first, emailed to the project team and the people on the project (you choose who; everyone in Bcc).', where: 'Project → Special Actions → RFIs' },
+      { area: 'RFIs', kind: 'improved', text: 'The RFI PDF now includes its drawings: after the form, each marked-up sheet, cropped around the RFI’s markups and labelled.', where: 'RFI → PDF / Send by email' },
+      { area: 'Texts', kind: 'new', text: 'Mass texts: save a message as a template, and save the people you picked as a group (with its usual message). Pick a group or template next time instead of starting over.', where: 'Mass texts' },
+      { area: 'FOR RECORD', kind: 'new', text: '“Send for client signature…” sends a project’s FYIs, decisions and observations to the client together (all ticked). The signed PDF has a contents page, then each item. Items the client approves show as “Codified · AP-001”; filter by codified, not yet, or a signed bundle.', where: 'FOR RECORD' },
+      { area: 'Plan room', kind: 'new', text: 'Pick where the sheet number and title are: press ⌗, drag a box around the number, then one around the title — every page is read from those two places (scans too). It remembers them for the drawing.', where: 'Plan room → ⌗ (phones: ☰ menu)' },
+    ],
+  },
+  {
     id: '2026-11-19c',
     date: '2026-11-19',
     title: 'Edward’s notes, part 1: task panel, meeting dates, RFIs, estimating',

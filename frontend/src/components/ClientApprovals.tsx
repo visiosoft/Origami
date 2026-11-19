@@ -16,7 +16,11 @@ const day = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('en
  * each one and sign once; the signed PDF lands in the project's files
  * (Approvals).
  */
-export function ClientApprovals({ projectId }: { projectId: number }) {
+export function ClientApprovals({ projectId, only, preselectAll, startOpen, onSent }: {
+  projectId: number;
+  /** Nov 19: from FOR RECORD -- only FYIs, decisions and observations, all ticked, the picker already open. */
+  only?: BundleItem['kind']; preselectAll?: boolean; startOpen?: boolean; onSent?: () => void;
+}) {
   const { toast } = useApp();
   const [list, setList] = useState<Bundle[] | null>(null);
   const [cand, setCand] = useState<Candidates | null>(null);
@@ -30,8 +34,14 @@ export function ClientApprovals({ projectId }: { projectId: number }) {
   useEffect(() => { void load(); }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
   const start = () => {
     setMaking(true); setPicked(new Set()); setTitle(''); setMessage('');
-    api.clientApprovals.candidates(projectId).then((c) => { setCand(c); setTo(c.clientEmail || ''); }).catch((e: Error) => toast('⚠ ' + e.message));
+    api.clientApprovals.candidates(projectId).then((c) => {
+      const kept = only ? { ...c, rfis: only === 'rfi' ? c.rfis : [], records: only === 'record' ? c.records : [], changeOrders: only === 'co' ? c.changeOrders : [] } : c;
+      setCand(kept); setTo(c.clientEmail || '');
+      if (preselectAll) setPicked(new Set([...kept.rfis, ...kept.records, ...kept.changeOrders].map((i) => `${i.kind}:${i.id}`)));
+      if (only === 'record') setTitle(`For record — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+    }).catch((e: Error) => toast('⚠ ' + e.message));
   };
+  useEffect(() => { if (startOpen) start(); }, [startOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const groups = useMemo(() => (cand ? ([['rfi', cand.rfis], ['record', cand.records], ['co', cand.changeOrders]] as [BundleItem['kind'], BundleItem[]][]) : []), [cand]);
   const toggle = (k: string) => setPicked((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const send = async () => {
@@ -40,7 +50,7 @@ export function ClientApprovals({ projectId }: { projectId: number }) {
     try {
       const b = await api.clientApprovals.create({ projectId, title: title.trim() || undefined, items: [...picked].map((k) => { const [kind, ...id] = k.split(':'); return { kind, id: id.join(':') }; }) });
       const r = await api.clientApprovals.send(b.id, { to: to.trim() || undefined, message: message.trim() || undefined });
-      toast(`Sent ${b.number} to ${r.to}`); setMaking(false); void load();
+      toast(`Sent ${b.number} to ${r.to}`); setMaking(false); void load(); onSent?.();
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not sent')); }
     finally { setBusy(false); }
   };

@@ -12,7 +12,8 @@ import { SettingsService } from '../settings/settings.service';
 import { emailShell, loadEmailBrand } from '../email/shell';
 import { RFI_DISCIPLINES, rfiDocumentHtml, rfiEmailBody } from './rfi.document';
 import { logCounts, rfiLogHtml } from './rfi-log';
-import { PersonEntity } from '../database/entities';
+import { FileRoomFileEntity, PdfMarkupEntity, PersonEntity } from '../database/entities';
+import { appendDrawings, type DrawingSheet } from './rfi-drawings';
 
 export const RFI_MODULE = 'rfis';
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -68,7 +69,53 @@ export class RfisService {
     private readonly attachments?: AttachmentsService,
     @Optional() private readonly hub?: NotifyHub,
     @Optional() @InjectRepository(PersonEntity) private readonly people?: Repository<PersonEntity>,
+    @Optional() @InjectRepository(PdfMarkupEntity) private readonly markups?: Repository<PdfMarkupEntity>,
+    @Optional() @InjectRepository(FileRoomFileEntity) private readonly files?: Repository<FileRoomFileEntity>,
   ) {}
+
+  /**
+   * Nov 19 (Edward): the RFI's drawings after its form -- each referenced sheet
+   * page with the RFI's markups drawn in, cropped around them. Best effort: the
+   * form alone if a drawing can't be read.
+   */
+  private async withDrawings(r: RfiEntity, form: Buffer): Promise<Buffer> {
+    if (!this.markups || !this.files || !r.drawings?.length) return form;
+    try {
+      const groups = new Map<string, { fileId: string; page?: number; markupIds: string[] }>();
+      for (const d of r.drawings) {
+        const k = `${d.fileId}|${d.page || ''}`;
+        const g = groups.get(k) || { fileId: d.fileId, page: d.page, markupIds: [] };
+        if (d.markupId) g.markupIds.push(d.markupId);
+        groups.set(k, g);
+      }
+      const sheets: DrawingSheet[] = [];
+      const bytesOf = new Map<string, Uint8Array | null>();
+      for (const g of [...groups.values()].slice(0, 8)) {
+        const all = await this.markups.find({ where: { fileId: g.fileId } as any });
+        const mine = all.filter((m) => g.markupIds.includes(m.id) || ((m as any).linkType === 'rfi' && (m as any).linkId === r.id));
+        const pages = g.page ? [g.page] : [...new Set(mine.map((m) => m.page))];
+        if (!pages.length) continue;
+        if (!bytesOf.has(g.fileId)) {
+          const f = await this.files.findOneBy({ id: g.fileId });
+          const pdf = f?.driveId && /pdf$/i.test(`${f.ext || ''} ${f.mimeType || ''}`) && Number(f.size || 0) < 60e6 ? await this.google.driveFileBuffer(f.driveId).catch(() => null) : null;
+          bytesOf.set(g.fileId, pdf);
+        }
+        const bytes = bytesOf.get(g.fileId);
+        if (!bytes) continue;
+        const f = await this.files.findOneBy({ id: g.fileId });
+        for (const page of pages) {
+          const marks = mine.filter((m) => m.page === page).map((m) => ({ page: m.page, kind: m.kind, data: m.data as any }));
+          if (!marks.length) continue;
+          const sheet = (f?.sheetNames || {})[String(page)];
+          sheets.push({ bytes, page, marks, title: `${sheet || f?.name || 'Drawing'} · p. ${page}` });
+        }
+      }
+      return sheets.length ? Buffer.from(await appendDrawings(form, sheets)) : form;
+    } catch (e) {
+      this.log.warn(`${r.number} drawings not added to the PDF: ${(e as Error).message}`);
+      return form;
+    }
+  }
 
   /**
    * Nov 19 (Edward): who the project's RFI Log can go to -- the project team
@@ -265,7 +312,7 @@ export class RfisService {
     const r = await this.load(id);
     const project = await this.projects.findOneBy({ id: r.projectId });
     const brand = await loadEmailBrand(this.settings);
-    const buffer = await this.google.htmlToPdf(rfiDocumentHtml(r, { name: project?.name || '', location: project?.location }, brand.companyName), r.number);
+    const buffer = await this.withDrawings(r, await this.google.htmlToPdf(rfiDocumentHtml(r, { name: project?.name || '', location: project?.location }, brand.companyName), r.number));
     return { buffer, filename: `${r.number} ${r.subject}`.replace(/[^\w\- ]+/g, '').slice(0, 80) + '.pdf' };
   }
 
@@ -289,7 +336,7 @@ export class RfisService {
     const owner = r.ownerId ? await this.users.findOneBy({ id: r.ownerId }) : null;
     let attachments: { filename: string; mimeType: string; content: Buffer }[] = [];
     try {
-      const pdf = await this.google.htmlToPdf(rfiDocumentHtml(r, { name: project?.name || '', location: project?.location }, brand.companyName), r.number);
+      const pdf = await this.withDrawings(r, await this.google.htmlToPdf(rfiDocumentHtml(r, { name: project?.name || '', location: project?.location }, brand.companyName), r.number));
       attachments = [{ filename: `${r.number}.pdf`, mimeType: 'application/pdf', content: pdf }];
     } catch (err) {
       this.log.warn(`${r.number} PDF not attached: ${(err as Error).message}`);

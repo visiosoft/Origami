@@ -58,6 +58,7 @@ describe('client approval bundles', () => {
     await svc.afterSigned(row);
     expect(rfis[0].history.at(-1)).toMatchObject({ action: 'client approved' });
     expect(log[0].activity.at(-1).text).toBe('Approved by the client in AP-001');
+    expect(log[0].codifiedIn).toBe('AP-001');
     expect(acts[0][1]).toBe('reject');
     expect(acts[0][2].comment).toBe('Declined by the client in AP-001 — Over budget');
     expect(uploads[0]).toMatchObject({ pid: 7, folder: ['Approvals'], name: 'AP-001 Week 46 decisions (signed).pdf' });
@@ -71,6 +72,8 @@ describe('client approval bundles', () => {
   it('the signed PDF lists each decision and the signature', () => {
     const html = bundleHtml({ number: 'AP-001', title: 'T', items: [{ ...coItem(cos[0]), decision: 'declined', note: 'Over <budget>' }], signedName: 'Kai', signedAt: '2026-11-18T10:00:00Z', signatureImage: 'data:image/png;base64,AAAA' }, 'Countryside', 'Origami');
     expect(html).toContain('Declined');
+    expect(html).toContain('Contents');
+    expect(html).toContain('Details');
     expect(html).toContain('Over &lt;budget&gt;');
     expect(html).toContain('<img src="data:image/png;base64,AAAA"');
   });
