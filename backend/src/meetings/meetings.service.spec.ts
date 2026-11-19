@@ -44,7 +44,7 @@ describe('MeetingsService', () => {
   it('deletes several meetings, keeping the actions raised in them', async () => {
     const { svc, meetings, tasks } = setup();
     meetings.push({ id: 'M1', title: 'x', date: '2026-11-01' }, { id: 'M2', title: 'y', date: '2026-11-01' });
-    expect(await svc.removeMany(['M1', 'M2', 'nope'])).toEqual({ removed: 2 });
+    expect(await svc.removeMany(['M1', 'M2', 'nope'])).toEqual({ removed: 2, calendarEventIds: [] });
     expect(meetings).toHaveLength(0);
     expect(tasks.map((t) => t.meetingId)).toEqual([null, null]);
   });

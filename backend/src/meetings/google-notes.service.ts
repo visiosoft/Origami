@@ -8,7 +8,7 @@ import { GoogleService } from '../google/google.service';
 import { docIdFrom, endedBefore, notesQuery, parseNotesDocName, sameMeeting, splitGeminiDoc } from './google-notes';
 import { MeetingsService } from './meetings.service';
 import type { Actor } from '../manpower/manpower-access.service';
-import { localToday } from '../common/local-date';
+import { addDays, localToday } from '../common/local-date';
 
 /**
  * Meeting notes arrive by themselves (Nov 3 sync): every hour, meetings that
@@ -40,7 +40,8 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
   async sweep(now = new Date()) {
     const workspace = !!this.google && (await this.google.isConnected().catch(() => false));
     if (!workspace && !this.calendar) return { checked: 0, imported: 0 };
-    const since = new Date(now.getTime() - 3 * 864e5).toISOString().slice(0, 10);
+    // Nov 19: a week back (it was 3 days -- a meeting typed in late was never picked up).
+    const since = new Date(now.getTime() - 7 * 864e5).toISOString().slice(0, 10);
     const due = (await this.meetings.find()).filter((m) => !m.archivedAt && !m.notesDocId && !String(m.minutes || '').trim() && (m.date || '') >= since && endedBefore(m.date, m.time, now));
     let imported = 0;
     for (const m of due) {
@@ -56,8 +57,12 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     let id = docId || (link ? docIdFrom(link) : null);
     if (link && !id) throw new BadRequestException('Paste the link to the Google Doc (docs.google.com/document/d/…).');
     if (!id) {
-      const found = await this.google.findDocs(notesQuery(m.title, m.date), 5);
-      id = found[0]?.id || null;
+      // Nov 19: Gemini names the Doc by the organiser's day -- a day either side covers a time-zone shift.
+      for (const d of /^\d{4}-\d{2}-\d{2}$/.test(m.date || '') ? [m.date, addDays(m.date, -1), addDays(m.date, 1)] : [m.date]) {
+        const found = await this.google.findDocs(notesQuery(m.title, d), 5);
+        id = found[0]?.id || null;
+        if (id) break;
+      }
       if (!id) return null;
     }
     const doc = await this.google.exportDocText(id);

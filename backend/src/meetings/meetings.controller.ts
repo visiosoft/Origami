@@ -6,6 +6,7 @@ import { MeetingsService } from './meetings.service';
 import { MeetingActionDto, MeetingDto } from './dto';
 import { ManageWrites, Perm } from '../auth/guards/perm.guard';
 import { SettingsService } from '../settings/settings.service';
+import { CalendarSyncService } from './calendar-sync.service';
 import { ProjectAccessService } from '../auth/project-access.service';
 import { Claims } from '../auth/guards/claims.decorator';
 import type { SessionClaims } from '../auth/crypto.util';
@@ -18,7 +19,7 @@ const MANAGE = ['meetings', 'tasks', 'observations'];
 @Perm('meetings', 'tasks', 'observations')
 @Controller('meetings')
 export class MeetingsController {
-  constructor(private readonly service: MeetingsService, private readonly auth: AuthService, private readonly access: ProjectAccessService, @Optional() private readonly googleNotes?: GoogleNotesService, @Optional() private readonly settings?: SettingsService) {}
+  constructor(private readonly service: MeetingsService, private readonly auth: AuthService, private readonly access: ProjectAccessService, @Optional() private readonly googleNotes?: GoogleNotesService, @Optional() private readonly settings?: SettingsService, @Optional() private readonly calSync?: CalendarSyncService) {}
 
   /** Staff on "Assigned projects" (Oct 30 sync): meetings on their projects, or on none that they attend. */
   private async mine<T extends { projectId?: number | null; attendees?: { id?: string; name?: string }[] | null }>(rows: T[], claims: SessionClaims | null) {
@@ -53,13 +54,30 @@ export class MeetingsController {
     const ids = (Array.isArray(body?.ids) ? body.ids : []).map(String).filter(Boolean);
     if (!ids.length) throw new BadRequestException('Pick at least one meeting.');
     if (body.action === 'archive' || body.action === 'unarchive') return this.service.setArchived(ids, body.action === 'archive', await this.auth.actor(a));
-    if (body.action === 'delete') return this.service.removeMany(ids);
+    if (body.action === 'delete') {
+      const r = await this.service.removeMany(ids);
+      await this.calSync?.skip(r.calendarEventIds); // a deleted meeting isn't brought back from the calendar
+      return { removed: r.removed };
+    }
     throw new BadRequestException('Unknown action.');
   }
   @ManageWrites(...MANAGE)
   @Post(':id/archive') async archive(@Param('id') id: string, @Headers('authorization') a?: string) { return this.service.setArchived([id], true, await this.auth.actor(a)); }
   @ManageWrites(...MANAGE)
   @Post(':id/unarchive') async unarchive(@Param('id') id: string, @Headers('authorization') a?: string) { return this.service.setArchived([id], false, await this.auth.actor(a)); }
+  /**
+   * Nov 19: meetings from the company Google Calendar. Status, a preview of the
+   * first run, Apply (then it runs hourly), and on/off.
+   */
+  @Get('calendar-sync') async calendarSync() { return this.needSync().status(); }
+  @ManageWrites(...MANAGE)
+  @Post('calendar-sync/preview') async calendarPreview() { return this.needSync().preview(); }
+  @ManageWrites(...MANAGE)
+  @Post('calendar-sync/apply') async calendarApply(@Headers('authorization') a?: string) { const actor = await this.auth.actor(a); return this.needSync().apply({ name: `Google Calendar (${actor.name})` }); }
+  @ManageWrites(...MANAGE)
+  @Post('calendar-sync/settings') async calendarOn(@Body() body: { on?: boolean }) { return this.needSync().setOn(body?.on !== false); }
+  private needSync() { if (!this.calSync) throw new NotFoundException('Not available'); return this.calSync; }
+
   /** "Notes by Gemini" Docs from the last 30 days, each with its meeting (Nov 5: import even when the meeting isn't in Origami). */
   @Get('google-notes') async googleNotesList() { if (!this.googleNotes) throw new NotFoundException('Not available'); return this.googleNotes.recentDocs(); }
   /** Import one Doc onto its meeting, or onto a new meeting made from the Doc's name. */
@@ -75,7 +93,11 @@ export class MeetingsController {
   @Post() async create(@Body() dto: MeetingDto, @Headers('authorization') a?: string) { return this.service.create(dto, await this.auth.actor(a)); }
   @Put(':id') async update(@Param('id') id: string, @Body() dto: MeetingDto, @Headers('authorization') a?: string) { return this.service.update(id, dto, await this.auth.actor(a)); }
   @ManageWrites(...MANAGE)
-  @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
+  @Delete(':id') async remove(@Param('id') id: string) {
+    const r = await this.service.remove(id);
+    if (r.calendarEventId) await this.calSync?.skip([r.calendarEventId]);
+    return { ok: true };
+  }
   /** Raise a task, or a FOR RECORD item (FYI, observation, decision) from the meeting (a Request Log entry linked to it). */
   /** Pull the meeting's notes from Google: { link } to a Doc, or found by title and date (Nov 3 sync). */
   @Post(':id/import-google') async importGoogle(@Param('id') id: string, @Body() body: { link?: string }) { if (!this.googleNotes) throw new NotFoundException('Not available'); return this.googleNotes.importOne(id, body?.link); }

@@ -597,6 +597,11 @@ export const api = {
     /** Archive, bring back or delete several meetings (Nov 19). */
     bulk: (ids: string[], action: 'archive' | 'unarchive' | 'delete') => request<{ updated?: number; removed?: number }>('/meetings/bulk', { method: 'POST', body: JSON.stringify({ ids, action }) }),
     archive: (id: string, on = true) => request(`/meetings/${encodeURIComponent(id)}/${on ? 'archive' : 'unarchive'}`, { method: 'POST' }),
+    /** Nov 19: meetings from the company Google Calendar -- status, first-run preview, apply (then hourly), on/off. */
+    calendarSync: () => request<import('./components/CalendarSyncPanel').CalSyncStatus>('/meetings/calendar-sync', { cache: 'no-store' } as any),
+    calendarPreview: () => request<import('./components/CalendarSyncPanel').CalSyncPreview>('/meetings/calendar-sync/preview', { method: 'POST' }),
+    calendarApply: () => request<NonNullable<import('./components/CalendarSyncPanel').CalSyncStatus['last']>>('/meetings/calendar-sync/apply', { method: 'POST' }),
+    calendarOn: (on: boolean) => request<import('./components/CalendarSyncPanel').CalSyncStatus>('/meetings/calendar-sync/settings', { method: 'POST', body: JSON.stringify({ on }) }),
     /** Grouped "From Special Actions Log" meetings someone hid (the entries stay in the log). */
     hiddenGroups: () => request<string[]>('/meetings/hidden-groups'),
     setHiddenGroups: (keys: string[], hidden: boolean) => request<string[]>('/meetings/hidden-groups', { method: 'POST', body: JSON.stringify({ keys, hidden }) }),

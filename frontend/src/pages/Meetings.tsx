@@ -21,6 +21,7 @@ import { MeetingNotesImport } from '../components/MeetingNotesImport';
 import { parseMeetingNotes } from '../data/meetingNotes';
 import { TagPicker } from '../components/TagPicker';
 import { OutsideMeeting } from '../components/OutsideMeeting';
+import { CalendarSyncPanel } from '../components/CalendarSyncPanel';
 import { localISO, weekStartISO } from '../data/localDate';
 
 type View = 'upcoming' | 'past' | 'all' | 'archived';
@@ -76,6 +77,7 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
   const [params] = useSearchParams();
   const [openKey, setOpenKey] = useState<string | null>(params.get('open'));
   const [googleOpen, setGoogleOpen] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
   /** A meeting just filled in from Google opens straight on its review. */
   const [reviewFirst, setReviewFirst] = useState<string | null>(null);
   const canEdit = can('meetings', 'manage') || can('tasks', 'manage') || can('observations', 'manage');
@@ -193,6 +195,7 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
     <AkPage
       lead="Plan meetings, keep their notes, recordings and transcripts, then review them: pull out the tasks, RFIs and change orders, and the observations, FYIs and decisions to keep FOR RECORD."
       action={canEdit ? <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" className="ak-btn" onClick={() => setCalOpen(true)} title="Meetings on the company Google Calendar come in by themselves">Google Calendar</button>
         <button type="button" className="ak-btn" onClick={() => setGoogleOpen(true)} title="Bring in the “Notes by Gemini” from a Google Meet">Import notes from Google</button>
         <button type="button" className="ak-btn is-dark" onClick={() => setOpenKey('new')}>+ Meeting</button>
       </span> : undefined}
@@ -281,6 +284,7 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
         <NewMeeting projects={projects} onClose={() => setOpenKey(null)}
           onCreated={(m) => { setMeetings((p) => [m, ...(p || [])]); setOpenKey(m.id); }} />
       )}
+      {calOpen && <CalendarSyncPanel onClose={() => setCalOpen(false)} onApplied={() => { api.meetings.list(true).then((r) => setMeetings(Array.isArray(r) ? r : [])).catch(() => { }); }} />}
       {googleOpen && (
         <GoogleNotesPicker onClose={() => setGoogleOpen(false)} onImported={(m) => {
           setMeetings((p) => [m, ...(p || []).filter((x) => x.id !== m.id)]);

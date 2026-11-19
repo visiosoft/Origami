@@ -87,14 +87,16 @@ export class MeetingsService implements OnApplicationBootstrap {
   /** Delete several at once; the actions raised in them stay in the Special Actions Log. */
   async removeMany(ids: string[]) {
     let removed = 0;
+    const calendarEventIds: string[] = [];
     for (const id of ids) {
       const m = await this.repo.findOneBy({ id });
       if (!m) continue;
       await this.tasksRepo.update({ meetingId: id }, { meetingId: null as any });
       await this.repo.remove(m);
+      if (m.calendarEventId) calendarEventIds.push(m.calendarEventId);
       removed++;
     }
-    return { removed };
+    return { removed, calendarEventIds };
   }
 
   async get(id: string) {
@@ -153,7 +155,7 @@ export class MeetingsService implements OnApplicationBootstrap {
     const m = await this.load(id);
     await this.tasksRepo.update({ meetingId: id }, { meetingId: null as any });
     await this.repo.remove(m);
-    return { ok: true };
+    return { ok: true, calendarEventId: m.calendarEventId || null };
   }
 
   async addAction(id: string, dto: MeetingActionDto, actor: Actor) {
