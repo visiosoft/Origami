@@ -98,6 +98,10 @@ export class FinanceController {
   // --- estimates (the prime contract built like the team's sheet)
   @Get('projects/:id/estimates') async estimateList(@Param('id') id: string, @Headers('authorization') a?: string) { return this.estimates.list(Number(id), await this.actor(a)); }
   @Post('projects/:id/estimates') async estimateNew(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.create(Number(id), dto || {}, await this.actor(a), await this.canSee(a)); }
+  @Get('projects/:id/estimates-compare') async estimatesCompare(@Param('id') id: string, @Query('ids') ids: string, @Headers('authorization') a?: string) { return this.estimates.compareAcross(Number(id), String(ids || '').split(',').filter(Boolean), await this.actor(a)); }
+  /** Nov 19: valid for Financials -> Precon, and its subcontracted lines by sub. */
+  @Put('projects/:id/estimates/:eid/valid') async estimateValid(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.setValid(Number(id), eid, !!dto?.valid, await this.actor(a)); }
+  @Get('projects/:id/estimates/:eid/sub-lines') async estimateSubLines(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.subLines(Number(id), eid, await this.actor(a)); }
   @Get('projects/:id/estimates/:eid') async estimate(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.get(Number(id), eid, await this.actor(a)); }
   @Put('projects/:id/estimates/:eid') async estimateSettings(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.saveSettings(Number(id), eid, dto || {}, await this.actor(a)); }
   @Put('projects/:id/estimates/:eid/sheet') async estimateSheet(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.saveSheet(Number(id), eid, dto || {}, await this.actor(a)); }

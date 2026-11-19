@@ -2951,6 +2951,8 @@ export interface EstimateAreas { demolish?: number; footprint?: number; built?: 
 export class EstimateEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
   @Column('int') projectId!: number;
+  /** Nov 19 (Edward): marked valid in Estimating -- shown in Financials -> Precon (several can be). */
+  @Column({ default: false }) valid!: boolean;
   /**
    * A named company template ("Bathroom remodel"): projectId 0, never sent.
    * A new estimate can start from a template or from any other estimate.

@@ -1,3 +1,5 @@
+import { CsiCodeEntity } from '../database/entities';
+import { compareEstimates, redactAcross, type CmpEstimate } from './estimate-compare';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository, type EntityManager } from 'typeorm';
@@ -300,13 +302,79 @@ export class EstimatesService {
     const out = [];
     for (const e of rows) {
       const t = resultOf(e, await this.sheetOf(e.id)).totals;
-      out.push({ id: e.id, number: e.number, rev: e.rev, title: e.title, status: e.status, estimateDate: e.estimateDate, sentAt: e.sentAt, acceptedAt: e.acceptedAt, updatedAt: e.updatedAt, totalProject: fromCents(t.totalProject), totalBuild: fromCents(t.totalBuild),
+      out.push({ id: e.id, number: e.number, rev: e.rev, title: e.title, status: e.status, valid: !!e.valid, estimateDate: e.estimateDate, sentAt: e.sentAt, acceptedAt: e.acceptedAt, updatedAt: e.updatedAt, totalProject: fromCents(t.totalProject), totalBuild: fromCents(t.totalBuild),
         // Nov 17 (Financials -> Precon): the design / precon fee and the high end of the range.
         designCost: fromCents(t.designCost), high: fromCents(t.high) });
     }
     const rights = await this.rights(actor);
     if (!rights.money.total) for (const r of out) { (r as any).totalProject = null; (r as any).totalBuild = null; (r as any).designCost = null; (r as any).high = null; }
     return { rights, rows: out };
+  }
+
+  /** Nov 19 (Edward): several estimates of this project side by side, trade by trade (low / high and the changes). */
+  async compareAcross(projectId: number, ids: string[], actor: Actor) {
+    await this.need(actor, 'view');
+    const pick = [...new Set(ids)].slice(0, 4);
+    if (pick.length < 2) throw new BadRequestException('Pick at least two estimates to compare.');
+    const csi = new Map((await this.db.getRepository(CsiCodeEntity).find().catch(() => [] as CsiCodeEntity[])).map((c) => [c.id, `${c.code} — ${c.division}`]));
+    const list: CmpEstimate[] = [];
+    for (const id of pick) {
+      const e = await this.one(projectId, id);
+      const sheet = await this.sheetOf(id);
+      const r = resultOf(e, sheet);
+      const out = new Map(r.scopes.map((s) => [s.id, s]));
+      list.push({
+        id: e.id, label: `${e.number} Rev ${e.rev}${e.title ? ` · ${e.title}` : ''}`, date: e.estimateDate || e.updatedAt?.slice(0, 10) || null,
+        scopes: sheet.scopes.map((s) => ({ csiCodeId: s.csiCodeId, csiLabel: s.csiCodeId ? csi.get(s.csiCodeId) || null : null, title: s.title || '', low: out.get(s.id)?.total || 0, high: out.get(s.id)?.high || out.get(s.id)?.total || 0 })),
+        totalLow: r.totals.totalProject, totalHigh: (r.totals as any).high || r.totals.totalProject,
+      });
+    }
+    list.sort((x, y) => String(x.date || '').localeCompare(String(y.date || '')));
+    const c = redactAcross(compareEstimates(list), (await this.money(actor)).price);
+    const money = (v: number | null | undefined) => (v == null ? null : fromCents(v));
+    return {
+      ...c,
+      rows: c.rows.map((row) => ({ ...row, cells: row.cells.map((x) => (x ? { low: money(x.low), high: money(x.high) } : null)), changes: row.changes.map((x) => (x ? { low: money(x.low), high: money(x.high) } : null)) })),
+      totals: c.totals.map((x) => (x ? { low: money(x.low), high: money(x.high) } : null)),
+      totalChanges: c.totalChanges.map((x) => (x ? { low: money(x.low), high: money(x.high) } : null)),
+    };
+  }
+
+  /** Nov 19 (Edward): mark an estimate valid -- it shows in Financials -> Precon. Several can be. */
+  async setValid(projectId: number, id: string, valid: boolean, actor: Actor) {
+    await this.need(actor, 'edit');
+    const e = await this.one(projectId, id);
+    e.valid = !!valid;
+    await this.estimates.save(e);
+    return { id: e.id, valid: e.valid };
+  }
+
+  /**
+   * Nov 19 (Edward: "manage the subcontractor line items here"): an estimate's
+   * subcontracted lines, by sub -- what each sub carries and its cost (cost
+   * hidden without the rights to see it).
+   */
+  async subLines(projectId: number, id: string, actor: Actor) {
+    await this.need(actor, 'view');
+    const e = await this.one(projectId, id);
+    const sheet = await this.sheetOf(id);
+    const r = resultOf(e, sheet);
+    const cost = new Map(r.lines.map((l) => [l.id, l.cost]));
+    const scopeTitle = new Map(sheet.scopes.map((s) => [s.id, s.title]));
+    const money = await this.money(actor);
+    const groups = new Map<string, { contractorId: string | null; sub: string; scopes: string[]; lines: number; cost: number }>();
+    for (const l of sheet.lines) {
+      if ((l.kind || 'item') !== 'item') continue;
+      const who = (l.subName || '').trim();
+      if (!who && !l.contractorId) continue;
+      const key = l.contractorId || who.toLowerCase();
+      const g = groups.get(key) || { contractorId: l.contractorId || null, sub: who || 'Subcontractor', scopes: [], lines: 0, cost: 0 };
+      const t = scopeTitle.get(l.scopeId);
+      if (t && !g.scopes.includes(t)) g.scopes.push(t);
+      g.lines++; g.cost += cost.get(l.id) || 0;
+      groups.set(key, g);
+    }
+    return [...groups.values()].sort((a, b) => b.cost - a.cost).map((g) => ({ ...g, cost: money.cost ? fromCents(g.cost) : null }));
   }
 
   async get(projectId: number, id: string, actor: Actor) {

@@ -1283,6 +1283,10 @@ export const api = {
     estimateSetup: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { cache: 'no-store' } as any),
     runEstimateSetup: (projectId: number, id: string, steps: string[]) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { method: 'POST', body: JSON.stringify({ steps }) }),
     markEstimateAccepted: (projectId: number, id: string, signer: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/accepted`, { method: 'POST', body: JSON.stringify({ signer }) }),
+    /** Nov 19: valid for Financials -> Precon (several can be), and an estimate's subcontracted lines by sub. */
+    estimatesCompare: (projectId: number, ids: string[]) => request<any>(`/finance/projects/${projectId}/estimates-compare?ids=${ids.map(encodeURIComponent).join(',')}`),
+    estimateValid: (projectId: number, id: string, valid: boolean) => request<{ id: string; valid: boolean }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/valid`, { method: 'PUT', body: JSON.stringify({ valid }) }),
+    estimateSubLines: (projectId: number, id: string) => request<{ contractorId: string | null; sub: string; scopes: string[]; lines: number; cost: number | null }[]>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/sub-lines`),
     sendEstimate: (projectId: number, id: string, d: { to?: string; cc?: string; note?: string }) => request<{ sent: boolean; to: string }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
     estimatePublic: {
       get: (token: string) => request<any>(`/estimate-public?token=${encodeURIComponent(token)}`),

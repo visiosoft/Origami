@@ -1,3 +1,4 @@
+import { CompareEstimates } from '../components/estimate/CompareEstimates';
 import { estimateWaiting } from '../data/estimateWaiting';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -14,7 +15,7 @@ import { JobSetup } from '../components/estimate/JobSetup';
 import { BidPackages } from '../components/estimate/BidPackages';
 import { money } from '../data/estimateCalc';
 
-interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number }
+interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number; valid?: boolean }
 interface Project { id: number; name: string; status?: string; stage?: string | null }
 
 /** The start page groups projects by where they are (Nov 13): CRM, Design, Precon, Construction. */
@@ -61,6 +62,8 @@ export function Estimating() {
   const [comparing, setComparing] = useState(false);
   const [tab, setTab] = useState<'sheet' | 'letter'>('sheet');
   const [sending, setSending] = useState(false);
+  // Nov 19 (Edward): compare the project's estimates side by side.
+  const [comparingAll, setComparingAll] = useState(false);
   const [settingUp, setSettingUp] = useState(false);
   const [bidding, setBidding] = useState(false);
   const [mail, setMail] = useState({ to: '', cc: '', note: '' });
@@ -196,11 +199,8 @@ export function Estimating() {
         <h1 style={{ margin: 0, font: '700 20px var(--font-display, inherit)', color: 'var(--ink)', flex: '1 1 auto' }}>Estimating · {project?.name || `Project ${projectId}`}</h1>
         {current && siblings.length > 1 && (
           <select aria-label="Revision" value={current.id} onChange={(e) => go({ estimate: e.target.value })} className="eg-btn">
-            {siblings.map((s) => <option key={s.id} value={s.id}>Rev {s.rev} · {s.status}</option>)}
+            {siblings.map((s) => <option key={s.id} value={s.id}>Rev {s.rev} · {s.status === 'sent' ? 'shared' : s.status}</option>)}
           </select>
-        )}
-        {current && rights.edit && open?.status === 'draft' && (
-          <button type="button" className="eg-btn is-primary" disabled={busy} onClick={() => window.confirm(`Mark ${current.number} Rev ${current.rev} as sent to the client? It is frozen after this; changes go in a new revision.`) && act(async () => { await grid.current?.flush(); return api.finance.estimateSent(projectId, current.id); }, () => setReload((n) => n + 1))}>Mark as sent</button>
         )}
         {current && siblings.length > 1 && <button type="button" className="eg-btn" onClick={() => setComparing(true)}>Compare…</button>}
         {current && (
@@ -208,7 +208,8 @@ export function Estimating() {
             {(['sheet', 'letter'] as const).map((k) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`eg-btn${tab === k ? ' is-on' : ''}`} onClick={async () => { await grid.current?.flush(); setTab(k); setReload((n) => n + 1); }}>{k === 'sheet' ? 'Sheet' : 'Letter'}</button>)}
           </span>
         )}
-        {current && <button type="button" className="eg-btn" onClick={async () => { await grid.current?.flush(); setBidding(true); }} title="Send scopes to subs for pricing, compare their prices">Bid packages</button>}
+        {/* Nov 19 (Edward): bidding is run from GC & Sub Prequalify & RFP; this section is estimating only. */}
+        {current && <a className="eg-btn" href={`/sub_prequal?tab=rfp&project=${projectId}&estimate=${encodeURIComponent(current.id)}`} title="Send scopes to subs for pricing — in GC & Sub Prequalify & RFP">Bid packages in RFP →</a>}
         {current && <button type="button" className="eg-btn" onClick={() => void openFile('pdf')} title="The client’s copy, as the project’s book type shows it">PDF</button>}
         {current && <button type="button" className="eg-btn" onClick={() => void openFile('xlsx')} title="The whole estimate as a spreadsheet (what your role may see)">Excel</button>}
         {current && rights.edit && open?.status === 'sent' && !siblings.some((s) => s.status === 'accepted') && (
@@ -218,7 +219,7 @@ export function Estimating() {
           <button type="button" className="eg-btn is-primary" onClick={() => setSettingUp(true)}>Set up the job</button>
         )}
         {current && rights.edit && (open?.status === 'draft' || open?.status === 'sent') && !siblings.some((s) => s.status === 'accepted') && (
-          <button type="button" className="eg-btn is-primary" disabled={busy} onClick={() => setSending(true)}>Send to client…</button>
+          <button type="button" className="eg-btn is-primary" disabled={busy} onClick={() => setSending(true)} title="Put it in the owner’s portal to review and accept, and let them know">{open?.status === 'sent' ? 'Share again…' : 'Share with owner…'}</button>
         )}
         {current && rights.edit && open && open.status !== 'draft' && open.status !== 'accepted' && !siblings.some((s) => s.status === 'draft') && !siblings.some((s) => s.status === 'accepted') && (
           current.rev < Math.max(...siblings.map((s) => s.rev))
@@ -245,15 +246,36 @@ export function Estimating() {
         <EstimateGrid key={`${estimateId}-${reload}`} projectId={projectId} estimateId={estimateId} onChanged={setOpen} controlRef={grid} />
       ) : rows === null ? (
         <div style={{ color: 'var(--muted)' }}>Loading…</div>
+      ) : comparingAll && rows.length > 1 ? (
+        <>
+          <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+            <button type="button" role="tab" aria-selected={false} className="eg-btn" onClick={() => setComparingAll(false)}>Estimates</button>
+            <button type="button" role="tab" aria-selected className="eg-btn is-on">Compare estimates</button>
+          </div>
+          <CompareEstimates projectId={projectId} rows={rows} />
+        </>
       ) : !rows.length ? (
         <div className="eg-card" style={{ color: 'var(--muted)', fontSize: 13.5 }}>No estimates for this project yet.{rights.edit ? ' Start one with “+ New estimate”.' : ''}</div>
       ) : (
+        <>
+        {rows.length > 1 && (
+          <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+            <button type="button" role="tab" aria-selected className="eg-btn is-on">Estimates</button>
+            <button type="button" role="tab" aria-selected={false} className="eg-btn" onClick={() => setComparingAll(true)}>Compare estimates</button>
+          </div>
+        )}
         <div className="eg-card" style={{ padding: 0, overflowX: 'auto' }}>
           <table className="eg-gr" style={{ minWidth: 560 }}>
-            <thead><tr><th style={{ padding: '10px 14px' }}>Estimate</th><th>Status</th><th>Date</th><th style={{ textAlign: 'right', paddingRight: 14 }}>Total project cost</th></tr></thead>
+            <thead><tr><th style={{ width: 34 }} title="Valid for Financials → Precon" /><th style={{ padding: '10px 14px' }}>Estimate</th><th>Status</th><th>Date</th><th style={{ textAlign: 'right', paddingRight: 14 }}>Total project cost</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => go({ estimate: r.id })}>
+                  {/* Nov 19 (Edward): mark which estimates are valid -- they show in Financials → Precon. */}
+                  <td style={{ textAlign: 'center' }} onClick={(ev) => ev.stopPropagation()}>
+                    <button type="button" aria-pressed={!!r.valid} disabled={!rights.edit} aria-label={`${r.valid ? 'Valid' : 'Not valid'} for Financials: ${r.number} Rev ${r.rev}`} title={r.valid ? 'Valid — shows in Financials → Precon (click to unmark)' : 'Mark valid — show it in Financials → Precon'}
+                      onClick={() => void act(() => api.finance.estimateValid(projectId, r.id, !r.valid), () => setRows((x) => (x || []).map((y) => (y.id === r.id ? { ...y, valid: !r.valid } : y))))}
+                      style={{ border: 0, background: 'none', fontSize: 18, cursor: rights.edit ? 'pointer' : 'default', color: r.valid ? '#C98A00' : 'var(--muted)' }}>{r.valid ? '★' : '☆'}</button>
+                  </td>
                   <td style={{ padding: '10px 14px' }}><b style={{ color: 'var(--ink)' }}>{r.number} · Rev {r.rev}</b> <span style={{ color: 'var(--muted)' }}>{r.title}</span></td>
                   <td>{waitChip(r)}</td>
                   <td style={{ color: 'var(--muted)' }}>{r.estimateDate || ''}</td>
@@ -263,15 +285,16 @@ export function Estimating() {
             </tbody>
           </table>
         </div>
+        </>
       )}
       {bidding && current && <BidPackages projectId={projectId} estimateId={current.id} canEdit={rights.edit} onClose={() => setBidding(false)} onUsed={() => { setBidding(false); const draft = siblings.find((x) => x.status === 'draft'); if (draft && draft.id !== current.id) go({ estimate: draft.id }); else setReload((n) => n + 1); }} />}
       {settingUp && current && <JobSetup projectId={projectId} estimateId={current.id} label={`${current.number} Rev ${current.rev}`} onClose={() => setSettingUp(false)} />}
       {sending && current && createPortal(
-        <div role="dialog" aria-modal="true" aria-label="Send to client" className="rc-back eg-portal" onClick={() => setSending(false)}>
+        <div role="dialog" aria-modal="true" aria-label="Share with owner" className="rc-back eg-portal" onClick={() => setSending(false)}>
           <form className="eg-card" style={{ width: 'min(520px, 100%)', display: 'grid', gap: 10 }} onClick={(e) => e.stopPropagation()}
-            onSubmit={(e) => { e.preventDefault(); void act(async () => { await grid.current?.flush(); return api.finance.sendEstimate(projectId, current.id, mail); }, (r) => { setSending(false); toast(`Sent to ${r.to}`); setReload((n) => n + 1); }); }}>
-            <h3 style={{ margin: 0 }}>Send {current.number} Rev {current.rev} to the client</h3>
-            <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>The client gets the PDF and a link to accept it online.{open?.status === 'draft' ? ' This revision is marked sent and frozen; changes then go in a new revision.' : ''}</div>
+            onSubmit={(e) => { e.preventDefault(); void act(async () => { await grid.current?.flush(); return api.finance.sendEstimate(projectId, current.id, mail); }, (r) => { setSending(false); toast(`Shared — it’s in the owner’s portal; ${r.to} has been told`); setReload((n) => n + 1); }); }}>
+            <h3 style={{ margin: 0 }}>Share {current.number} Rev {current.rev} with the owner</h3>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>It goes into the owner’s portal to review and accept online, and they get a short email saying it’s ready (no PDF attached — PDF and Excel stay here as a backup).{open?.status === 'draft' ? ' This revision is then frozen; changes go in a new revision.' : ''}</div>
             {(['to', 'cc'] as const).map((k) => (
               <label key={k} style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700 }}>{k === 'to' ? 'To' : 'Cc (optional)'}
                 <input type="email" multiple={k === 'cc'} value={mail[k]} placeholder={k === 'to' ? 'The bill-to email if left empty' : 'name@example.com, …'} onChange={(e) => setMail((m) => ({ ...m, [k]: e.target.value }))} style={{ font: 'inherit', fontSize: 16, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.15)' }} />
@@ -282,7 +305,7 @@ export function Estimating() {
             </label>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" className="eg-btn" onClick={() => setSending(false)}>Cancel</button>
-              <button type="submit" className="eg-btn is-primary" disabled={busy}>{busy ? 'Sending…' : 'Send'}</button>
+              <button type="submit" className="eg-btn is-primary" disabled={busy}>{busy ? 'Sharing…' : 'Share'}</button>
             </div>
           </form>
         </div>, document.body,
