@@ -2732,6 +2732,9 @@ export class BidPackageEntity {
   @Column({ type: 'simple-json' }) content!: { scopes: { key: string; title: string; csi: string | null; lines: { key: string; description: string }[]; notes: { kind: string; text: string }[] }[] };
   @Column({ type: 'nvarchar', length: 10, nullable: true }) dueDate!: string | null;
   @Column({ ...TEXT, nullable: true }) notes!: string | null;
+  /** Nov 19 (Edward): bid instructions, and a site visit subs can come to. */
+  @Column({ ...TEXT, nullable: true }) instructions!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) siteVisit!: { date: string; time?: string | null; place?: string | null; note?: string | null } | null;
   /** draft | out | closed */
   @Column({ default: 'draft' }) status!: string;
   @Column() createdAt!: string;
@@ -2759,6 +2762,9 @@ export class BidInviteEntity {
   @Column({ type: 'nvarchar', length: 40, nullable: true }) viewedAt!: string | null;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) submittedAt!: string | null;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) decidedAt!: string | null;
+  /** Nov 19: "I'll attend" the site visit; and the sub's questions, each answered to them only. */
+  @Column({ type: 'bit', nullable: true }) attending!: boolean | null;
+  @Column({ type: 'simple-json', nullable: true }) questions!: { id: string; text: string; at: string; answer?: string | null; answeredAt?: string | null; answeredBy?: string | null }[] | null;
   @Column() createdAt!: string;
 }
 

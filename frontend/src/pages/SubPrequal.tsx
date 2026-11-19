@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { PREQUAL_LABEL } from '../data/prequal';
+import { RfpPackages } from '../components/RfpPackages';
 
 type Row = Awaited<ReturnType<typeof api.prequal.list>>[number];
 const field = { padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.15)', font: 'inherit', fontSize: 13, background: 'var(--surface)' } as const;
@@ -15,7 +16,7 @@ const TONE: Record<string, [string, string]> = { approved: ['var(--mint)', 'var(
  * Only approved companies with a current licence and insurance can be
  * invited to bid.
  */
-export function SubPrequal() {
+function PrequalList() {
   const { toast, can } = useApp();
   const manage = can('sub_prequal', 'manage') || can('manpower_con', 'manage') || can('fin_resources', 'manage');
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -104,6 +105,27 @@ export function SubPrequal() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * GC & Sub Prequalify & RFP (Nov 19 tabs): prequalification of subs, and the
+ * bid packages (RFP) -- moved here from Estimating (Edward).
+ */
+export function SubPrequal() {
+  const { can } = useApp();
+  const q = new URLSearchParams(window.location.search);
+  const [tab, setTab] = useState<'prequal' | 'rfp'>(q.get('tab') === 'rfp' ? 'rfp' : 'prequal');
+  const start = q.get('project') && q.get('estimate') ? { projectId: Number(q.get('project')), estimateId: String(q.get('estimate')) } : null;
+  const canEdit = can('estimating', 'manage') || can('precon_estimates', 'manage') || can('fin_project', 'manage') || can('sub_prequal', 'manage');
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      <div role="tablist" style={{ display: 'flex', gap: 6 }}>
+        <button type="button" role="tab" aria-selected={tab === 'prequal'} style={pill(tab === 'prequal')} onClick={() => setTab('prequal')}>Prequalification</button>
+        <button type="button" role="tab" aria-selected={tab === 'rfp'} style={pill(tab === 'rfp')} onClick={() => setTab('rfp')}>RFP / Bid packages</button>
+      </div>
+      {tab === 'prequal' ? <PrequalList /> : <RfpPackages canEdit={canEdit} start={start} />}
     </div>
   );
 }

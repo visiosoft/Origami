@@ -35,6 +35,7 @@ function setup() {
   ];
   const estimates: any = {
     raw: async () => ({ e: { id: 'E1', number: 'EST-001', rev: 2 }, sheet, result: {}, rights: {} }),
+    rights: async () => ({ view: true, edit: true }),
     changeDraftLines: async (_p: number, _n: string, change: (l: any[]) => number) => ({ changed: change(draftLines), estimateId: 'E3', rev: 3 }),
   };
   const fin: any = { project: async () => ({ name: 'Lono house' }), log: async () => undefined };
@@ -43,13 +44,39 @@ function setup() {
   const google: any = { isConnected: async () => true, sendMail: async (m: any) => mails.push(m) };
   const packages = repo(), invites = repo(), bids = repo();
   // Prequalified, licence and insurance current (Nov 13: bid invites need it).
-  const contractors = repo([{ id: 'K1', companyName: 'Tile Co', email: 'tile@x.test', prequalStatus: 'approved', licenseNumber: 'C-10', licenseExpiry: '2099-01-01', insuranceProvider: 'Acme', insuranceExpiry: '2099-01-01' }, { id: 'K2', companyName: 'Stone Inc', email: 'stone@x.test', prequalStatus: 'approved', licenseNumber: 'C-10', licenseExpiry: '2099-01-01', insuranceProvider: 'Acme', insuranceExpiry: '2099-01-01' }, { id: 'K3', companyName: 'Nope LLC', email: 'n@x.test' }]);
+  const contractors = repo([{ id: 'K1', tradeIds: ['SCT-C-54'], companyName: 'Tile Co', email: 'tile@x.test', prequalStatus: 'approved', licenseNumber: 'C-10', licenseExpiry: '2099-01-01', insuranceProvider: 'Acme', insuranceExpiry: '2099-01-01' }, { id: 'K2', companyName: 'Stone Inc', email: 'stone@x.test', prequalStatus: 'approved', licenseNumber: 'C-10', licenseExpiry: '2099-01-01', insuranceProvider: 'Acme', insuranceExpiry: '2099-01-01' }, { id: 'K3', companyName: 'Nope LLC', email: 'n@x.test' }]);
   const csi = repo([{ id: 'C9', code: '09.30', division: 'Tiling' }]);
-  const svc = new BidPackagesService(estimates, fin, settings, google, packages as any, invites as any, bids as any, contractors as any, csi as any);
+  const trades = repo([{ id: 'SCT-C-54', code: 'C-54', name: 'Ceramic and Mosaic Tile', csiDivisions: ['09'] }, { id: 'SCT-C-10', code: 'C-10', name: 'Electrical', csiDivisions: ['26'] }]);
+  const svc = new BidPackagesService(estimates, fin, settings, google, packages as any, invites as any, bids as any, contractors as any, csi as any, trades as any);
   return { svc, packages, invites, bids, mails, draftLines };
 }
 const actor = { name: 'Edward' };
 const tokenFor = (inviteId: string) => signState({ mode: 'bid', inviteId }, SECRET);
+
+describe('Nov 19: bid instructions, site visit, questions answered to the asker, suggested subs', () => {
+  it('works end to end', async () => {
+    const { svc, invites, mails } = setup();
+    const p = await svc.create(7, 'E1', { scopeIds: ['S2'], instructions: 'Bid per drawings A2.01; include permits.', siteVisit: { date: '2026-11-25', time: '10:00', place: '1311 Countryside Ct' } }, actor);
+    expect(p.siteVisit).toEqual({ date: '2026-11-25', time: '10:00', place: '1311 Countryside Ct', note: null });
+    const sug = await svc.suggest(7, p.id, actor);
+    expect(sug.map((x: any) => x.companyName)).toEqual(['Tile Co']);
+    await svc.invite(7, p.id, { contractorIds: ['K1', 'K2'] }, actor);
+    expect(mails[0].html).toContain('Site visit:');
+    const [a, b] = invites.rows;
+    await svc.publicAsk(tokenFor(a.id), 'Is the tile owner-supplied?');
+    await svc.publicAttend(tokenFor(a.id), true);
+    const q = invites.rows.find((r: any) => r.id === a.id).questions[0];
+    mails.length = 0;
+    await svc.answer(7, p.id, a.id, q.id, 'Yes — owner supplies the tile.', actor);
+    expect(mails.map((m: any) => m.to)).toEqual(['tile@x.test']);
+    const viewA = await svc.publicView(tokenFor(a.id));
+    expect(viewA.invite.questions[0].answer).toBe('Yes — owner supplies the tile.');
+    expect(viewA.instructions).toContain('include permits');
+    expect((await svc.publicView(tokenFor(b.id))).invite.questions).toEqual([]);
+    const all = await svc.all(actor);
+    expect(all[0]).toMatchObject({ number: p.number, invited: 2, attending: 1, openQuestions: 0 });
+  });
+});
 
 describe('K10: sub bid packages', () => {
   it('a package keeps only scope and line text, CSI codes and statements -- no money, no Not In Scope lines', async () => {

@@ -1276,8 +1276,15 @@ export const api = {
     createBidPackage: (projectId: number, estimateId: string, d: { title?: string; scopeIds: string[]; dueDate?: string; notes?: string }) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(estimateId)}/bid-packages`, { method: 'POST', body: JSON.stringify(d) }),
     inviteBid: (projectId: number, packageId: string, contractorIds: string[]) => request<{ invited: { contractorId: string; vendorName: string; link: string; emailed: boolean }[] }>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/invite`, { method: 'POST', body: JSON.stringify({ contractorIds }) }),
     useBid: (projectId: number, packageId: string, inviteId: string) => request<{ rev: number; changed: number; vendorName: string }>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/use/${encodeURIComponent(inviteId)}`, { method: 'POST' }),
+    /** Nov 19: bid packages across projects; edit one; suggested subs by CSI; answer a sub's question. */
+    bidPackagesAll: () => request<any[]>('/finance/bid-packages', { cache: 'no-store' } as any),
+    updateBidPackage: (projectId: number, packageId: string, d: Record<string, unknown>) => request<any>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    suggestBidSubs: (projectId: number, packageId: string) => request<{ contractorId: string; companyName: string; matches: string[]; prequalBlock: string | null; turnedDown: boolean }[]>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/suggest`),
+    answerBidQuestion: (projectId: number, packageId: string, inviteId: string, questionId: string, answer: string) => request<{ answered: boolean; emailed: boolean }>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/invites/${encodeURIComponent(inviteId)}/questions/${encodeURIComponent(questionId)}/answer`, { method: 'POST', body: JSON.stringify({ answer }) }),
     bidPublic: {
       get: (token: string) => request<any>(`/bid-public?token=${encodeURIComponent(token)}`),
+      ask: (token: string, text: string) => request<{ asked: boolean }>('/bid-public/question', { method: 'POST', body: JSON.stringify({ token, text }) }),
+      attend: (token: string, attending: boolean) => request<{ attending: boolean }>('/bid-public/attend', { method: 'POST', body: JSON.stringify({ token, attending }) }),
       submit: (token: string, d: { decline?: boolean; total?: string | number | null; lineAmounts?: Record<string, string>; notes?: string }) => request<{ status: string }>('/bid-public', { method: 'POST', body: JSON.stringify({ token, ...d }) }),
     },
     estimateSetup: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { cache: 'no-store' } as any),

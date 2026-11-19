@@ -5,8 +5,9 @@ import { Skeleton } from '../components/Skeleton';
 
 interface View {
   companyName: string; projectName: string; number: string; title: string; dueDate?: string | null; notes?: string | null; closed: boolean;
+  instructions?: string | null; siteVisit?: { date: string; time?: string | null; place?: string | null; note?: string | null } | null;
   scopes: { key: string; title: string; csi?: string | null; lines: { key: string; description: string }[]; notes: { kind: string; label: string; text: string }[] }[];
-  invite: { vendorName?: string | null; status: string; total?: number | null; lineAmounts: Record<string, number>; notes?: string | null; submittedAt?: string | null };
+  invite: { vendorName?: string | null; status: string; total?: number | null; lineAmounts: Record<string, number>; notes?: string | null; submittedAt?: string | null; attending?: boolean | null; questions?: { id: string; text: string; at: string; answer?: string | null }[] };
 }
 
 const card: React.CSSProperties = { background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: 18, marginBottom: 16 };
@@ -31,6 +32,7 @@ export function SubBid() {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState('');
+  const [question, setQuestion] = useState('');
   const take = (v: View) => {
     setDoc(v);
     setLines(Object.fromEntries(Object.entries(v.invite.lineAmounts || {}).map(([k, n]) => [k, String(n)])));
@@ -72,6 +74,46 @@ export function SubBid() {
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 21, color: 'var(--ink)', margin: '4px 0' }}>{doc.title}</div>
         <div style={{ fontSize: 13, color: 'var(--muted)' }}>{doc.invite.vendorName ? `For ${doc.invite.vendorName}. ` : ''}{doc.dueDate ? `Prices due ${new Date(doc.dueDate + 'T12:00:00').toLocaleDateString()}.` : ''}</div>
         {doc.notes && <div style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.55, color: 'var(--body)', whiteSpace: 'pre-wrap' }}>{doc.notes}</div>}
+      </div>
+      {/* Nov 19 (Edward): bid instructions, the site visit, and questions -- answered to you only. */}
+      {doc.instructions && (
+        <div style={card}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 6 }}>Bid instructions</div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--body)', whiteSpace: 'pre-wrap' }}>{doc.instructions}</div>
+        </div>
+      )}
+      {doc.siteVisit && (
+        <div style={card}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>Site visit</div>
+          <div style={{ fontSize: 13.5, color: 'var(--body)', margin: '4px 0 10px' }}>{new Date(doc.siteVisit.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}{doc.siteVisit.time ? ` at ${doc.siteVisit.time}` : ''}{doc.siteVisit.place ? ` — ${doc.siteVisit.place}` : ''}{doc.siteVisit.note ? `. ${doc.siteVisit.note}` : ''}</div>
+          {!locked && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {[true, false].map((yes) => (
+                <button key={String(yes)} type="button" aria-pressed={doc.invite.attending === yes} onClick={() => void api.finance.bidPublic.attend(token, yes).then(() => api.finance.bidPublic.get(token)).then(take).catch((e: Error) => setErr(e.message))}
+                  style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), .16)', background: doc.invite.attending === yes ? 'var(--forest)' : 'var(--surface)', color: doc.invite.attending === yes ? '#fff' : 'var(--body)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  {yes ? 'I’ll attend' : 'Can’t make it'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <div style={card}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>Questions</div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', margin: '2px 0 8px' }}>Ask about the scope — the answer comes to you by email and shows here.</div>
+        {(doc.invite.questions || []).map((q) => (
+          <div key={q.id} style={{ fontSize: 13, padding: '6px 0', borderTop: '1px solid rgba(var(--rgb-shade), .06)' }}>
+            <div><b>You asked:</b> {q.text}</div>
+            <div style={{ color: q.answer ? 'var(--success-deep)' : 'var(--muted)' }}>{q.answer ? <><b>Answer:</b> {q.answer}</> : 'Waiting for an answer.'}</div>
+          </div>
+        ))}
+        {!locked && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <input aria-label="Your question" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Your question" style={{ flex: 1, padding: '10px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 16, fontFamily: 'inherit' }} />
+            <button type="button" disabled={!question.trim()} onClick={() => void api.finance.bidPublic.ask(token, question.trim()).then(() => { setQuestion(''); return api.finance.bidPublic.get(token); }).then(take).catch((e: Error) => setErr(e.message))}
+              style={{ padding: '10px 18px', borderRadius: 999, border: 0, background: 'var(--ink)', color: '#fff', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Ask</button>
+          </div>
+        )}
       </div>
       {locked && <div role="status" style={{ ...card, fontWeight: 600, color: doc.invite.status === 'awarded' ? 'var(--success-deep)' : 'var(--muted)' }}>{doc.invite.status === 'awarded' ? 'Your bid was chosen — we’ll be in touch.' : 'A bid has been chosen for this package. Thank you for pricing it.'}</div>}
       {doc.scopes.map((s) => (

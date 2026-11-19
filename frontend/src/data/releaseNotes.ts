@@ -16,6 +16,20 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-19e',
+    date: '2026-11-19',
+    title: 'Edward’s notes, part 3: estimating, RFP, subs, CRM',
+    items: [
+      { area: 'Estimating', kind: 'improved', text: '“Share with owner” replaces “Mark as sent” and “Send to client”: the estimate goes into the owner’s portal to review and accept online, and they get a short email that it’s ready. Shared estimates show as “Shared”. PDF and Excel stay as a backup.', where: 'Estimating → an estimate' },
+      { area: 'Estimating', kind: 'new', text: 'Mark estimates valid with ★ (several can be). Valid ones come first in Financials → Pre-construction, with their combined total and each subcontractor on them (and whether there’s a subcontract yet).', where: 'Estimating → project list; Financials → Pre-construction' },
+      { area: 'Estimating', kind: 'new', text: 'Compare estimates: tick 2–4 of a project’s estimates (any numbers or revisions) to see each trade’s low and high side by side, with what changed between them — hide the change columns when you don’t need them.', where: 'Estimating → project → Compare estimates' },
+      { area: 'Subcontractors', kind: 'new', text: 'Bid packages are run from GC & Sub Prequalify & RFP → “RFP / Bid packages”: every package across projects, with bid instructions, a site visit subs can sign up for, and their questions — each answer goes only to the sub who asked. Subs whose licences cover the scope’s CSI codes are suggested first; “not prequalified yet” never stops an invite.', where: 'GC & Sub Prequalify & RFP → RFP / Bid packages' },
+      { area: 'Subcontractors', kind: 'improved', text: 'CSLB licences carry the CSI divisions they cover (a first draft, editable in Settings → Licence classifications); B-2 Residential Remodeling added. The prequal form picks licence classifications instead of free text.', where: 'Settings → Licence classifications; GC & Sub Prequalify' },
+      { area: 'CRM', kind: 'improved', text: 'Each lead shows its team (PC · PM) at the top and has a “Team & roles” tab. A task filed under a stage with no one picked goes to that stage’s owner — the Project Coordinator or Project Manager — and follows them if the role changes.', where: 'CRM & Leads → a lead' },
+      { area: 'People', kind: 'fixed', text: 'Business cards: a company logo spelled across lines (“ARKAY ENERGY / SOLUTIONS”) is read as the company, and the name is matched to the email (“raffie@…” → Raffie Karabed).', where: 'People → + Add → Read card' },
+    ],
+  },
+  {
     id: '2026-11-19d',
     date: '2026-11-19',
     title: 'Edward’s notes, part 2: approvals, RFI Log, signed records, drawings',

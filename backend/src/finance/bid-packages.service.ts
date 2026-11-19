@@ -3,7 +3,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { readState, signState } from '../auth/crypto.util';
-import { BidInviteEntity, BidPackageEntity, ContractorBidEntity, ContractorEntity, CsiCodeEntity } from '../database/entities';
+import { BidInviteEntity, BidPackageEntity, ContractorBidEntity, ContractorEntity, CsiCodeEntity, SubcontractorTradeEntity } from '../database/entities';
 import { emailShell, escapeHtml, loadEmailBrand } from '../email/shell';
 import { GoogleService } from '../google/google.service';
 import type { Actor } from '../manpower/manpower-access.service';
@@ -23,15 +23,26 @@ type Content = BidPackageEntity['content'];
  * The package as a sub sees it: only the allow-listed fields of the snapshot
  * and their own invite. Nothing about our costs, markup, prices or other subs.
  */
+/** A site visit as entered: a date (required), optional time, place and note. */
+export function cleanVisit(v: unknown): BidPackageEntity['siteVisit'] {
+  const o = (v && typeof v === 'object' ? v : null) as Record<string, unknown> | null;
+  const date = o ? String(o.date || '').slice(0, 10) : '';
+  if (!date) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new BadRequestException('The site visit needs a date.');
+  const t = (k: string, n: number) => String(o?.[k] ?? '').trim().slice(0, n) || null;
+  return { date, time: t('time', 10), place: t('place', 300), note: t('note', 2000) };
+}
+
 export function subView(pkg: BidPackageEntity, inv: BidInviteEntity, projectName: string, companyName: string) {
   return {
     companyName, projectName, number: pkg.number, title: pkg.title, dueDate: pkg.dueDate, notes: pkg.notes, closed: pkg.status === 'closed',
+    instructions: pkg.instructions || null, siteVisit: pkg.siteVisit || null,
     scopes: pkg.content.scopes.map((s) => ({
       key: s.key, title: s.title, csi: s.csi,
       lines: s.lines.map((l) => ({ key: l.key, description: l.description })),
       notes: s.notes.map((n) => ({ kind: n.kind, label: NOTE_LABEL[n.kind as keyof typeof NOTE_LABEL] || n.kind, text: n.text })),
     })),
-    invite: { vendorName: inv.vendorName, status: inv.status, total: inv.total, lineAmounts: inv.lineAmounts || {}, notes: inv.notes, submittedAt: inv.submittedAt },
+    invite: { vendorName: inv.vendorName, status: inv.status, total: inv.total, lineAmounts: inv.lineAmounts || {}, notes: inv.notes, submittedAt: inv.submittedAt, attending: inv.attending ?? null, questions: (inv.questions || []).map((q) => ({ id: q.id, text: q.text, at: q.at, answer: q.answer || null, answeredAt: q.answeredAt || null })) },
   };
 }
 
@@ -59,6 +70,7 @@ export class BidPackagesService {
     @InjectRepository(ContractorBidEntity) private readonly bids: Repository<ContractorBidEntity>,
     @InjectRepository(ContractorEntity) private readonly contractors: Repository<ContractorEntity>,
     @InjectRepository(CsiCodeEntity) private readonly csi: Repository<CsiCodeEntity>,
+    @InjectRepository(SubcontractorTradeEntity) private readonly trades: Repository<SubcontractorTradeEntity>,
   ) {}
 
   private async pkg(projectId: number, id: string) {
@@ -79,7 +91,7 @@ export class BidPackagesService {
   }
 
   /** A package from chosen scopes: a snapshot of their text only (no money ever goes in). */
-  async create(projectId: number, estimateId: string, dto: { title?: string; scopeIds?: string[]; dueDate?: string; notes?: string }, actor: Actor) {
+  async create(projectId: number, estimateId: string, dto: { title?: string; scopeIds?: string[]; dueDate?: string; notes?: string; instructions?: string; siteVisit?: unknown }, actor: Actor) {
     const { e, sheet } = await this.estimates.raw(projectId, estimateId, actor, 'edit');
     const ids = new Set((dto?.scopeIds || []).map(String));
     const scopes = sheet.scopes.filter((s) => ids.has(s.id));
@@ -96,10 +108,106 @@ export class BidPackagesService {
     };
     const n = (await this.packages.count({ where: { projectId } })) + 1;
     const title = String(dto?.title || '').trim().slice(0, 300) || scopes.map((s) => s.title).filter(Boolean).slice(0, 3).join(', ') || 'Bid package';
-    const p = this.packages.create({ id: newId('BP'), projectId, estimateId: e.id, estimateNumber: e.number, number: `BP-${String(n).padStart(3, '0')}`, title, content, dueDate: due, notes: String(dto?.notes || '').trim().slice(0, 8000) || null, status: 'draft', createdAt: now(), createdBy: actor.name, updatedAt: now() });
+    const p = this.packages.create({ id: newId('BP'), projectId, estimateId: e.id, estimateNumber: e.number, number: `BP-${String(n).padStart(3, '0')}`, title, content, dueDate: due, notes: String(dto?.notes || '').trim().slice(0, 8000) || null, status: 'draft', createdAt: now(), createdBy: actor.name, updatedAt: now(), instructions: String(dto?.instructions || '').trim().slice(0, 20000) || null, siteVisit: cleanVisit(dto?.siteVisit) });
     await this.packages.save(p);
     await this.fin.log(null, { projectId, entityType: 'bid_package', entityId: p.id, action: 'created', reason: `${p.number} from ${e.number} Rev ${e.rev}` }, actor);
     return p;
+  }
+
+  /** Nov 19: change a package's due date, note, instructions or site visit. */
+  async update(projectId: number, packageId: string, dto: { title?: string; dueDate?: string | null; notes?: string; instructions?: string; siteVisit?: unknown }, actor: Actor) {
+    const p = await this.pkg(projectId, packageId);
+    await this.estimates.raw(projectId, p.estimateId, actor, 'edit');
+    if (dto.title !== undefined) p.title = String(dto.title || '').trim().slice(0, 300) || p.title;
+    if (dto.dueDate !== undefined) { const d = dto.dueDate ? String(dto.dueDate).slice(0, 10) : null; if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new BadRequestException('The due date must be a date.'); p.dueDate = d; }
+    if (dto.notes !== undefined) p.notes = String(dto.notes || '').trim().slice(0, 8000) || null;
+    if (dto.instructions !== undefined) p.instructions = String(dto.instructions || '').trim().slice(0, 20000) || null;
+    if (dto.siteVisit !== undefined) p.siteVisit = cleanVisit(dto.siteVisit);
+    p.updatedAt = now();
+    return this.packages.save(p);
+  }
+
+  /** Nov 19 (Edward): every bid package, across projects -- for GC & Sub Prequalify & RFP. */
+  async all(actor: Actor) {
+    const rights = await this.estimates.rights(actor);
+    if (!rights.view) throw new ForbiddenException('Your role doesn’t include estimating.');
+    const rows = await this.packages.find({ order: { createdAt: 'DESC' } });
+    const inv = rows.length ? await this.invites.find({ where: { packageId: In(rows.map((r) => r.id)) } }) : [];
+    const names = new Map<number, string>();
+    for (const id of [...new Set(rows.map((r) => r.projectId))]) names.set(id, (await this.fin.project(id).catch(() => null))?.name || `Project ${id}`);
+    return rows.map((p) => {
+      const mine = inv.filter((i) => i.packageId === p.id);
+      return {
+        id: p.id, projectId: p.projectId, projectName: names.get(p.projectId), estimateId: p.estimateId, estimateNumber: p.estimateNumber, number: p.number, title: p.title, dueDate: p.dueDate, status: p.status,
+        invited: mine.length, submitted: mine.filter((i) => ['submitted', 'awarded', 'not_awarded'].includes(i.status)).length, attending: mine.filter((i) => i.attending).length,
+        openQuestions: mine.reduce((a, i) => a + (i.questions || []).filter((q) => !q.answer).length, 0), siteVisit: p.siteVisit || null,
+      };
+    });
+  }
+
+  /**
+   * Nov 19 (Edward: "the subs should be suggested based on the CSI codes"):
+   * the subs whose licences cover the package's CSI divisions, best match first.
+   * Prequal never hides anyone here; a turned-down one is marked.
+   */
+  async suggest(projectId: number, packageId: string, actor: Actor) {
+    const p = await this.pkg(projectId, packageId);
+    await this.estimates.raw(projectId, p.estimateId, actor);
+    const want = new Set(p.content.scopes.map((s) => (s.csi || '').match(/^(\d{2})/)?.[1]).filter((x): x is string => !!x));
+    const trades = new Map((await this.trades.find()).map((t) => [t.id, t]));
+    return (await this.contractors.find()).filter((c) => c.status !== 'inactive').map((c) => {
+      const divs = new Set((c.tradeIds || []).flatMap((id) => trades.get(id)?.csiDivisions || []));
+      const matches = [...want].filter((d) => divs.has(d));
+      return { contractorId: c.id, companyName: c.companyName, matches, prequalBlock: prequalBlock(c), turnedDown: c.prequalStatus === 'rejected' };
+    }).filter((x) => x.matches.length).sort((a, b) => b.matches.length - a.matches.length || a.companyName.localeCompare(b.companyName));
+  }
+
+  /** Nov 19: answer a sub's question -- to that sub only (by email when mail is connected, and on their bid page). */
+  async answer(projectId: number, packageId: string, inviteId: string, questionId: string, answer: string, actor: Actor) {
+    const p = await this.pkg(projectId, packageId);
+    await this.estimates.raw(projectId, p.estimateId, actor, 'edit');
+    const inv = await this.invites.findOne({ where: { id: inviteId } });
+    if (!inv || inv.packageId !== p.id) throw new NotFoundException('Bid invite not found.');
+    const q = (inv.questions || []).find((x) => x.id === questionId);
+    if (!q) throw new NotFoundException('Question not found.');
+    const text = String(answer || '').trim().slice(0, 8000);
+    if (!text) throw new BadRequestException('Write the answer.');
+    Object.assign(q, { answer: text, answeredAt: now(), answeredBy: actor.name });
+    inv.questions = [...(inv.questions || [])];
+    await this.invites.save(inv);
+    let emailed = false;
+    if (inv.email && EMAIL.test(inv.email) && (await this.google.isConnected().catch(() => false))) {
+      const brand = await loadEmailBrand(this.settings);
+      const link = await this.link(inv);
+      await this.google.sendMail({
+        to: inv.email, subject: `Answer to your question — ${p.number} ${p.title}`,
+        html: emailShell({ brand: brand as any, eyebrow: `Bid request · ${p.number}`, title: `Hello ${escapeHtml(inv.vendorName || '')},`,
+          body: `<p style="margin:0 0 8px;font-size:13px;color:#7E9B93;">You asked:</p><p style="margin:0 0 14px;font-size:13.5px;line-height:1.6;color:#43514D;white-space:pre-wrap;">${escapeHtml(q.text)}</p><p style="margin:0 0 8px;font-size:13px;color:#7E9B93;">Our answer:</p><p style="margin:0 0 14px;font-size:13.5px;line-height:1.6;color:#0B1A12;white-space:pre-wrap;">${escapeHtml(text)}</p>` + viewButton(link).replace('View the change order', 'Back to the bid request'),
+          footer: `Sent by ${escapeHtml(actor.name)} at ${escapeHtml(brand.companyName)}.` }),
+      }).then(() => { emailed = true; }).catch(() => undefined);
+    }
+    return { answered: true, emailed };
+  }
+
+  /** The sub asks a question on their bid page (Nov 19). */
+  async publicAsk(token: string, text: string) {
+    const { inv, p } = await this.fromToken(token);
+    if (p.status === 'closed') throw new ConflictException('This bid request is closed.');
+    const t = String(text || '').trim().slice(0, 4000);
+    if (!t) throw new BadRequestException('Write your question.');
+    if ((inv.questions || []).length >= 30) throw new BadRequestException('Too many questions on this request — call the office.');
+    inv.questions = [...(inv.questions || []), { id: newId('BQ'), text: t, at: now() }];
+    await this.invites.save(inv);
+    return { asked: true };
+  }
+
+  /** "I'll attend" (or not) the site visit. */
+  async publicAttend(token: string, yes: boolean) {
+    const { inv, p } = await this.fromToken(token);
+    if (!p.siteVisit) throw new BadRequestException('There is no site visit on this request.');
+    inv.attending = !!yes;
+    await this.invites.save(inv);
+    return { attending: inv.attending };
   }
 
   private async link(inv: BidInviteEntity) {
@@ -147,7 +255,7 @@ export class BidPackagesService {
         await this.google.sendMail({
           to: inv.email, subject: `Bid request ${p.number} — ${project.name}`,
           html: emailShell({ brand: emailBrand as any, eyebrow: `Bid request · ${p.number}`, title: `Hello ${escapeHtml(c.companyName)},`,
-            body: (prequalLink ? `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">With your price, please fill in our short <a href="${prequalLink}">prequalification form</a> (licence, insurance, references). Full qualification is needed before work starts on site.</p>` : '') + `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">We’d like your price for <b>${escapeHtml(p.title)}</b> on ${escapeHtml(project.name)}${p.dueDate ? `, by <b>${escapeHtml(p.dueDate)}</b>` : ''}. The scope, lines and inclusions / exclusions are on the page below, where you can enter your price or decline.</p>${p.notes ? `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">${escapeHtml(p.notes).replace(/\n/g, '<br>')}</p>` : ''}` + viewButton(link).replace('View the change order', 'See the scope and send your price'),
+            body: (prequalLink ? `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">With your price, please fill in our short <a href="${prequalLink}">prequalification form</a> (licence, insurance, references). Full qualification is needed before work starts on site.</p>` : '') + `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">We’d like your price for <b>${escapeHtml(p.title)}</b> on ${escapeHtml(project.name)}${p.dueDate ? `, by <b>${escapeHtml(p.dueDate)}</b>` : ''}. The scope, lines and inclusions / exclusions are on the page below, where you can enter your price or decline.</p>${p.notes ? `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">${escapeHtml(p.notes).replace(/\n/g, '<br>')}</p>` : ''}${p.siteVisit ? `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;"><b>Site visit:</b> ${escapeHtml(p.siteVisit.date)}${p.siteVisit.time ? ` at ${escapeHtml(p.siteVisit.time)}` : ''}${p.siteVisit.place ? `, ${escapeHtml(p.siteVisit.place)}` : ''}${p.siteVisit.note ? ` — ${escapeHtml(p.siteVisit.note)}` : ''}. Let us know on the page below if you’ll come.</p>` : ''}${p.instructions ? `<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:#43514D;">The bid instructions are on the page below — please read them before pricing.</p>` : ''}` + viewButton(link).replace('View the change order', 'See the scope and send your price'),
             footer: `Sent by ${escapeHtml(actor.name)} at ${escapeHtml(emailBrand.companyName)}.` }),
         }).then(() => { emailed = true; }).catch(() => undefined);
       }
