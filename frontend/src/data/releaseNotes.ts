@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-19a',
+    date: '2026-11-19',
+    title: 'Daily report hours, meeting clean-up, quick reimbursables',
+    items: [
+      { area: 'Daily report', kind: 'improved', text: 'Hours buttons are now 4, 8, 9, 10, 11 and 12. You can still type any other number.', where: 'Daily Report → Crew' },
+      { area: 'Daily report', kind: 'fixed', text: 'Pressing Delete or Backspace in the hours box only clears the hours — the worker stays on the sheet. Only “× Remove” takes a worker off. Workers with no hours are counted at the top.', where: 'Daily Report → Crew' },
+    ],
+  },
+  {
     id: '2026-11-18h',
     date: '2026-11-18',
     title: 'Site crews: each supervisor sees only his workers',

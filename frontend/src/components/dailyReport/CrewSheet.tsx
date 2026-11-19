@@ -6,10 +6,20 @@ export interface Emp { id: string; name: string; workerId?: string; tradeId?: st
 export interface Code { id: string; code: string; division: string; active: boolean }
 
 const STATUSES: [string, string][] = [['start', 'Start'], ['continued', 'Cont.'], ['completing', 'Done']];
-const QUICK_HOURS = [4, 8, 10, 12];
+const QUICK_HOURS = [4, 8, 9, 10, 11, 12];
+
+/**
+ * Nov 19: what the hours box holds. Empty (Delete / Backspace) clears the
+ * hours but keeps the worker on the sheet -- only "× Remove" takes a row off.
+ */
+export function parseHours(v: string): number | undefined {
+  if (String(v).trim() === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(24, Math.max(0, n)) : undefined;
+}
 const TEAMS = ['A', 'B', 'C', 'D'];
 // Columns: worker · hours · cost code · task · team · work done
-const COLS = 'minmax(190px, 1.3fr) 250px minmax(150px, 1fr) 150px 128px minmax(170px, 1.4fr)';
+const COLS = 'minmax(190px, 1.3fr) 340px minmax(150px, 1fr) 150px 128px minmax(170px, 1.4fr)';
 
 const cellBtn = (on: boolean, disabled?: boolean): CSSProperties => ({
   minWidth: 30, height: 28, padding: '0 7px', borderRadius: 7, fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
@@ -64,11 +74,12 @@ export function CrewSheet({ employees, codes, onSite, crew, crewOnly, entries, s
     ? es.map((e) => (e.employeeId === id ? { ...e, ...p } : e))
     : [...es, { employeeId: id, hours: 8, taskStatus: 'continued', csiCodeId: lastCode, taskDetail: '', team: '', ...p }]));
   const remove = (id: string) => setEntries((es) => es.filter((e) => e.employeeId !== id));
-  const setHours = (id: string, h: number) => (h > 0 ? patch(id, { hours: h }) : remove(id));
+  const setHours = (id: string, h: number | undefined) => { if (h !== undefined || entryOf(id)) patch(id, { hours: h }); };
   const everyone = (p: Partial<Entry>) => setEntries((es) => es.map((e) => ({ ...e, ...p })));
   const addCrew = () => setEntries((es) => [...es, ...employees.filter((e) => shownSite(e.id) && !es.some((x) => x.employeeId === e.id)).map((e) => ({ employeeId: e.id, hours: 8, taskStatus: 'continued', csiCodeId: lastCode, taskDetail: '', team: '' }))]);
   const totalHours = entries.reduce((a, e) => a + (Number(e.hours) || 0), 0);
   const noCode = entries.filter((e) => !e.csiCodeId).length;
+  const noHours = entries.filter((e) => !(Number(e.hours) > 0)).length;
   const crewMissing = employees.filter((e) => shownSite(e.id) && !inLog.has(e.id)).length;
 
   const move = (ev: React.KeyboardEvent<HTMLElement>, col: string, row: number) => {
@@ -85,7 +96,7 @@ export function CrewSheet({ employees, codes, onSite, crew, crewOnly, entries, s
     const hl = on && !!carried?.(e!);
     return (
       <div key={id} title={hl ? 'Carried over from the previous report — not changed yet' : undefined}
-        style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid ' + LINE, minWidth: 1100,
+        style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid ' + LINE, minWidth: 1190,
           background: on ? (e!.csiCodeId ? '#F6FAF6' : '#FFF9E6') : 'var(--surface)', ...(hl ? { ...CARRIED, borderRadius: 0, boxShadow: 'inset 3px 0 0 rgba(245, 196, 67, 1)' } : {}) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <span style={{ width: 8, height: 8, borderRadius: 999, flex: 'none', background: on ? '#2E8B57' : 'transparent', border: on ? 'none' : '1.5px solid rgba(var(--rgb-shade), .18)' }} />
@@ -98,9 +109,9 @@ export function CrewSheet({ employees, codes, onSite, crew, crewOnly, entries, s
         </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <input data-cell={`h-${i}`} type="number" min={0} max={24} step={0.5} disabled={!editable} value={on ? e!.hours ?? '' : ''} placeholder="0"
-            onChange={(ev) => setHours(id, Math.min(24, Math.max(0, Number(ev.target.value) || 0)))} onKeyDown={(ev) => move(ev, 'h', i)}
+            onChange={(ev) => setHours(id, parseHours(ev.target.value))} onKeyDown={(ev) => move(ev, 'h', i)}
             style={{ ...cellInput, width: 52, textAlign: 'center', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} aria-label={`Hours for ${emp?.name || id}`} />
-          {QUICK_HOURS.map((h) => <button key={h} type="button" disabled={!editable} onClick={() => setHours(id, on && e!.hours === h ? 0 : h)} style={cellBtn(on && Number(e!.hours) === h, !editable)}>{h}</button>)}
+          {QUICK_HOURS.map((h) => <button key={h} type="button" disabled={!editable} onClick={() => setHours(id, on && Number(e!.hours) === h ? undefined : h)} style={cellBtn(on && Number(e!.hours) === h, !editable)}>{h}</button>)}
           {on && editable && <button type="button" title="Remove from today’s report" aria-label="Remove from today" onClick={() => remove(id)} style={{ ...cellBtn(false), color: '#8E2E0A', minWidth: 26, padding: '0 8px' }}>× Remove</button>}
         </div>
         <select data-cell={`c-${i}`} disabled={!editable} value={e?.csiCodeId || ''} onChange={(ev) => patch(id, { csiCodeId: ev.target.value })} onKeyDown={(ev) => move(ev, 'c', i)}
@@ -123,7 +134,7 @@ export function CrewSheet({ employees, codes, onSite, crew, crewOnly, entries, s
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: MUTED, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: INK }}>{entries.length}</b> on the timesheet · <b style={{ color: INK }}>{totalHours}</b> h{noCode ? <span style={{ color: 'var(--c-8a6d12)' }}> · {noCode} need a cost code</span> : null}</span>
+        <span style={{ fontSize: 12.5, color: MUTED, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: INK }}>{entries.length}</b> on the timesheet · <b style={{ color: INK }}>{totalHours}</b> h{noCode ? <span style={{ color: 'var(--c-8a6d12)' }}> · {noCode} need a cost code</span> : null}{noHours ? <span style={{ color: 'var(--c-8a6d12)' }}> · {noHours} {noHours === 1 ? 'worker has' : 'workers have'} no hours</span> : null}</span>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 12.5, color: MUTED }}><b style={{ color: INK }}>{onSite.size}</b> assigned to this project</span>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person…" style={{ ...cellInput, width: 170, height: 32, borderRadius: 999, padding: '0 12px' }} />
@@ -189,7 +200,7 @@ export function CrewSheet({ employees, codes, onSite, crew, crewOnly, entries, s
       )}
       <div style={{ border: '1px solid ' + LINE, borderRadius: 'var(--r-12)', overflow: 'hidden' }}>
         <div ref={sheetRef} style={{ overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, padding: '10px 14px', background: 'var(--panel)', fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.07em', minWidth: 1100 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, padding: '10px 14px', background: 'var(--panel)', fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.07em', minWidth: 1190 }}>
             <span>Worker</span><span>Hours</span><span>Cost code</span><span>Task</span><span>Team</span><span>Work done</span>
           </div>
           {rows.map((emp, i) => row(emp, emp.id, i))}
