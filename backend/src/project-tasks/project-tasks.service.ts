@@ -344,11 +344,12 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if (this.tagBank && !dto.phaseId) {
       const t = await this.tagBank.newItemTags({ tags: dto.tags, labels: normalizeList<string>(dto.labels), actor, assigneeId: assignee.id, leadId: dto.leadId || null, projectId: dto.projectId == null ? null : Number(dto.projectId) });
       dto = { ...dto, tags: t.tags, labels: t.labels };
-    } else dto = { ...dto, tags: cleanTags(dto.tags) };
+    } else dto = { ...dto, tags: cleanTags(dto.tags).length ? cleanTags(dto.tags) : ['internal'] }; // Nov 19: Internal by default on every task
     // Checklist templates marked "add automatically to" tasks (not subtasks).
     const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
     const checklist = withAutoChecklists(templates, { kind: 'task', labels: normalizeList<string>(dto.labels) }, normalizeList(dto.checklist));
-    const requester = dto.requestedById || dto.requestedBy ? await resolveAssignee(this.users, { id: dto.requestedById, name: dto.requestedBy }) : null;
+    // Nov 19 (Edward): the source is whoever makes the task, unless one is picked.
+    const requester = dto.requestedById || dto.requestedBy ? await resolveAssignee(this.users, { id: dto.requestedById, name: dto.requestedBy }) : actor.id ? { id: actor.id, name: actor.name } : null;
     let status: string = dto.status || (dto.completed ? 'Done' : 'Not started');
     if (status === 'Not started' && assignee.name) status = 'Assigned';
     const board = !dto.phaseId;

@@ -1,5 +1,6 @@
 import { MAIN_STRUCTURE, baseKey, programmeFor, scopedDeps, structureKey, type Structure } from './structures';
 import { fillByRole, PROJECT_ROLES, roleSummary } from './project-roles';
+import { programmeSourceKey } from './programme-source';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -313,6 +314,14 @@ export class PhasesService implements OnApplicationBootstrap {
     const qaqc = this.checklistTemplates ? (await this.checklistTemplates.find()).filter((t) => t.kind === 'qaqc') : [];
     const rows: ProjectTaskEntity[] = [];
     const touched: ProjectTaskEntity[] = [];
+    const project = await this.projects.findOne({ where: { id: projectId }, select: { id: true, roles: true } as any }).catch(() => null);
+    const nameOf = await this.nameOfUser();
+    const sourceFor = (ph: ProjectPhaseEntity) => {
+      const key = programmeSourceKey(ph, project?.roles);
+      const id = key ? project!.roles![key] : null;
+      const name = id ? nameOf(id) : null;
+      return id && name ? { requestedById: id, requestedBy: name } : null;
+    };
 
     for (const phase of pending) {
       const byTitle = new Map(existing.filter((t) => t.phaseId === phase.id).map((t) => [t.title, t]));
@@ -352,6 +361,9 @@ export class PhasesService implements OnApplicationBootstrap {
           order: i,
           team: tpl.team || '',
           attachments: [], comments: [], checklist: qaqc.length ? withAutoChecklists(qaqc, { kind: 'task', labels: tpl.labels || [], programmeId: tpl.id }, []) : [], labels: tpl.labels || [],
+          // Nov 19: Internal unless someone shares it; the source is the project's Architect / Construction Manager.
+          tags: ['internal'],
+          ...(sourceFor(phase) || {}),
           activity: [event('created', { name: 'System' }, { text: 'added from the standard programme' })],
           createdAt: stamp.slice(0, 10),
           updatedAt: stamp,

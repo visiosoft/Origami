@@ -123,3 +123,11 @@ describe('RFIs', () => {
     expect(html).toContain('a &amp; b');
   });
 });
+
+describe('RFI drawings on the document (Nov 19)', () => {
+  const { drawingLines } = require('./rfi.document');
+  it('lists each sheet page once with its markup count', () => {
+    const list = Array.from({ length: 11 }, (_, i) => ({ fileId: 'F1', name: 'Floor Plan.pdf', page: 1, markupId: 'MK-' + i })).concat([{ fileId: 'F1', name: 'Floor Plan.pdf', page: 3, markupId: 'MK-x' }]);
+    expect(drawingLines(list)).toEqual(['Floor Plan.pdf, p. 1 (11 markups)', 'Floor Plan.pdf, p. 3 (1 markup)']);
+  });
+});

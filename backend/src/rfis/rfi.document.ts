@@ -1,6 +1,18 @@
 import { escapeHtml } from '../email/shell';
 import type { RfiEntity } from '../database/entities';
 
+/** Nov 19: one line per sheet page with its markup count -- not the file name once per markup. */
+export function drawingLines(list: { fileId?: string; name: string; page?: number; markupId?: string }[] | null | undefined): string[] {
+  const m = new Map<string, { name: string; page?: number; markups: number }>();
+  for (const d of list || []) {
+    const key = `${d.fileId || d.name}|${d.page || ''}`;
+    const g = m.get(key) || { name: d.name, page: d.page, markups: 0 };
+    if (d.markupId) g.markups++;
+    m.set(key, g);
+  }
+  return [...m.values()].map((g) => `${g.name}${g.page ? `, p. ${g.page}` : ''}${g.markups ? ` (${g.markups} markup${g.markups === 1 ? '' : 's'})` : ''}`);
+}
+
 export const RFI_STATUSES = ['draft', 'open', 'answered', 'closed', 'void'] as const;
 export type RfiStatus = typeof RFI_STATUSES[number];
 export const RFI_DISCIPLINES = ['Architectural', 'Structural', 'Civil', 'Mechanical', 'Electrical', 'Plumbing', 'Fire Protection', 'Landscape', 'Interior', 'Owner / Client', 'Other'];
@@ -36,7 +48,7 @@ export function impactLine(r: Pick<RfiEntity, 'costImpact' | 'costAmount' | 'sch
 export function rfiDocumentHtml(r: RfiEntity, project: { name: string; location?: string }, company: string) {
   const row = (k: string, v: string) => `<tr><td style="padding:6px 10px;width:150px;color:#5C6B65;font-size:10pt;border-bottom:1px solid #E4E1DA;vertical-align:top">${k}</td><td style="padding:6px 10px;font-size:10.5pt;border-bottom:1px solid #E4E1DA;vertical-align:top">${v}</td></tr>`;
   const imp = impactLine(r);
-  const drawings = [r.drawingRef, ...(r.drawings || []).map((d) => d.name)].filter(Boolean).map((x) => escapeHtml(String(x))).join('<br>');
+  const drawings = [r.drawingRef, ...drawingLines(r.drawings)].filter(Boolean).map((x) => escapeHtml(String(x))).join('<br>');
   const cc = (r.cc || []).map((c) => escapeHtml([c.name, c.company].filter(Boolean).join(', '))).join('; ');
   const block = (title: string, body: string) => `
     <div style="margin-top:16px">
@@ -74,7 +86,7 @@ export function rfiDocumentHtml(r: RfiEntity, project: { name: string; location?
 
 /** The email that carries the RFI -- the PDF is attached, this is the readable summary. */
 export function rfiEmailBody(r: RfiEntity, project: { name: string }, note?: string) {
-  const drawings = [r.drawingRef, ...(r.drawings || []).map((d) => d.name)].filter(Boolean).map((x) => escapeHtml(String(x))).join(', ');
+  const drawings = [r.drawingRef, ...drawingLines(r.drawings)].filter(Boolean).map((x) => escapeHtml(String(x))).join(', ');
   return `
     ${note ? `<p style="margin:0 0 16px;font-size:13.5px;line-height:1.6;color:#43514D;">${para(note)}</p>` : ''}
     <p style="margin:0 0 6px;font-size:12px;color:#7E9B93;">${escapeHtml(project.name)}${r.discipline ? ` · ${escapeHtml(r.discipline)}` : ''}${drawings ? ` · ${drawings}` : ''}</p>

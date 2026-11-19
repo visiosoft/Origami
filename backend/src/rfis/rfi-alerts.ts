@@ -54,3 +54,28 @@ export function rfiDueNotices(rfis: RfiLike[], users: Me[], today: string) {
   }
   return out;
 }
+
+/**
+ * Nov 19 (Edward): the weekly RFI Log -- for each person, the RFIs still open
+ * or answered on the projects they're on (in the project's team, or the RFI's
+ * owner / recipient), overdue first.
+ */
+export function rfiLogs(rfis: (RfiLike & { id: string; number?: string | null; subject?: string | null; projectId: number })[], users: Me[], teamOf: (projectId: number) => string[], today: string) {
+  const live = rfis.filter((r) => r.status === 'open' || r.status === 'answered');
+  const out: { userId: string; title: string; body: string }[] = [];
+  for (const u of users) {
+    if (!u.id) continue;
+    const mine = live.filter((r) => teamOf(r.projectId).includes(u.id!) || r.ownerId === u.id || rfiMine(r, u));
+    if (!mine.length) continue;
+    const due = (r: RfiLike) => (DAY.test(r.dateDue || '') ? r.dateDue!.slice(0, 10) : '');
+    const late = (r: RfiLike) => r.status === 'open' && !!due(r) && due(r) < today;
+    mine.sort((a, b) => Number(late(b)) - Number(late(a)) || (due(a) || '9').localeCompare(due(b) || '9'));
+    const overdue = mine.filter(late).length;
+    out.push({
+      userId: u.id,
+      title: `RFI Log: ${mine.length} open${overdue ? `, ${overdue} overdue` : ''}`,
+      body: mine.slice(0, 25).map((r) => `${r.number || r.id} — ${r.subject || 'RFI'} · ${late(r) ? `OVERDUE (due ${due(r)})` : r.status === 'answered' ? 'answered' : due(r) ? `due ${due(r)}` : 'open'}`).join('\n') + (mine.length > 25 ? `\n…and ${mine.length - 25} more` : ''),
+    });
+  }
+  return out;
+}

@@ -83,6 +83,20 @@ export function Estimating() {
   const grid = useRef<{ flush: () => Promise<unknown> } | null>(null);
 
   useEffect(() => { (api.projects.list() as Promise<any>).then((l) => setProjects(Array.isArray(l) ? l : l?.rows || [])).catch(() => setProjects([])); }, []);
+  // Nov 19 (Edward): which projects already have an estimate -- shown as a badge on the start page.
+  const [estOf, setEstOf] = useState<Map<number, { count: number; last: string; status: string }>>(new Map());
+  useEffect(() => {
+    if (projectId) return;
+    (api.finance.estimatesAll() as Promise<any>).then((r) => {
+      const m = new Map<number, { count: number; last: string; status: string }>();
+      for (const e of (r?.rows || []) as { projectId: number; updatedAt?: string; status: string }[]) {
+        const x = m.get(e.projectId) || { count: 0, last: '', status: e.status };
+        x.count++; if ((e.updatedAt || '') > x.last) { x.last = e.updatedAt || ''; x.status = e.status; }
+        m.set(e.projectId, x);
+      }
+      setEstOf(m);
+    }).catch(() => setEstOf(new Map()));
+  }, [projectId]);
   const load = useCallback(() => {
     if (!projectId) { setRows(null); return; }
     api.finance.estimates(projectId).then((r: any) => { setRows(r?.rows || []); setRights(r?.rights || { view: false, edit: false }); }).catch((e: any) => { setRows([]); toast(e?.message || 'Could not load estimates.'); });
@@ -140,7 +154,11 @@ export function Estimating() {
                 {isOpen && (
                   <div style={{ display: 'grid', gap: 6 }}>
                     {mine.slice(0, 200).map((p) => (
-                      <button key={p.id} type="button" onClick={() => go({ project: String(p.id), estimate: null })} style={{ textAlign: 'left', padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)', font: 'inherit', fontSize: 14, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>{p.name}{p.stage && <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 500, color: 'var(--muted)' }}>{p.stage}</span>}</button>
+                      <button key={p.id} type="button" onClick={() => go({ project: String(p.id), estimate: null })} style={{ textAlign: 'left', padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)', font: 'inherit', fontSize: 14, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>{p.name}{p.stage && <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 500, color: 'var(--muted)' }}>{p.stage}</span>}
+                        {estOf.get(p.id) && (() => { const x = estOf.get(p.id)!; return (
+                          <span className="est-has" title={`Last changed ${x.last ? new Date(x.last).toLocaleDateString() : '—'} · latest is ${x.status}`} style={{ marginLeft: 10, padding: '2px 9px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, background: x.status === 'accepted' ? 'var(--c-d2ead3)' : '#FBEBDD', color: x.status === 'accepted' ? 'var(--success-deep)' : '#8A4B12' }}>
+                            ▣ {x.count} estimate{x.count === 1 ? '' : 's'}{x.last ? ` · ${new Date(x.last).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                          </span>); })()}</button>
                     ))}
                     {!mine.length && <div style={{ color: 'var(--muted)', fontSize: 13, padding: '0 4px' }}>None.</div>}
                   </div>

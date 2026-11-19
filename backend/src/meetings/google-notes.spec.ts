@@ -91,3 +91,14 @@ describe('meeting notes from Google (Nov 3 sync)', () => {
     await expect(svc.importDoc({}, { name: 'Edward' })).rejects.toThrow(/Pick a notes Doc/);
   });
 });
+
+describe('the date the notes give (Nov 19)', () => {
+  const { dateInNotes } = require('./google-notes');
+  it('reads "Meeting Date: November 12, 2026", Gemini headers and plain dates', () => {
+    expect(dateInNotes('1311 Countryside Ct. – Action Items\n\nMeeting Date: November 12, 2026\n\n1. Project Schedule')).toBe('2026-11-12');
+    expect(dateInNotes('1311 Countryside Weekly Sync - 2026/11/12 13:58 PST - Transcript')).toBe('2026-11-12');
+    expect(dateInNotes('Notes from Thursday, Nov 12, 2026')).toBeNull();
+    expect(dateInNotes('Held on December 3, 2026 at the site')).toBe('2026-12-03');
+    expect(dateInNotes('no date here')).toBeNull();
+  });
+});

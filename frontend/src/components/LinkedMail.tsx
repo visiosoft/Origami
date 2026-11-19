@@ -22,6 +22,8 @@ export function LinkedMail({ entityType, entityId }: { entityType: 'lead' | 'pro
             <b style={{ flex: 1, fontSize: 13, color: 'var(--ink)' }}>{r.subject || '(no subject)'}</b>
             <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{r.messages.length} message{r.messages.length === 1 ? '' : 's'} · {when(r.lastAt)} · from {r.ownerName}’s mail{r.auto ? ' (by tag)' : ''}</span>
           </button>
+          {/* Nov 19 (Edward): a link to the email itself, for whoever's mailbox it's in. */}
+          {r.mine && r.threadId && <a href={`/mail?thread=${encodeURIComponent(r.threadId)}`} style={{ fontSize: 12, fontWeight: 700, color: 'var(--forest)' }}>Open in My Mail →</a>}
           {open === r.id && r.messages.map((m, i) => (
             <div key={i} style={{ borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', paddingTop: 6 }}>
               <div style={{ fontSize: 12, color: 'var(--body)' }}><b>{m.from}</b> <span style={{ color: 'var(--muted)' }}>· {when(m.date)}</span></div>

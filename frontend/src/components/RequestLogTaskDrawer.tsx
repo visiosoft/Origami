@@ -1,3 +1,4 @@
+import { LinkedMail } from './LinkedMail';
 import { PanelResizeHandle, usePanelWidth } from './PanelResize';
 import { TaskCloseBar } from './TaskCloseBar';
 import { CloseButton } from './CloseButton';
@@ -149,7 +150,8 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
           <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
             {/* Nov 17: the same three buttons on every task. */}
             <TaskCloseBar auto={auto} archived={!!task.archivedAt} onFinish={closeTask} onReopen={reopen}
-              onDiscard={onClose} onSaveClose={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }} />
+              onDiscard={onClose} onSaveClose={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }}
+              extra={<ActionMenu kind="log" id={t.id} topicType={t.topicType} projectName={t.project} parts="duplicate" onMade={refreshTrail} />} />
           </div>
         )}
         {/* Header */}
@@ -319,6 +321,14 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             />
           </div>
 
+          {/* Nov 19 (Edward): Convert to and Delete task up by the tags, not at the bottom; Duplicate is in the top bar. */}
+          {(canManage || canDelete) && (
+            <div style={{ marginTop: 18, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {canManage && <ActionMenu kind="log" id={t.id} topicType={t.topicType} projectName={t.project} parts="convert" onMade={refreshTrail} />}
+              {canDelete && <button type="button" onClick={() => deleteTask()} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', background: 'var(--surface)', color: '#8E2E0A', fontFamily: 'inherit' }}>Delete task</button>}
+            </div>
+          )}
+
           <div style={{ marginTop: 18 }}>
             <TagPicker tags={t.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -374,19 +384,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
           <div style={{ marginTop: 10, padding: '11px 13px', background: 'var(--mist)', borderRadius: 10, fontSize: 10.5, color: 'var(--body)', lineHeight: 1.55 }}>Lead time is inherited from the task template ({lt.source}). Every due-date change, with who made it, is listed above.</div>
         </div>
 
-        {canManage && (
-          <div style={{ padding: '20px 28px 0' }}>
-            <ActionMenu kind="log" id={t.id} topicType={t.topicType} projectName={t.project} onMade={refreshTrail} />
-          </div>
-        )}
-        {canDelete && (
-          <div style={{ padding: '12px 28px 0' }}>
-            <div onClick={() => deleteTask()} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
-          </div>
-        )}
 
         {/* Activity — real comments and a record of what changed, a page at a time from the server */}
         <div style={{ padding: '20px 28px 26px' }}>
+          {/* Nov 19 (Edward): emails linked to this task, with when they were sent and a link to them. */}
+          <div style={{ marginBottom: 12 }}><LinkedMail entityType="task" entityId={t.id} /></div>
           <ActivityFeed
             source={{ kind: 'log', id: t.id }}
             version={`${t.activity?.length ?? 0}:${t.comments?.length ?? 0}`}

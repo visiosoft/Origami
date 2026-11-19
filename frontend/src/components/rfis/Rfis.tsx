@@ -84,6 +84,18 @@ function StatusPill({ r }: { r: Rfi }) {
  * RFIs page). New RFIs start as a draft with just a subject; the drawer
  * takes it from there.
  */
+/** RFI drawings grouped by sheet page: each with its markups (Nov 19). */
+export function groupDrawings(list: { fileId: string; name: string; markupId?: string; page?: number }[]) {
+  const m = new Map<string, { key: string; fileId: string; name: string; page?: number; markupIds: string[] }>();
+  for (const d of list) {
+    const key = `${d.fileId}|${d.page || ''}`;
+    const g = m.get(key) || { key, fileId: d.fileId, name: d.name, page: d.page, markupIds: [] };
+    if (d.markupId && !g.markupIds.includes(d.markupId)) g.markupIds.push(d.markupId);
+    m.set(key, g);
+  }
+  return [...m.values()];
+}
+
 export function RfiLog({ projectId, projectName, openId, compact }: { projectId?: number; projectName?: string; openId?: string | null; compact?: boolean }) {
   const { toast } = useApp();
   const [rights, setRights] = useState<{ view: boolean; manage: boolean } | null>(null);
@@ -489,10 +501,11 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           </div>
           <div style={{ ...lbl, marginTop: 12 }}>Drawings in the File Room</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
-            {(draft.drawings || []).map((d) => (
-              <span key={d.fileId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--mist)', fontSize: 12, fontWeight: 600 }}>
-                <a href={`/planroom?file=${encodeURIComponent(d.fileId)}${d.markupId ? `&markup=${encodeURIComponent(d.markupId)}` : ''}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--forest)', textDecoration: 'none' }}>{d.name}{d.page ? ` · p. ${d.page}` : ''}{d.markupId ? ' · markup' : ''}</a>
-                {!ro && <span onClick={() => set({ drawings: (draft.drawings || []).filter((x) => x.fileId !== d.fileId) })} style={{ cursor: 'pointer', color: MUTED }} title="Remove">×</span>}
+            {/* Nov 19 (Edward): one chip per sheet page, with how many markups are on it -- not one line per markup. */}
+            {groupDrawings(draft.drawings || []).map((g) => (
+              <span key={g.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--mist)', fontSize: 12, fontWeight: 600 }}>
+                <a href={`/planroom?file=${encodeURIComponent(g.fileId)}${g.markupIds[0] ? `&markup=${encodeURIComponent(g.markupIds[0])}` : ''}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--forest)', textDecoration: 'none' }}>{g.name}{g.page ? ` · p. ${g.page}` : ''}{g.markupIds.length ? ` · ${g.markupIds.length} markup${g.markupIds.length === 1 ? '' : 's'}` : ''}</a>
+                {!ro && <span onClick={() => set({ drawings: (draft.drawings || []).filter((x) => `${x.fileId}|${x.page || ''}` !== g.key) })} style={{ cursor: 'pointer', color: MUTED }} title="Remove">×</span>}
               </span>
             ))}
             {!(draft.drawings || []).length && <span style={{ fontSize: 12, color: 'var(--c-b5bdb8)' }}>None linked</span>}

@@ -18,7 +18,7 @@ import { SortSelect, sortFromString, sortToString, useSort } from '../components
 import './Meetings.css';
 import { Skeleton } from '../components/Skeleton';
 import { MeetingNotesImport } from '../components/MeetingNotesImport';
-import { parseMeetingNotes } from '../data/meetingNotes';
+import { dateInNotes, parseMeetingNotes } from '../data/meetingNotes';
 import { TagPicker } from '../components/TagPicker';
 import { OutsideMeeting } from '../components/OutsideMeeting';
 import { CalendarSyncPanel } from '../components/CalendarSyncPanel';
@@ -563,6 +563,17 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, startReview, onClose
             <h3 className="mt-h">Agenda</h3>
             <textarea className="mt-text" disabled={!editable} rows={4} value={draft.agenda || ''} onChange={(e) => set({ agenda: e.target.value })} placeholder="What will be covered" />
             <h3 className="mt-h">Notes / minutes</h3>
+            {/* Nov 19 (Edward): notes that name another day than the meeting's -- one click puts the meeting on it. */}
+            {(() => {
+              const said = dateInNotes(draft.minutes) || dateInNotes(draft.transcript);
+              if (!editable || !said || said === draft.date) return null;
+              return (
+                <div role="status" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '8px 10px', borderRadius: 9, background: '#FBEFD5', color: '#7A4B00', fontSize: 12.5, marginBottom: 6 }}>
+                  The notes say this meeting was on <b>{akDay(said)}</b>, not {akDay(draft.date)}.
+                  <button type="button" className="ak-btn" onClick={() => set({ date: said })}>Use {akDay(said)}</button>
+                </div>
+              );
+            })()}
             <textarea className="mt-text is-tall" disabled={!editable} rows={6} value={draft.minutes || ''} onChange={(e) => set({ minutes: e.target.value })} placeholder="What was discussed and decided — for meetings without a recording, the notes taken" />
 
             <h3 className="mt-h">Recording & transcript</h3>

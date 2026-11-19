@@ -52,3 +52,19 @@ describe('Today panel', () => {
     expect(r.tasks.map((t) => t.tag)).toEqual(['emergency', 'urgent', 'overdue', 'today']);
   });
 });
+
+describe('weekly RFI Log (Nov 19)', () => {
+  const { rfiLogs } = require('./rfi-alerts');
+  it('sends each person the open RFIs on their projects, overdue first', () => {
+    const rfis = [
+      { id: 'R2', number: 'RFI-002', subject: 'Electrical Service Run', projectId: 27, status: 'open', dateDue: '2026-11-12' },
+      { id: 'R3', number: 'RFI-003', subject: 'Fire Alarm', projectId: 27, status: 'draft' },
+      { id: 'R4', number: 'RFI-004', subject: 'Beam', projectId: 27, status: 'answered' },
+      { id: 'R9', number: 'RFI-009', subject: 'Other job', projectId: 30, status: 'open' },
+    ];
+    const out = rfiLogs(rfis, [{ id: 'U-E', email: 'e@o.co' }, { id: 'U-X', email: 'x@o.co' }], (pid: number) => (pid === 27 ? ['U-E'] : []), '2026-11-23');
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ userId: 'U-E', title: 'RFI Log: 2 open, 1 overdue' });
+    expect(out[0].body.split('\n')[0]).toBe('RFI-002 — Electrical Service Run · OVERDUE (due 2026-11-12)');
+  });
+});

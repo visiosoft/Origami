@@ -1,5 +1,5 @@
 import { personOnProject } from '../people/person-projects';
-import { rfiDueNotices } from '../rfis/rfi-alerts';
+import { rfiLogs, rfiDueNotices } from '../rfis/rfi-alerts';
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -258,6 +258,15 @@ export class NotifyHub implements OnApplicationBootstrap, OnModuleDestroy {
       }
     }
     if (!monday) return;
+    // Nov 19: the weekly RFI Log for the projects each person is on.
+    if (this.rfis) {
+      const all = await this.rfis.find().catch(() => [] as RfiEntity[]);
+      if (all.length) {
+        const users = (await this.users.find()).filter((u) => u.status !== 'suspended' && (u as any).tier !== 'client' && (u as any).tier !== 'consultant').map((u) => ({ id: u.id, email: u.email, altEmails: (u as any).altEmails || [] }));
+        const roles = new Map(((await this.projects?.find({ select: { id: true, roles: true } as any }).catch(() => [])) || []).map((p) => [p.id, Object.values(p.roles || {}) as string[]]));
+        for (const n of rfiLogs(all as any, users, (pid) => roles.get(Number(pid)) || [], today)) await this.deliver([n.userId], 'rfi_log', { title: n.title, body: n.body, path: '/rfis' });
+      }
+    }
     const end = addDays(today, 21);
     const byUser = new Map<string, typeof tasks>();
     for (const t of tasks.filter((x) => x.due >= today && x.due <= end)) byUser.set(t.userId, [...(byUser.get(t.userId) || []), t]);

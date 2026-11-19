@@ -16,6 +16,21 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-19c',
+    date: '2026-11-19',
+    title: 'Edward’s notes, part 1: task panel, meeting dates, RFIs, estimating',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Duplicate is now in the top bar next to ✓ Complete task; Convert to and Delete task sit just above the tags instead of at the bottom.', where: 'Any task' },
+      { area: 'Tasks', kind: 'improved', text: 'A new task’s Source is whoever made it (you can change it). Tasks from the project programme come from the project’s Architect (design work) or Project / Construction Manager. Every new task starts tagged Internal.', where: 'Any task → Source' },
+      { area: 'Tasks', kind: 'new', text: 'Emails linked to a task show above its activity, with their date and time and an “Open in My Mail” link.', where: 'Any task → Activity' },
+      { area: 'Meetings', kind: 'fixed', text: 'A meeting brought in from notes takes the date the notes give (“Meeting Date: November 12, 2026” or the transcript header), not the day it was imported. When a meeting’s notes name another day, a note offers “Use Nov 12”.', where: 'Meetings → open a meeting → Notes' },
+      { area: 'RFIs', kind: 'improved', text: 'An RFI’s drawings are listed once per sheet page with how many markups are on it — on the RFI and its PDF — instead of one line per markup.', where: 'RFI → Reference' },
+      { area: 'RFIs', kind: 'new', text: 'Weekly RFI Log: every Monday, the open and answered RFIs on the projects you’re on, overdue first. Choose how you get it under RFIs in your notification settings.', where: 'Settings → My account → Notifications → RFIs' },
+      { area: 'Estimating', kind: 'improved', text: 'The Estimating start page marks projects that already have estimates — how many, and when the latest changed.', where: 'Estimating' },
+      { area: 'Subcontractors', kind: 'improved', text: 'The prequal review no longer asks for a W-9 — that comes when we contract with them.', where: 'GC & Sub Prequalify & RFP' },
+    ],
+  },
+  {
     id: '2026-11-19b',
     date: '2026-11-19',
     title: 'Nightly database backup to Google Drive, checked',

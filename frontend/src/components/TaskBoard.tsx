@@ -1,3 +1,4 @@
+import { LinkedMail } from './LinkedMail';
 import { PanelResizeHandle, usePanelWidth } from './PanelResize';
 import { TaskCloseBar } from './TaskCloseBar';
 import { UnfilledRole } from './UnfilledRole';
@@ -1132,10 +1133,13 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 <TaskCloseBar auto={auto} archived={!!selected.archivedAt} subtask={!!selected.parentId} done={!!d.completed}
                   onFinish={() => (selected.parentId ? set({ completed: true }) : closeTask(selected.id))} onReopen={() => reopenTask(selected.id)}
                   onDiscard={() => setSelectedId(null)} onSaveClose={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }}
-                  extra={!selected.parentId && !selected.archivedAt && !restricted ? (
-                    <button type="button" onClick={() => setMerging(true)} title="Merge duplicate tasks into this one: their files, comments and history come here"
-                      style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--body)', cursor: 'pointer', whiteSpace: 'nowrap' }}>⇲ Merge duplicates…</button>
-                  ) : null} />
+                  extra={<>
+                    <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} parts="duplicate" onMade={() => load()} />
+                    {!selected.parentId && !selected.archivedAt && !restricted && (
+                      <button type="button" onClick={() => setMerging(true)} title="Merge duplicate tasks into this one: their files, comments and history come here"
+                        style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--body)', cursor: 'pointer', whiteSpace: 'nowrap' }}>⇲ Merge duplicates…</button>
+                    )}
+                  </>} />
               </div>
             )}
             <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -1284,6 +1288,17 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               />
             </div>
 
+            {/* Nov 19 (Edward): Convert to and Delete task up here, not at the bottom; Duplicate is in the top bar. */}
+            {canManage && (
+              <div style={{ padding: '12px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} parts="convert" onMade={(made) => {
+                  load();
+                  if (made.some((m) => m.kind !== 'board')) toast('Done — open it from the link');
+                }} />
+                <button type="button" onClick={() => deleteTask(selected.id)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', background: 'var(--surface)', color: '#8E2E0A', fontFamily: 'inherit' }}>Delete task</button>
+              </div>
+            )}
+
             {/* Labels */}
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
               <LabelPicker
@@ -1311,21 +1326,10 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               />
             </div>
 
-            {canManage && (
-              <div style={{ padding: '16px 22px 4px' }}>
-                <div style={{ marginBottom: 12 }}>
-                  <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} onMade={(made) => {
-                    // Copies onto this board appear at once; the task's own history now notes them.
-                    load();
-                    if (made.some((m) => m.kind !== 'board')) toast('Done — open it from the link');
-                  }} />
-                </div>
-                <div onClick={() => deleteTask(selected.id)} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
-              </div>
-            )}
-
             {/* Activity — comments plus a record of what changed, a page at a time from the server */}
             <div style={{ padding: '16px 22px 24px' }}>
+              {/* Nov 19 (Edward): emails linked to this task, with when they were sent and a link to them. */}
+              <div style={{ marginBottom: 12 }}><LinkedMail entityType="task" entityId={selected.id} /></div>
               <ActivityFeed
                 source={{ kind: 'board', id: selected.id }}
                 version={`${selected.activity?.length ?? 0}:${selected.comments?.length ?? 0}:${selected.commentCount ?? 0}`}

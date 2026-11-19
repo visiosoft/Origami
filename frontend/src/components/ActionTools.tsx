@@ -34,13 +34,15 @@ const pillBtn: CSSProperties = {
  * "Duplicate…" and "Convert to ▾" for one special action. The original is never
  * changed beyond a note in its history: "Converted to RFI-004".
  */
-export function ActionMenu({ kind, id, topicType, projectId, projectName, onMade, disabled }: {
+export function ActionMenu({ kind, id, topicType, projectId, projectName, onMade, disabled, parts = 'both' }: {
   kind: ActionKind; id: string; topicType?: string; projectId?: number | null;
   /** Special Actions Log entries know their project by name only. */
   projectName?: string;
   /** After a conversion or duplicate: refresh the record (its history now says so). */
   onMade?: (made: MadeAction[]) => void;
   disabled?: boolean;
+  /** Nov 19: task panels show Duplicate in the top bar and Convert to up by the title. */
+  parts?: 'both' | 'duplicate' | 'convert';
 }) {
   const { toast } = useApp();
   const [dup, setDup] = useState(false);
@@ -60,8 +62,8 @@ export function ActionMenu({ kind, id, topicType, projectId, projectName, onMade
   };
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      <button type="button" disabled={disabled || busy} onClick={() => setDup(true)} style={pillBtn}>Duplicate…</button>
-      {targets.length > 0 && (
+      {parts !== 'convert' && <button type="button" disabled={disabled || busy} onClick={() => setDup(true)} style={pillBtn}>Duplicate…</button>}
+      {parts !== 'duplicate' && targets.length > 0 && (
         <select aria-label="Convert to" disabled={disabled || busy} value="" onChange={(e) => { void convert(Number(e.target.value)); }} style={{ ...pillBtn, paddingRight: 10 }}>
           <option value="">{busy ? 'Converting…' : 'Convert to ▾'}</option>
           {targets.map((t, i) => <option key={t.label} value={i}>{t.label}</option>)}

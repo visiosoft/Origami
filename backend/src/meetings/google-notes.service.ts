@@ -5,7 +5,7 @@ import { MeetingEntity, UserEntity } from '../database/entities';
 import { CalendarService } from '../google/calendar.service';
 import { emailsOf } from '../common/emails';
 import { GoogleService } from '../google/google.service';
-import { docIdFrom, endedBefore, notesQuery, parseNotesDocName, sameMeeting, splitGeminiDoc } from './google-notes';
+import { dateInNotes, docIdFrom, endedBefore, notesQuery, parseNotesDocName, sameMeeting, splitGeminiDoc } from './google-notes';
 import { MeetingsService } from './meetings.service';
 import type { Actor } from '../manpower/manpower-access.service';
 import { addDays, localToday } from '../common/local-date';
@@ -151,6 +151,8 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     if (!id) throw new BadRequestException('Pick a notes Doc, or paste its link (docs.google.com/document/d/…).');
     const doc = await this.google.exportDocText(id);
     const p = parseNotesDocName(doc.name);
+    // Nov 19: no date in the Doc's name -- take the one the notes give, not today's (a Nov 12 meeting landed on Nov 16).
+    if (!p.date) p.date = dateInNotes(doc.text);
     const all = await this.meetings.find();
     let m = all.find((x) => x.notesDocId === id) || all.find((x) => sameMeeting(x, p)) || null;
     let created = false;
