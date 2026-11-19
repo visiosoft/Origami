@@ -1744,6 +1744,8 @@ export class TimesheetLineEntity {
 @Entity('subcontractor_trades')
 export class SubcontractorTradeEntity {
   @PrimaryColumn() id!: string;
+  /** Nov 19: the CSI divisions this licence covers (e.g. C-10 → ['26']); empty for general licences (A, B, B-2). */
+  @Column({ type: 'simple-json', nullable: true }) csiDivisions!: string[] | null;
   @Column() code!: string;
   @Column() name!: string;
   @Column({ default: 'specialty' }) category!: string; // general_engineering | general_building | specialty | limited_specialty | other

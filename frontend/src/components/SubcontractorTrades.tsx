@@ -11,6 +11,14 @@ export function useSubcontractorTrades() {
   return { trades, reload: load };
 }
 
+/** Nov 19: the CSI divisions a licence covers -- set in Settings, else guessed from its name; general licences cover any. */
+export const GENERAL_LICENCES = ['A', 'B', 'B-2'];
+export function csiOf(t: SubcontractorTrade): string {
+  if (t.csiDivisions?.length) return t.csiDivisions.join(', ');
+  if (GENERAL_LICENCES.includes(t.code.toUpperCase())) return 'any';
+  return tradeCsi(t.name) || '';
+}
+
 const catLabel = (c: string) => SUBTRADE_CATEGORIES.find(([k]) => k === c)?.[1] || c;
 
 /** Compact codes for a list cell: "C-10 Electrical" then "+2". */
@@ -21,7 +29,7 @@ export function TradeChips({ trades, ids, max = 2 }: { trades: SubcontractorTrad
     <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }} title={held.map((t) => `${t.code} ${t.name}`).join('\n')}>
       {held.slice(0, max).map((t) => (
         <span key={t.id} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 6, background: 'var(--mist)', color: ACCENT, whiteSpace: 'nowrap' }}>
-          <b>{t.code}</b> {t.name}{tradeCsi(t.name) ? <span style={{ color: MUTED }}> · CSI {tradeCsi(t.name)}</span> : null}
+          <b>{t.code}</b> {t.name}{csiOf(t) ? <span style={{ color: MUTED }}> · CSI {csiOf(t)}</span> : null}
         </span>
       ))}
       {held.length > max && <span style={{ fontSize: 11, color: MUTED, alignSelf: 'center' }}>+{held.length - max}</span>}
@@ -42,14 +50,14 @@ export function TradePicker({ trades, value, onChange, disabled }: { trades: Sub
   }, [open]);
   const held = value.map((id) => trades.find((t) => t.id === id)).filter(Boolean) as SubcontractorTrade[];
   const s = q.trim().toLowerCase();
-  const options = trades.filter((t) => t.active && !value.includes(t.id) && (!s || `${t.code} ${t.name} ${tradeCsi(t.name) || ''}`.toLowerCase().includes(s)));
+  const options = trades.filter((t) => t.active && !value.includes(t.id) && (!s || `${t.code} ${t.name} ${csiOf(t)}`.toLowerCase().includes(s)));
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: held.length ? 8 : 0 }}>
         {held.map((t) => (
           <span key={t.id} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--mist)', color: ACCENT, fontSize: 12 }}>
-            <b>{t.code}</b> {t.name}{tradeCsi(t.name) ? <span style={{ color: MUTED }}> · CSI {tradeCsi(t.name)}</span> : null}
+            <b>{t.code}</b> {t.name}{csiOf(t) ? <span style={{ color: MUTED }}> · CSI {csiOf(t)}</span> : null}
             {!disabled && <span onClick={() => onChange(value.filter((x) => x !== t.id))} style={{ cursor: 'pointer', color: MUTED }}>×</span>}
           </span>
         ))}
@@ -71,7 +79,7 @@ export function TradePicker({ trades, value, onChange, disabled }: { trades: Sub
                   <div key={t.id} onClick={() => { onChange([...value, t.id]); setQ(''); }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--c-f7f3ea)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
                     style={{ display: 'flex', gap: 10, padding: '7px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 13 }}>
-                    <b style={{ width: 44, color: ACCENT }}>{t.code}</b><span style={{ color: INK, flex: 1 }}>{t.name}</span>{tradeCsi(t.name) && <span style={{ color: MUTED, fontSize: 11.5 }}>CSI {tradeCsi(t.name)}</span>}
+                    <b style={{ width: 44, color: ACCENT }}>{t.code}</b><span style={{ color: INK, flex: 1 }}>{t.name}</span>{csiOf(t) && <span style={{ color: MUTED, fontSize: 11.5 }}>CSI {csiOf(t)}</span>}
                   </div>
                 ))}
               </div>
@@ -139,7 +147,7 @@ export function SubcontractorTradesSetup({ canManage }: { canManage: boolean }) 
               <div key={t.id}>
                 <div onClick={() => setOpenId(openId === t.id ? null : t.id)} style={{ ...bodyRow(cols), cursor: 'pointer', opacity: t.active ? 1 : 0.55 }}>
                   <b style={{ fontSize: 12.5, color: ACCENT }}>{t.code}</b>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: INK }}>{t.name} <span style={{ fontSize: 11, color: MUTED, fontWeight: 400 }}>{openId === t.id ? '▴' : '▾'}</span></span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: INK }}>{t.name}{csiOf(t) ? <span style={{ fontSize: 11.5, color: MUTED, fontWeight: 500 }}> · CSI {csiOf(t)}</span> : null} <span style={{ fontSize: 11, color: MUTED, fontWeight: 400 }}>{openId === t.id ? '▴' : '▾'}</span></span>
                   <span style={{ fontSize: 12 }}>{catLabel(t.category)}</span>
                   <span>{usedBy(t.id) ? <Badge tone="blue">{usedBy(t.id)}</Badge> : <span style={{ color: MUTED, fontSize: 12 }}>—</span>}</span>
                   <input type="checkbox" disabled={!canManage} checked={t.active} onClick={(e) => e.stopPropagation()} onChange={(e) => run(() => api.subcontractorTrades.update(t.id, { active: e.target.checked }))} />
@@ -156,6 +164,11 @@ export function SubcontractorTradesSetup({ canManage }: { canManage: boolean }) 
                             {SUBTRADE_CATEGORIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                           </select>
                         </div>
+                        <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, color: INK }}>CSI divisions
+                          <input aria-label={`CSI divisions for ${t.code}`} defaultValue={(t.csiDivisions || []).join(', ')} placeholder={GENERAL_LICENCES.includes(t.code.toUpperCase()) ? 'any — general licence' : 'e.g. 26 or 07, 09'}
+                            onBlur={(e) => e.target.value !== (t.csiDivisions || []).join(', ') && run(() => api.subcontractorTrades.update(t.id, { csiDivisions: e.target.value.split(/[\s,;]+/).filter(Boolean) } as any), 'Saved')} style={{ ...input, width: 200 }} />
+                          <span style={{ fontSize: 11.5, color: MUTED }}>Bid packages suggest subs whose licences cover the package’s CSI codes.</span>
+                        </label>
                         <textarea defaultValue={t.description || ''} rows={5} placeholder="Scope of this classification"
                           onBlur={(e) => e.target.value !== (t.description || '') && run(() => api.subcontractorTrades.update(t.id, { description: e.target.value }), 'Saved')} style={{ ...input, resize: 'vertical', lineHeight: 1.5 }} />
                       </>

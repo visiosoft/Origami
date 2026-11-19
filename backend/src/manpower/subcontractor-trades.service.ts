@@ -1,3 +1,7 @@
+import { B2_LICENCE, LICENCE_CSI } from './licence-csi';
+
+/** "26, 22" or ['26'] → ['26', '22']: two-digit CSI divisions only. */
+export const cleanDivisions = (v: unknown): string[] => [...new Set((Array.isArray(v) ? v : String(v ?? '').split(/[\s,;]+/)).map((x) => String(x).trim()).filter((x) => /^\d{1,2}$/.test(x)).map((x) => x.padStart(2, '0')))].slice(0, 12);
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -40,6 +44,7 @@ export class SubcontractorTradesService implements OnApplicationBootstrap {
         await this.repo.save(DEFAULT_SUBCONTRACTOR_TRADES as SubcontractorTradeEntity[]);
         this.log.log(`Seeded ${DEFAULT_SUBCONTRACTOR_TRADES.length} subcontractor trades`);
       }
+      await this.fillLicences();
       await this.migrateWorkerTrades();
     } catch (err) {
       this.log.error('Subcontractor trade setup failed: ' + (err as Error).message);
@@ -110,11 +115,28 @@ export class SubcontractorTradesService implements OnApplicationBootstrap {
     }));
   }
 
+  /**
+   * Nov 19: B-2 Residential Remodeling joins the list, and every licence
+   * without CSI divisions gets the drafted ones (LICENCE_CSI). Anything the
+   * office already set is left alone; safe to rerun.
+   */
+  async fillLicences() {
+    const all = await this.repo.find();
+    if (!all.some((t) => t.code.toUpperCase() === 'B-2')) await this.repo.save(this.repo.create(B2_LICENCE as Partial<SubcontractorTradeEntity>));
+    let n = 0;
+    for (const t of await this.repo.find()) {
+      const d = LICENCE_CSI[t.code.toUpperCase()];
+      if (d && !(t.csiDivisions && t.csiDivisions.length)) { t.csiDivisions = d; await this.repo.save(t); n++; }
+    }
+    return n;
+  }
+
   async update(id: string, dto: Partial<SubcontractorTradeEntity>, actor: Actor) {
     await this.access.require(actor, HR_MODULE, 'change trades');
     const t = await this.repo.findOneBy({ id });
     if (!t) throw new NotFoundException('Trade not found');
     await this.check(dto, id);
+    if (dto.csiDivisions !== undefined) dto.csiDivisions = cleanDivisions(dto.csiDivisions);
     Object.assign(t, dto, { id, name: dto.name?.trim() ?? t.name });
     return this.repo.save(t);
   }

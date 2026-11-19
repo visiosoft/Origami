@@ -61,3 +61,18 @@ describe('SubcontractorTradesService', () => {
     expect(t.subs.remove).toHaveBeenCalled();
   });
 });
+
+describe('licences and their CSI divisions (Nov 19)', () => {
+  const { cleanDivisions } = require('./subcontractor-trades.service');
+  const { LICENCE_CSI, GENERAL_LICENCE_NOTE } = require('./licence-csi');
+  it('cleans what the office types', () => {
+    expect(cleanDivisions('26, 22; 9 x 260')).toEqual(['26', '22', '09']);
+    expect(cleanDivisions(['03', '03'])).toEqual(['03']);
+  });
+  it('drafts a division for the common trades; A, B and B-2 carry notes instead', () => {
+    expect(LICENCE_CSI['C-10']).toEqual(['26']);
+    expect(LICENCE_CSI['C-36']).toEqual(['22']);
+    expect(LICENCE_CSI['C-9']).toEqual(['09']);
+    expect(Object.keys(GENERAL_LICENCE_NOTE)).toEqual(['A', 'B', 'B-2']);
+  });
+});

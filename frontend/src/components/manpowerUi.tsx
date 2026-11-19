@@ -111,7 +111,7 @@ export interface Contractor {
 }
 
 /** A licence classification a subcontractor company holds, e.g. C-10 Electrical. */
-export interface SubcontractorTrade { id: string; code: string; name: string; category: string; description?: string; active: boolean; order: number }
+export interface SubcontractorTrade { id: string; code: string; name: string; category: string; description?: string; active: boolean; order: number; /** Nov 19: CSI divisions this licence covers. */ csiDivisions?: string[] | null }
 export const SUBTRADE_CATEGORIES: [string, string][] = [
   ['general_engineering', 'General Engineering (A)'], ['general_building', 'General Building (B)'],
   ['specialty', 'Specialty (C)'], ['limited_specialty', 'Limited Specialty (D)'], ['other', 'Other'],

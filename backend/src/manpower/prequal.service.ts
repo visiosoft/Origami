@@ -55,6 +55,8 @@ export class PrequalService {
     let parsed;
     try { parsed = cleanPrequal(dto); } catch (e) { throw new BadRequestException((e as Error).message); }
     Object.assign(c, parsed.fields, { prequal: { ...(c.prequal || {}), ...parsed.answers, submittedAt: now(), submittedBy: by }, updatedAt: now() });
+    // Nov 19 (Edward): the licence classifications picked on the form are the company's trades.
+    if (Array.isArray(dto?.tradeIds)) c.tradeIds = [...new Set(dto.tradeIds.map(String).filter((x: string) => /^SCT-[A-Z0-9-]+$/.test(x)))].slice(0, 40) as string[];
     if (!c.prequalStatus) c.prequalStatus = 'pending';
     await this.repo.save(c);
     return this.view(c);
