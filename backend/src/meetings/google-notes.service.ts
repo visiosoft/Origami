@@ -41,7 +41,7 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     const workspace = !!this.google && (await this.google.isConnected().catch(() => false));
     if (!workspace && !this.calendar) return { checked: 0, imported: 0 };
     const since = new Date(now.getTime() - 3 * 864e5).toISOString().slice(0, 10);
-    const due = (await this.meetings.find()).filter((m) => !m.notesDocId && !String(m.minutes || '').trim() && (m.date || '') >= since && endedBefore(m.date, m.time, now));
+    const due = (await this.meetings.find()).filter((m) => !m.archivedAt && !m.notesDocId && !String(m.minutes || '').trim() && (m.date || '') >= since && endedBefore(m.date, m.time, now));
     let imported = 0;
     for (const m of due) {
       try { if ((workspace && (await this.importFor(m))) || (await this.importViaAttendees(m))) imported++; }

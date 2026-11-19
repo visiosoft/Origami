@@ -64,9 +64,37 @@ export class MeetingsService implements OnApplicationBootstrap {
     return n;
   }
 
-  async list() {
-    const rows = await this.repo.find({ order: { date: 'DESC', time: 'DESC' } });
+  /** Archived meetings (Nov 19) only when asked for. */
+  async list(includeArchived = false) {
+    const rows = (await this.repo.find({ order: { date: 'DESC', time: 'DESC' } })).filter((m) => includeArchived || !m.archivedAt);
     return this.settle(rows);
+  }
+
+  /** Nov 19: archive (or bring back) meetings -- test meetings and empty records the team wants out of the way. */
+  async setArchived(ids: string[], on: boolean, actor?: Actor) {
+    const list = (await this.repo.find({ where: { id: In(ids) } })).filter((m) => ids.includes(m.id));
+    if (!list.length) throw new NotFoundException('Meeting not found');
+    const now = new Date().toISOString();
+    for (const m of list) {
+      m.archivedAt = on ? now : null;
+      m.archivedBy = on ? actor?.name || null : null;
+      m.updatedAt = now;
+      await this.repo.save(m);
+    }
+    return { updated: list.length };
+  }
+
+  /** Delete several at once; the actions raised in them stay in the Special Actions Log. */
+  async removeMany(ids: string[]) {
+    let removed = 0;
+    for (const id of ids) {
+      const m = await this.repo.findOneBy({ id });
+      if (!m) continue;
+      await this.tasksRepo.update({ meetingId: id }, { meetingId: null as any });
+      await this.repo.remove(m);
+      removed++;
+    }
+    return { removed };
   }
 
   async get(id: string) {

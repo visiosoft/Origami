@@ -28,6 +28,27 @@ describe('MeetingsService', () => {
     return { svc, meetings, tasks, rfis, cos, created };
   };
 
+  it('archives and brings back meetings; archived ones are hidden unless asked for (Nov 19)', async () => {
+    const { svc, meetings } = setup();
+    const a = await svc.create({ title: 'Test meeting', date: '2026-11-01' }, { name: 'A' });
+    const b = await svc.create({ title: 'OAC', date: '2026-11-02' }, { name: 'A' });
+    await svc.setArchived([a.id], true, { name: 'Astrid' });
+    expect(meetings.find((m) => m.id === a.id)).toMatchObject({ archivedBy: 'Astrid' });
+    expect((await svc.list()).map((m: any) => m.id)).toEqual([b.id]);
+    expect((await svc.list(true)).map((m: any) => m.id).sort()).toEqual([a.id, b.id].sort());
+    await svc.setArchived([a.id], false);
+    expect((await svc.list()).length).toBe(2);
+    expect(meetings.find((m) => m.id === a.id).archivedAt).toBeNull();
+  });
+
+  it('deletes several meetings, keeping the actions raised in them', async () => {
+    const { svc, meetings, tasks } = setup();
+    meetings.push({ id: 'M1', title: 'x', date: '2026-11-01' }, { id: 'M2', title: 'y', date: '2026-11-01' });
+    expect(await svc.removeMany(['M1', 'M2', 'nope'])).toEqual({ removed: 2 });
+    expect(meetings).toHaveLength(0);
+    expect(tasks.map((t) => t.meetingId)).toEqual([null, null]);
+  });
+
   it('needs a title and a real date', async () => {
     const { svc } = setup();
     await expect(svc.create({ title: ' ', date: '2026-10-08' }, { name: 'A' })).rejects.toBeInstanceOf(BadRequestException);

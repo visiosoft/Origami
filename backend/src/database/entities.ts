@@ -372,6 +372,9 @@ export class MeetingEntity {
   @Column({ type: 'nvarchar', length: 40, nullable: true }) notesImportedAt!: string | null;
   /** Its Google Calendar event, when put on a calendar from Origami. */
   @Column({ type: 'nvarchar', length: 200, nullable: true }) calendarEventId!: string | null;
+  /** Nov 19: archived (test meetings, empty records) -- hidden from Meetings, can be brought back. */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) archivedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) archivedBy!: string | null;
   @Column({ nullable: true }) reviewedBy!: string;
   @Column({ nullable: true }) reviewedAt!: string;
   @Column({ nullable: true }) createdBy!: string;

@@ -22,6 +22,8 @@ export interface Meeting extends ActionTrailFields {
   recordingUrl?: string; transcriptUrl?: string; transcript?: string;
   /** Notes pulled from Google (Nov 3 sync), and the meeting's Google Calendar event. */
   notesDocId?: string | null; notesImportedAt?: string | null; calendarEventId?: string | null;
+  /** Nov 19: archived -- hidden from Meetings except under Archived. */
+  archivedAt?: string | null; archivedBy?: string | null;
   reviewedBy?: string; reviewedAt?: string;
   createdBy?: string; createdAt?: string; updatedAt?: string;
 }

@@ -592,7 +592,14 @@ export const api = {
     importRows: (rows: Record<string, string>[], dryRun: boolean, update: boolean, defaultKind?: string) => request('/people/import', { method: 'POST', body: JSON.stringify({ rows, dryRun, update, ...(defaultKind ? { defaultKind } : {}) }) }),
   },
   meetings: {
-    list: () => request<import('./data/meetings').Meeting[]>('/meetings'),
+    /** `archived`: include archived meetings (Nov 19). */
+    list: (archived?: boolean) => request<import('./data/meetings').Meeting[]>(archived ? '/meetings?archived=1' : '/meetings'),
+    /** Archive, bring back or delete several meetings (Nov 19). */
+    bulk: (ids: string[], action: 'archive' | 'unarchive' | 'delete') => request<{ updated?: number; removed?: number }>('/meetings/bulk', { method: 'POST', body: JSON.stringify({ ids, action }) }),
+    archive: (id: string, on = true) => request(`/meetings/${encodeURIComponent(id)}/${on ? 'archive' : 'unarchive'}`, { method: 'POST' }),
+    /** Grouped "From Special Actions Log" meetings someone hid (the entries stay in the log). */
+    hiddenGroups: () => request<string[]>('/meetings/hidden-groups'),
+    setHiddenGroups: (keys: string[], hidden: boolean) => request<string[]>('/meetings/hidden-groups', { method: 'POST', body: JSON.stringify({ keys, hidden }) }),
     create: (d: unknown) => request<import('./data/meetings').Meeting>('/meetings', { method: 'POST', body: JSON.stringify(d) }),
     update: (id: string, d: unknown) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     remove: (id: string) => request(`/meetings/${encodeURIComponent(id)}`, { method: 'DELETE' }),

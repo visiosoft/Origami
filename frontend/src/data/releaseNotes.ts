@@ -21,6 +21,7 @@ export const RELEASES: Release[] = [
     title: 'Daily report hours, meeting clean-up, quick reimbursables',
     items: [
       { area: 'Daily report', kind: 'improved', text: 'Hours buttons are now 4, 8, 9, 10, 11 and 12. You can still type any other number.', where: 'Daily Report → Crew' },
+      { area: 'Meetings', kind: 'new', text: 'Archive and delete meetings. Open a meeting and press Archive (hidden, can be brought back) or Delete. To clean up several at once — test meetings, empty records — press Select, tick them, then Archive or Delete. Archived ones are under the Archived tab, with Bring back. Grouped meetings from the Special Actions Log can be archived; their entries stay in the log.', where: 'Special Actions → Meetings → Select' },
       { area: 'Daily report', kind: 'fixed', text: 'Pressing Delete or Backspace in the hours box only clears the hours — the worker stays on the sheet. Only “× Remove” takes a worker off. Workers with no hours are counted at the top.', where: 'Daily Report → Crew' },
     ],
   },
