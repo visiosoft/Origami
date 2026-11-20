@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-20a',
+    date: '2026-11-20',
+    title: 'Meetings from everyone’s calendars',
+    items: [
+      { area: 'Meetings', kind: 'improved', text: 'Meetings now come in from everyone’s own Google Calendar as well as the company one — not just systems@origamidb.com. A meeting several people are in comes in once; all-day, private and out-of-office events stay out. The panel lists whose calendars are read and who still needs to connect theirs (Settings → My Calendar). Press “Preview with everyone’s calendars”, then Apply, to start.', where: 'Meetings → Google Calendar' },
+    ],
+  },
+  {
     id: '2026-11-19e',
     date: '2026-11-19',
     title: 'Edward’s notes, part 3: estimating, RFP, subs, CRM',

@@ -195,7 +195,7 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
     <AkPage
       lead="Plan meetings, keep their notes, recordings and transcripts, then review them: pull out the tasks, RFIs and change orders, and the observations, FYIs and decisions to keep FOR RECORD."
       action={canEdit ? <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" className="ak-btn" onClick={() => setCalOpen(true)} title="Meetings on the company Google Calendar come in by themselves">Google Calendar</button>
+        <button type="button" className="ak-btn" onClick={() => setCalOpen(true)} title="Meetings on the company calendar and everyone’s own Google Calendar come in by themselves">Google Calendar</button>
         <button type="button" className="ak-btn" onClick={() => setGoogleOpen(true)} title="Bring in the “Notes by Gemini” from a Google Meet">Import notes from Google</button>
         <button type="button" className="ak-btn is-dark" onClick={() => setOpenKey('new')}>+ Meeting</button>
       </span> : undefined}
