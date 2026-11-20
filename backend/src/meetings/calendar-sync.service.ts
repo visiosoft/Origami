@@ -6,7 +6,7 @@ import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
 import { CalendarService } from '../google/calendar.service';
 import { emailsOf } from '../common/emails';
-import { planSync, type CalEvent, type SyncPlan } from './calendar-sync';
+import { mergeCalendars, planSync, type CalEvent, type CalSource, type SyncPlan } from './calendar-sync';
 import { MeetingsService } from './meetings.service';
 import { GoogleNotesService } from './google-notes.service';
 
@@ -21,8 +21,13 @@ export interface SyncState {
   on: boolean;
   /** The first sync was previewed and applied by a person (Nov 19: data steps are preview, then Apply). */
   applied: boolean;
-  last?: { at: string; events: number; created: number; moved: number; cancelled: number; notes: number; error?: string | null } | null;
+  /** Nov 20: 'everyone' once a person applied a sync with everyone's own calendars; until then the hourly run reads the company calendar only. */
+  scope?: Scope;
+  last?: { at: string; events: number; created: number; moved: number; cancelled: number; notes: number; error?: string | null; sources?: SourceResult[] } | null;
 }
+
+export type Scope = 'company' | 'everyone';
+export interface SourceResult { name: string; email: string; company: boolean; ok: boolean; events: number; error?: string }
 
 type Actor = { name: string; id?: string };
 
@@ -57,14 +62,16 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
 
   async state(): Promise<SyncState> {
-    try { const v = JSON.parse((await this.settings.get(STATE)) || '{}'); return { on: v.on !== false, applied: !!v.applied, last: v.last || null }; } catch { return { on: true, applied: false, last: null }; }
+    try { const v = JSON.parse((await this.settings.get(STATE)) || '{}'); return { on: v.on !== false, applied: !!v.applied, scope: v.scope === 'everyone' ? 'everyone' : 'company', last: v.last || null }; } catch { return { on: true, applied: false, scope: 'company', last: null }; }
   }
   private async saveState(s: SyncState) { await this.settings.set(STATE, JSON.stringify(s)); }
 
   async status() {
     const g = this.google ? await this.google.status().catch(() => null) : null;
     const email = String(g?.connectedEmail || '');
-    return { ...(await this.state()), connected: !!g?.connected, connectedEmail: email, window: { pastDays: PAST_DAYS, aheadDays: AHEAD_DAYS } };
+    const staff = (await this.users.find()).filter((u) => u.status !== 'suspended' && (u.tier || 'internal') === 'internal');
+    const people = staff.filter((u) => u.calendarRefreshToken).map((u) => ({ name: u.name, email: String(u.calendarEmail || u.email || '') }));
+    return { ...(await this.state()), connected: !!g?.connected, connectedEmail: email, people, notConnected: staff.length - people.length, window: { pastDays: PAST_DAYS, aheadDays: AHEAD_DAYS } };
   }
 
   async setOn(on: boolean) {
@@ -73,43 +80,69 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
     return this.status();
   }
 
+  /** Every calendar to read: the company one, then (scope 'everyone') each person's own. One that fails is noted, not fatal. */
+  private async read(scope: Scope, from: string, to: string, users: UserEntity[]): Promise<{ sources: CalSource[]; results: SourceResult[] }> {
+    const sources: CalSource[] = []; const results: SourceResult[] = [];
+    const companyOn = !!this.google && (await this.google.isConnected().catch(() => false));
+    if (companyOn) {
+      const email = String((await this.google!.status().catch(() => null))?.connectedEmail || '');
+      try {
+        const events = (await this.calendar!.companyEvents(from, to)) as CalEvent[];
+        sources.push({ email, personal: false, events }); results.push({ name: 'Company calendar', email, company: true, ok: true, events: events.length });
+      } catch (e) { results.push({ name: 'Company calendar', email, company: true, ok: false, events: 0, error: (e as Error).message }); }
+    }
+    if (scope === 'everyone') {
+      for (const u of users.filter((x) => x.calendarRefreshToken && x.status !== 'suspended')) {
+        const email = String(u.calendarEmail || u.email || '').toLowerCase();
+        try {
+          const events = (await this.calendar!.eventsAs(u.id, u.calendarRefreshToken, from, to)) as CalEvent[];
+          sources.push({ email, personal: true, events }); results.push({ name: u.name, email, company: false, ok: true, events: events.length });
+        } catch (e) { results.push({ name: u.name, email, company: false, ok: false, events: 0, error: (e as Error).message }); }
+      }
+    }
+    if (!results.length) throw new BadRequestException('No calendar to read: connect the company Google account (Settings → Google) or your own calendar (Settings → My Calendar).');
+    if (!sources.length) throw new BadRequestException(results.map((r) => `${r.name}: ${r.error}`).join(' · '));
+    return { sources, results };
+  }
+
   /** What a sync would do now, without changing anything. */
-  async plan(now = new Date()): Promise<{ plan: SyncPlan; events: number }> {
-    if (!this.google || !this.calendar || !(await this.google.isConnected().catch(() => false))) throw new BadRequestException('Connect the company Google account first (Settings → Google).');
+  async plan(now = new Date(), scope: Scope = 'everyone'): Promise<{ plan: SyncPlan; events: number; sources: SourceResult[] }> {
+    if (!this.calendar) throw new BadRequestException('Google Calendar isn’t available on this server.');
     const from = new Date(now.getTime() - PAST_DAYS * 864e5).toISOString();
     const to = new Date(now.getTime() + AHEAD_DAYS * 864e5).toISOString();
-    const events = (await this.calendar.companyEvents(from, to)) as CalEvent[];
     const [meetings, users, projects] = await Promise.all([this.meetings.find(), this.users.find(), this.projects.find()]);
+    const { sources, results } = await this.read(scope, from, to, users);
+    const events = mergeCalendars(sources);
     let skips: string[] = [];
     try { skips = JSON.parse((await this.settings.get(SKIPS)) || '[]'); } catch { skips = []; }
-    const email = String((await this.google.status().catch(() => null))?.connectedEmail || '');
+    const email = sources.find((s) => !s.personal)?.email || sources[0]?.email || '';
     const domain = email.split('@')[1]?.toLowerCase() || '';
     const plan = planSync(
       events,
       meetings.map((m) => ({ id: m.id, calendarEventId: m.calendarEventId, date: m.date, time: m.time, status: m.status, archivedAt: m.archivedAt, title: m.title })),
-      users.filter((u) => u.status !== 'suspended').map((u) => ({ id: u.id, name: u.name, emails: emailsOf(u) })),
+      users.filter((u) => u.status !== 'suspended').map((u) => ({ id: u.id, name: u.name, emails: [...new Set([...emailsOf(u), ...(u.calendarEmail ? [String(u.calendarEmail).toLowerCase()] : [])])] })),
       projects.filter((p: any) => !p.archivedAt).map((p) => ({ id: p.id, name: p.name })),
       new Set(skips), domain,
     );
     // Notes: only for meetings that are over and have none yet.
     const byId = new Map(meetings.map((m) => [m.id, m]));
     plan.notes = plan.notes.filter((n) => { const m = byId.get(n.id); return !!m && !m.notesDocId && !String(m.minutes || '').trim(); });
-    return { plan, events: events.length };
+    return { plan, events: events.length, sources: results };
   }
 
   /** Preview for the first run: the events that would become meetings. */
   async preview() {
-    const { plan, events } = await this.plan();
-    return { events, create: plan.create.map((c) => ({ title: c.title, date: c.date, time: c.time, attendees: c.attendees.length, project: c.project || null, type: c.type })), move: plan.move, cancel: plan.cancel, skipped: plan.skipped };
+    const { plan, events, sources } = await this.plan();
+    return { events, sources, create: plan.create.map((c) => ({ title: c.title, date: c.date, time: c.time, attendees: c.attendees.length, project: c.project || null, type: c.type })), move: plan.move, cancel: plan.cancel, skipped: plan.skipped };
   }
 
   /** Make the meetings. The first time it's a person pressing Apply; after that, every hour. */
-  async apply(actor: Actor = { name: 'Google Calendar' }) {
+  async apply(actor: Actor = { name: 'Google Calendar' }, scope: Scope = 'everyone') {
     if (this.running) throw new BadRequestException('A calendar sync is already running.');
     this.running = true;
     const at = new Date().toISOString();
     try {
-      const { plan, events } = await this.plan();
+      const { plan, events, sources } = await this.plan(new Date(), scope);
       let created = 0; let moved = 0; let cancelled = 0; let notes = 0;
       for (const c of plan.create) {
         if (!this.meetingsService) break;
@@ -132,8 +165,9 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
         if (!m || !this.notes) continue;
         try { if (await this.notes.importFor(m, undefined, n.docId)) notes++; } catch { /* not readable yet -- the notes sweep tries again */ }
       }
-      const last = { at, events, created, moved, cancelled, notes, error: null };
-      await this.saveState({ ...(await this.state()), applied: true, last });
+      const last = { at, events, created, moved, cancelled, notes, error: null, sources };
+      const prev = await this.state();
+      await this.saveState({ ...prev, applied: true, scope: scope === 'everyone' ? 'everyone' : prev.scope, last });
       if (created || moved || cancelled || notes) this.log.log(`Calendar: ${created} new, ${moved} moved, ${cancelled} cancelled, ${notes} notes`);
       return last;
     } catch (e) {
@@ -147,7 +181,7 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
   async tick() {
     const s = await this.state().catch(() => null);
     if (!s?.on || !s.applied) return null;
-    return this.apply().catch((e) => { this.log.warn(`Calendar sync: ${(e as Error).message}`); return null; });
+    return this.apply(undefined, s.scope || 'company').catch((e) => { this.log.warn(`Calendar sync: ${(e as Error).message}`); return null; });
   }
 
   /** A deleted meeting's event is never brought back. */

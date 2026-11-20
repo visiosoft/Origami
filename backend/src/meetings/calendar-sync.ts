@@ -10,6 +10,15 @@ import { DEFAULT_TZ } from '../common/local-date';
 
 export interface CalEvent {
   id: string;
+  iCalUID?: string;
+  /** For one occurrence of a repeating event: when it was first due. */
+  originalStartTime?: { dateTime?: string; date?: string };
+  /** default | outOfOffice | focusTime | workingLocation | birthday | fromGmail */
+  eventType?: string;
+  /** default | public | private | confidential */
+  visibility?: string;
+  /** Nov 20: every calendar's id for this event once calendars are merged. */
+  ids?: string[];
   status?: string; // confirmed | tentative | cancelled
   summary?: string;
   description?: string;
@@ -36,12 +45,61 @@ export function localParts(iso: string, tz = DEFAULT_TZ): { date: string; time: 
 
 const people = (e: CalEvent) => (e.attendees || []).filter((a) => !a.resource && a.email);
 
-/** A meeting: timed (not all-day), with at least two people, and not one the company account declined. */
+const SPECIAL = new Set(['outOfOffice', 'focusTime', 'workingLocation', 'birthday']);
+const isPrivate = (e: CalEvent) => e.visibility === 'private' || e.visibility === 'confidential';
+
+/**
+ * A meeting: timed (not all-day), not one of Google's own blocks (out of
+ * office, focus time, working location), not marked Private, and not declined
+ * by the calendar it came from. Nov 20: all other events count, guests or not.
+ */
 export function isMeetingEvent(e: CalEvent): boolean {
   if (!e.start?.dateTime) return false;
-  const ppl = people(e);
-  if (ppl.length < 2) return false;
-  return !ppl.some((a) => a.self && a.responseStatus === 'declined');
+  if (SPECIAL.has(e.eventType || '') || isPrivate(e)) return false;
+  return !people(e).some((a) => a.self && a.responseStatus === 'declined');
+}
+
+export interface CalSource { email: string; personal: boolean; events: CalEvent[] }
+
+const idsOf = (e: CalEvent) => e.ids?.length ? e.ids : [e.id];
+const keyOf = (e: CalEvent) => `${e.iCalUID || e.id}|${e.originalStartTime?.dateTime || e.originalStartTime?.date || ''}`;
+const declinedHere = (e: CalEvent) => people(e).some((a) => a.self && a.responseStatus === 'declined');
+
+/**
+ * Nov 20 ("for all people it is showing this email"): the company calendar
+ * and everyone's own calendars read together. Copies of one event (the same
+ * invite on several calendars) become one, carrying every copy's id. It is
+ * cancelled only when its organiser cancelled it or every copy is gone -- one
+ * guest removing it from their calendar doesn't cancel it for everyone. A
+ * solo event on someone's own calendar gets that person as its attendee.
+ */
+export function mergeCalendars(sources: CalSource[]): CalEvent[] {
+  const groups: { copies: { e: CalEvent; src: CalSource }[] }[] = [];
+  const byKey = new Map<string, number>();
+  const byId = new Map<string, number>();
+  for (const src of sources) {
+    for (const e of src.events) {
+      const k = keyOf(e);
+      let gi = byKey.get(k) ?? byId.get(e.id);
+      if (gi === undefined) { gi = groups.length; groups.push({ copies: [] }); }
+      groups[gi].copies.push({ e, src });
+      byKey.set(k, gi); byId.set(e.id, gi);
+    }
+  }
+  return groups.map(({ copies }) => {
+    const ids = [...new Set(copies.map((c) => c.e.id))];
+    const live = copies.filter((c) => c.e.status !== 'cancelled');
+    const organiserCancelled = copies.some((c) => c.e.status === 'cancelled' && c.e.organizer?.self);
+    if (!live.length || organiserCancelled) return { ...copies[0].e, status: 'cancelled', ids };
+    const attending = live.filter((c) => !declinedHere(c.e));
+    const pick = (attending.length ? attending : live);
+    const best = pick.find((c) => c.e.organizer?.self) || pick.find((c) => notesDocOf(c.e)) || pick[0];
+    const e: CalEvent = { ...best.e, ids };
+    if (!e.attachments?.length) e.attachments = live.flatMap((c) => c.e.attachments || []);
+    if (live.some((c) => isPrivate(c.e))) e.visibility = 'private';
+    if (!people(e).length && best.src.personal) e.attendees = [{ email: best.src.email, self: true, responseStatus: 'accepted' }];
+    return e;
+  });
 }
 
 /** The Gemini notes Doc Google attached to the event, if any. */
@@ -110,8 +168,9 @@ export function planSync(events: CalEvent[], meetings: SyncMeeting[], users: Syn
   const plan: SyncPlan = { create: [], move: [], cancel: [], notes: [], skipped: 0 };
   const planned = (s?: string | null) => ['scheduled', 'rescheduled', '', null, undefined].includes(s as any);
   for (const e of events) {
-    const m = byEvent.get(e.id);
-    if (skips.has(e.id) || m?.archivedAt) { plan.skipped++; continue; }
+    const ids = idsOf(e);
+    const m = ids.map((id) => byEvent.get(id)).find(Boolean);
+    if (ids.some((id) => skips.has(id)) || m?.archivedAt) { plan.skipped++; continue; }
     if (e.status === 'cancelled') {
       if (m && planned(m.status)) plan.cancel.push({ id: m.id, title: m.title });
       continue;
