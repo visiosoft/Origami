@@ -1370,6 +1370,20 @@ export class FileRoomFileEntity {
   @Column({ type: 'nvarchar', length: 20, nullable: true }) previewState!: string | null;
   @Column({ type: 'int', default: 0 }) previewTries!: number;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) previewAt!: string | null;
+  /**
+   * Nov 20 drawing sets: the revision -- architect's before the decimal (Rev 1.0),
+   * the team's published markups after it (Rev 1.01 … 1.05). Null outside drawing sets.
+   */
+  @Column({ type: 'int', nullable: true }) revMajor!: number | null;
+  @Column({ type: 'int', nullable: true }) revMinor!: number | null;
+  /** The approved working set of its document (one revision per document). */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) approvedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) approvedBy!: string | null;
+  /** Not city-approved -- for early work only (e.g. a structural set used for the foundation). */
+  @Column({ type: 'bit', nullable: true }) notCityApproved!: boolean | null;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) cityNote!: string | null;
+  /** What happened to this drawing: uploads, publishes, approvals, flags (shown under the viewer). */
+  @Column({ type: 'simple-json', nullable: true }) drawingLog!: { at: string; by: string; kind: string; text: string; layer?: string | null }[] | null;
 }
 
 /** A folder someone created that holds no files yet — otherwise it would vanish. */

@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { FileRoomFileEntity, MarkupLayerEntity, MarkupSymbolEntity, PdfMarkupEntity, PersonEntity } from '../database/entities';
 import type { SessionClaims } from '../auth/crypto.util';
 import { FileRoomService } from './file-room.service';
+import { isBaseArea, LAYER_CODE, nextLayerCode } from './drawing-sets';
 import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, cleanSymbolImage, cleanSymbolName, isMarkable, isPhotoName, leadsMarkups, photoToPdf, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, cleanLayerRule, visibleWithLayers, type LayerAudience, type LayerRule, type LayerViewer, type MarkupData } from './markups';
 
 /** Where photos pinned to a drawing are kept in the project's File Room. */
@@ -62,6 +63,8 @@ export class MarkupsService {
     const rows = (await this.list(fileId, claims)).filter((m) => layerKey(m) === key);
     if (!rows.length) throw new NotFoundException('That layer has no markups.');
     if (!leadsMarkups(claims!.roleKey) && !rows.some((m) => m.authorId === claims!.sub)) throw new ForbiddenException('Only someone with markups on this layer (or an admin or principal) can change who sees it.');
+    // Nov 20: a drawing-set review layer (I1, X1…) is made visible only by i-1 / i-2, once reviewed.
+    if (!leadsMarkups(claims!.roleKey) && LAYER_CODE.test(key.replace(/^L:/, '').toUpperCase())) throw new ForbiddenException('Review layers (I1, X1…) are shown to others by an admin or principal once they’ve been reviewed.');
     let rule;
     try { rule = cleanLayerRule(raw); } catch (e) { throw new BadRequestException((e as Error).message); }
     const id = `${fileId}|${key}`;
@@ -141,6 +144,18 @@ export class MarkupsService {
     try { clean = cleanMarkup(raw); } catch (e) { throw new BadRequestException((e as Error).message); }
     await this.assertLinkTarget(f, clean.data);
     const now = new Date().toISOString();
+    // Nov 20 drawing sets: someone other than i-1 / i-2 marking up a base drawing draws on their own review
+    // layer -- I1, I2 for our team, X1, X2 for consultants and subs -- which starts Internal-only until published.
+    if (!clean.layer && !leadsMarkups(claims!.roleKey) && clean.kind !== 'scale' && f.projectId && isBaseArea(f.folderPath, (await this.fileRoom.buildSetOf?.(Number(f.projectId))?.catch(() => [])) || [])) {
+      const rows = await this.repo.find({ where: { fileId } });
+      const mine = rows.find((m) => m.authorId === claims!.sub && LAYER_CODE.test(String(m.layer || '')));
+      const outside = claims!.tier !== 'internal' && claims!.roleKey !== 'admin';
+      clean.layer = mine?.layer || nextLayerCode(rows.map((m) => m.layer), outside);
+      const id = `${fileId}|${layerKey({ layer: clean.layer })}`;
+      if (!mine && this.layerRepo && !(await this.layerRepo.findOneBy({ id }))) {
+        await this.layerRepo.save(this.layerRepo.create({ id, fileId, layerKey: layerKey({ layer: clean.layer }), audience: 'internal', people: [], updatedBy: claims!.name, updatedAt: now }));
+      }
+    }
     // One scale per page: the newest replaces any earlier one.
     if (clean.kind === 'scale') {
       for (const old of (await this.repo.find({ where: { fileId, page: clean.page, kind: 'scale' } }))) await this.repo.delete({ id: old.id });
@@ -201,6 +216,7 @@ export class MarkupsService {
     const to = cleanLayer(raw?.to);
     if (!to) throw new BadRequestException('Give the layer a name.');
     const from = cleanLayer(raw?.from);
+    if (!leadsMarkups(claims!.roleKey) && (LAYER_CODE.test(String(from || '').toUpperCase()) || LAYER_CODE.test(to.toUpperCase()))) throw new ForbiddenException('Review layers (I1, X1…) are named by an admin or principal.');
     const key = from ? layerKey({ layer: from }) : layerKey({ authorId: raw?.authorId || claims!.sub });
     if (!from && (raw?.authorId || claims!.sub) !== claims!.sub && !leadsMarkups(claims!.roleKey)) throw new ForbiddenException('Only its owner (or an admin or principal) can name someone’s own layer.');
     const rows = (await this.list(fileId, claims)).filter((m) => layerKey(m) === key);

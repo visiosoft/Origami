@@ -1,6 +1,6 @@
 import { leadsMarkups } from './markups';
 import { FolderAccessService } from './folder-access.service';
-import { BadRequestException, ForbiddenException,
+import { BadRequestException, ForbiddenException, Optional,
   Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
 } from '@nestjs/common';
 import { Claims } from '../auth/guards/claims.decorator';
@@ -17,6 +17,7 @@ import { AttachmentsService } from '../google/attachments.service';
 import { FilePreviewsService, BACKFILL_KEY } from './file-previews.service';
 import { SettingsService } from '../settings/settings.service';
 import { MarkupsService } from './markups.service';
+import { DrawingSetsService } from './drawing-sets.service';
 import { Perm } from '../auth/guards/perm.guard';
 
 @Perm('planroom', 'allfiles', 'projects', 'pm', 'design')
@@ -30,6 +31,7 @@ export class FileRoomController {
     private readonly previews: FilePreviewsService,
     private readonly settings: SettingsService,
     private readonly folders: FolderAccessService,
+    @Optional() private readonly sets?: DrawingSetsService,
   ) {}
 
   /**
@@ -231,12 +233,12 @@ export class FileRoomController {
     const top = Array.isArray(folderPath) ? String(folderPath[0] || '') : '';
     if (top && (await this.service.buildSetOf(Number(projectId))).some((f) => f.toLowerCase() === top.toLowerCase())) await this.assertManage(await this.auth.verify(auth));
     await this.folders.assertFile(await this.auth.verify(auth), { projectId: Number(projectId), folderPath: Array.isArray(folderPath) ? folderPath : [] });
-    return this.service.upload(
-      Number(projectId),
-      Array.isArray(folderPath) ? folderPath : [],
-      files,
-      await this.auth.requireActor(auth),
-    );
+    // Nov 20: base drawings are put in only by the people who keep the drawing sets.
+    await this.sets?.assertBaseUpload(await this.auth.verify(auth), Number(projectId), Array.isArray(folderPath) ? folderPath : []);
+    const actor = await this.auth.requireActor(auth);
+    const saved = await this.service.upload(Number(projectId), Array.isArray(folderPath) ? folderPath : [], files, actor);
+    // ...and each is numbered as the architect's next revision (Rev 1.0, 2.0).
+    return this.sets ? this.sets.stampUploads(saved as any, actor) : saved;
   }
 
   /** Files emailed from the File Room: for a project (?projectId=) or one file (?fileId=). */
@@ -452,6 +454,51 @@ export class FileRoomController {
   @Post('sync')
   sync(@Query('projectId') projectId: string) {
     return this.service.sync(Number(projectId));
+  }
+
+  // ---------------------------------------------------------------- drawing sets (Nov 20)
+  private needSets() { if (!this.sets) throw new BadRequestException('Drawing sets aren’t available.'); return this.sets; }
+
+  @Get('drawing-sets/uploaders')
+  async baseUploaders() { return this.needSets().uploaders(); }
+  @Tiers('internal')
+  @Put('drawing-sets/uploaders')
+  async setBaseUploaders(@Body() body: { ids?: string[] }, @Claims() claims?: SessionClaims | null) { return this.needSets().setUploaders(body?.ids, claims ?? null); }
+
+  @Get('files/:id/drawing')
+  async drawingState(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.needSets().state(id);
+  }
+  @Get('files/:id/history')
+  async drawingHistory(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.needSets().history(id);
+  }
+  @Tiers('internal')
+  @Post('files/:id/publish')
+  async publishLayers(@Param('id') id: string, @Body() body: { layers?: string[] }, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.needSets().publish(id, Array.isArray(body?.layers) ? body.layers.map(String) : [], claims ?? null);
+  }
+  @Tiers('internal')
+  @Post('files/:id/approve')
+  async approveDrawing(@Param('id') id: string, @Body() body: { on?: boolean }, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.needSets().approve(id, body?.on !== false, claims ?? null);
+  }
+  @Tiers('internal')
+  @Put('files/:id/city')
+  async cityFlag(@Param('id') id: string, @Body() body: { notCityApproved?: boolean; cityNote?: string }, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    if (!leadsMarkups(claims?.roleKey)) await this.assertManage(claims ?? null);
+    return this.needSets().setCity(id, body || {}, claims ?? null);
+  }
+  /** Number the drawings already in sets: ?apply=1 after looking at the preview. */
+  @Roles('admin')
+  @Post('drawing-sets/number')
+  async numberExisting(@Query('projectId') projectId?: string, @Query('apply') apply?: string, @Claims() claims?: SessionClaims | null) {
+    return this.needSets().backfill(projectId ? Number(projectId) : null, apply === '1', claims ?? null);
   }
 
   @Tiers('internal')

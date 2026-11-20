@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FileRoomFileEntity, FileRoomFolderEntity, FileRoomShareEntity, MarkupLayerEntity, MarkupSymbolEntity, PdfMarkupEntity, PersonEntity, ProgressPhotoEntity, ProgressNoteEntity, ProjectEntity, FileRoomFolderAccessEntity } from '../database/entities';
 import { MarkupsService } from './markups.service';
+import { DrawingSetsService } from './drawing-sets.service';
 import { ProgressPhotosController } from './progress-photos.controller';
 import { ProgressPhotosService } from './progress-photos.service';
 import { GoogleModule } from '../google/google.module';
@@ -20,7 +21,7 @@ import { FileRoomService } from './file-room.service';
     TrackingModule,
   ],
   controllers: [FileRoomController, ProgressPhotosController],
-  providers: [FileRoomService, ProgressPhotosService, MarkupsService, FilePreviewsService, FolderAccessService],
+  providers: [FileRoomService, ProgressPhotosService, MarkupsService, FilePreviewsService, FolderAccessService, DrawingSetsService],
   exports: [FileRoomService, FilePreviewsService, FolderAccessService],
 })
 export class FileRoomModule {}
