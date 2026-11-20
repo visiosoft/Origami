@@ -9,6 +9,12 @@ import { normalizeMeetingStatus, settleMeetingStatus, type CapturedAction } from
 
 type Actor = { name: string; id?: string };
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
+/** Same action, ignoring case, spacing and punctuation. */
+export const sameSubject = (a: string, b: string) => {
+  const n = (s: string) => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return !!n(a) && n(a) === n(b);
+};
+
 /** FOR RECORD entries are records, not actions: they never hold a meeting open. */
 export const FOR_RECORD_TOPICS = ['FYI', 'Observation', 'Decision'];
 
@@ -159,9 +165,19 @@ export class MeetingsService implements OnApplicationBootstrap {
   }
 
   async addAction(id: string, dto: MeetingActionDto, actor: Actor) {
-    const m = await this.load(id);
+    let m = await this.load(id);
+    // Nov 20: several people importing the same notes don't make the same task twice.
+    const subject = dto.subject.trim();
+    const same = (await this.tasksRepo.find({ where: { meetingId: m.id } })).find((x) => x.meetingId === m.id && sameSubject(x.subject, subject));
+    if (same) return { ...same, duplicate: true };
+    // A meeting with no project takes the one picked for its items, so they don't land under "General".
+    if (!m.project && (dto.project || '').trim()) {
+      Object.assign(m, { project: dto.project!.trim(), projectId: dto.projectId ?? m.projectId ?? null });
+      m = await this.repo.save(m);
+    }
     const t = await this.tasks.create({
-      topicType: dto.topicType, subject: dto.subject.trim(), description: dto.description || '',
+      collaborators: Array.isArray(dto.collaborators) ? dto.collaborators.filter((c) => c && c.id && c.name) : undefined,
+      topicType: dto.topicType, subject, description: dto.description || '',
       assignedTo: dto.assignedTo, assignedToId: dto.assignedToId, dueDate: dto.dueDate || undefined, priority: dto.priority || undefined, tags: dto.tags,
       project: m.project || '', meetingType: m.type || 'Internal', meetingDate: m.date, meetingId: m.id, tab: 'internal',
       // Where it came from, e.g. "HOM Cafe Weekly Sync - 2026/10/24 12:45" (Oct 26 review notes).

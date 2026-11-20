@@ -623,7 +623,7 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, startReview, onClose
         ) : null}
       </aside>
       {reviewing && editable && (
-        <ReviewPanel item={item} draft={draft} set={set} auto={auto} ctx={ctx} rfis={rfis} cos={cos} onClose={() => setReviewing(false)} />
+        <ReviewPanel item={item} draft={draft} set={set} auto={auto} ctx={ctx} rfis={rfis} cos={cos} projects={projects} onClose={() => setReviewing(false)} />
       )}
     </div>,
     document.body,
@@ -760,8 +760,8 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
  * out of it on the right -- select a passage and "Use selection" to start from
  * it. "Mark reviewed" when done. Nothing is sent to any outside service.
  */
-function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
-  item: Item; draft: Meeting; set: (p: Partial<Meeting>) => void; auto: Autosave; ctx: Ctx; rfis: any[]; cos: any[]; onClose: () => void;
+function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, projects, onClose }: {
+  item: Item; draft: Meeting; set: (p: Partial<Meeting>) => void; auto: Autosave; ctx: Ctx; rfis: any[]; cos: any[]; projects: { id: number; name: string }[]; onClose: () => void;
 }) {
   const navigate = useNavigate();
   // Notes brought in from Google open on the notes, where their suggested items are.
@@ -852,8 +852,9 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
           {st !== 'reviewed' && st !== 'complete' && <button type="button" className="ak-btn is-dark" onClick={() => { set({ status: 'reviewed' }); onClose(); }}>Mark reviewed</button>}
         </div>
         {importing && (
-          <MeetingNotesImport meeting={{ id: draft.id, title: draft.title, date: draft.date }} text={text} onClose={() => setImporting(false)}
-            onAdded={(made) => { made.forEach((t) => ctx.onAction(t)); api.meetings.get(draft.id).then(ctx.applyServer).catch(() => { }); }} />
+          <MeetingNotesImport meeting={{ id: draft.id, title: draft.title, date: draft.date, project: draft.project || '', projectId: draft.projectId ?? null }} text={text} onClose={() => setImporting(false)}
+            existing={item.actions} projects={projects}
+            onAdded={(made) => { made.filter((t) => !t.duplicate).forEach((t) => ctx.onAction(t)); if (!draft.project) { const p = made.find((t) => t.project)?.project; if (p) set({ project: p, projectId: projects.find((x) => x.name === p)?.id ?? null }); } api.meetings.get(draft.id).then(ctx.applyServer).catch(() => { }); }} />
         )}
       </aside>
     </div>

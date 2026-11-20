@@ -81,6 +81,23 @@ describe('MeetingsService', () => {
     expect(created[0]).toMatchObject({ topicType: 'Observation', subject: 'Water at north footing', project: 'Chelliah Residence', meetingType: 'Site', meetingDate: '2026-10-08', meetingId: m.id });
   });
 
+  it('the same item from the same meeting is raised once, however many people import the notes (Nov 20)', async () => {
+    const { svc, created } = setup();
+    const m = await svc.create({ title: 'Weekly Sync', date: '2026-11-20' }, { name: 'A' });
+    const first: any = await svc.addAction(m.id, { topicType: 'Task', subject: 'Fix Calendar Sync: read each person’s own calendar', assignedTo: 'Ehsan' }, { name: 'Ehsan' });
+    const again: any = await svc.addAction(m.id, { topicType: 'Task', subject: '  fix calendar sync — read each person’s own calendar ' }, { name: 'Astrid' });
+    expect(created).toHaveLength(1);
+    expect(again).toMatchObject({ id: first.id, duplicate: true });
+  });
+
+  it('files items under the picked project when the meeting has none, with the others named as collaborators (Nov 20)', async () => {
+    const { svc, created, meetings } = setup();
+    const m = await svc.create({ title: 'Weekly Sync', date: '2026-11-20' }, { name: 'A' });
+    await svc.addAction(m.id, { topicType: 'Task', subject: 'Send subcontract example', project: '1311 Countryside Ct', projectId: 16, collaborators: [{ id: 'U-E', name: 'Ehsan' }] }, { name: 'A' });
+    expect(created[0]).toMatchObject({ project: '1311 Countryside Ct', collaborators: [{ id: 'U-E', name: 'Ehsan' }] });
+    expect(meetings.find((x) => x.id === m.id)).toMatchObject({ project: '1311 Countryside Ct', projectId: 16 });
+  });
+
   it('records a decision from a meeting', async () => {
     const { svc, created } = setup();
     const m = await svc.create({ title: 'OAC', date: '2026-10-08' }, { name: 'A' });

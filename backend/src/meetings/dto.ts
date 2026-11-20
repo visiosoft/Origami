@@ -52,4 +52,9 @@ export class MeetingActionDto {
   /** Emergency / Urgent / High / Medium / Low / Very Low; a next step with no date comes in High until changed (Oct 26 review notes). */
   @IsString() @IsOptional() priority?: string;
   @IsArray() @IsOptional() @IsString({ each: true }) tags?: string[];
+  /** Nov 20: others named in the notes follow the task as collaborators. */
+  @IsArray() @IsOptional() collaborators?: { id: string; name: string }[];
+  /** Nov 20: the project to file it under when the meeting has none (instead of "General"). */
+  @IsOptional() projectId?: number | null;
+  @IsString() @IsOptional() project?: string;
 }

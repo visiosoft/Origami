@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { MeetingEntity, UserEntity } from '../database/entities';
+import { MeetingEntity, ProjectEntity, UserEntity } from '../database/entities';
+import { projectFor } from './calendar-sync';
 import { CalendarService } from '../google/calendar.service';
 import { emailsOf } from '../common/emails';
 import { GoogleService } from '../google/google.service';
@@ -28,7 +29,11 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     @Optional() private readonly meetingsService?: MeetingsService,
     @Optional() private readonly calendar?: CalendarService,
     @Optional() @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
+    @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
   ) {}
+
+  /** Docs being brought in right now: a second import of the same Doc waits its turn (Nov 20: no duplicate meetings). */
+  private inFlight = new Map<string, Promise<unknown>>();
 
   onApplicationBootstrap() {
     this.timer = setInterval(() => { void this.sweep(); }, 3600_000);
@@ -149,7 +154,15 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     if (!this.google || !(await this.google.isConnected().catch(() => false))) throw new BadRequestException('Connect Google Workspace first (Settings → Google).');
     const id = input.docId || (input.link ? docIdFrom(input.link) : null);
     if (!id) throw new BadRequestException('Pick a notes Doc, or paste its link (docs.google.com/document/d/…).');
-    const doc = await this.google.exportDocText(id);
+    const before = this.inFlight.get(id);
+    if (before) await before.catch(() => undefined);
+    const run = this.importDocOnce(id, actor);
+    this.inFlight.set(id, run);
+    try { return await run; } finally { if (this.inFlight.get(id) === run) this.inFlight.delete(id); }
+  }
+
+  private async importDocOnce(id: string, actor: Actor) {
+    const doc = await this.google!.exportDocText(id);
     const p = parseNotesDocName(doc.name);
     // Nov 19: no date in the Doc's name -- take the one the notes give, not today's (a Nov 12 meeting landed on Nov 16).
     if (!p.date) p.date = dateInNotes(doc.text);
@@ -158,7 +171,10 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     let created = false;
     if (!m) {
       if (!this.meetingsService) throw new BadRequestException('Meetings aren’t available.');
-      m = await this.meetingsService.create({ title: p.title, date: p.date || localToday(), time: p.time || undefined, locationType: 'virtual', status: 'occurred' } as any, actor) as MeetingEntity;
+      // Nov 20: a meeting made from notes takes the project its title names, so its items don't land under "General".
+      const list = this.projects ? (await this.projects.find().catch(() => [])).filter((x: any) => !x.archivedAt) : [];
+      const project = projectFor(p.title, list.map((x) => ({ id: x.id, name: x.name })));
+      m = await this.meetingsService.create({ title: p.title, date: p.date || localToday(), time: p.time || undefined, locationType: 'virtual', status: 'occurred', ...(project ? { project: project.name, projectId: project.id } : {}) } as any, actor) as MeetingEntity;
       created = true;
     }
     const saved = await this.importFor(m, undefined, id);

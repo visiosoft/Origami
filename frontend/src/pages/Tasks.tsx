@@ -106,6 +106,14 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   // A different filter starts again from page 1.
   const filterKey = [tab, pf, showArchived, q, tagFilter, csiFilter, scope, person, JSON.stringify(mineParts), sort?.key, sort?.dir, size].join('|');
   const lastFilter = useRef(filterKey);
+  // Nov 20 (Jerrod's task "not showing"): meeting and request items live in the Special Actions Log, not on the board.
+  const [myLogOpen, setMyLogOpen] = useState(0);
+  useEffect(() => {
+    if (mode !== 'board' || restricted) return;
+    let live = true;
+    api.tasks.page({ tab: 'internal', scope: 'mine', page: 1, size: 1 }).then((r) => { if (live) setMyLogOpen(r.total || 0); }).catch(() => { });
+    return () => { live = false; };
+  }, [mode, restricted]);
   useEffect(() => {
     if (mode !== 'log') return;
     const filterChanged = lastFilter.current !== filterKey;
@@ -198,6 +206,12 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
                 </optgroup>
               )}
             </select>
+            {myLogOpen > 0 && (
+              <button type="button" onClick={() => { setScope('mine'); setMode('log'); }} title="Tasks raised in meetings, from requests and from the log are listed in the Special Actions Log"
+                style={{ marginLeft: 'auto', padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>
+                {myLogOpen} of your meeting / request task{myLogOpen === 1 ? ' is' : 's are'} in the Special Actions Log →
+              </button>
+            )}
           </>
         )}
       </div>
