@@ -626,10 +626,10 @@ export class PhasesService implements OnApplicationBootstrap {
   async addStructure(projectId: number, name: string, mainName?: string) {
     const project = await this.projects.findOneBy({ id: projectId });
     if (!project) throw new BadRequestException('Which project?');
-    const clean = String(name || '').trim().slice(0, 60);
+    const clean = String(name || '').trim().slice(0, 120);
     if (!clean) throw new BadRequestException('Name the structure, e.g. “ADU”.');
     await this.forProject(projectId); // the main structure's phases exist first
-    const list: Structure[] = project.structures?.length ? [...project.structures] : [{ ...MAIN_STRUCTURE, name: String(mainName || '').trim().slice(0, 60) || MAIN_STRUCTURE.name }];
+    const list: Structure[] = project.structures?.length ? [...project.structures] : [{ ...MAIN_STRUCTURE, name: String(mainName || '').trim().slice(0, 120) || MAIN_STRUCTURE.name }];
     if (list.some((s) => s.name.toLowerCase() === clean.toLowerCase())) throw new BadRequestException(`There’s already a structure called ${clean}.`);
     const key = structureKey(clean, list.map((s) => s.key));
     list.push({ key, name: clean });
@@ -649,7 +649,7 @@ export class PhasesService implements OnApplicationBootstrap {
     const project = await this.projects.findOneBy({ id: projectId });
     const s = project?.structures?.find((x) => x.key === key);
     if (!project || !s) throw new BadRequestException('Structure not found.');
-    const clean = String(name || '').trim().slice(0, 60);
+    const clean = String(name || '').trim().slice(0, 120);
     if (!clean) throw new BadRequestException('Give it a name.');
     s.name = clean;
     await this.projects.save(project);

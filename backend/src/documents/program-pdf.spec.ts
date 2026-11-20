@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { writeFileSync } from 'fs';
-import { buildProgramPdf, wrap } from './program-pdf';
+import { buildProgramPdf, clean, fitText, wrap } from './program-pdf';
 import type { Branding } from './letterhead';
 
 const brand: Branding = {
@@ -36,5 +36,23 @@ describe('the Project Program PDF (Oct 31)', () => {
     expect(doc.getPageCount()).toBeGreaterThanOrEqual(5);
     expect(doc.getPage(0).getSize()).toEqual({ width: 612, height: 792 });
     if (process.env.PROGRAM_PDF_OUT) writeFileSync(process.env.PROGRAM_PDF_OUT, pdf);
+  });
+
+  it('long values fit their column and odd characters print as plain ones (Nov 20)', async () => {
+    const doc = await PDFDocument.create();
+    const f = await doc.embedFont(StandardFonts.Helvetica);
+    const fit = fitText('$1,234,567.89 including allowances', f, 9.5, 88);
+    expect(fit.size).toBeLessThan(9.5);
+    for (const l of fit.lines) expect(f.widthOfTextAtSize(l, fit.size)).toBeLessThanOrEqual(88);
+    expect(clean('• Tile ™ €40 → Zoë Çelik Ł')).toBe("- Tile TM EUR40 -> Zoë Çelik L");
+    const long = 'Selections, finishes, fixtures, appliances and every allowance the owner still has to choose before the permit set';
+    const pdf = await buildProgramPdf({ brand, projectName: 'The Bartholomew-Fitzgerald Montgomery-Castellanos Residence at 1311 Countryside Court, Milpitas', date: 'Nov 20, 2026', steps: [{
+      name: long, blurb: '', totals: { budget: '$12,345,678.90 (est.)', actual: '$1,234,567.89 to date' },
+      blocks: [
+        { title: 'Costs', kind: 'table' as const, rows: [{ label: long, budget: '$1,234,567.89 incl. allowance', actual: '$987,654.32 so far', notes: long }] },
+        { title: 'Duration', kind: 'weeks' as const, rows: [{ label: 'Permits', value: '3-6 months, depending on the city planner and the structural review' }] },
+      ],
+    }] });
+    expect((await PDFDocument.load(pdf)).getPageCount()).toBeGreaterThanOrEqual(3);
   });
 });
