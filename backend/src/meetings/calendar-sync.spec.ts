@@ -56,6 +56,15 @@ describe('meetings from the company calendar', () => {
     expect(projectFor('Hayes Valley + Countryside', projects)).toBeNull();
   });
 
+  it('one meeting in several people’s calendars is one; a copy cancelled for one guest does not cancel it', () => {
+    const { mergeEvents } = require('./calendar-sync.service');
+    const out = mergeEvents([ev({ id: 'X', status: 'cancelled' }), ev({ id: 'X' }), ev({ id: 'Y' }), ev({ id: 'Y' })]);
+    expect(out.map((e: any) => [e.id, e.status])).toEqual([['X', 'confirmed'], ['Y', 'confirmed']]);
+    const declined = { ...ev({ id: 'Z' }), attendees: [{ email: 'a@origamidb.com', self: true, responseStatus: 'declined' }, { email: 'b@origamidb.com' }] };
+    const going = { ...ev({ id: 'Z' }), attendees: [{ email: 'a@origamidb.com', responseStatus: 'declined' }, { email: 'b@origamidb.com', self: true, responseStatus: 'accepted' }] };
+    expect(mergeEvents([declined, going])[0]).toBe(going);
+  });
+
   describe('service', () => {
     const make = (events: CalEvent[]) => {
       const store: Record<string, string> = {};
@@ -63,11 +72,16 @@ describe('meetings from the company calendar', () => {
       const created: any[] = [];
       const svc = new CalendarSyncService(
         { find: async () => meetings, findOneBy: async (w: any) => meetings.find((m) => m.id === w.id) || null, save: async (m: any) => m } as any,
-        { find: async () => [{ id: 'U-A', name: 'Astrid Rivas', email: 'astrid@origamidb.com', status: 'active' }] } as any,
+        { find: async () => [
+          { id: 'U-A', name: 'Astrid Rivas', email: 'astrid@origamidb.com', status: 'active', calendarRefreshToken: 'rt-a', calendarEmail: 'astrid@origamidb.com' },
+          { id: 'U-B', name: 'Ehsan', email: 'ehsan@origamidb.com', status: 'active', calendarRefreshToken: 'rt-b', calendarEmail: 'ehsan@origamidb.com' },
+          { id: 'U-C', name: 'No calendar', email: 'c@origamidb.com', status: 'active' },
+        ] } as any,
         { find: async () => projects } as any,
         { get: async (k: string) => store[k] ?? null, set: async (k: string, v: string) => { store[k] = v; } } as any,
         { isConnected: async () => true, status: async () => ({ connected: true, connectedEmail: 'office@origamidb.com' }) } as any,
-        { companyEvents: async () => events } as any,
+        // Each person's own calendar (Nov 20): the same meeting is in both, once here.
+        { userEvents: async (uid: string) => (uid === 'U-A' ? events : events.slice(0, 1)) } as any,
         { create: async (dto: any) => { const m = { id: 'M' + (meetings.length + 1), ...dto }; meetings.push(m); created.push(m); return m; } } as any,
       );
       return { svc, store, meetings, created };
@@ -80,7 +94,8 @@ describe('meetings from the company calendar', () => {
       expect(pv.create.map((c) => c.title)).toEqual(['OAC — Countryside', 'Design review']);
       expect(created).toHaveLength(0);
       expect(await svc.apply({ name: 'Astrid' })).toMatchObject({ created: 2, events: 2 });
-      expect((await svc.status())).toMatchObject({ applied: true, on: true, connectedEmail: 'office@origamidb.com' });
+      expect((await svc.status('U-B'))).toMatchObject({ applied: true, on: true, connected: true, connectedEmail: 'ehsan@origamidb.com', people: 2 });
+      expect((await svc.status('U-C'))).toMatchObject({ connected: false, connectedEmail: '', people: 2 });
       expect(await svc.tick()).toMatchObject({ created: 0 });
       expect(created).toHaveLength(2);
       await svc.setOn(false);

@@ -27,6 +27,25 @@ export interface SyncState {
 type Actor = { name: string; id?: string };
 
 /**
+ * One meeting sits in every guest's calendar under the same event id: it is
+ * one meeting here. A copy that is cancelled only in one person's calendar
+ * (they were taken off the invite), or one they declined, does not cancel or
+ * hide it for everybody else.
+ */
+export function mergeEvents(events: CalEvent[]): CalEvent[] {
+  // The copy to keep: one that is on, from someone who has not declined it.
+  const rank = (e: any) => (e.status === 'cancelled' ? 2 : (e.attendees || []).some((a: any) => a.self && a.responseStatus === 'declined') ? 1 : 0);
+  const byId = new Map<string, CalEvent>();
+  for (const e of events) {
+    const id = (e as any).id;
+    if (!id) continue;
+    const had = byId.get(id);
+    if (!had || rank(e) < rank(had)) byId.set(id, e);
+  }
+  return [...byId.values()];
+}
+
+/**
  * Nov 19 ("we connected our @origamidb calendar but meetings aren't pulled
  * in"): every hour, the connected company account's calendar -- a week back,
  * two weeks ahead -- becomes Meetings. New events are added, moved ones follow,
@@ -61,10 +80,25 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
   }
   private async saveState(s: SyncState) { await this.settings.set(STATE, JSON.stringify(s)); }
 
-  async status() {
-    const g = this.google ? await this.google.status().catch(() => null) : null;
-    const email = String(g?.connectedEmail || '');
-    return { ...(await this.state()), connected: !!g?.connected, connectedEmail: email, window: { pastDays: PAST_DAYS, aheadDays: AHEAD_DAYS } };
+  /** Everyone whose own calendar is connected (Settings → My Calendar), and not suspended. */
+  private async people() {
+    return (await this.users.find()).filter((u: any) => u.status !== 'suspended' && u.calendarRefreshToken);
+  }
+
+  /**
+   * Nov 20 ("for all people it is showing this email"): each person's own
+   * calendar is read, so the panel shows the viewer's own address and how many
+   * people's calendars come in -- not the one shared company account.
+   */
+  async status(viewerId?: string) {
+    const people = await this.people();
+    const me = viewerId ? people.find((u: any) => u.id === viewerId) : null;
+    return {
+      ...(await this.state()),
+      connected: !!me, connectedEmail: me ? String((me as any).calendarEmail || me.email || '') : '',
+      people: people.length,
+      window: { pastDays: PAST_DAYS, aheadDays: AHEAD_DAYS },
+    };
   }
 
   async setOn(on: boolean) {
@@ -75,15 +109,25 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
 
   /** What a sync would do now, without changing anything. */
   async plan(now = new Date()): Promise<{ plan: SyncPlan; events: number }> {
-    if (!this.google || !this.calendar || !(await this.google.isConnected().catch(() => false))) throw new BadRequestException('Connect the company Google account first (Settings → Google).');
+    const people = await this.people();
+    if (!this.calendar || !people.length) throw new BadRequestException('Nobody’s calendar is connected yet — each person connects their own under Settings → My Calendar.');
     const from = new Date(now.getTime() - PAST_DAYS * 864e5).toISOString();
     const to = new Date(now.getTime() + AHEAD_DAYS * 864e5).toISOString();
-    const events = (await this.calendar.companyEvents(from, to)) as CalEvent[];
+    // Every person's own calendar; one that can't be read is skipped, not the whole run.
+    const all: CalEvent[] = [];
+    let read = 0;
+    for (const u of people) {
+      try { all.push(...((await this.calendar.userEvents(u.id, (u as any).calendarRefreshToken, from, to)) as CalEvent[])); read++; }
+      catch (e) { this.log.warn(`Calendar of ${(u as any).calendarEmail || u.email} not read: ${(e as Error).message}`); }
+    }
+    if (!read) throw new BadRequestException('None of the connected calendars could be read — reconnect under Settings → My Calendar.');
+    const events = mergeEvents(all);
     const [meetings, users, projects] = await Promise.all([this.meetings.find(), this.users.find(), this.projects.find()]);
     let skips: string[] = [];
     try { skips = JSON.parse((await this.settings.get(SKIPS)) || '[]'); } catch { skips = []; }
-    const email = String((await this.google.status().catch(() => null))?.connectedEmail || '');
-    const domain = email.split('@')[1]?.toLowerCase() || '';
+    // The company's own domain: the one most connected calendars are on.
+    const domains = people.map((u: any) => String(u.calendarEmail || u.email || '').split('@')[1]?.toLowerCase()).filter(Boolean) as string[];
+    const domain = domains.sort((a, b) => domains.filter((d) => d === b).length - domains.filter((d) => d === a).length)[0] || '';
     const plan = planSync(
       events,
       meetings.map((m) => ({ id: m.id, calendarEventId: m.calendarEventId, date: m.date, time: m.time, status: m.status, archivedAt: m.archivedAt, title: m.title })),

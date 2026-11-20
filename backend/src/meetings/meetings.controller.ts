@@ -66,10 +66,11 @@ export class MeetingsController {
   @ManageWrites(...MANAGE)
   @Post(':id/unarchive') async unarchive(@Param('id') id: string, @Headers('authorization') a?: string) { return this.service.setArchived([id], false, await this.auth.actor(a)); }
   /**
-   * Nov 19: meetings from the company Google Calendar. Status, a preview of the
-   * first run, Apply (then it runs hourly), and on/off.
+   * Nov 19: meetings from Google Calendar -- since Nov 20, each person's own
+   * connected calendar. Status, a preview of the first run, Apply (then it
+   * runs hourly), and on/off.
    */
-  @Get('calendar-sync') async calendarSync() { return this.needSync().status(); }
+  @Get('calendar-sync') async calendarSync(@Headers('authorization') a?: string) { return this.needSync().status((await this.auth.actor(a)).id); }
   @ManageWrites(...MANAGE)
   @Post('calendar-sync/preview') async calendarPreview() { return this.needSync().preview(); }
   @ManageWrites(...MANAGE)

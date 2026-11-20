@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-20m',
+    date: '2026-11-20',
+    title: 'Meetings come from each person’s own calendar',
+    items: [
+      { area: 'Meetings', kind: 'improved', text: 'Meetings now come in from each person’s own Google calendar, not one shared company account, so the Google Calendar panel shows your own email. A meeting several of you are in comes in once; one you declined still comes in from a colleague who is going. If your calendar isn’t connected, the panel says so — connect it once and your meetings follow every hour.', where: 'Settings → My Calendar; Meetings → Google Calendar' },
+    ],
+  },
+  {
     id: '2026-11-19e',
     date: '2026-11-19',
     title: 'Edward’s notes, part 3: estimating, RFP, subs, CRM',

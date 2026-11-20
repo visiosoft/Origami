@@ -4,7 +4,8 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 
 export interface CalSyncStatus {
-  on: boolean; applied: boolean; connected: boolean; connectedEmail: string; window: { pastDays: number; aheadDays: number };
+  /** connected / connectedEmail: the viewer's OWN calendar (Nov 20); people: how many calendars are read. */
+  on: boolean; applied: boolean; connected: boolean; connectedEmail: string; people?: number; window: { pastDays: number; aheadDays: number };
   last?: { at: string; events: number; created: number; moved: number; cancelled: number; notes: number; error?: string | null } | null;
 }
 export interface CalSyncPreview {
@@ -49,20 +50,21 @@ export function CalendarSyncPanel({ onClose, onApplied }: { onClose: () => void;
         <div className="mt-head"><h2>Meetings from Google Calendar</h2><button type="button" className="mt-x" onClick={onClose} aria-label="Close">×</button></div>
         <div style={{ display: 'grid', gap: 12, fontSize: 13, color: 'var(--body)', lineHeight: 1.55 }}>
           <p style={{ margin: 0 }}>
-            Every hour, meetings on the connected company calendar — from {st?.window.pastDays ?? 7} days back to {st?.window.aheadDays ?? 14} days ahead — are added here
-            with their guests and Meet link. Moved meetings follow, cancelled ones are marked cancelled. After a meeting, Gemini’s notes are read in by themselves
+            Every hour, meetings on each person’s own Google calendar (connected under Settings → My Calendar) — from {st?.window.pastDays ?? 7} days back to {st?.window.aheadDays ?? 14} days ahead — are added here
+            with their guests and Meet link; a meeting several of you are in comes in once. Moved meetings follow, cancelled ones are marked cancelled. After a meeting, Gemini’s notes are read in by themselves
             (Gemini note-taking must be on in the Meet). Meetings you archive or delete are never brought back.
           </p>
           {!st && !error && <div style={{ color: 'var(--muted)' }}>Loading…</div>}
           {st && !st.connected && (
             <div role="alert" style={{ padding: '10px 12px', borderRadius: 10, background: '#FBEFD5', color: '#7A4B00' }}>
-              No company Google account is connected. Connect the @origamidb.com account whose calendar holds the meetings under <b>Settings → Google</b>, then come back here.
+              Your calendar isn’t connected, so your meetings don’t come in. Connect it under <b>Settings → My Calendar</b>.
+              {(st.people ?? 0) > 0 && <> {st.people} {st.people === 1 ? 'person’s calendar is' : 'people’s calendars are'} read now.</>}
             </div>
           )}
           {st?.connected && (
             <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--panel)' }}>
-              Reading the calendar of <b>{st.connectedEmail}</b>.
-              {domain && domain !== 'origamidb.com' && <span style={{ color: '#8A4B12' }}> That isn’t an @origamidb.com account — if the meetings are on another calendar, connect that account in Settings → Google.</span>}
+              Reading your calendar, <b>{st.connectedEmail}</b>{(st.people ?? 1) > 1 ? <> — and {(st.people ?? 1) - 1} other {(st.people ?? 1) - 1 === 1 ? 'person’s' : 'people’s'}</> : null}.
+              {domain && domain !== 'origamidb.com' && <span style={{ color: '#8A4B12' }}> That isn’t an @origamidb.com account — if your meetings are on another calendar, connect that one in Settings → My Calendar.</span>}
               {st.last && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
                 Last run {new Date(st.last.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}:{' '}
                 {st.last.error ? <span style={{ color: '#8E2E0A' }}>{st.last.error}</span> : `${st.last.events} events · ${st.last.created} new · ${st.last.moved} moved · ${st.last.cancelled} cancelled · notes for ${st.last.notes}`}
@@ -71,7 +73,7 @@ export function CalendarSyncPanel({ onClose, onApplied }: { onClose: () => void;
           )}
           {error && <div role="alert" style={{ padding: '9px 12px', borderRadius: 9, background: '#F7E4DB', color: '#8E2E0A', fontWeight: 600 }}>{error}</div>}
 
-          {st?.connected && !st.applied && !pv && (
+          {((st?.people ?? 0) > 0) && !st?.applied && !pv && (
             <div><button type="button" style={pill(true)} disabled={!!busy} onClick={preview}>{busy === 'preview' ? 'Reading the calendar…' : 'Preview what would come in'}</button></div>
           )}
           {pv && (
@@ -95,7 +97,7 @@ export function CalendarSyncPanel({ onClose, onApplied }: { onClose: () => void;
               </div>
             </div>
           )}
-          {st?.connected && st.applied && (
+          {(st?.people ?? 0) > 0 && st?.applied && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontWeight: 600, cursor: 'pointer' }}>
                 <input type="checkbox" checked={st.on} disabled={busy === 'on'} onChange={toggle} style={{ width: 18, height: 18 }} /> Pull meetings in every hour
