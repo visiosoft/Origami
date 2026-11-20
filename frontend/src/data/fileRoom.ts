@@ -23,6 +23,18 @@ export interface FileRoomFile {
   thumbV?: string | null;
   /** Nov 17: who it is for -- internal (also when empty), client, external. */
   access?: FileAccess | null;
+  /** Nov 20 drawing sets: Rev 1.0 (architect) / 1.02 (our published markups), the approved set, the city flag. */
+  revMajor?: number | null;
+  revMinor?: number | null;
+  approvedAt?: string | null;
+  notCityApproved?: boolean | null;
+  cityNote?: string | null;
+}
+
+/** "Rev 1.0", "Rev 1.02" -- mirrors backend file-room/drawing-sets.ts. */
+export function revLabel(major?: number | null, minor?: number | null): string {
+  if (major == null) return '';
+  return minor ? `Rev ${major}.${String(minor).padStart(2, '0')}` : `Rev ${major}.0`;
 }
 
 /** Nov 17: the three audience tags on every file. Colour plus an icon and a word, never colour alone. */

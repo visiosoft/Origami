@@ -12,11 +12,12 @@ import { Pager } from '../components/Pager';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import {
-  extStyle, isImage, pathKey, prettySize, shortDate, subfoldersOf,
+  extStyle, isImage, pathKey, prettySize, revLabel, shortDate, subfoldersOf,
   type FileRoomData, type FileRoomFile,
 } from '../data/fileRoom';
 import { MARKUP_LEADS } from '../data/markup';
 import { BuildSetTagBanner, FileAccessChip, FileAccessPicker } from '../components/FileAccessTag';
+import { DrawingSetsAdmin } from '../components/DrawingSetsAdmin';
 import { Skeleton } from '../components/Skeleton';
 import { FolderAccessDialog, type FolderRule } from '../components/FolderAccessDialog';
 
@@ -524,6 +525,10 @@ export function FileRoom() {
             {latest ? 'Latest' : 'Older version'}
           </span>
         )}
+        {/* Nov 20 drawing sets: the revision, the approved set, and "not city-approved". */}
+        {f.revMajor != null && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'var(--c-efede8)', color: 'var(--ink)' }}>{revLabel(f.revMajor, f.revMinor)}</span>}
+        {f.approvedAt && <span title="The approved working set" style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: '#DCEBDD', color: '#2F6B3A' }}>✓ Approved</span>}
+        {f.notCityApproved && <span title={f.cityNote || 'For early work only'} style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: '#FBEFD5', color: '#7A4B00' }}>⚠ Not city-approved</span>}
       </span>
     );
   };
@@ -625,6 +630,7 @@ export function FileRoom() {
       </div>
 
       {authUser?.roleKey === 'admin' && !authUser?.viewedBy && <BuildSetTagBanner onApplied={load} />}
+      {authUser?.roleKey === 'admin' && !authUser?.viewedBy && <DrawingSetsAdmin onApplied={load} />}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
         {[['Total Files', String(stats.total), 'across all projects'],
           ['Added This Week', String(stats.recent), 'last 7 days'],

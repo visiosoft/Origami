@@ -1046,6 +1046,15 @@ export const api = {
     url: (id: string, opts: { thumb?: boolean; download?: boolean; size?: number } = {}) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/content${opts.thumb ? `?thumb=1${opts.size ? `&size=${opts.size}` : ''}` : opts.download ? '?download=1' : ''}`,
   },
   fileRoom: {
+    /** Nov 20 drawing sets: where a drawing stands, its history, publishing, approving, the city flag, who uploads base drawings. */
+    drawing: (id: string) => request<import('./components/markup/DrawingSetPanel').DrawingState>(`/file-room/files/${encodeURIComponent(id)}/drawing`, { cache: 'no-store' } as any),
+    drawingHistory: (id: string) => request<import('./components/markup/DrawingSetPanel').DrawingEvent[]>(`/file-room/files/${encodeURIComponent(id)}/history`, { cache: 'no-store' } as any),
+    publishLayers: (id: string, layers: string[]) => request<{ id: string; rev: string; markups: number }>(`/file-room/files/${encodeURIComponent(id)}/publish`, { method: 'POST', body: JSON.stringify({ layers }) }),
+    approveDrawing: (id: string, on: boolean) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/approve`, { method: 'POST', body: JSON.stringify({ on }) }),
+    setCity: (id: string, body: { notCityApproved: boolean; cityNote?: string | null }) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/city`, { method: 'PUT', body: JSON.stringify(body) }),
+    baseUploaders: () => request<string[]>('/file-room/drawing-sets/uploaders', { cache: 'no-store' } as any),
+    setBaseUploaders: (ids: string[]) => request<string[]>('/file-room/drawing-sets/uploaders', { method: 'PUT', body: JSON.stringify({ ids }) }),
+    numberDrawings: (apply: boolean) => request<{ count: number; rows?: { id: string; name: string; rev: string }[]; applied?: boolean }>(`/file-room/drawing-sets/number${apply ? '?apply=1' : ''}`, { method: 'POST' }),
     /** Nov 17: tag files Internal / Client / External. */
     setAccess: (ids: string[], access: 'internal' | 'client' | 'external') => request<{ updated: number; access: string }>('/file-room/files/access', { method: 'PUT', body: JSON.stringify({ ids, access }) }),
     /** Nov 17 (admin): untagged build-set files clients would stop seeing -- preview, then apply (tags them Client). */

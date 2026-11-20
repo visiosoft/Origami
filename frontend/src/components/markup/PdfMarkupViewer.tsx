@@ -1,6 +1,7 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../../api';
+import { DrawingSetBanner, DrawingSetSection, isReviewLayer, useDrawingState } from './DrawingSetPanel';
 import { useApp } from '../../AppContext';
 import { CsiSelect } from '../CsiSelect';
 import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
@@ -118,7 +119,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   /** Every revision of this drawing (this one included), for comparing. */
   revisions?: Revision[];
 }) {
-  const { toast, currentUser, authUser } = useApp();
+  const { toast, currentUser, authUser, can } = useApp();
   const me = authUser?.id || currentUser?.id || '';
   // i-1 and i-2 (admin, principal) see and manage every markup.
   const isAdmin = MARKUP_LEADS.includes(authUser?.roleKey || '');
@@ -439,6 +440,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
 
   // ---------------------------------------------------------------- helpers
   const layers = useMemo(() => layersOf(marks, me), [marks, me]);
+  // Nov 20: drawing sets -- its revision, the approved set, the city flag, history.
+  const drawingSet = useDrawingState(file.id);
+  const reviewShown = layers.some((l) => l.named && isReviewLayer(l.name) && !hidden.has(l.key));
   // Who sees each layer (Oct 30 sync): only the restricted ones come back.
   const [layerRules, setLayerRules] = useState<Record<string, LayerRule>>({});
   const [accessFor, setAccessFor] = useState<string | null>(null);
@@ -1375,6 +1379,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         <button type="button" className="mk-btn" onClick={() => setPanel(!panel)} aria-label="Markup list" aria-pressed={panel}>☰</button>
         {coarse && <button type="button" className="mk-btn" onClick={() => setBs('more')} aria-label="More" title="Download, email, save a copy, compare, sheet names">⋯</button>}
       </header>
+      <DrawingSetBanner state={drawingSet.state} fileId={file.id} reviewLayersShown={reviewShown} onOpenFile={onOpenFile ? (id) => onOpenFile(id) : undefined}
+        onHideReview={() => setHidden(new Set([...hidden, ...layers.filter((l) => l.named && isReviewLayer(l.name)).map((l) => l.key)]))} />
 
       <div className="mk-body">
         <nav className="mk-tools" aria-label="Markup tools">
@@ -1562,6 +1568,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 </Fragment>
               ))}
             </section>
+
+            <DrawingSetSection state={drawingSet.state} fileId={file.id} isLead={isAdmin} canFlag={isAdmin || can('planroom', 'manage') || can('allfiles', 'manage')}
+              layers={layers.map((l) => ({ key: l.key, name: l.name, count: l.count }))} onChanged={drawingSet.reload} onOpenFile={onOpenFile ? (id) => onOpenFile(id) : undefined} />
 
             {selected && (
               <section className="mk-selected">

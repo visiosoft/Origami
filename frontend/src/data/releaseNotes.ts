@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-20c',
+    date: '2026-11-20',
+    title: 'Drawing sets: revisions, review layers, approved set',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Only admins, principals and the people they pick upload base drawings (the build set and “Base sets”). Each upload is the architect’s next revision: Rev 1.0, 2.0…', where: 'Plan & File Room → Drawing sets (admins)' },
+      { area: 'Drawings', kind: 'new', text: 'Markups on a drawing set go on review layers — I1, I2 for our team, X1, X2 for consultants and subs — seen by our team only until an admin or principal publishes them. Publishing draws the chosen layers into the drawing as the next revision after the decimal (Rev 1.01 … 1.05).', where: 'A drawing → Drawing set → Publish layers…' },
+      { area: 'Drawings', kind: 'new', text: 'Approve one revision as the working set. Anyone on another revision, or with review layers showing, sees “You’re not on the approved set — Back to approved set”.', where: 'A drawing → Drawing set' },
+      { area: 'Drawings', kind: 'new', text: 'Mark a set “Not city-approved — for early work only” (e.g. structural for the foundation): a warning in the list and on the drawing, printed on published copies.', where: 'A drawing → Drawing set' },
+      { area: 'Drawings', kind: 'new', text: 'Each drawing’s history — revisions, approvals, layers started, RFIs, emails — under the drawing, filterable by layer or person.', where: 'A drawing → Drawing set → History' },
+    ],
+  },
+  {
     id: '2026-11-20b',
     date: '2026-11-20',
     title: 'Weekly Sync fixes: task bar, meetings, credits, letters',
