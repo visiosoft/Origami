@@ -77,6 +77,17 @@ export class MeetingsService implements OnApplicationBootstrap {
   }
 
   /** Nov 19: archive (or bring back) meetings -- test meetings and empty records the team wants out of the way. */
+  /** Nov 20: hand a meeting's sorting to someone else (or take it over yourself). */
+  async setSorter(id: string, who: { id: string; name: string } | null, actor?: Actor) {
+    const m = await this.load(id);
+    m.sortedById = who?.id || null;
+    m.sortedBy = who?.name || null;
+    m.updatedAt = new Date().toISOString();
+    m.activity = [...(m.activity || []), { at: m.updatedAt, by: actor?.name || 'Someone', type: 'sorter', text: who ? `${who.name} sorts this meeting${actor?.id === who.id ? ' (took it over)' : ''}` : 'sorting back with the organiser' } as any];
+    await this.repo.save(m);
+    return (await this.settle([m]))[0];
+  }
+
   async setArchived(ids: string[], on: boolean, actor?: Actor) {
     const list = (await this.repo.find({ where: { id: In(ids) } })).filter((m) => ids.includes(m.id));
     if (!list.length) throw new NotFoundException('Meeting not found');

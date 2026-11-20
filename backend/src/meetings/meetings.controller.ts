@@ -28,7 +28,8 @@ export class MeetingsController {
     // Their projects' meetings; others only if they attend or created them.
     return rows.filter((m) => (m.projectId != null && ids.has(Number(m.projectId)))
       || (m.attendees || []).some((a) => a?.id === claims?.sub)
-      || (!!claims?.sub && (m as { createdById?: string | null }).createdById === claims.sub));
+      || (!!claims?.sub && (m as { createdById?: string | null }).createdById === claims.sub)
+      || (!!claims?.sub && (m as { sortedById?: string | null }).sortedById === claims.sub));
   }
 
   @Get() async list(@Claims() claims: SessionClaims | null, @Query('archived') archived?: string) { return this.mine(await this.service.list(archived === '1'), claims); }
@@ -60,6 +61,13 @@ export class MeetingsController {
       return { removed: r.removed };
     }
     throw new BadRequestException('Unknown action.');
+  }
+  /** Nov 20: who sorts it. No userId = take it over yourself; userId '' = back to the organiser. */
+  @ManageWrites(...MANAGE)
+  @Post(':id/sorter') async sorter(@Param('id') id: string, @Body() body: { userId?: string | null; name?: string }, @Headers('authorization') a?: string) {
+    const actor = await this.auth.actor(a);
+    const who = body?.userId === undefined ? (actor.id ? { id: actor.id, name: actor.name } : null) : body.userId ? { id: String(body.userId), name: String(body.name || '').slice(0, 120) || 'Someone' } : null;
+    return this.service.setSorter(id, who, actor);
   }
   @ManageWrites(...MANAGE)
   @Post(':id/archive') async archive(@Param('id') id: string, @Headers('authorization') a?: string) { return this.service.setArchived([id], true, await this.auth.actor(a)); }

@@ -195,6 +195,26 @@ export class SmsBatchEntity {
   @Column({ type: 'simple-json' }) recipients!: { type: 'person' | 'lead'; id: string; name: string; phone: string; status: 'waiting' | 'sent' | 'failed' | 'skipped'; note?: string }[];
 }
 
+/**
+ * Nov 20 ("monitor API usage"): what Origami used of each paid service, per
+ * month -- texts (segments) and AI (tokens). OpenAI and Quo don't share the
+ * credit left through their APIs, so Origami counts its own use.
+ */
+@Entity('api_usage')
+export class ApiUsageEntity {
+  /** `${service}|${month}` */
+  @PrimaryColumn({ type: 'nvarchar', length: 40 }) id!: string;
+  /** quo | twilio | openai */
+  @Column({ type: 'nvarchar', length: 20 }) service!: string;
+  /** yyyy-mm */
+  @Column({ type: 'nvarchar', length: 7 }) month!: string;
+  @Column({ type: 'int', default: 0 }) units!: number;
+  @Column({ type: 'int', default: 0 }) calls!: number;
+  @Column({ type: 'int', default: 0 }) failures!: number;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) lastError!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+}
+
 @Entity('sms_messages')
 @Index('IX_sms_messages_entity', ['entityType', 'entityId'])
 export class SmsMessageEntity {
@@ -378,6 +398,9 @@ export class MeetingEntity {
   /** Nov 19: archived (test meetings, empty records) -- hidden from Meetings, can be brought back. */
   @Column({ type: 'nvarchar', length: 40, nullable: true }) archivedAt!: string | null;
   @Column({ type: 'nvarchar', length: 120, nullable: true }) archivedBy!: string | null;
+  /** Nov 20: who sorts this meeting's items -- the organiser by default; anyone with Meetings rights can take it over (organiser away). */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) sortedById!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) sortedBy!: string | null;
   @Column({ nullable: true }) reviewedBy!: string;
   @Column({ nullable: true }) reviewedAt!: string;
   @Column({ nullable: true }) createdBy!: string;

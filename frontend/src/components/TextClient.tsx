@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { mergeTokens } from '../data/clientPersonality';
@@ -53,6 +54,15 @@ function TextClientDialog({ entityType, entityId, phone, clientName, projectTitl
   const [sent, setSent] = useState<SmsMessage[]>([]);
   const [ready, setReady] = useState<boolean | null>(null);
   const [sending, setSending] = useState(false);
+  const navigate = useNavigate();
+  const logAsMeeting = () => {
+    const lines = sent.filter((m) => m.status === 'sent').slice(0, 15).reverse()
+      .map((m) => `${new Date(m.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${m.byName ? ` — ${m.byName}` : ''}: ${m.body}`);
+    const q = new URLSearchParams({ log: 'text', title: `Text conversation with ${clientName || phone || 'client'}`, notes: lines.join('\n\n').slice(0, 6000) });
+    if (projectTitle) q.set('project', projectTitle);
+    onClose();
+    navigate(`/meetings?${q.toString()}`);
+  };
 
   const company = useCompanyTokens();
   const tokens = useMemo(() => ({
@@ -144,7 +154,13 @@ function TextClientDialog({ entityType, entityId, phone, clientName, projectTitl
         </div>
         {sent.length > 0 && (
           <div style={{ borderTop: '1px solid rgba(var(--rgb-shade), 0.08)', paddingTop: 10, display: 'grid', gap: 6 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)' }}>Texts sent</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)' }}>Texts sent</div>
+              <span style={{ flex: 1 }} />
+              {/* Nov 20 (Edward): texts go into Meetings -- log this conversation there, to sort it into tasks like any meeting. */}
+              <button type="button" onClick={logAsMeeting} title="Log this conversation in Meetings, with the texts quoted, then turn it into tasks"
+                style={{ padding: '4px 10px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>Log as meeting</button>
+            </div>
             {sent.map((m) => (
               <div key={m.id} style={{ padding: '8px 10px', borderRadius: 9, background: m.status === 'failed' ? '#F7E4DB' : 'var(--panel)', fontSize: 12.5, color: 'var(--ink)' }}>
                 <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{m.body}</div>

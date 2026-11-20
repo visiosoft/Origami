@@ -98,6 +98,16 @@ describe('MeetingsService', () => {
     expect(meetings.find((x) => x.id === m.id)).toMatchObject({ project: '1311 Countryside Ct', projectId: 16 });
   });
 
+  it('someone else can take over sorting a meeting (Nov 20)', async () => {
+    const { svc, meetings } = setup();
+    const m = await svc.create({ title: 'OAC', date: '2026-11-20' }, { name: 'Edward', id: 'U-E' });
+    await svc.setSorter(m.id, { id: 'U-AC', name: 'Andrea Castillo' }, { name: 'Andrea Castillo', id: 'U-AC' });
+    expect(meetings[0]).toMatchObject({ sortedById: 'U-AC', sortedBy: 'Andrea Castillo' });
+    expect(meetings[0].activity.at(-1).text).toMatch(/took it over/);
+    await svc.setSorter(m.id, null, { name: 'Edward' });
+    expect(meetings[0].sortedBy).toBeNull();
+  });
+
   it('records a decision from a meeting', async () => {
     const { svc, created } = setup();
     const m = await svc.create({ title: 'OAC', date: '2026-10-08' }, { name: 'A' });

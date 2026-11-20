@@ -435,6 +435,11 @@ export const api = {
     get: () => request<Record<string, string>>('/settings'),
     save: (data: Record<string, unknown>) => request<Record<string, string>>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   },
+  /** Nov 20: what Origami used of each paid service, and the credit loaded (admins). */
+  usage: {
+    status: () => request<{ services: any[] }>('/usage', { cache: 'no-store' } as any),
+    setCredits: (credits: Record<string, { amount?: number; units: number; since: string }>) => request<{ services: any[] }>('/usage/credits', { method: 'PUT', body: JSON.stringify(credits) }),
+  },
   sms: {
     status: () => request<{ provider?: 'twilio' | 'quo'; configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }>('/sms/status'),
     /** With entityType/entityId the text is recorded on that lead, contact or project. */
@@ -601,6 +606,8 @@ export const api = {
     /** Archive, bring back or delete several meetings (Nov 19). */
     bulk: (ids: string[], action: 'archive' | 'unarchive' | 'delete') => request<{ updated?: number; removed?: number }>('/meetings/bulk', { method: 'POST', body: JSON.stringify({ ids, action }) }),
     archive: (id: string, on = true) => request(`/meetings/${encodeURIComponent(id)}/${on ? 'archive' : 'unarchive'}`, { method: 'POST' }),
+    /** Nov 20: no user = take it over yourself; null = back to the organiser. */
+    sorter: (id: string, who?: { userId: string | null; name?: string }) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}/sorter`, { method: 'POST', body: JSON.stringify(who ?? {}) }),
     /** Nov 19: meetings from the company Google Calendar -- status, first-run preview, apply (then hourly), on/off. */
     calendarSync: () => request<import('./components/CalendarSyncPanel').CalSyncStatus>('/meetings/calendar-sync', { cache: 'no-store' } as any),
     calendarPreview: () => request<import('./components/CalendarSyncPanel').CalSyncPreview>('/meetings/calendar-sync/preview', { method: 'POST' }),

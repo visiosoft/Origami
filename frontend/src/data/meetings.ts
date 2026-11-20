@@ -25,7 +25,9 @@ export interface Meeting extends ActionTrailFields {
   /** Nov 19: archived -- hidden from Meetings except under Archived. */
   archivedAt?: string | null; archivedBy?: string | null;
   reviewedBy?: string; reviewedAt?: string;
-  createdBy?: string; createdAt?: string; updatedAt?: string;
+  createdBy?: string; createdById?: string | null; createdAt?: string; updatedAt?: string;
+  /** Nov 20: who sorts its items -- the organiser unless someone took it over. */
+  sortedById?: string | null; sortedBy?: string | null;
 }
 /** Outside = someone else's invite (the city on Teams, a consultant's Zoom). */
 export const MEETING_TYPES = ['Internal', 'Client', 'Consultant', 'Subcontractor', 'Site', 'Outside'];
