@@ -82,10 +82,10 @@ export function SmsSettings() {
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>SMS</div>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Text messages</div>
         <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
           Texting clients from the system (“Text client” on a lead, contact or project), using the SMS templates.
-          Sent through Quo from the office line, so replies come back to Quo — or through Twilio.
+          Sent through Quo from the office line, so replies come back to Quo.
         </div>
       </div>
 

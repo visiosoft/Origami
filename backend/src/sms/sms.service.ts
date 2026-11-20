@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SettingsService } from '../settings/settings.service';
 import { SmsPreferenceEntity } from '../database/entities';
+import { UsageService } from '../usage/usage.service';
 import { QUO_DEFAULT_FROM, sendViaQuo } from './quo';
 import { blocked, incomingText, keywordOf, prefsToken, readPrefsToken, verifyQuoSignature, withFooter, type TextCategory } from './opt-out';
 
@@ -45,6 +46,7 @@ export class SmsService {
   constructor(
     private readonly settings: SettingsService,
     @Optional() @InjectRepository(SmsPreferenceEntity) private readonly prefs?: Repository<SmsPreferenceEntity>,
+    @Optional() private readonly usage?: UsageService,
   ) {}
 
   // ------------------------------------------------------------ opt-out and preferences (Nov 13 sync)
@@ -177,10 +179,12 @@ export class SmsService {
       try {
         const r = await sendViaQuo({ apiKey: c.quoApiKey, from: c.quoFrom, base: c.quoApiBase }, to, body);
         this.log.log(`Text sent via Quo to ${to} (${meta.segments} segment${meta.segments === 1 ? '' : 's'})`);
+        await this.usage?.record('quo', meta.segments);
         return { sent: true, to, sid: r.id, segments: meta.segments };
       } catch (e) {
         const reason = (e as Error).message;
         this.log.warn(`Quo text to ${to} failed: ${reason}`);
+        await this.usage?.record('quo', 0, false, reason);
         throw new BadRequestException(reason);
       }
     }
@@ -199,10 +203,12 @@ export class SmsService {
       // Twilio's own message is far more useful than the status code.
       const reason = payload?.message || `SMS failed (${res.status})`;
       this.log.warn(`SMS to ${to} failed: ${reason}`);
+      await this.usage?.record('twilio', 0, false, `${res.status} ${reason}`);
       throw new BadRequestException(reason);
     }
 
     this.log.log(`SMS sent to ${to} (${meta.segments} segment${meta.segments === 1 ? '' : 's'})`);
+    await this.usage?.record('twilio', meta.segments);
     return { sent: true, to, sid: payload?.sid, segments: meta.segments };
   }
 }

@@ -5,10 +5,12 @@ import { randomBytes } from 'crypto';
 import { AppSettingEntity } from '../database/entities';
 
 /** Keys that hold secrets — masked whenever settings are read by the UI. */
-export const SECRET_KEYS = ['google.clientSecret', 'google.workspaceClientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken', 'sms.quoApiKey', 'sms.quoWebhookSecret', 'quo.tasksWebhookSecret'];
+export const SECRET_KEYS = ['google.clientSecret', 'google.workspaceClientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken', 'sms.quoApiKey', 'sms.quoWebhookSecret', 'quo.tasksWebhookSecret', 'ai.openaiKey'];
 
 /** Settings the Settings UI may read/write. Anything else is rejected. */
 export const PUBLIC_KEYS = [
+  // Nov 20: the ChatGPT (OpenAI) API key -- kept masked; no AI feature uses it until one is switched on.
+  'ai.openaiKey',
   'google.clientId',
   'google.clientSecret',
   'google.workspaceClientId',

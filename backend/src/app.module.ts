@@ -30,6 +30,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { TagsModule } from './tags/tags.module';
 import { BackupModule } from './backup/backup.module';
 import { SmsModule } from './sms/sms.module';
+import { UsageModule } from './usage/usage.module';
 import { MailModule } from './mail/mail.module';
 import { TrackingModule } from './tracking/tracking.module';
 import { ProjectProgramModule } from './project-program/project-program.module';
@@ -106,6 +107,7 @@ import { PermGuard } from './auth/guards/perm.guard';
     TagsModule,
     BackupModule,
     SmsModule,
+    UsageModule,
     MailModule,
     TrackingModule,
     ManpowerModule,

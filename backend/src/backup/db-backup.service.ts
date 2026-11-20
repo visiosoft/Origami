@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, OnApplicationBootstrap, OnModu
 import { DataSource } from 'typeorm';
 import { GoogleService } from '../google/google.service';
 import { SECRET_KEYS, SettingsService } from '../settings/settings.service';
+import { alertAdmins } from '../common/admin-alert';
 import { envName, filesIndex, scrubRow, scrubSettings, toTrash, verifyZip, ZIP_LIMIT, zipFiles } from './db-export';
 import { UserEntity } from '../database/entities';
 
@@ -84,20 +85,11 @@ export class DbBackupService implements OnApplicationBootstrap, OnModuleDestroy 
     await this.alert(`No good database copy has been saved for more than ${MISSED_HOURS} hours${last?.error ? ` (last try: ${last.error})` : ''}.`, today);
   }
 
-  /** Email the admins, at most once a day. */
+  /** Email the admins, at most once a day (Nov 20: the shared helper, also used for API credit alerts). */
   async alert(message: string, today: string) {
-    try {
-      if ((await this.settings.get(KEY_ALERT)) === today) return;
-      await this.settings.set(KEY_ALERT, today);
-      const admins = (await this.data.getRepository(UserEntity).find()).filter((u) => u.roleKey === 'admin' && u.status !== 'suspended' && u.email);
-      const to = [...new Set(admins.map((u) => u.email.trim().toLowerCase()))].join(', ');
-      if (!to) return;
-      const env = await this.env();
-      await this.google.sendMail({
-        to, subject: `Origami (${env}): database copy needs attention`,
-        html: `<p>${message.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!))}</p><p>Open Settings → Google → Database copy to see the last result, or press “Make a copy now”.</p>`,
-      });
-    } catch (e) { this.log.warn('Database copy alert: ' + (e as Error).message); }
+    const sent = await alertAdmins({ data: this.data, settings: this.settings, google: this.google }, KEY_ALERT, today, 'database copy needs attention',
+      [message, 'Open Settings → Google → Database copy to see the last result, or press “Make a copy now”.']);
+    if (!sent) this.log.debug?.('Database copy alert not sent (already sent today, no admins, or mail failed).');
   }
 
   /** The zip, built from every table. */
