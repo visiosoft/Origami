@@ -58,6 +58,8 @@ export function Estimating() {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<EstimateHeader | null>(null);
   const [filter, setFilter] = useState('');
+  const [allProjects, setAllProjectsState] = useState(() => { try { return localStorage.getItem('origami.estimating.allProjects') === '1'; } catch { return false; } });
+  const setAllProjects = (v: boolean) => { setAllProjectsState(v); try { localStorage.setItem('origami.estimating.allProjects', v ? '1' : '0'); } catch { /* private window */ } };
   const [reload, setReload] = useState(0);
   const [comparing, setComparing] = useState(false);
   const [tab, setTab] = useState<'sheet' | 'letter'>('sheet');
@@ -135,7 +137,8 @@ export function Estimating() {
   }
 
   if (!projectId) {
-    const list = projects.filter((p) => !filter || p.name?.toLowerCase().includes(filter.toLowerCase()));
+    // Nov 20 (Edward): only projects with estimates, so empty ones don't take up space. Searching, or "Show all", finds the rest.
+    const list = projects.filter((p) => (filter ? p.name?.toLowerCase().includes(filter.toLowerCase()) : allProjects || estOf.has(p.id)));
     return (
       <div style={{ padding: '20px 24px', display: 'grid', gap: 14, maxWidth: 900 }}>
         <div>
@@ -144,10 +147,14 @@ export function Estimating() {
         </div>
         {rights.edit && <StrategyMap />}
         <input aria-label="Find a project" placeholder="Find a project…" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ padding: '9px 12px', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.15)', font: 'inherit', fontSize: 16, background: 'var(--surface)', color: 'var(--ink)' }} />
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 12.5, color: 'var(--muted)' }}>
+          <span>{allProjects ? `All ${projects.length} projects` : `${projects.filter((p) => estOf.has(p.id)).length} projects with estimates`}{filter ? ' · searching every project' : ''}</span>
+          <button type="button" className="eg-btn" aria-pressed={allProjects} onClick={() => setAllProjects(!allProjects)}>{allProjects ? 'Only projects with estimates' : 'Show all projects'}</button>
+        </div>
         <div style={{ display: 'grid', gap: 10 }}>
           {STAGE_FOLDS.filter((f) => f.key !== 'closed' || showClosed).map((f) => {
             const mine = list.filter((p) => foldOf(p.stage) === f.key);
-            if (!mine.length && (filter || f.key === 'closed')) return null;
+            if (!mine.length && (filter || !allProjects || f.key === 'closed')) return null;
             const isOpen = !!filter || !shut.includes(f.key);
             return (
               <section key={f.key} className="est-fold" aria-label={f.label}>
