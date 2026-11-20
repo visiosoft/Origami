@@ -90,6 +90,7 @@ export function Estimating() {
   useEffect(() => { (api.projects.list() as Promise<any>).then((l) => setProjects(Array.isArray(l) ? l : l?.rows || [])).catch(() => setProjects([])); }, []);
   // Nov 19 (Edward): which projects already have an estimate -- shown as a badge on the start page.
   const [estOf, setEstOf] = useState<Map<number, { count: number; last: string; status: string }>>(new Map());
+  const [estFailed, setEstFailed] = useState(false);
   useEffect(() => {
     if (projectId) return;
     (api.finance.estimatesAll() as Promise<any>).then((r) => {
@@ -99,8 +100,8 @@ export function Estimating() {
         x.count++; if ((e.updatedAt || '') > x.last) { x.last = e.updatedAt || ''; x.status = e.status; }
         m.set(e.projectId, x);
       }
-      setEstOf(m);
-    }).catch(() => setEstOf(new Map()));
+      setEstOf(m); setEstFailed(false);
+    }).catch(() => { setEstOf(new Map()); setEstFailed(true); });
   }, [projectId]);
   const load = useCallback(() => {
     if (!projectId) { setRows(null); return; }
@@ -138,7 +139,8 @@ export function Estimating() {
 
   if (!projectId) {
     // Nov 20 (Edward): only projects with estimates, so empty ones don't take up space. Searching, or "Show all", finds the rest.
-    const list = projects.filter((p) => (filter ? p.name?.toLowerCase().includes(filter.toLowerCase()) : allProjects || estOf.has(p.id)));
+    // (If the estimates couldn't be read, every project shows -- nothing hidden by mistake.)
+    const list = projects.filter((p) => (filter ? p.name?.toLowerCase().includes(filter.toLowerCase()) : allProjects || estFailed || estOf.has(p.id)));
     return (
       <div style={{ padding: '20px 24px', display: 'grid', gap: 14, maxWidth: 900 }}>
         <div>

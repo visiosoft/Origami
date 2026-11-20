@@ -33,7 +33,7 @@ export function TaskCloseBar({ auto, archived, done, subtask, onFinish, onReopen
       ? (done ? null : <button type="button" onClick={onFinish} title="Mark this subtask complete" style={pill(true)}>✓ Mark done</button>)
       : <button type="button" onClick={onFinish} title="Mark it complete and move it to the archive now" style={pill(true)}>✓ Complete task</button>;
   return (
-    <div className="task-close-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+    <div className="task-close-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start' }}>
       {first}
       {extra}
       <div style={{ flex: '1 1 320px', minWidth: 0 }}>

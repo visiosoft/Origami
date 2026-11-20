@@ -16,6 +16,21 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-20b',
+    date: '2026-11-20',
+    title: 'Weekly Sync fixes: task bar, meetings, credits, letters',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Every task action is in one bar at the top: Complete, Duplicate, Convert to, Delete, then Close without saving / Save & close. “Activity” is now “Activity & updates”, for status updates.', where: 'Any task' },
+      { area: 'Meetings', kind: 'fixed', text: 'Importing the same meeting notes twice (or by two people) no longer makes the same task twice — items already raised are shown and left unticked. A meeting with no project asks which project its items belong to, so they stop landing under General; others named in an item follow it as collaborators.', where: 'Meetings → a meeting → Review → Items from the notes' },
+      { area: 'Tasks', kind: 'fixed', text: 'A task given to you shows in your list even on a project you aren’t on. The Task Board points to your meeting and request tasks in the Special Actions Log.', where: 'Task' },
+      { area: 'Meetings', kind: 'new', text: '“Sorted by”: anyone with Meetings rights can take over sorting a meeting’s items (or hand it on) when the organiser is away.', where: 'Meetings → a meeting' },
+      { area: 'Meetings', kind: 'new', text: 'Log a call or a text conversation as a meeting, with a summary, then turn it into tasks. From a client’s texts, “Log as meeting” brings the messages in. New filter: Calls & texts.', where: 'Meetings → Log a call / Log a text conversation' },
+      { area: 'Settings', kind: 'new', text: 'Usage & credits: texts (and AI, once it’s used) are counted each month against the credit you loaded. Administrators are emailed at 80% and as soon as Quo refuses for lack of credit. The ChatGPT key is kept here, masked.', where: 'Settings → Integrations → Usage & credits' },
+      { area: 'Estimating', kind: 'improved', text: 'The start page lists only projects with estimates. “Show all projects”, or searching, finds the rest.', where: 'Estimating' },
+      { area: 'Letters', kind: 'fixed', text: 'Introduction letters, contracts and proposals keep their layout with long names, emails and addresses; the Project Program PDF no longer cuts long titles or lets money overlap.', where: 'Introduction letter; Project Program PDF' },
+    ],
+  },
+  {
     id: '2026-11-20a',
     date: '2026-11-20',
     title: 'Meetings from everyone’s calendars',
