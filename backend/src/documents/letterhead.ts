@@ -80,6 +80,17 @@ const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /**
+ * Nov 20 (Weekly Sync: "variable data lengths, 10 to 100 characters, broke the
+ * template"): escaped, with break points in any long unbroken run -- emails,
+ * links, long names -- so Google Docs wraps it instead of stretching the table.
+ * Runs of 24 characters or fewer are left exactly as typed.
+ */
+export const breakable = (s: string) =>
+  esc(String(s ?? '')).replace(/[^\s]{25,}/g, (run) => run
+    .replace(/([@./_-])/g, '$1&#8203;')
+    .replace(/([^&#;\s]{20})(?=[^&#;\s])/g, '$1&#8203;'));
+
+/**
  * The body may arrive as HTML from the composer, or as plain typed text. Plain
  * text is escaped and split into paragraphs so a letter never renders as one
  * unbroken run.
@@ -135,7 +146,12 @@ export const PAGE_BREAK = '<p style="page-break-before:always;margin:0;line-heig
  */
 export function footerBarHtml(brand: Branding) {
   const accent = accentOf(brand);
-  const line = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).map(esc).join('  &middot;  ');
+  // Nov 20: a long address and contacts go on two lines rather than one that wraps under the crane.
+  const parts = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean) as string[];
+  const long = parts.join(' · ').length > 100;
+  const line = long && brand.address
+    ? `${breakable(brand.address)}<br/>${parts.slice(1).map(breakable).join('  &middot;  ')}`
+    : parts.map(breakable).join('  &middot;  ');
   // The reference design has the crane overlapping a diagonal gold wedge --
   // Google Docs' HTML import has no clip-path/transform support for an
   // angled shape, so this approximates it with a large crane overlapping a
@@ -146,7 +162,7 @@ export function footerBarHtml(brand: Branding) {
   return `<div style="margin-top:24pt;">
     ${crane ? `<table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td style="width:90pt;border:none;">${crane}</td><td style="border:none;"></td></tr></table>` : ''}
     <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:${accent};margin-top:${crane ? '-20pt' : '0'};">
-      <tr><td style="padding:7pt 16pt;color:#ffffff;font-size:8.5pt;text-align:right;border:none;">
+      <tr><td style="padding:${crane ? '7pt 16pt 7pt 100pt' : '7pt 16pt'};color:#ffffff;font-size:8.5pt;text-align:right;border:none;">
         ${line}${brand.footerNote ? `<div style="margin-top:2pt;">${esc(brand.footerNote)}</div>` : ''}
       </td></tr>
     </table>
@@ -212,12 +228,12 @@ export function coverPageHtml(brand: Branding, opts: {
     : '';
   return `<div>
     ${logo ? `<table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td style="text-align:right;border:none;">${logo}</td></tr></table>` : ''}
-    <h1 style="font-size:24pt;color:${accent};margin:26pt 0 6pt 0;line-height:1.2;">${esc(opts.title)}</h1>
-    ${opts.subtitle ? `<div style="font-size:13pt;color:#43514D;margin-bottom:4pt;">${esc(opts.subtitle)}</div>` : ''}
+    <h1 style="font-size:${opts.title.length > 60 ? 18 : 24}pt;color:${accent};margin:26pt 0 6pt 0;line-height:1.2;">${breakable(opts.title)}</h1>
+    ${opts.subtitle ? `<div style="font-size:13pt;color:#43514D;margin-bottom:4pt;">${breakable(opts.subtitle)}</div>` : ''}
     ${opts.date ? `<div style="font-size:11pt;color:#7E9B93;">${esc(opts.date)}</div>` : ''}
     ${(opts.contactName || opts.contactPhone) ? `<div style="margin-top:22pt;">
       <div style="font-size:10pt;font-weight:bold;color:${accent};text-transform:uppercase;letter-spacing:0.06em;">Client Contact Information</div>
-      ${opts.contactName ? `<div style="font-size:11pt;margin-top:2pt;">${esc(opts.contactName)}</div>` : ''}
+      ${opts.contactName ? `<div style="font-size:11pt;margin-top:2pt;">${breakable(opts.contactName)}</div>` : ''}
       ${opts.contactPhone ? `<div style="font-size:11pt;">${esc(opts.contactPhone)}</div>` : ''}
     </div>` : ''}
     ${brand.coverPhotoDataUrl ? `<div style="margin-top:26pt;">
@@ -281,11 +297,11 @@ export function buildLetterHtml(opts: {
   // attention block (Date / Attention / phone / email) rather than two
   // bare lines -- matching the office's own paper Introduction Letter.
   const dateAttention = opts.includeCoverPage
-    ? `<table border="0" cellpadding="0" cellspacing="0" style="margin-top:10pt;font-size:10pt;color:#43514D;">
-        ${opts.date ? `<tr><td style="padding:1pt 10pt 1pt 0;font-weight:bold;border:none;">Date</td><td style="padding:1pt 0;border:none;">${esc(opts.date)}</td></tr>` : ''}
-        ${opts.recipient ? `<tr><td style="padding:1pt 10pt 1pt 0;font-weight:bold;vertical-align:top;border:none;">Attention</td><td style="padding:1pt 0;border:none;">${esc(opts.recipient)}${opts.contactPhone ? `<br/>${esc(opts.contactPhone)}` : ''}${opts.contactEmail ? `<br/>${esc(opts.contactEmail)}` : ''}</td></tr>` : ''}
+    ? `<table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:10pt;font-size:10pt;color:#43514D;">
+        ${opts.date ? `<tr><td width="70" style="width:70pt;padding:1pt 10pt 1pt 0;font-weight:bold;border:none;">Date</td><td style="padding:1pt 0;border:none;">${esc(opts.date)}</td></tr>` : ''}
+        ${opts.recipient ? `<tr><td width="70" style="width:70pt;padding:1pt 10pt 1pt 0;font-weight:bold;vertical-align:top;border:none;">Attention</td><td style="padding:1pt 0;border:none;">${breakable(opts.recipient)}${opts.contactPhone ? `<br/>${breakable(opts.contactPhone)}` : ''}${opts.contactEmail ? `<br/>${breakable(opts.contactEmail)}` : ''}</td></tr>` : ''}
       </table>`
-    : `${opts.date ? `<p style="margin:10pt 0 0 0;font-size:10pt;color:#5C6B65;">${esc(opts.date)}</p>` : ''}${opts.recipient ? `<p style="margin:8pt 0 0 0;">${esc(opts.recipient)}</p>` : ''}`;
+    : `${opts.date ? `<p style="margin:10pt 0 0 0;font-size:10pt;color:#5C6B65;">${esc(opts.date)}</p>` : ''}${opts.recipient ? `<p style="margin:8pt 0 0 0;">${breakable(opts.recipient)}</p>` : ''}`;
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8" /><title>${esc(opts.title || b.companyName)}</title></head>
@@ -296,16 +312,16 @@ export function buildLetterHtml(opts: {
   <div${cover || about ? ' style="page-break-before:always;"' : ''}>
   <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-bottom:3px solid ${accent};padding-bottom:6pt;margin-bottom:6pt;">
     <tr>
-      <td style="vertical-align:middle;border:none;">${logo}</td>
-      <td style="vertical-align:middle;text-align:${logo ? 'right' : 'left'};border:none;">
-        <div style="font-size:16pt;font-weight:bold;color:#0B1A12;">${esc(b.companyName)}</div>
-        ${b.tagline ? `<div style="font-size:9.5pt;color:#7E9B93;letter-spacing:0.06em;">${esc(b.tagline)}</div>` : ''}
+      ${logo ? `<td width="35%" style="width:35%;vertical-align:middle;border:none;">${logo}</td>` : ''}
+      <td${logo ? ' width="65%"' : ''} style="${logo ? 'width:65%;' : ''}vertical-align:middle;text-align:${logo ? 'right' : 'left'};border:none;">
+        <div style="font-size:${String(b.companyName || '').length > 40 ? 13 : 16}pt;font-weight:bold;color:#0B1A12;">${breakable(b.companyName || '')}</div>
+        ${b.tagline ? `<div style="font-size:9.5pt;color:#7E9B93;letter-spacing:0.06em;">${breakable(b.tagline)}</div>` : ''}
       </td>
     </tr>
   </table>
 
   ${dateAttention}
-  ${heading ? `<h1 style="font-size:13pt;color:#0B1A12;margin:12pt 0 6pt 0;">${esc(heading)}</h1>` : '<div style="height:10pt;"></div>'}
+  ${heading ? `<h1 style="font-size:13pt;color:#0B1A12;margin:12pt 0 6pt 0;">${breakable(heading)}</h1>` : '<div style="height:10pt;"></div>'}
 
   <div>${bodyHtml(opts.body)}</div>
 
