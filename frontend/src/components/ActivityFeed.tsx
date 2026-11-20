@@ -133,7 +133,7 @@ export function ActivityFeed({
   return (
     <div>
       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)', marginBottom: 10 }}>
-        Activity
+        Activity &amp; updates
       </div>
 
       {canManage && (
@@ -150,7 +150,7 @@ export function ActivityFeed({
               if (e.key === 'Escape') setMention(null);
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
             }}
-            placeholder="Write a comment… type @ to mention someone"
+            placeholder="Post a status update or comment… type @ to mention someone"
             rows={2}
             style={{
               flex: 1, boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9,

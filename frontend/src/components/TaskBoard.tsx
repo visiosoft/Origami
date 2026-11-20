@@ -1134,11 +1134,16 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                   onFinish={() => (selected.parentId ? set({ completed: true }) : closeTask(selected.id))} onReopen={() => reopenTask(selected.id)}
                   onDiscard={() => setSelectedId(null)} onSaveClose={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }}
                   extra={<>
-                    <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} parts="duplicate" onMade={() => load()} />
+                    {/* Nov 20 (Edward): every task action up here in one bar -- duplicate, convert, delete, then save / close. */}
+                    <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} parts="both" onMade={(made) => {
+                      load();
+                      if (made.some((m) => m.kind !== 'board')) toast('Done — open it from the link');
+                    }} />
                     {!selected.parentId && !selected.archivedAt && !restricted && (
                       <button type="button" onClick={() => setMerging(true)} title="Merge duplicate tasks into this one: their files, comments and history come here"
                         style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--body)', cursor: 'pointer', whiteSpace: 'nowrap' }}>⇲ Merge duplicates…</button>
                     )}
+                    <button type="button" onClick={() => deleteTask(selected.id)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', background: 'var(--surface)', color: '#8E2E0A', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Delete task</button>
                   </>} />
               </div>
             )}
@@ -1287,17 +1292,6 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 onChange={(checklist: ChecklistItem[]) => set({ checklist })}
               />
             </div>
-
-            {/* Nov 19 (Edward): Convert to and Delete task up here, not at the bottom; Duplicate is in the top bar. */}
-            {canManage && (
-              <div style={{ padding: '12px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} parts="convert" onMade={(made) => {
-                  load();
-                  if (made.some((m) => m.kind !== 'board')) toast('Done — open it from the link');
-                }} />
-                <button type="button" onClick={() => deleteTask(selected.id)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', background: 'var(--surface)', color: '#8E2E0A', fontFamily: 'inherit' }}>Delete task</button>
-              </div>
-            )}
 
             {/* Labels */}
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
