@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-21a',
+    date: '2026-11-21',
+    title: 'Edward’s screenshots: task emails, tags, drawings, symbols, inspections',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Emails linked to a task now sit in its Activity & updates, in date order with the comments, instead of in a box above.', where: 'Any task → Activity & updates' },
+      { area: 'Tasks', kind: 'improved', text: 'Only admins and principals change who a task is for (Internal, Client, External, Financial) — the chips show a lock for everyone else. Anyone can still add CRM, Design or Construction.', where: 'Any task → Standard tags' },
+      { area: 'Drawings', kind: 'improved', text: '“Save marked-up copy” keeps the copy private (our team only, marked “Private — not approved”) until an admin or principal shares it or publishes the layers. Compare puts the approved base first.', where: 'A drawing → Save marked-up copy / Compare' },
+      { area: 'Drawings', kind: 'new', text: '42 starter symbols — outlets, switches, lights, plumbing fixtures, HVAC, doors, windows, section and detail marks — an admin adds to the shared library after a preview.', where: 'Plan & File Room → Drawing sets → Starter drawing symbols' },
+      { area: 'Daily report', kind: 'new', text: 'Request an inspection from the daily report: it makes a task for the project’s Coordinator (or PM), due the day before; the result goes into V. Inspectors. Requests show on the daily and weekly reports.', where: 'Daily Report → V.B Inspection requests' },
+    ],
+  },
+  {
     id: '2026-11-20c',
     date: '2026-11-20',
     title: 'Drawing sets: revisions, review layers, approved set',
