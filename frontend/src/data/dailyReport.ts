@@ -62,6 +62,39 @@ export const VISITOR_TYPES = ['Owner', 'Supplier', 'Architect', 'Consultant'];
 export interface FileRef { id: string; name: string }
 export interface SubRow { id: string; contractorId?: string; name?: string; headcount?: number | ''; work?: string; from?: string; to?: string }
 export interface InspectorRow { id: string; authority?: string; what?: string; outcome?: Outcome; delay?: Delay; card?: FileRef | null }
+/**
+ * Nov 20 (Edward): an inspection asked for from the daily report. It makes a
+ * task on the project (for the Coordinator, else the PM, due the day before);
+ * once it happens, its result goes in as a normal Inspectors row.
+ */
+export interface InspectionRequest {
+  id: string; authority?: string; agency?: string; date?: string; time?: string; areas?: string; notes?: string;
+  status?: 'requested' | 'passed' | 'partial' | 'conditional' | 'failed'; taskId?: string;
+}
+
+/** The day before a date (yyyy-mm-dd), for when the request task is due. */
+export function dayBefore(iso?: string): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** The task an inspection request makes. */
+export function inspectionTask(r: InspectionRequest, reportDate: string) {
+  const what = [r.authority || 'Inspection', r.areas].filter(Boolean).join(' — ');
+  return {
+    title: `Inspection request: ${what}`.slice(0, 120),
+    description: [
+      `Requested from the daily report for ${reportDate}.`,
+      r.date ? `Wanted on ${r.date}${r.time ? ` at ${r.time}` : ''}.` : 'No date asked for yet.',
+      r.agency ? `Agency / inspector: ${r.agency}.` : '',
+      r.areas ? `Areas / sheets: ${r.areas}.` : '',
+      r.notes ? `Notes: ${r.notes}` : '',
+    ].filter(Boolean).join('\n'),
+    dueDate: dayBefore(r.date),
+  };
+}
 export interface VisitorRow { id: string; type?: string; personId?: string; name?: string; details?: string; taskId?: string }
 export interface NoteRow { id: string; text?: string; taskId?: string }
 /** VII. One delivery on the transmittal. */
@@ -93,7 +126,7 @@ export interface Sections {
   };
   crew: YesNo;
   subs: { present: YesNo; rows: SubRow[] };
-  inspectors: { present: YesNo; rows: InspectorRow[] };
+  inspectors: { present: YesNo; rows: InspectorRow[]; requests: InspectionRequest[] };
   visitors: { present: YesNo; rows: VisitorRow[] };
   /** The transmittal is filled in here (rows) or attached as a scan (files); `transmittal` says whether it's done. */
   deliveries: { present: YesNo; transmittal: YesNo; files: FileRef[]; rows: DeliveryRow[] };
@@ -109,7 +142,7 @@ export function emptySections(): Sections {
     activity: { worked: '', reason: '', stop: {}, holiday: {}, ops: {}, force: {}, delays: '', dOps: {}, dForce: {}, photos: '' },
     crew: '',
     subs: { present: '', rows: [] },
-    inspectors: { present: '', rows: [] },
+    inspectors: { present: '', rows: [], requests: [] },
     visitors: { present: '', rows: [] },
     deliveries: { present: '', transmittal: '', files: [], rows: [] },
     equipment: { used: '', form: '', files: [], rows: [] },
@@ -125,7 +158,7 @@ export function normalizeSections(raw: unknown): Sections {
     activity: { ...base.activity, ...(s.activity || {}) },
     crew: s.crew ?? '',
     subs: { ...base.subs, ...(s.subs || {}), rows: Array.isArray(s.subs?.rows) ? s.subs!.rows : [] },
-    inspectors: { ...base.inspectors, ...(s.inspectors || {}), rows: Array.isArray(s.inspectors?.rows) ? s.inspectors!.rows : [] },
+    inspectors: { ...base.inspectors, ...(s.inspectors || {}), rows: Array.isArray(s.inspectors?.rows) ? s.inspectors!.rows : [], requests: Array.isArray(s.inspectors?.requests) ? s.inspectors!.requests : [] },
     visitors: { ...base.visitors, ...(s.visitors || {}), rows: Array.isArray(s.visitors?.rows) ? s.visitors!.rows : [] },
     deliveries: { ...base.deliveries, ...(s.deliveries || {}), files: Array.isArray(s.deliveries?.files) ? s.deliveries!.files : [], rows: Array.isArray(s.deliveries?.rows) ? s.deliveries!.rows : [] },
     equipment: { ...base.equipment, ...(s.equipment || {}), files: Array.isArray(s.equipment?.files) ? s.equipment!.files : [], rows: Array.isArray(s.equipment?.rows) ? s.equipment!.rows : [] },
@@ -143,7 +176,7 @@ export function templateOf(s: Sections): Sections {
   return {
     ...s,
     activity: { ...s.activity, stop: {}, holiday: {}, ops: delays(s.activity.ops), force: clean({ ...s.activity.force, date: '' }), dOps: delays(s.activity.dOps), dForce: clean({ ...s.activity.dForce, date: '' }) },
-    inspectors: { ...s.inspectors, rows: s.inspectors.rows.map((r) => ({ ...r, card: null, delay: r.delay ? clean({ ...r.delay, date: '' }) : r.delay })) },
+    inspectors: { ...s.inspectors, requests: [], rows: s.inspectors.rows.map((r) => ({ ...r, card: null, delay: r.delay ? clean({ ...r.delay, date: '' }) : r.delay })) },
     visitors: { ...s.visitors, rows: s.visitors.rows.map(clean) },
     // The usual suppliers and machines stay; what arrived, how much and the hours belong to the day.
     deliveries: { ...s.deliveries, files: [], rows: s.deliveries.rows.map((r) => ({ id: r.id, contractorId: r.contractorId, supplier: r.supplier })) },

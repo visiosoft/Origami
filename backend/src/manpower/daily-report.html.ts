@@ -50,6 +50,10 @@ export function reportSectionsHtml(s: any, meta: { onBehalfOf?: string | null; c
     out.push(h2('V. Inspectors'), p(`Present today? <b>${yn(ins.present)}</b>`));
     if (ins.present === 'yes') for (const r of ins.rows || []) out.push(p(`<b>${esc(r.authority || 'Inspector')}</b> — ${esc(OUTCOME[r.outcome] || 'no outcome')}${r.what ? `<br>${esc(r.what)}` : ''}`) + (r.outcome && r.outcome !== 'passed' ? `<ul style="margin:2px 0 0 18px;padding:0;">${delayLine('Follow-up', { ...r.delay, on: true })}</ul>` : '') + (r.card ? p(`Inspection card: ${esc(r.card.name)}`) : ''));
 
+    // Nov 20: inspections requested from this report.
+    const reqs = (ins.requests || []).filter((r: any) => r?.authority);
+    if (reqs.length) out.push(p('<b>Inspection requests</b>') + reqs.map((r: any) => p(`${esc(r.authority)}${r.agency ? ` · ${esc(r.agency)}` : ''} — wanted ${esc(r.date || 'date to be set')}${r.time ? ` ${esc(r.time)}` : ''}${r.areas ? `<br>${esc(r.areas)}` : ''} · ${esc(r.status && r.status !== 'requested' ? OUTCOME[r.status] || r.status : 'requested')}${r.taskId ? ' · task made' : ''}`)).join(''));
+
     const v = s.visitors || {};
     out.push(h2('VI. Site meeting & site visitors'), p(`Visitors today? <b>${yn(v.present)}</b>`));
     if (v.present === 'yes') for (const r of v.rows || []) out.push(p(`<b>${esc(r.type || 'Visitor')}</b>${r.name ? ` — ${esc(r.name)}` : ''}${r.details ? `<br>${esc(r.details)}` : ''}`));

@@ -6,11 +6,11 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { useAutosave } from '../autosave';
 import {
-  carriedCount, emptySections, equipmentFormDone, isCarried, normalizeSections, sameValue, templateOf, transmittalDone, type FileRef, type Sections,
+  carriedCount, emptySections, equipmentFormDone, isCarried, normalizeSections, sameValue, inspectionTask, templateOf, transmittalDone, type FileRef, type InspectionRequest, type Sections,
 } from '../data/dailyReport';
 import { ACCENT, BG, INK, LINE, MUTED, ReportCtx, SectionCard, input, pill, Label, Carry } from '../components/dailyReport/ReportBits';
 import { CrewSheet, type Code, type Emp, type Entry } from '../components/dailyReport/CrewSheet';
-import { ActivitySection, DeliveriesSection, EquipmentSection, InspectorsSection, NotesSection, SubsSection, VisitorsSection, YesNoSection } from '../components/dailyReport/ReportSections';
+import { ActivitySection, DeliveriesSection, EquipmentSection, InspectionRequestsSection, InspectorsSection, NotesSection, SubsSection, VisitorsSection, YesNoSection } from '../components/dailyReport/ReportSections';
 import { SignaturePad } from '../components/dailyReport/SignaturePad';
 import { Skeleton } from '../components/Skeleton';
 
@@ -98,7 +98,7 @@ function Modal({ children, onClose, width = 480 }: { children: ReactNode; onClos
  * Drafts save by themselves; Submit sends it for approval.
  */
 export function DailyReport() {
-  const { authUser, toast, can } = useApp();
+  const { authUser, toast, can, users } = useApp();
   const canFile = !!authUser?.isSuperintendent || authUser?.roleKey === 'admin';
   const [params, setParams] = useSearchParams();
   const [projects, setProjects] = useState<{ id: number; name: string; location?: string }[]>([]);
@@ -259,6 +259,27 @@ export function DailyReport() {
       toast('Added to the project’s To Do list');
       return t?.id || null;
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not create the task')); return null; }
+  };
+  // Nov 20 (Edward): an inspection request makes a task on the project -- for the Coordinator, else the PM -- due the day before.
+  const requestInspection = async (r: InspectionRequest): Promise<string | null> => {
+    if (!projectId) { toast('⚠ Pick the project first'); return null; }
+    try {
+      const p: any = await api.projects.get(String(projectId)).catch(() => null);
+      const who = p?.roles?.projectCoordinator || p?.roles?.projectManager || '';
+      const u = users.find((x) => x.id === who);
+      if (firstSection.current?.project !== projectId) {
+        const secs: any = await api.projectSections.list(Number(projectId)).catch(() => []);
+        const first = (Array.isArray(secs) ? secs : []).sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))[0];
+        firstSection.current = { project: Number(projectId), id: first?.id || null };
+      }
+      const t0 = inspectionTask(r, niceDate(date));
+      const t: any = await api.projectTasks.create({
+        projectId: Number(projectId), sectionId: firstSection.current.id || undefined, title: t0.title, description: t0.description, status: 'Not started',
+        dueDate: t0.dueDate || undefined, tags: ['internal'], ...(u ? { assigneeId: u.id, assignee: u.name } : {}),
+      } as any);
+      toast(u ? `Inspection request sent to ${u.name}` : 'Inspection request added to the project’s To Do list (no Coordinator or PM set on the project)');
+      return t?.id || null;
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not make the task')); return null; }
   };
   const ownTask = (title: string) => (projectId ? api.projectTasks.create({
     projectId: Number(projectId), sectionId: firstSection.current?.id || undefined, title, status: 'Not started',
@@ -535,6 +556,7 @@ export function DailyReport() {
 
             <SubsSection s={s} set={setSections} na={noWork} contractors={contractors} baseline={baseline} />
             <InspectorsSection s={s} set={setSections} na={noWork} convert={convert} upload={upload} baseline={baseline} />
+            <InspectionRequestsSection s={s} set={setSections} request={requestInspection} />
             <VisitorsSection s={s} set={setSections} na={noWork} convert={convert} consultants={consultants} baseline={baseline} />
             <DeliveriesSection s={s} set={setSections} na={noWork} convert={convert} upload={upload} contractors={contractors} baseline={baseline}
               missingTask={`Upload Transmittal for deliveries on ${niceDate(date)}`} />

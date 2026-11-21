@@ -102,6 +102,8 @@ export function buildWeekly(
       if (a.dForce?.on) delay(date, 'Force majeure', a.dForce);
     }
     if (s.inspectors?.present === 'yes') for (const r of s.inspectors.rows || []) if (filled(r)) out.inspections.push({ date, authority: r.authority || '', what: r.what || '', outcome: OUTCOME[r.outcome] || '' });
+    // Nov 20: inspections asked for that day and still waiting (a result goes in as a row above).
+    for (const r of s.inspectors?.requests || []) if (r?.authority && (!r.status || r.status === 'requested')) out.inspections.push({ date, authority: r.authority, what: [r.areas, r.notes].filter(Boolean).join(' — '), outcome: `Requested${r.date ? ` for ${r.date}${r.time ? ` ${r.time}` : ''}` : ''}` });
     if (s.visitors?.present === 'yes') for (const r of s.visitors.rows || []) if (filled(r)) out.visitors.push({ date, type: r.type || '', name: r.name || '', details: r.details || '' });
     if (s.deliveries?.present === 'yes') for (const r of s.deliveries.rows || []) if (filled(r)) out.deliveries.push({ date, supplier: r.supplier || '', poRef: r.poRef || '', items: r.items || '', qty: r.qty ?? '', receivedBy: r.receivedBy || '', condition: r.condition || '', notes: r.notes || '' });
     if (s.equipment?.used === 'yes') for (const r of s.equipment.rows || []) {
