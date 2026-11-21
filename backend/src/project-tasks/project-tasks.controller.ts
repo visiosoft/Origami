@@ -124,7 +124,8 @@ export class ProjectTasksController {
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateProjectTaskDto, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
     await this.mayTouch(id, claims ?? null);
-    return this.service.update(id, dto, await this.auth.actor(auth));
+    // The role rides along so only i-1 / i-2 change who a task is for (Nov 20).
+    return this.service.update(id, dto, { ...(await this.auth.actor(auth)), roleKey: claims?.roleKey } as any);
   }
 
   /** Save pressed in the task editor: send the emails held on the task and its subtasks. */

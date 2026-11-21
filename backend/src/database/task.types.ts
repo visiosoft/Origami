@@ -230,5 +230,14 @@ export function cleanTags(raw: unknown, before?: unknown): string[] {
   if (list.includes('financial') && !had.includes('financial') && !list.includes('internal')) list.unshift('internal');
   return ACTION_TAGS.filter((t) => list.includes(t));
 }
+/** Nov 20 (Edward): the tags that say who a task is for -- only i-1 / i-2 (admin, principal) change these. */
+export const ACCESS_TAGS = ['internal', 'client', 'external', 'financial'];
+export function accessTagsChanged(before: unknown, after: unknown): boolean {
+  const pick = (v: unknown) => (Array.isArray(v) ? v.map(String) : []).filter((t) => ACCESS_TAGS.includes(t)).sort().join(',');
+  return pick(before) !== pick(after);
+}
+export const ACCESS_TAG_LEADS = ['admin', 'principal'];
+export const NOT_ACCESS_TAG_LEAD = 'Only an admin or principal changes who a task is for (Internal, Client, External, Financial).';
+
 /** Internal or Financial: for our own team only. */
 export const internalOnly = (tags: unknown) => Array.isArray(tags) && tags.some((t) => t === 'internal' || t === 'financial');

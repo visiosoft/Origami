@@ -32,4 +32,12 @@ describe('Emergency Request Log tasks', () => {
     expect(item.title).toBe('🚨 EMERGENCY: Leak — Cole Valley');
     expect(item.path).toBe('/tasks?task=T1&type=log');
   });
+
+  it('only i-1 / i-2 change who an entry is for (Nov 20); anyone adds Design / CRM / Construction', async () => {
+    const { svc } = setup();
+    await svc.update('T1', { tags: ['internal'] }, { ...me, roleKey: 'admin' } as any);
+    await expect(svc.update('T1', { tags: ['client'] }, { id: 'U-3', name: 'Astrid', roleKey: 'pm' } as any)).rejects.toThrow(/admin or principal/);
+    await expect(svc.update('T1', { tags: ['internal', 'design'] }, { id: 'U-3', name: 'Astrid', roleKey: 'pm' } as any)).resolves.toMatchObject({ tags: ['internal', 'design'] });
+    await expect(svc.update('T1', { tags: ['client', 'design'] }, { id: 'U-4', name: 'Sara', roleKey: 'principal' } as any)).resolves.toMatchObject({ tags: ['client', 'design'] });
+  });
 });

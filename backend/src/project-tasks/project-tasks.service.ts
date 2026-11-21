@@ -1,5 +1,5 @@
 import { isPhoto, photoPlace } from '../file-room/layout';
-import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional, ForbiddenException } from '@nestjs/common';
 import { activityPage } from '../common/activity-page';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Not, Repository } from 'typeorm';
@@ -7,7 +7,7 @@ import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '
 import { ListCache } from '../database/list-cache';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { TagsService } from '../tags/tags.service';
-import { cleanTags } from '../database/task.types';
+import { ACCESS_TAG_LEADS, accessTagsChanged, cleanTags, NOT_ACCESS_TAG_LEAD } from '../database/task.types';
 import { mentionedIds } from '../tasks/mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing, dueChangeReasonMissing, dueChangeNote, NEEDS_DUE_REASON } from '../tasks/task-rules';
 import { ChecklistTemplateEntity, LeadEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
@@ -461,6 +461,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       patch.requestedById = src.id ?? null;
     }
     if ('tags' in patch) patch.tags = cleanTags(patch.tags, task.tags);
+    // Nov 20: who a task is for is i-1 / i-2's call.
+    if ('tags' in patch && (actor as any)?.roleKey && !ACCESS_TAG_LEADS.includes((actor as any).roleKey) && accessTagsChanged(task.tags, patch.tags)) throw new ForbiddenException(NOT_ACCESS_TAG_LEAD);
     if ('labels' in patch && this.tagBank) {
       const t = await this.tagBank.editedTags({ tags: 'tags' in patch ? patch.tags : task.tags, labelsBefore: task.labels, labels: normalizeList<string>(patch.labels), actor });
       patch.labels = t.labels;

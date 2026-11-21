@@ -1,8 +1,8 @@
 import { stageRoleKey } from './stage-role';
 import { localToday } from '../common/local-date';
 import { isPhoto, photoPlace } from '../file-room/layout';
-import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
-import { cleanTags } from '../database/task.types';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional, ForbiddenException } from '@nestjs/common';
+import { ACCESS_TAG_LEADS, accessTagsChanged, cleanTags, NOT_ACCESS_TAG_LEAD } from '../database/task.types';
 import { TagsService } from '../tags/tags.service';
 import { activityPage } from '../common/activity-page';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -500,6 +500,8 @@ export class TasksService implements OnApplicationBootstrap {
     await this.bucketRules(task, patch, actor);
     if ('priority' in patch) patch.priority = cleanPriority(patch.priority);
     if ('tags' in patch) patch.tags = cleanTags(patch.tags, task.tags);
+    // Nov 20: who a task is for is i-1 / i-2's call.
+    if ('tags' in patch && (actor as any)?.roleKey && !ACCESS_TAG_LEADS.includes((actor as any).roleKey) && accessTagsChanged(task.tags, patch.tags)) throw new ForbiddenException(NOT_ACCESS_TAG_LEAD);
     if ('labels' in patch && this.tagBank) {
       const t = await this.tagBank.editedTags({ tags: 'tags' in patch ? patch.tags : task.tags, labelsBefore: task.labels, labels: normalizeList<string>(patch.labels), actor });
       patch.labels = t.labels;

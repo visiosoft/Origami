@@ -1,6 +1,5 @@
 import { PanelResizeHandle, usePanelWidth } from './PanelResize';
 import { TaskCloseBar } from './TaskCloseBar';
-import { LinkedMail } from './LinkedMail';
 import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
@@ -298,10 +297,8 @@ export function PhaseTaskPanel({
           />
         </div>
 
-        <div style={{ padding: '0 22px' }}><LinkedMail entityType="task" entityId={draft.id} /></div>
-
         <div style={{ padding: '16px 22px 26px' }}>
-          <ActivityFeed
+          <ActivityFeed mailFor={{ entityType: 'task', entityId: draft.id }}
             source={{ kind: 'board', id: draft.id }}
             version={`${draft.activity?.length ?? 0}:${draft.comments?.length ?? 0}`}
             canManage={canManage}

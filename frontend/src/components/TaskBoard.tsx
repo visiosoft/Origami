@@ -1,4 +1,3 @@
-import { LinkedMail } from './LinkedMail';
 import { PanelResizeHandle, usePanelWidth } from './PanelResize';
 import { TaskCloseBar } from './TaskCloseBar';
 import { UnfilledRole } from './UnfilledRole';
@@ -1302,7 +1301,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 onChange={(labels) => set({ labels })}
               />
               <div style={{ marginTop: 12 }}>
-                <TagPicker tags={d.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
+                <TagPicker leadOnlyAccess tags={d.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
               </div>
             </div>
 
@@ -1323,8 +1322,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             {/* Activity — comments plus a record of what changed, a page at a time from the server */}
             <div style={{ padding: '16px 22px 24px' }}>
               {/* Nov 19 (Edward): emails linked to this task, with when they were sent and a link to them. */}
-              <div style={{ marginBottom: 12 }}><LinkedMail entityType="task" entityId={selected.id} /></div>
-              <ActivityFeed
+              <ActivityFeed mailFor={{ entityType: 'task', entityId: selected.id }}
                 source={{ kind: 'board', id: selected.id }}
                 version={`${selected.activity?.length ?? 0}:${selected.comments?.length ?? 0}:${selected.commentCount ?? 0}`}
                 canManage={canManage}

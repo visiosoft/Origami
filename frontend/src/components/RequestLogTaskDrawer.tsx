@@ -1,4 +1,3 @@
-import { LinkedMail } from './LinkedMail';
 import { PanelResizeHandle, usePanelWidth } from './PanelResize';
 import { TaskCloseBar } from './TaskCloseBar';
 import { CloseButton } from './CloseButton';
@@ -326,7 +325,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
           </div>
 
           <div style={{ marginTop: 18 }}>
-            <TagPicker tags={t.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
+            <TagPicker leadOnlyAccess tags={t.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)' }}>CSI code</span>
               <CsiSelect value={t.csiCodeId} disabled={!canManage} onChange={(csiCodeId) => set({ csiCodeId: csiCodeId || null })} style={{ ...inputStyle, width: 'auto', minWidth: 220 }} />
@@ -384,8 +383,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
         {/* Activity — real comments and a record of what changed, a page at a time from the server */}
         <div style={{ padding: '20px 28px 26px' }}>
           {/* Nov 19 (Edward): emails linked to this task, with when they were sent and a link to them. */}
-          <div style={{ marginBottom: 12 }}><LinkedMail entityType="task" entityId={t.id} /></div>
-          <ActivityFeed
+          <ActivityFeed mailFor={{ entityType: 'task', entityId: t.id }}
             source={{ kind: 'log', id: t.id }}
             version={`${t.activity?.length ?? 0}:${t.comments?.length ?? 0}`}
             canManage={canManage}
