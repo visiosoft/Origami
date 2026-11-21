@@ -109,6 +109,11 @@ export class FileRoomController {
   /** The shared drawing-symbol library (admins add, rename and delete). */
   @Get('symbols')
   symbols() { return this.markups.symbols(); }
+  /** Nov 20: the starter symbol set -- what would be added (admins), then Apply. */
+  @Get('symbols/starter')
+  starterSymbols(@Claims() claims?: SessionClaims | null) { return this.markups.starterPlan(claims ?? null); }
+  @Post('symbols/starter')
+  addStarterSymbols(@Claims() claims?: SessionClaims | null) { return this.markups.addStarter(claims ?? null); }
 
   @Post('symbols')
   addSymbol(@Body() body: any, @Claims() claims: SessionClaims | null) { return this.markups.addSymbol(body, claims); }

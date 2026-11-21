@@ -15,6 +15,7 @@ export function DrawingSetsAdmin({ onApplied }: { onApplied: () => void }) {
   const [ids, setIds] = useState<string[] | null>(null);
   const [plan, setPlan] = useState<{ count: number; rows?: { id: string; name: string; rev: string }[] } | null>(null);
   const [busy, setBusy] = useState('');
+  const [starter, setStarter] = useState<Awaited<ReturnType<typeof api.fileRoom.starterSymbols>> | null>(null);
   useEffect(() => { if (open && ids === null) api.fileRoom.baseUploaders().then(setIds).catch(() => setIds([])); }, [open, ids]);
   const staff = users.filter((u) => u.status !== 'suspended' && (u.tier || 'internal') === 'internal' && !['admin', 'principal'].includes(String(u.roleKey || '')));
   const toggle = (id: string) => {
@@ -23,6 +24,11 @@ export function DrawingSetsAdmin({ onApplied }: { onApplied: () => void }) {
     api.fileRoom.setBaseUploaders(next).then((r) => { setIds(r); toast('Saved'); }).catch((e: Error) => toast('⚠ ' + e.message)).finally(() => setBusy(''));
   };
   const preview = () => { setBusy('plan'); api.fileRoom.numberDrawings(false).then(setPlan).catch((e: Error) => toast('⚠ ' + e.message)).finally(() => setBusy('')); };
+  const previewSymbols = () => { setBusy('sym'); api.fileRoom.starterSymbols().then(setStarter).catch((e: Error) => toast('⚠ ' + e.message)).finally(() => setBusy('')); };
+  const addSymbols = () => {
+    setBusy('symadd');
+    api.fileRoom.addStarterSymbols().then((r) => { toast(`Added ${r.added} symbol${r.added === 1 ? '' : 's'} — pick them with ◆ in any drawing`); setStarter(null); }).catch((e: Error) => toast('⚠ ' + e.message)).finally(() => setBusy(''));
+  };
   const apply = () => {
     setBusy('apply');
     api.fileRoom.numberDrawings(true).then((r) => { toast(`Numbered ${r.count} drawing${r.count === 1 ? '' : 's'}`); setPlan(null); onApplied(); }).catch((e: Error) => toast('⚠ ' + e.message)).finally(() => setBusy(''));
@@ -64,6 +70,30 @@ export function DrawingSetsAdmin({ onApplied }: { onApplied: () => void }) {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="button" style={btn} onClick={() => setPlan(null)}>Not now</button>
                   {plan.count > 0 && <button type="button" disabled={busy === 'apply'} onClick={apply} style={{ ...btn, border: 0, background: 'var(--forest)', color: '#fff' }}>{busy === 'apply' ? 'Applying…' : `Apply: number ${plan.count}`}</button>}
+                </div>
+              </>
+            )}
+          </div>
+          {/* Nov 20 (Edward shared links on standard drawing symbols): a starter set for the ◆ symbol tool. */}
+          <div style={{ display: 'grid', gap: 6 }}>
+            <div style={{ fontWeight: 700 }}>Starter drawing symbols</div>
+            {!starter && <div><button type="button" style={btn} disabled={busy === 'sym'} onClick={previewSymbols}>{busy === 'sym' ? 'Looking…' : 'Preview'}</button></div>}
+            {starter && (
+              <>
+                <span>{starter.toAdd.length ? `${starter.toAdd.length} common symbols (electrical, plumbing, HVAC, architectural) would be added to the shared library${starter.already ? ` — ${starter.already} you already have` : ''}:` : 'The library already has all the starter symbols.'}</span>
+                {starter.toAdd.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+                    {starter.toAdd.map((s) => (
+                      <figure key={s.name} title={`${s.group} · ${s.name}`} style={{ margin: 0, width: 74, textAlign: 'center', fontSize: 10.5, color: 'var(--muted)' }}>
+                        <img src={s.image} alt={s.name} width={40} height={40} style={{ display: 'block', margin: '0 auto', background: '#fff', borderRadius: 6 }} />
+                        <figcaption>{s.name}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" style={btn} onClick={() => setStarter(null)}>Not now</button>
+                  {starter.toAdd.length > 0 && <button type="button" disabled={busy === 'symadd'} onClick={addSymbols} style={{ ...btn, border: 0, background: 'var(--forest)', color: '#fff' }}>{busy === 'symadd' ? 'Adding…' : `Apply: add ${starter.toAdd.length}`}</button>}
                 </div>
               </>
             )}

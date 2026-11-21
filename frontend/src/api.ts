@@ -1129,6 +1129,9 @@ export const api = {
     /** Rename a layer on a drawing (from: its name, or null for someone's own unnamed layer). */
     /** The shared drawing-symbol library (admins add, rename, delete). */
     symbols: () => request<{ id: string; name: string; image: string }[]>('/file-room/symbols'),
+    /** Nov 20: the starter symbol set -- what would be added, then add it (admins). */
+    starterSymbols: () => request<{ total: number; already: number; toAdd: { group: string; name: string; image: string }[] }>('/file-room/symbols/starter', { cache: 'no-store' } as any),
+    addStarterSymbols: () => request<{ added: number }>('/file-room/symbols/starter', { method: 'POST' }),
     addSymbol: (name: string, image: string) => request<{ id: string; name: string; image: string }>('/file-room/symbols', { method: 'POST', body: JSON.stringify({ name, image }) }),
     renameSymbol: (id: string, name: string) => request<{ id: string; name: string; image: string }>(`/file-room/symbols/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ name }) }),
     removeSymbol: (id: string) => request(`/file-room/symbols/${encodeURIComponent(id)}`, { method: 'DELETE' }),
