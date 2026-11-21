@@ -134,7 +134,10 @@ describe('MarkupsService', () => {
   it('saves a marked-up copy in the project’s Markups folder, named so the drawing stays Current', async () => {
     const { svc, uploads, ensured } = setup();
     await svc.create('F1', { kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.3, 0.3]] } }, an);
-    await svc.saveCopy('F1', an);
+    const copy: any = await svc.saveCopy('F1', an);
+    // Nov 20 (Edward): private -- our team only -- until i-1 / i-2 approve or publish it.
+    expect(copy.access).toBe('internal');
+    expect(copy.notes).toMatch(/^Private — not approved/);
     expect(uploads[0][0]).toBe(3);
     expect(uploads[0][1]).toEqual(['Drawings & Plans', 'Markups']);
     expect(ensured).toEqual([[3, ['Drawings & Plans', 'Markups']]]);
@@ -246,6 +249,22 @@ describe('MarkupsService', () => {
     const pdf = await PDFDocument.load(await photoToPdf(png, 'a.png'));
     expect(pdf.getPage(0).getSize()).toEqual({ width: 1200, height: 1200 });
     await expect(photoToPdf(new Uint8Array([1, 2, 3]), 'b.gif')).rejects.toThrow(/JPG and PNG/);
+  });
+
+  it('adds the starter symbols after a preview, skipping ones already there by name (Nov 20)', async () => {
+    const { svc, symRows } = setup();
+    const { STARTER_SYMBOLS } = require('../seed-data/markup-symbols');
+    expect(STARTER_SYMBOLS.length).toBeGreaterThanOrEqual(40);
+    for (const s of STARTER_SYMBOLS) expect(s.image).toMatch(/^data:image\/png;base64,/);
+    expect(new Set(STARTER_SYMBOLS.map((s: any) => s.name.toLowerCase())).size).toBe(STARTER_SYMBOLS.length);
+    await svc.addSymbol({ name: 'toilet', image: STARTER_SYMBOLS[0].image }, ed);
+    await expect(svc.starterPlan(an)).rejects.toThrow(/Only admins/);
+    const plan = await svc.starterPlan(ed);
+    expect(plan).toMatchObject({ total: STARTER_SYMBOLS.length, already: 1 });
+    expect(symRows).toHaveLength(1); // the preview changes nothing
+    expect((await svc.addStarter(ed)).added).toBe(STARTER_SYMBOLS.length - 1);
+    expect(symRows).toHaveLength(STARTER_SYMBOLS.length);
+    expect((await svc.addStarter(ed)).added).toBe(0);
   });
 
   it('keeps a symbol library admins look after, and places symbols like pins (Oct 31)', async () => {

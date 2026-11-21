@@ -443,6 +443,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   // Nov 20: drawing sets -- its revision, the approved set, the city flag, history.
   const drawingSet = useDrawingState(file.id);
   const reviewShown = layers.some((l) => l.named && isReviewLayer(l.name) && !hidden.has(l.key));
+  const approvedId = drawingSet.state?.approved?.id ?? null;
+  const setRev = (id: string) => drawingSet.state?.revisions.find((r) => r.id === id)?.rev || '';
   // Who sees each layer (Oct 30 sync): only the restricted ones come back.
   const [layerRules, setLayerRules] = useState<Record<string, LayerRule>>({});
   const [accessFor, setAccessFor] = useState<string | null>(null);
@@ -1365,8 +1367,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             {comparePick && (
               <div className="mk-compare-pick" role="menu">
                 <b>Compare with…</b>
-                {[...otherRevisions].sort((x, y) => (y.updatedAt || '').localeCompare(x.updatedAt || '')).map((r) => (
-                  <button key={r.id} type="button" role="menuitem" className={pickCompareDefault(file.id, revisions || [])?.id === r.id ? 'is-default' : ''} onClick={() => startCompare(r)}>Rev. {revLabel(r)}</button>
+                {/* Nov 20 (Edward): the approved base first -- compare is between it and what you're looking at. */}
+                {[...otherRevisions].sort((x, y) => Number(y.id === approvedId) - Number(x.id === approvedId) || (y.updatedAt || '').localeCompare(x.updatedAt || '')).map((r) => (
+                  <button key={r.id} type="button" role="menuitem" className={pickCompareDefault(file.id, revisions || [], approvedId)?.id === r.id ? 'is-default' : ''} onClick={() => startCompare(r)}>
+                    {r.id === approvedId ? `Approved base (${setRev(r.id) || revLabel(r)})` : setRev(r.id) ? `${setRev(r.id)} · ${revLabel(r)}` : `Rev. ${revLabel(r)}`}
+                  </button>
                 ))}
               </div>
             )}

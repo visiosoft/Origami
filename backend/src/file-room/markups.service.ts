@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { FileRoomFileEntity, MarkupLayerEntity, MarkupSymbolEntity, PdfMarkupEntity, PersonEntity } from '../database/entities';
 import type { SessionClaims } from '../auth/crypto.util';
 import { FileRoomService } from './file-room.service';
+import { STARTER_SYMBOLS } from '../seed-data/markup-symbols';
 import { isBaseArea, LAYER_CODE, nextLayerCode } from './drawing-sets';
 import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, cleanSymbolImage, cleanSymbolName, isMarkable, isPhotoName, leadsMarkups, photoToPdf, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, cleanLayerRule, visibleWithLayers, type LayerAudience, type LayerRule, type LayerViewer, type MarkupData } from './markups';
 
@@ -99,6 +100,24 @@ export class MarkupsService {
     await this.symbolRepo!.save(row);
     return { id: row.id, name: row.name, image: row.image };
   }
+  /** Nov 20: the starter symbols not yet in the library (matched by name). */
+  async starterPlan(claims: SessionClaims | null) {
+    this.assertSymbolAdmin(claims);
+    const have = new Set((await this.symbolRepo!.find()).map((s) => s.name.trim().toLowerCase()));
+    const add = STARTER_SYMBOLS.filter((s) => !have.has(s.name.toLowerCase()));
+    return { total: STARTER_SYMBOLS.length, toAdd: add.map(({ group, name, image }) => ({ group, name, image })), already: STARTER_SYMBOLS.length - add.length };
+  }
+  /** Add them (after the preview); ones already there by name are left alone. */
+  async addStarter(claims: SessionClaims | null) {
+    const { toAdd } = await this.starterPlan(claims);
+    let n = (await this.symbolRepo!.find()).length;
+    const at = new Date().toISOString();
+    for (const s of toAdd) {
+      await this.symbolRepo!.save(this.symbolRepo!.create({ id: 'SYM-' + randomUUID(), name: cleanSymbolName(s.name), image: cleanSymbolImage(s.image), sortOrder: n++, createdBy: claims!.name, createdAt: at }));
+    }
+    return { added: toAdd.length, symbols: await this.symbols() };
+  }
+
   /** Deleting a symbol leaves the ones already placed as a labelled box. */
   async removeSymbol(id: string, claims: SessionClaims | null) {
     this.assertSymbolAdmin(claims);
@@ -321,6 +340,10 @@ export class MarkupsService {
     // Saved copies go in the project's markups folder (Batch 6), not next to the drawing.
     await this.fileRoom.ensurePath(Number(file.projectId), MARKUPS_PATH);
     const [saved] = await this.fileRoom.upload(Number(file.projectId), MARKUPS_PATH, [{ originalname: name, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], { name: claims!.name, id: claims!.sub });
-    return saved;
+    // Nov 20 (Edward): a saved marked-up copy stays private (our team only) until i-1 / i-2 approve it --
+    // retag it Client / External -- or publish the layers into the drawing.
+    const patch = { access: 'internal', notes: `Private — not approved. Marked-up copy of ${file.name}, saved by ${claims!.name || 'someone'}; an admin or principal shares it or publishes the layers.` };
+    await this.files.update({ id: (saved as any).id }, patch as any);
+    return { ...(saved as any), ...patch };
   }
 }

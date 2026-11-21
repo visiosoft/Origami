@@ -495,8 +495,11 @@ export function overlayPixels(older: Uint8ClampedArray, newer: Uint8ClampedArray
 export interface Revision { id: string; name: string; updatedAt?: string; isLatest?: boolean }
 
 /** Which revision to compare with by default: the one just before this, else the one just after. */
-export function pickCompareDefault(currentId: string, revisions: Revision[]): Revision | null {
+export function pickCompareDefault(currentId: string, revisions: Revision[], approvedId?: string | null): Revision | null {
   const list = [...revisions].sort((a, b) => (a.updatedAt || '').localeCompare(b.updatedAt || ''));
+  // Nov 20 (Edward): compare against the approved base; on the approved one, against the newest.
+  if (approvedId && approvedId !== currentId) { const a = list.find((r) => r.id === approvedId); if (a) return a; }
+  if (approvedId && approvedId === currentId) return list.filter((r) => r.id !== currentId).pop() || null;
   const i = list.findIndex((r) => r.id === currentId);
   if (i < 0) return list.filter((r) => r.id !== currentId).pop() || null;
   return list[i - 1] || list[i + 1] || null;
