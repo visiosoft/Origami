@@ -20,24 +20,28 @@ describe('drawing sets', () => {
     expect(canUploadBase(null, ['U-3'])).toBe(false);
   });
 
-  it('numbers revisions: the architect’s before the decimal, ours after it, up to .05', () => {
-    expect(revLabel(1, 0)).toBe('Rev 1.0');
+  it('numbers revisions: the original is Rev 0, the architect’s before the decimal, ours after it, up to .05 (Nov 22)', () => {
+    expect(revLabel(0, 0)).toBe('Rev 0');
+    expect(revLabel(0, 1)).toBe('Rev 0.01');
+    expect(revLabel(1, 0)).toBe('Rev 1');
     expect(revLabel(1, 2)).toBe('Rev 1.02');
     expect(revLabel(null, null)).toBe('');
-    expect(nextUploadRev([])).toEqual({ revMajor: 1, revMinor: 0 });
-    expect(nextUploadRev([{ id: 'a', revMajor: 1, revMinor: 0 }, { id: 'b', revMajor: 1, revMinor: 2 }])).toEqual({ revMajor: 2, revMinor: 0 });
-    expect(nextUploadRev([{ id: 'a' }, { id: 'b' }])).toEqual({ revMajor: 3, revMinor: 0 }); // two older, unnumbered
+    expect(nextUploadRev([])).toEqual({ revMajor: 0, revMinor: 0 });
+    expect(nextUploadRev([{ id: 'a', revMajor: 0, revMinor: 0 }, { id: 'b', revMajor: 0, revMinor: 1 }])).toEqual({ revMajor: 1, revMinor: 0 });
+    expect(nextUploadRev([{ id: 'a' }, { id: 'b' }])).toEqual({ revMajor: 2, revMinor: 0 }); // two older, unnumbered: Rev 0 and 1
     expect(nextMinor([{ id: 'a', revMajor: 1, revMinor: 0 }], 1)).toBe(1);
     expect(nextMinor([{ id: 'a', revMajor: 1, revMinor: 0 }, { id: 'b', revMajor: 1, revMinor: 4 }, { id: 'c', revMajor: 2, revMinor: 0 }], 1)).toBe(5);
     expect(() => nextMinor([{ id: 'a', revMajor: 1, revMinor: 5 }], 1)).toThrow(/architect’s next revision/);
   });
 
-  it('numbers drawings already in a set by date, leaving numbered ones alone', () => {
+  it('numbers drawings already in a set by date from Rev 0, and moves ones numbered from Rev 1 one lower', () => {
     const plan = backfillPlan([
       { id: 'a2', name: 'A1.pdf', groupId: 'G', updatedAt: '2026-11-10' }, { id: 'a1', name: 'A1.pdf', groupId: 'G', updatedAt: '2026-11-01' },
-      { id: 's', name: 'S1.pdf', updatedAt: '2026-11-05' }, { id: 'n', name: 'N.pdf', groupId: 'H', revMajor: 1, revMinor: 0 },
+      { id: 's', name: 'S1.pdf', updatedAt: '2026-11-05' },
+      { id: 'n1', name: 'N.pdf', groupId: 'H', revMajor: 1, revMinor: 0 }, { id: 'n2', name: 'N.pdf', groupId: 'H', revMajor: 1, revMinor: 1 },
+      { id: 'z', name: 'Z.pdf', groupId: 'Z', revMajor: 0, revMinor: 0 },
     ]);
-    expect(plan.map((p) => [p.id, p.rev])).toEqual([['a1', 'Rev 1.0'], ['a2', 'Rev 2.0'], ['s', 'Rev 1.0']]);
+    expect(plan.map((p) => [p.id, p.rev])).toEqual([['a1', 'Rev 0'], ['a2', 'Rev 1'], ['s', 'Rev 0'], ['n1', 'Rev 1 → Rev 0'], ['n2', 'Rev 1.01 → Rev 0.01']]);
   });
 
   it('gives review layers codes: I for our team, X for outside', () => {
@@ -56,7 +60,7 @@ describe('drawing sets', () => {
       shares: [{ fileId: 'F1', at: '2026-11-04T10:00:00Z', by: 'Astrid', to: 'kai@x.co' }],
     });
     expect(h.map((e) => e.kind)).toEqual(['share', 'rfi', 'layer', 'approve', 'upload']);
-    expect(h[2].text).toBe('Rev 1.0: started layer X1');
+    expect(h[2].text).toBe('Rev 1: started layer X1');
   });
 
   it('prints "not city-approved" across a published copy', async () => {
@@ -108,12 +112,12 @@ describe('drawing sets', () => {
     expect(JSON.parse(store['fileRoom.baseUploaders'])).toEqual(['U-3']);
     await svc.assertBaseUpload(pm, 16, ['Architectural']);
     await expect(svc.setUploaders([], pm)).rejects.toThrow(/admin or principal/);
-    files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: false, revMajor: 1, revMinor: 0 });
+    files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: false, revMajor: 0, revMinor: 0 });
     const row = { id: 'F2', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: true };
     files.push(row);
     const [stamped] = await svc.stampUploads([row as any], { name: 'Edward' });
-    expect(stamped).toMatchObject({ revMajor: 2, revMinor: 0 });
-    expect(stamped.drawingLog![0].text).toBe('Rev 2.0 put in');
+    expect(stamped).toMatchObject({ revMajor: 1, revMinor: 0 });
+    expect(stamped.drawingLog![0].text).toBe('Rev 1 put in');
   });
 
   it('markups on a drawing set go on an Internal-only review layer: I1 for our team, X1 for a consultant; i-1 / i-2 draw freely', async () => {
@@ -143,7 +147,7 @@ describe('drawing sets', () => {
     expect(neu).toMatchObject({ revMajor: 1, revMinor: 1, notCityApproved: true, cityNote: 'Structural, foundation only' });
     await svc.approve('F1', true, ed);
     let st = await svc.state(r.id);
-    expect(st).toMatchObject({ rev: 'Rev 1.01', isApproved: false, approved: { id: 'F1', rev: 'Rev 1.0', by: 'Edward' }, notCityApproved: true });
+    expect(st).toMatchObject({ rev: 'Rev 1.01', isApproved: false, approved: { id: 'F1', rev: 'Rev 1', by: 'Edward' }, notCityApproved: true });
     await svc.approve(r.id, true, ed);
     st = await svc.state('F1');
     expect(st.approved?.id).toBe(r.id);
@@ -157,10 +161,10 @@ describe('drawing sets', () => {
   it('numbers drawings already in sets only after a preview', async () => {
     const { svc, files } = setup();
     files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', updatedAt: '2026-11-01' }, { id: 'F2', projectId: 16, folderPath: ['Photos'], name: 'P.pdf' });
-    expect(await svc.backfill(null, false, ed)).toMatchObject({ count: 1, rows: [{ id: 'F1', rev: 'Rev 1.0' }] });
+    expect(await svc.backfill(null, false, ed)).toMatchObject({ count: 1, rows: [{ id: 'F1', rev: 'Rev 0' }] });
     expect(files[0].revMajor).toBeUndefined();
     await svc.backfill(null, true, ed);
-    expect(files[0]).toMatchObject({ revMajor: 1, revMinor: 0 });
+    expect(files[0]).toMatchObject({ revMajor: 0, revMinor: 0 });
     await expect(svc.backfill(null, true, pm)).rejects.toThrow(/admin/);
   });
 });

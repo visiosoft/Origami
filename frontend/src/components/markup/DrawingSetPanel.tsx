@@ -113,7 +113,7 @@ export function DrawingSetSection({ state, fileId, isLead, canFlag, layers, onCh
       )}
       {publishing && (
         <div style={{ display: 'grid', gap: 4, padding: 8, borderRadius: 8, background: 'var(--panel)', marginBottom: 6 }}>
-          <span style={{ fontSize: 12 }}>Draw these layers into the drawing and save it as the next revision ({state.revMajor ?? 1}.{String((state.revMinor ?? 0) + 1).padStart(2, '0')}):</span>
+          <span style={{ fontSize: 12 }}>Draw these layers into the drawing and save it as the next revision ({state.revMajor ?? 0}.{String((state.revMinor ?? 0) + 1).padStart(2, '0')}):</span>
           {layers.map((l) => (
             <label key={l.key} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5 }}>
               <input type="checkbox" checked={publishing.has(l.key)} onChange={() => { const n = new Set(publishing); if (n.has(l.key)) n.delete(l.key); else n.add(l.key); setPublishing(n); }} />

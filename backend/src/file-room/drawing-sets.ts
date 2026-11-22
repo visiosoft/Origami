@@ -26,22 +26,23 @@ export function canUploadBase(claims: { sub?: string; roleKey?: string | null } 
 
 export const MAX_MINOR = 5;
 
-/** "Rev 1.0", "Rev 1.02". */
+/** "Rev 0", "Rev 0.01", "Rev 1", "Rev 1.02" (Nov 22: as Edward writes them). */
 export function revLabel(major?: number | null, minor?: number | null): string {
   if (major == null) return '';
-  return minor ? `Rev ${major}.${String(minor).padStart(2, '0')}` : `Rev ${major}.0`;
+  return minor ? `Rev ${major}.${String(minor).padStart(2, '0')}` : `Rev ${major}`;
 }
 
 type RevFile = { id: string; revMajor?: number | null; revMinor?: number | null; updatedAt?: string | null };
 
 /**
  * A new upload of a document already in the set is the architect's next
- * revision: one more before the decimal, 0 after. The first upload is Rev 1.0.
- * Older revisions with no number yet count by how many there are.
+ * revision: one more before the decimal, nothing after. Nov 22: the original
+ * is Rev 0 (Edward's "Base Dwg"), then Rev 1, Rev 2. Older revisions with no
+ * number yet count by how many there are.
  */
 export function nextUploadRev(others: RevFile[]): { revMajor: number; revMinor: number } {
   const majors = others.map((f) => f.revMajor).filter((n): n is number => n != null);
-  const top = majors.length ? Math.max(...majors) : others.length;
+  const top = majors.length ? Math.max(...majors) : others.length - 1;
   return { revMajor: top + 1, revMinor: 0 };
 }
 
@@ -55,7 +56,9 @@ export function nextMinor(group: RevFile[], major: number): number {
 
 /**
  * Numbers for drawings already in the set (a preview, then Apply): each
- * document's revisions by date, oldest Rev 1.0. Only documents with no number yet.
+ * document's revisions by date, oldest Rev 0. Documents with no number yet are
+ * numbered; documents numbered the earlier way (first one Rev 1, Nov 20) move
+ * one lower so they start at Rev 0.
  */
 export function backfillPlan<T extends RevFile & { groupId?: string | null; name: string; folderPath?: string[] | null }>(files: T[]): { id: string; name: string; rev: string; revMajor: number; revMinor: number }[] {
   const groups = new Map<string, T[]>();
@@ -65,9 +68,15 @@ export function backfillPlan<T extends RevFile & { groupId?: string | null; name
   }
   const out: { id: string; name: string; rev: string; revMajor: number; revMinor: number }[] = [];
   for (const g of groups.values()) {
-    if (g.some((f) => f.revMajor != null)) continue;
+    if (g.some((f) => f.revMajor != null)) {
+      const majors = g.map((f) => f.revMajor).filter((n): n is number => n != null);
+      if (Math.min(...majors) >= 1 && g.every((f) => f.revMajor != null)) {
+        for (const f of g) out.push({ id: f.id, name: f.name, rev: `${revLabel(f.revMajor, f.revMinor)} → ${revLabel(f.revMajor! - 1, f.revMinor)}`, revMajor: f.revMajor! - 1, revMinor: f.revMinor || 0 });
+      }
+      continue;
+    }
     g.sort((a, b) => String(a.updatedAt || '').localeCompare(String(b.updatedAt || '')));
-    g.forEach((f, i) => out.push({ id: f.id, name: f.name, rev: revLabel(i + 1, 0), revMajor: i + 1, revMinor: 0 }));
+    g.forEach((f, i) => out.push({ id: f.id, name: f.name, rev: revLabel(i, 0), revMajor: i, revMinor: 0 }));
   }
   return out;
 }

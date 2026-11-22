@@ -95,7 +95,7 @@ export class DrawingSetsService {
     if (!/\.pdf$/i.test(f.name)) throw new BadRequestException('Only PDF drawings are published as revisions.');
     if (!layers?.length) throw new BadRequestException('Pick the layers to publish.');
     const group = await this.group(f);
-    const major = f.revMajor ?? Math.max(1, ...group.map((x) => x.revMajor || 0));
+    const major = f.revMajor ?? Math.max(0, ...group.map((x) => x.revMajor || 0));
     let minor: number;
     try { minor = nextMinor(group, major); } catch (e) { throw new BadRequestException((e as Error).message); }
     const { pdf, count } = await this.markups.flatten(fileId, claims, undefined, layers);
@@ -188,6 +188,7 @@ export class DrawingSetsService {
     const plan = backfillPlan(base);
     if (!apply) return { count: plan.length, rows: plan.slice(0, 300) };
     for (const p of plan) await this.files.update({ id: p.id }, { revMajor: p.revMajor, revMinor: p.revMinor });
+    // (Numbers from the earlier Rev 1 start move one lower here too.)
     return { count: plan.length, applied: true };
   }
 }

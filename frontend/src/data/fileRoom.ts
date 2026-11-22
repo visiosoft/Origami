@@ -31,10 +31,10 @@ export interface FileRoomFile {
   cityNote?: string | null;
 }
 
-/** "Rev 1.0", "Rev 1.02" -- mirrors backend file-room/drawing-sets.ts. */
+/** "Rev 0", "Rev 0.01", "Rev 1", "Rev 1.02" -- mirrors backend file-room/drawing-sets.ts. */
 export function revLabel(major?: number | null, minor?: number | null): string {
   if (major == null) return '';
-  return minor ? `Rev ${major}.${String(minor).padStart(2, '0')}` : `Rev ${major}.0`;
+  return minor ? `Rev ${major}.${String(minor).padStart(2, '0')}` : `Rev ${major}`;
 }
 
 /** Nov 17: the three audience tags on every file. Colour plus an icon and a word, never colour alone. */

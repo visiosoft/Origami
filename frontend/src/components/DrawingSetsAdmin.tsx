@@ -6,7 +6,7 @@ const btn = { padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(va
 
 /**
  * Nov 20 drawing sets (admins): who besides i-1 / i-2 may upload base
- * drawings, and numbering the drawings already in sets (Rev 1.0, 2.0 … by
+ * drawings, and numbering the drawings already in sets (Rev 0, 1, 2 … by
  * date) -- a preview first, then Apply.
  */
 export function DrawingSetsAdmin({ onApplied }: { onApplied: () => void }) {
@@ -61,7 +61,7 @@ export function DrawingSetsAdmin({ onApplied }: { onApplied: () => void }) {
             {!plan && <div><button type="button" style={btn} disabled={busy === 'plan'} onClick={preview}>{busy === 'plan' ? 'Looking…' : 'Preview'}</button></div>}
             {plan && (
               <>
-                <span>{plan.count ? `${plan.count} drawing${plan.count === 1 ? '' : 's'} would get a revision number (oldest of each document Rev 1.0):` : 'Every drawing in the sets already has a number.'}</span>
+                <span>{plan.count ? `${plan.count} drawing${plan.count === 1 ? '' : 's'} would get a revision number (oldest of each document Rev 0; ones numbered from Rev 1 move one lower):` : 'Every drawing in the sets already has a number.'}</span>
                 {!!plan.rows?.length && (
                   <ul style={{ margin: 0, paddingLeft: 18, maxHeight: 160, overflowY: 'auto' }}>
                     {plan.rows.map((r) => <li key={r.id}>{r.name} → {r.rev}</li>)}
