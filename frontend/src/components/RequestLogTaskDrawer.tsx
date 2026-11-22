@@ -150,11 +150,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             {/* Nov 17: the same three buttons on every task. */}
             <TaskCloseBar auto={auto} archived={!!task.archivedAt} onFinish={closeTask} onReopen={reopen}
               onDiscard={onClose} onSaveClose={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }}
-              extra={<>
-                {/* Nov 20 (Edward): every task action up here in one bar. */}
-                <ActionMenu kind="log" id={t.id} topicType={t.topicType} projectName={t.project} parts="both" onMade={refreshTrail} />
-                {canDelete && <button type="button" onClick={() => deleteTask()} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', background: 'var(--surface)', color: '#8E2E0A', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Delete task</button>}
-              </>} />
+              extra={
+                /* Nov 22: the main buttons on top; Duplicate, Convert to and Delete under "More ▾". */
+                <ActionMenu kind="log" id={t.id} topicType={t.topicType} projectName={t.project} parts="menu" onMade={refreshTrail}
+                  extraItems={canDelete ? [{ label: 'Delete task', danger: true, onClick: () => deleteTask() }] : []} />
+              } />
           </div>
         )}
         {/* Header */}

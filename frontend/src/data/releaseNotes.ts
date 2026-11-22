@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-22a',
+    date: '2026-11-22',
+    title: 'Tidier task panel',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'The top of a task holds just the main buttons — Complete task, Close without saving, Save & close. Duplicate, Convert to, Merge duplicates and Delete task are under “More ▾”.', where: 'Any task → More ▾' },
+    ],
+  },
+  {
     id: '2026-11-21a',
     date: '2026-11-21',
     title: 'Edward’s screenshots: task emails, tags, drawings, symbols, inspections',

@@ -21,7 +21,7 @@ export function TaskCloseBar({ auto, archived, done, subtask, onFinish, onReopen
   latest.current = { auto, onSaveClose };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || document.querySelector('[role="dialog"]')) return;
+      if (e.key !== 'Escape' || document.querySelector('[role="dialog"], [role="menu"]')) return;
       void latest.current.auto.saveNow().then((ok) => { if (ok) latest.current.onSaveClose(); });
     };
     window.addEventListener('keydown', onKey);
@@ -36,7 +36,7 @@ export function TaskCloseBar({ auto, archived, done, subtask, onFinish, onReopen
     <div className="task-close-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start' }}>
       {first}
       {extra}
-      <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+      <div style={{ flex: '1 1 300px', minWidth: 0, marginLeft: 'auto' }}>
         <SaveBar auto={auto} onDiscard={onDiscard} onDone={onSaveClose} />
       </div>
     </div>

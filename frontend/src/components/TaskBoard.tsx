@@ -1132,18 +1132,16 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 <TaskCloseBar auto={auto} archived={!!selected.archivedAt} subtask={!!selected.parentId} done={!!d.completed}
                   onFinish={() => (selected.parentId ? set({ completed: true }) : closeTask(selected.id))} onReopen={() => reopenTask(selected.id)}
                   onDiscard={() => setSelectedId(null)} onSaveClose={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }}
-                  extra={<>
-                    {/* Nov 20 (Edward): every task action up here in one bar -- duplicate, convert, delete, then save / close. */}
-                    <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} parts="both" onMade={(made) => {
+                  extra={
+                    /* Nov 22: the main buttons on top; Duplicate, Convert to, Merge and Delete under "More ▾". */
+                    <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} parts="menu" onMade={(made) => {
                       load();
                       if (made.some((m) => m.kind !== 'board')) toast('Done — open it from the link');
-                    }} />
-                    {!selected.parentId && !selected.archivedAt && !restricted && (
-                      <button type="button" onClick={() => setMerging(true)} title="Merge duplicate tasks into this one: their files, comments and history come here"
-                        style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--body)', cursor: 'pointer', whiteSpace: 'nowrap' }}>⇲ Merge duplicates…</button>
-                    )}
-                    <button type="button" onClick={() => deleteTask(selected.id)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', background: 'var(--surface)', color: '#8E2E0A', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Delete task</button>
-                  </>} />
+                    }} extraItems={[
+                      ...(!selected.parentId && !selected.archivedAt && !restricted ? [{ label: '⇲ Merge duplicates…', onClick: () => setMerging(true) }] : []),
+                      { label: 'Delete task', danger: true, onClick: () => deleteTask(selected.id) },
+                    ]} />
+                  } />
               </div>
             )}
             <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>

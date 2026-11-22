@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { api, type ActionKind, type DerivedRef, type MadeAction } from '../api';
@@ -34,7 +34,9 @@ const pillBtn: CSSProperties = {
  * "Duplicate…" and "Convert to ▾" for one special action. The original is never
  * changed beyond a note in its history: "Converted to RFI-004".
  */
-export function ActionMenu({ kind, id, topicType, projectId, projectName, onMade, disabled, parts = 'both' }: {
+export interface MoreItem { label: string; danger?: boolean; onClick: () => void }
+
+export function ActionMenu({ kind, id, topicType, projectId, projectName, onMade, disabled, parts = 'both', extraItems = [] }: {
   kind: ActionKind; id: string; topicType?: string; projectId?: number | null;
   /** Special Actions Log entries know their project by name only. */
   projectName?: string;
@@ -42,10 +44,29 @@ export function ActionMenu({ kind, id, topicType, projectId, projectName, onMade
   onMade?: (made: MadeAction[]) => void;
   disabled?: boolean;
   /** Nov 19: task panels show Duplicate in the top bar and Convert to up by the title. */
-  parts?: 'both' | 'duplicate' | 'convert';
+  /** Nov 22: 'menu' -- one "More ▾" button holding Duplicate, Convert to and the extra items (task panels). */
+  parts?: 'both' | 'duplicate' | 'convert' | 'menu';
+  extraItems?: MoreItem[];
 }) {
   const { toast } = useApp();
   const [dup, setDup] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [alignRight, setAlignRight] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  const toggle = () => {
+    // Open towards the side with room, so it never runs off a phone screen.
+    const r = wrap.current?.getBoundingClientRect();
+    setAlignRight(!!r && r.left + 250 > window.innerWidth);
+    setOpen(!open);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: MouseEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); setOpen(false); } };
+    document.addEventListener('mousedown', down);
+    window.addEventListener('keydown', key, true);
+    return () => { document.removeEventListener('mousedown', down); window.removeEventListener('keydown', key, true); };
+  }, [open]);
   const [busy, setBusy] = useState(false);
   const [made, setMade] = useState<MadeAction | null>(null);
   const targets = TARGETS.filter((t) => t.from.includes(kind) && !(t.to === kind && (kind !== 'log' || (t.topicType || 'Task') === (topicType || 'Task'))));
@@ -60,6 +81,30 @@ export function ActionMenu({ kind, id, topicType, projectId, projectName, onMade
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not convert')); }
     finally { setBusy(false); }
   };
+  if (parts === 'menu') {
+    const item = (label: string, onClick: () => void, o: { danger?: boolean; indent?: boolean } = {}) => (
+      <button key={label} type="button" role="menuitem" disabled={disabled || busy} onClick={() => { setOpen(false); onClick(); }}
+        style={{ display: 'block', width: '100%', textAlign: 'left', padding: o.indent ? '7px 14px 7px 24px' : '8px 14px', border: 0, background: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: o.danger ? 700 : 600, color: o.danger ? '#8E2E0A' : 'var(--ink)', cursor: 'pointer', borderRadius: 8 }}>{label}</button>
+    );
+    return (
+      <div ref={wrap} style={{ position: 'relative', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+        <button type="button" aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={toggle} style={pillBtn}>{busy ? 'Working…' : 'More ▾'}</button>
+        {open && (
+          <div role="menu" aria-label="More actions" className="more-menu"
+            style={{ position: 'absolute', top: 'calc(100% + 6px)', ...(alignRight ? { right: 0 } : { left: 0 }), zIndex: 40, minWidth: 230, maxWidth: 'calc(100vw - 32px)', padding: 6, borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), .12)', boxShadow: '0 12px 32px rgba(var(--rgb-ink), .18)' }}>
+            {item('Duplicate…', () => setDup(true))}
+            {targets.length > 0 && <div style={{ padding: '8px 14px 2px', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)' }}>Convert to</div>}
+            {targets.map((t, i) => item(t.label, () => { void convert(i); }, { indent: true }))}
+            {extraItems.filter((x) => !x.danger).map((x) => item(x.label, x.onClick))}
+            {extraItems.some((x) => x.danger) && <div style={{ height: 1, background: 'rgba(var(--rgb-shade), .1)', margin: '6px 4px' }} />}
+            {extraItems.filter((x) => x.danger).map((x) => item(x.label, x.onClick, { danger: true }))}
+          </div>
+        )}
+        {made && <Link to={actionHref(made.kind, made.id, { projectId: made.projectId })} style={{ fontSize: 12, fontWeight: 700, color: 'var(--forest)', whiteSpace: 'nowrap' }}>Open {made.label} →</Link>}
+        {dup && <DuplicateDialog kind={kind} id={id} projectId={projectId ?? null} projectName={projectName} onClose={() => setDup(false)} onMade={(m) => onMade?.(m)} />}
+      </div>
+    );
+  }
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
       {parts !== 'convert' && <button type="button" disabled={disabled || busy} onClick={() => setDup(true)} style={pillBtn}>Duplicate…</button>}
