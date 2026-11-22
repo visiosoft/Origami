@@ -460,6 +460,15 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   };
   const reviewShown = layers.some((l) => notApproved(l) && !hidden.has(l.key));
   const approvedId = drawingSet.state?.approved?.id ?? null;
+  // Nov 22 (Edward p8): "when a user goes to open the files, this is where it takes them" -- the approved set.
+  // Admins and principals (i-1, i-2) can still open any revision.
+  const sentToApproved = useRef('');
+  useEffect(() => {
+    if (isAdmin || !onOpenFile || !drawingSet.state?.base || !approvedId || approvedId === file.id || sentToApproved.current === file.id) return;
+    sentToApproved.current = file.id;
+    toast(`Opened the approved set (${drawingSet.state.approved?.rev}) — everyone works from it`);
+    onOpenFile(approvedId);
+  }, [isAdmin, onOpenFile, drawingSet.state, approvedId, file.id, toast]);
   const setRev = (id: string) => drawingSet.state?.revisions.find((r) => r.id === id)?.rev || '';
 
   const [accessFor, setAccessFor] = useState<string | null>(null);
@@ -1623,6 +1632,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             </section>
 
             <DrawingSetSection state={drawingSet.state} fileId={file.id} isLead={isAdmin} canFlag={isAdmin || can('planroom', 'manage') || can('allfiles', 'manage')}
+              projectFiles={(projectFiles || []).map((f) => ({ id: f.id, name: f.name }))}
               layers={layers.map((l) => ({ key: l.key, name: l.name, count: l.count, state: layerRules[l.key]?.state || null }))} onChanged={drawingSet.reload} onOpenFile={onOpenFile ? (id) => onOpenFile(id) : undefined} />
 
             {selected && (

@@ -2,14 +2,16 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException,
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { FileRoomFileEntity, FileRoomShareEntity, PdfMarkupEntity } from '../database/entities';
+import { ChangeOrderEntity, FileRoomFileEntity, FileRoomShareEntity, MarkupLayerEntity, PdfMarkupEntity, ProjectTaskEntity, RfiEntity, TaskEntity } from '../database/entities';
+import { DataSource } from 'typeorm';
 import type { SessionClaims } from '../auth/crypto.util';
 import { SettingsService } from '../settings/settings.service';
 import { clean as plain } from '../documents/program-pdf';
 import { FileRoomService } from './file-room.service';
 import { MarkupsService } from './markups.service';
 import { leadsMarkups } from './markups';
-import { backfillPlan, canUploadBase, drawingHistory, isBaseArea, logEvent, nextMinor, nextUploadRev, revLabel } from './drawing-sets';
+import { backfillPlan, canUploadBase, drawingHistory, drawingLogOf, isBaseArea, logEvent, nextMinor, nextUploadRev, revLabel } from './drawing-sets';
+import { layerKey } from './markups';
 
 const KEY_UPLOADERS = 'fileRoom.baseUploaders';
 
@@ -41,6 +43,8 @@ export class DrawingSetsService {
     private readonly markups: MarkupsService,
     private readonly settings: SettingsService,
     @Optional() @InjectRepository(FileRoomShareEntity) private readonly shares?: Repository<FileRoomShareEntity>,
+    @Optional() @InjectRepository(MarkupLayerEntity) private readonly layerRepo?: Repository<MarkupLayerEntity>,
+    @Optional() private readonly data?: DataSource,
   ) {}
 
   // ---------------------------------------------------------------- who uploads base drawings
@@ -107,9 +111,21 @@ export class DrawingSetsService {
     if (!row) throw new NotFoundException('The new revision wasn’t saved.');
     const at = new Date().toISOString();
     const label = revLabel(major, minor);
+    // Nov 22 (Edward p6): which markups went in -- "Markup1 - C-10 Electrical – Move power by Losi, approved 22 Aug 2026".
+    const rules = (await this.layerRepo?.find({ where: { fileId } }).catch(() => [])) || [];
+    const fileMarks = await this.marks.find({ where: { fileId } });
+    const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Los_Angeles' }) : '');
+    const items = layers.map((k, i) => {
+      const m = fileMarks.find((x) => layerKey(x) === k);
+      const r = rules.find((x) => x.layerKey === k);
+      const name = m?.layer || (m?.authorName ? `${m.authorName}’s layer` : k.replace(/^[LA]:/, ''));
+      const approved = r?.state === 'approved' || r?.state === 'modified' ? `, ${r.state === 'modified' ? 'modified and approved' : 'approved'} ${fmt(r.stateAt)}${r.stateBy ? ` by ${r.stateBy}` : ''}` : '';
+      return `Markup ${i + 1} – ${name}${m?.authorName && !name.includes(m.authorName) ? ` (by ${m.authorName})` : ''}${approved}`;
+    });
     Object.assign(row, {
       revMajor: major, revMinor: minor, sheetNames: f.sheetNames, notCityApproved: f.notCityApproved ?? null, cityNote: f.cityNote ?? null,
-      drawingLog: logEvent(null, { at, by: actor.name, kind: 'publish', text: `${label} published from ${revLabel(f.revMajor, f.revMinor) || 'the drawing'} — layers ${layers.map((k) => { const n = k.replace(/^[LA]:/, ''); return /^[ix]\d+$/i.test(n) ? n.toUpperCase() : n; }).join(', ')}` }),
+      drawingDate: f.drawingDate ?? null,
+      drawingLog: logEvent(null, { at, by: actor.name, kind: 'publish', items, text: `${label} published from ${revLabel(f.revMajor, f.revMinor) || 'the drawing'} — layers ${layers.map((k) => { const n = k.replace(/^[LA]:/, ''); return /^[ix]\d+$/i.test(n) ? n.toUpperCase() : n; }).join(', ')}` }),
     });
     await this.files.save(row);
     f.drawingLog = logEvent(f.drawingLog, { at, by: actor.name, kind: 'publish', text: `layers published as ${label}` });
@@ -160,9 +176,83 @@ export class DrawingSetsService {
       approved: approved ? { id: approved.id, rev: revLabel(approved.revMajor, approved.revMinor) || approved.name, at: approved.approvedAt, by: approved.approvedBy } : null,
       isApproved: !!f.approvedAt,
       notCityApproved: !!f.notCityApproved, cityNote: f.cityNote || null,
+      drawingDate: f.drawingDate || null,
+      pendingSets: await Promise.all((f.pendingSetIds || []).map(async (pid) => { const p = await this.files.findOneBy({ id: pid }); return p ? { id: p.id, name: p.name, cityNote: p.cityNote || null } : null; })).then((x) => x.filter(Boolean)),
       revisions: group.sort((a, b) => (b.revMajor ?? 0) - (a.revMajor ?? 0) || (b.revMinor ?? 0) - (a.revMinor ?? 0) || String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
         .map((x) => ({ id: x.id, rev: revLabel(x.revMajor, x.revMinor) || null, isLatest: !!x.isLatest, approved: !!x.approvedAt, uploadedBy: x.uploadedBy, at: x.updatedAt })),
     };
+  }
+
+  /**
+   * Nov 22 (Edward p8): a set that isn't city-approved yet (e.g. the structural
+   * set, for early bids or work) linked to the base drawing -- not part of it.
+   * Linking marks it "Not city-approved" so it opens with the warning.
+   */
+  async setPendingSets(fileId: string, ids: unknown, claims: SessionClaims | null) {
+    this.lead(claims, 'link a pending city-approval set');
+    const f = await this.markups.file(fileId);
+    const list = [...new Set((Array.isArray(ids) ? ids : []).map(String).filter((x) => x && x !== fileId))].slice(0, 20);
+    const at = new Date().toISOString();
+    for (const id of list) {
+      const p = await this.files.findOneBy({ id });
+      if (!p || Number(p.projectId) !== Number(f.projectId)) throw new BadRequestException('Link a file from the same project.');
+      if (!p.notCityApproved) {
+        p.notCityApproved = true;
+        p.cityNote = p.cityNote || 'Pending city approval';
+        p.drawingLog = logEvent(p.drawingLog, { at, by: claims!.name, kind: 'city', text: `linked to ${f.name} as a pending city-approval set` });
+        await this.files.save(p);
+      }
+    }
+    const added = list.filter((x) => !(f.pendingSetIds || []).includes(x));
+    f.pendingSetIds = list.length ? list : null;
+    if (added.length) f.drawingLog = logEvent(f.drawingLog, { at, by: claims!.name, kind: 'pending', text: `pending city-approval set linked (${added.length})` });
+    await this.files.save(f);
+    return this.state(fileId);
+  }
+
+  /** Nov 22: the architect's drawing date on the sheets (i-1 / i-2). */
+  async setDrawingDate(fileId: string, date: string | null, claims: SessionClaims | null) {
+    this.lead(claims, 'set the drawing date');
+    const f = await this.markups.file(fileId);
+    const d = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+    f.drawingDate = d;
+    f.drawingLog = logEvent(f.drawingLog, { at: new Date().toISOString(), by: claims!.name, kind: 'date', text: d ? `drawing date set to ${d}` : 'drawing date cleared' });
+    await this.files.save(f);
+    return this.state(fileId);
+  }
+
+  /**
+   * Nov 22 (Edward p6-7): the drawing log -- per revision, newest first: when
+   * it was published and by whom, its drawing date, the markups that went in,
+   * what happened on it, and the audit trail of the special actions raised
+   * from its markups (RFIs, tasks, change orders, FOR RECORD) as they stand.
+   */
+  async log(fileId: string) {
+    const f = await this.markups.file(fileId);
+    const group = await this.group(f);
+    const ids = group.map((x) => x.id);
+    const marks = (await this.marks.find()).filter((m) => ids.includes(m.fileId) && m.linkType && m.linkId);
+    const audit: { fileId: string; at: string; text: string }[] = [];
+    const seen = new Set<string>();
+    const repo = <T,>(e: new () => T) => (this.data ? this.data.getRepository(e as any) : null) as Repository<any> | null;
+    for (const m of marks) {
+      const k = `${m.fileId}|${m.linkType}|${m.linkId}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      try {
+        if (m.linkType === 'rfi') {
+          const r = await repo(RfiEntity)?.findOneBy({ id: m.linkId });
+          if (r) audit.push({ fileId: m.fileId, at: r.updatedAt || r.createdAt || m.createdAt, text: `${r.number || 'RFI'} ${r.subject ? `“${r.subject}” ` : ''}· ${r.status}` });
+        } else if (m.linkType === 'co') {
+          const c = await repo(ChangeOrderEntity)?.findOneBy({ id: m.linkId });
+          if (c) audit.push({ fileId: m.fileId, at: c.updatedAt || c.createdAt || m.createdAt, text: `Change order ${c.number || ''} ${c.title ? `“${c.title}” ` : ''}· ${c.status}` });
+        } else {
+          const t = (await repo(TaskEntity)?.findOneBy({ id: m.linkId })) || (await repo(ProjectTaskEntity)?.findOneBy({ id: m.linkId }));
+          if (t) audit.push({ fileId: m.fileId, at: t.closedAt || t.updatedAt || t.createdAt || m.createdAt, text: `${t.topicType && t.topicType !== 'Task' ? `FOR RECORD ${t.topicType}` : 'Task'} ${t.serial || ''} “${t.subject || t.title || ''}” · ${t.completed ? 'Complete' : t.status || 'open'}` });
+        }
+      } catch { /* a record that's gone stays out */ }
+    }
+    return drawingLogOf({ revisions: group, audit });
   }
 
   async history(fileId: string) {

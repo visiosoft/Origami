@@ -1,5 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
-import { backfillPlan, canUploadBase, drawingHistory, isBaseArea, nextLayerCode, nextMinor, nextUploadRev, revLabel } from './drawing-sets';
+import { backfillPlan, canUploadBase, drawingHistory, drawingLogOf, mayMoveLayer, isBaseArea, nextLayerCode, nextMinor, nextUploadRev, revLabel } from './drawing-sets';
 import { DrawingSetsService, stampNotApproved } from './drawing-sets.service';
 import { MarkupsService } from './markups.service';
 
@@ -190,5 +190,44 @@ describe('drawing sets', () => {
     await svc.backfill(null, true, ed);
     expect(files[0]).toMatchObject({ revMajor: 0, revMinor: 0 });
     await expect(svc.backfill(null, true, pm)).rejects.toThrow(/admin/);
+  });
+
+  it('only the owner routes or takes back; i-1 / i-2 do the rest; Modified only by copying', () => {
+    expect(mayMoveLayer('routed', { lead: false, owner: true, from: 'private' })).toBe(true);
+    expect(mayMoveLayer('routed', { lead: false, owner: true, from: 'approved' })).toBe(false);
+    expect(mayMoveLayer('private', { lead: false, owner: true, from: 'routed' })).toBe(true);
+    expect(mayMoveLayer('approved', { lead: false, owner: true })).toBe(false);
+    expect(mayMoveLayer('routed', { lead: false, owner: false })).toBe(false);
+    expect(mayMoveLayer('hold', { lead: true, owner: false })).toBe(true);
+    expect(mayMoveLayer('modified', { lead: true, owner: false })).toBe(false);
+  });
+
+  it('writes the log Edward’s way: per revision, newest first, drawing date, markups, audit trail (Nov 22)', () => {
+    const log = drawingLogOf({
+      revisions: [
+        { id: 'R0', name: 'A1.pdf', revMajor: 0, revMinor: 0, uploadedBy: 'Astrid', updatedAt: '2026-07-13T17:00:00Z', drawingDate: '2026-05-11' },
+        { id: 'R1', name: 'A1.pdf', revMajor: 0, revMinor: 1, uploadedBy: 'Astrid', updatedAt: '2026-08-25T17:00:00Z', drawingLog: [{ at: '2026-08-25T17:00:00Z', by: 'Astrid', kind: 'publish', text: 'Rev 0.01 published from Rev 0 — layers x', items: ['Markup 1 – C-10 Electrical – Move power by Losi, approved 22 Aug 2026 by Edward'] }] },
+      ],
+      audit: [{ fileId: 'R1', at: '2026-09-01T00:00:00Z', text: 'RFI-004 “Panel location” · Answered' }],
+    });
+    expect(log.map((r) => r.rev)).toEqual(['Rev 0.01', 'Rev 0']);
+    expect(log[0]).toMatchObject({ heading: 'Rev 0.01: Published Aug 25, 2026 by Astrid', lines: ['Markup 1 – C-10 Electrical – Move power by Losi, approved 22 Aug 2026 by Edward'], audit: [{ text: 'RFI-004 “Panel location” · Answered' }] });
+    expect(log[1]).toMatchObject({ heading: 'Rev 0: Put in Jul 13, 2026 by Astrid', lines: ['Original drawing date May 11, 2026', 'File put in by Astrid on Jul 13, 2026'] });
+  });
+
+  it('sets the drawing date, links a pending city-approval set, and builds the log with the audit trail', async () => {
+    const { svc, files, marks } = setup();
+    files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: true, revMajor: 0, revMinor: 0, updatedAt: '2026-11-01T00:00:00Z', uploadedBy: 'Astrid' },
+      { id: 'S1', projectId: 16, folderPath: ['Structural'], name: 'S-Set.pdf' }, { id: 'X1', projectId: 99, folderPath: [], name: 'Other.pdf' });
+    await expect(svc.setDrawingDate('F1', '2026-05-11', pm)).rejects.toThrow(/admin or principal/);
+    expect(await svc.setDrawingDate('F1', '2026-05-11', ed)).toMatchObject({ drawingDate: '2026-05-11' });
+    await expect(svc.setPendingSets('F1', ['X1'], ed)).rejects.toThrow(/same project/);
+    expect(await svc.setPendingSets('F1', ['S1'], ed)).toMatchObject({ pendingSets: [{ id: 'S1', name: 'S-Set.pdf', cityNote: 'Pending city approval' }] });
+    expect(files.find((f) => f.id === 'S1')).toMatchObject({ notCityApproved: true });
+    marks.push({ id: 'MK1', fileId: 'F1', layer: 'X', linkType: 'rfi', linkId: 'RFI1', createdAt: '2026-11-02T00:00:00Z' });
+    (svc as any).data = { getRepository: () => ({ findOneBy: async (w: any) => (w.id === 'RFI1' ? { id: 'RFI1', number: 'RFI-004', subject: 'Panel location', status: 'Answered', updatedAt: '2026-11-03T00:00:00Z' } : null) }) };
+    const log = await svc.log('F1');
+    expect(log[0]).toMatchObject({ rev: 'Rev 0', drawingDate: '2026-05-11', audit: [{ text: 'RFI-004 “Panel location” · Answered' }] });
+    expect(log[0].lines[0]).toBe('Original drawing date May 11, 2026');
   });
 });

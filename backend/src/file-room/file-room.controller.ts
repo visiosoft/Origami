@@ -488,6 +488,24 @@ export class FileRoomController {
     await this.seeFile(id, claims);
     return this.needSets().state(id);
   }
+  /** Nov 22: the drawing log, per revision (Edward p6-7). */
+  @Get('files/:id/log')
+  async drawingLog(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.needSets().log(id);
+  }
+  @Tiers('internal')
+  @Put('files/:id/drawing-date')
+  async drawingDate(@Param('id') id: string, @Body() body: { date?: string | null }, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.needSets().setDrawingDate(id, body?.date ?? null, claims ?? null);
+  }
+  @Tiers('internal')
+  @Put('files/:id/pending-sets')
+  async pendingSets(@Param('id') id: string, @Body() body: { ids?: string[] }, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.needSets().setPendingSets(id, body?.ids, claims ?? null);
+  }
   @Get('files/:id/history')
   async drawingHistory(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
     await this.seeFile(id, claims);

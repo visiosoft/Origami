@@ -91,7 +91,7 @@ export function nextLayerCode(existing: (string | null | undefined)[], outside: 
   return `${prefix}${(used.length ? Math.max(...used) : 0) + 1}`;
 }
 
-export interface DrawingEvent { at: string; by: string; kind: string; text: string; layer?: string | null }
+export interface DrawingEvent { at: string; by: string; kind: string; text: string; layer?: string | null; items?: string[] }
 
 /** Append to a drawing's log, keeping the newest 300. */
 export function logEvent(log: DrawingEvent[] | null | undefined, e: DrawingEvent): DrawingEvent[] {
@@ -149,3 +149,43 @@ export function mayMoveLayer(to: string, o: { lead: boolean; owner: boolean; fro
 
 /** Published layers: approved, or i-1 / i-2's modified copies. */
 export const isPublishedState = (s?: string | null) => s === 'approved' || s === 'modified';
+
+// ---------------------------------------------------------------- the drawing log, Edward's way (Nov 22, p6-7)
+const day = (iso?: string | null) => {
+  if (!iso) return '';
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso + 'T12:00:00Z' : iso);
+  return isNaN(+d) ? '' : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Los_Angeles' });
+};
+
+export interface LogRevision {
+  id: string; rev: string; heading: string; drawingDate: string | null;
+  lines: string[];
+  events: { at: string; by: string; text: string }[];
+  audit: { at: string; text: string }[];
+}
+
+/**
+ * The log per revision, newest first (Edward: "BaseDwgRev1.02: Published
+ * 29Sept2026 by Astrid · Revision 1 drawing date 23Sept2026 · Markup1 -
+ * Originated from C-10 Electrical, approved 22Aug2026 · Audit trail: …").
+ */
+export function drawingLogOf(input: {
+  revisions: { id: string; name: string; revMajor?: number | null; revMinor?: number | null; uploadedBy?: string | null; updatedAt?: string | null; drawingDate?: string | null; drawingLog?: DrawingEvent[] | null }[];
+  audit: { fileId: string; at: string; text: string }[];
+}): LogRevision[] {
+  const sorted = [...input.revisions].sort((a, b) => (b.revMajor ?? -1) - (a.revMajor ?? -1) || (b.revMinor ?? 0) - (a.revMinor ?? 0) || String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  return sorted.map((r) => {
+    const label = revLabel(r.revMajor, r.revMinor) || r.name;
+    const pub = (r.drawingLog || []).find((e) => e.kind === 'publish' && (e.items?.length || /published from/.test(e.text)));
+    const heading = `${r.revMajor == null ? r.name : `${label}`}: ${pub ? 'Published' : 'Put in'} ${day(pub?.at || r.updatedAt)} by ${pub?.by || r.uploadedBy || 'someone'}`;
+    const lines = [
+      r.drawingDate ? `${r.revMajor ? `Revision ${r.revMajor}` : 'Original'} drawing date ${day(r.drawingDate)}` : '',
+      ...(pub?.items || []),
+    ].filter(Boolean);
+    if (!pub && !r.revMinor) lines.push(`File put in by ${r.uploadedBy || 'someone'} on ${day(r.updatedAt)}`);
+    const events = (r.drawingLog || []).filter((e) => e.kind !== 'upload' && e !== pub).map((e) => ({ at: e.at, by: e.by, text: e.text }))
+      .sort((a, b) => b.at.localeCompare(a.at));
+    const audit = input.audit.filter((a) => a.fileId === r.id).sort((a, b) => b.at.localeCompare(a.at)).map(({ at, text }) => ({ at, text }));
+    return { id: r.id, rev: label, heading, drawingDate: r.drawingDate || null, lines, events, audit };
+  });
+}

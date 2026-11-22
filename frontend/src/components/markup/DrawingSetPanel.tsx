@@ -7,7 +7,12 @@ export interface DrawingState {
   approved: { id: string; rev: string; at?: string | null; by?: string | null } | null; isApproved: boolean;
   notCityApproved: boolean; cityNote: string | null;
   revisions: { id: string; rev: string | null; isLatest: boolean; approved: boolean; uploadedBy?: string; at?: string }[];
+  /** Nov 22: the architect's date on the sheets, and pending city-approval sets linked to this drawing. */
+  drawingDate?: string | null;
+  pendingSets?: { id: string; name: string; cityNote?: string | null }[];
 }
+/** Nov 22 (Edward p6-7): one revision in the drawing log. */
+export interface LogRevision { id: string; rev: string; heading: string; drawingDate: string | null; lines: string[]; events: { at: string; by: string; text: string }[]; audit: { at: string; text: string }[] }
 export interface DrawingEvent { at: string; by: string; kind: string; text: string; layer?: string | null }
 
 /** A review layer's code: I1, I2 (our team), X1, X2 (outside). */
@@ -39,11 +44,19 @@ export function DrawingSetBanner({ state, fileId, reviewLayersShown, onOpenFile,
           ⚠ Not city-approved — for early work only{state.cityNote ? `: ${state.cityNote}` : ''}
         </div>
       )}
+      {!!state.pendingSets?.length && (
+        <div role="note" className="mk-set-banner" style={{ padding: '6px 14px', background: '#FFF6E5', color: '#7A4B00', fontSize: 12.5, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <b>Pending city approval:</b>
+          {state.pendingSets.map((p) => (
+            <button key={p.id} type="button" className="mk-btn" disabled={!onOpenFile} onClick={() => onOpenFile?.(p.id)} title="Not part of the approved base set — opens with the warning">{p.name} →</button>
+          ))}
+        </div>
+      )}
       {(offApproved || (state.approved?.id === fileId && reviewLayersShown)) && (
         <div role="status" className="mk-set-banner" style={{ padding: '7px 14px', background: '#F7E4DB', color: '#8E2E0A', fontSize: 12.5, fontWeight: 700, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <span>{offApproved
             ? `You’re not on the approved set (${state.approved!.rev})${state.rev ? ` — this is ${state.rev}` : ''}.`
-            : 'Review layers (not yet published) are showing over the approved set.'}</span>
+            : 'Warning: you are not working on the approved base drawing set by using this file/layer — layers that aren’t approved are showing.'}</span>
           <button type="button" className="mk-btn is-dark" onClick={() => { onHideReview(); if (offApproved && onOpenFile) onOpenFile(state.approved!.id); }}>Back to approved set</button>
         </div>
       )}
@@ -56,18 +69,20 @@ export function DrawingSetBanner({ state, fileId, reviewLayersShown, onOpenFile,
  * city flag, publishing reviewed layers as the next revision (i-1 / i-2), and
  * the drawing's history, filterable by layer or person.
  */
-export function DrawingSetSection({ state, fileId, isLead, canFlag, layers, onChanged, onOpenFile }: {
+export function DrawingSetSection({ state, fileId, isLead, canFlag, layers, onChanged, onOpenFile, projectFiles = [] }: {
   state: DrawingState | null; fileId: string; isLead: boolean; canFlag: boolean;
   layers: { key: string; name: string; count: number; state?: string | null }[];
   onChanged: () => void; onOpenFile?: (id: string) => void;
+  /** The project's other PDFs, to link a pending city-approval set. */
+  projectFiles?: { id: string; name: string }[];
 }) {
   const { toast } = useApp();
   const [busy, setBusy] = useState('');
   const [publishing, setPublishing] = useState<Set<string> | null>(null);
-  const [history, setHistory] = useState<DrawingEvent[] | null>(null);
+  const [log, setLog] = useState<LogRevision[] | null>(null);
   const [who, setWho] = useState('');
   const [note, setNote] = useState<string | null>(null);
-  useEffect(() => { setHistory(null); api.fileRoom.drawingHistory(fileId).then(setHistory).catch(() => setHistory([])); }, [fileId, state?.approved?.id, state?.rev, state?.notCityApproved]);
+  useEffect(() => { setLog(null); api.fileRoom.drawingLog(fileId).then(setLog).catch(() => setLog([])); }, [fileId, state?.approved?.id, state?.rev, state?.notCityApproved, state?.drawingDate, state?.pendingSets?.length]);
   if (!state || !state.base) return null;
 
   const run = (key: string, p: Promise<unknown>, ok: string) => {
@@ -83,8 +98,14 @@ export function DrawingSetSection({ state, fileId, isLead, canFlag, layers, onCh
       if (onOpenFile && window.confirm(`Open ${r.rev} now?`)) onOpenFile(r.id);
     }).catch((e: Error) => toast('⚠ ' + e.message)).finally(() => setBusy(''));
   };
-  const people = [...new Set((history || []).map((e) => e.layer || e.by).filter(Boolean))] as string[];
-  const shown = (history || []).filter((e) => !who || e.layer === who || e.by === who);
+  const printLog = () => {
+    const w = window.open('', '_blank');
+    if (!w || !log) return;
+    const esc = (x: string) => x.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!));
+    w.document.write(`<html><head><title>Drawing log</title><style>body{font:13px Arial;margin:32px;color:#111}h1{font-size:18px}h2{font-size:14px;margin:18px 0 4px}li{margin:2px 0}.a{color:#A35A00}</style></head><body><h1>Drawing log</h1>${log.map((r) => `<h2>${esc(r.heading)}</h2><ul>${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}${r.events.map((e) => `<li>${esc(e.text)} — ${esc(e.by)}, ${esc(when(e.at))}</li>`).join('')}${r.audit.length ? `<li class="a">Audit trail:<ul>${r.audit.map((a) => `<li>${esc(a.text)}</li>`).join('')}</ul></li>` : ''}</ul>`).join('')}</body></html>`);
+    w.document.close(); w.focus(); w.print();
+  };
+  const people = [...new Set((log || []).flatMap((r) => r.events.map((e) => e.by)).filter(Boolean))] as string[];
   const when = (iso: string) => (iso ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
 
   return (
@@ -141,23 +162,50 @@ export function DrawingSetSection({ state, fileId, isLead, canFlag, layers, onCh
           </div>
         )
       )}
-      <h4 style={{ marginTop: 10 }}>History</h4>
+      {isLead && (
+        <div style={{ display: 'grid', gap: 6, margin: '8px 0' }}>
+          <label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>Drawing date (on the sheets)
+            <input type="date" aria-label="Drawing date" value={state.drawingDate || ''} onChange={(e) => run('date', api.fileRoom.setDrawingDate(fileId, e.target.value || null), 'Drawing date saved')} style={{ fontSize: 12 }} />
+          </label>
+          <label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>Pending city-approval set
+            <select aria-label="Link a pending city-approval set" value="" onChange={(e) => { const v = e.target.value; if (v) run('pending', api.fileRoom.setPendingSets(fileId, [...(state.pendingSets || []).map((p) => p.id), v]), 'Linked — it opens with the warning'); }} style={{ fontSize: 12, maxWidth: 200 }}>
+              <option value="">Link one…</option>
+              {projectFiles.filter((f) => f.id !== fileId && /\.pdf$/i.test(f.name) && !(state.pendingSets || []).some((p) => p.id === f.id)).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </label>
+          {(state.pendingSets || []).map((p) => (
+            <span key={p.id} style={{ fontSize: 12 }}>⚠ {p.name} <button type="button" className="mk-btn is-text" onClick={() => run('pending', api.fileRoom.setPendingSets(fileId, (state.pendingSets || []).filter((x) => x.id !== p.id).map((x) => x.id)), 'Unlinked')}>Unlink</button></span>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+        <h4 style={{ margin: 0, flex: 1 }}>Drawing log</h4>
+        {!!log?.length && <button type="button" className="mk-btn is-text" onClick={printLog}>Print</button>}
+      </div>
       {people.length > 1 && (
-        <select aria-label="History for" value={who} onChange={(e) => setWho(e.target.value)} style={{ fontSize: 12, marginBottom: 4 }}>
-          <option value="">Everyone and every layer</option>
+        <select aria-label="Log for" value={who} onChange={(e) => setWho(e.target.value)} style={{ fontSize: 12, margin: '4px 0' }}>
+          <option value="">Everyone</option>
           {people.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
       )}
-      {!history && <p className="mk-muted">Loading…</p>}
-      {history && !shown.length && <p className="mk-muted">Nothing yet.</p>}
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
-        {shown.map((e, i) => (
-          <li key={i} style={{ fontSize: 12, lineHeight: 1.4 }}>
-            <b style={{ color: 'var(--ink)' }}>{e.text}</b>
-            <div className="mk-muted" style={{ fontSize: 11 }}>{e.by} · {when(e.at)}</div>
-          </li>
+      {!log && <p className="mk-muted">Loading…</p>}
+      {log && !log.length && <p className="mk-muted">Nothing yet.</p>}
+      <div style={{ display: 'grid', gap: 10, maxHeight: 340, overflowY: 'auto' }}>
+        {(log || []).map((r) => (
+          <div key={r.id} style={{ fontSize: 12, lineHeight: 1.45 }}>
+            <b style={{ color: r.id === fileId ? 'var(--forest)' : 'var(--ink)' }}>{r.heading}</b>
+            <ul style={{ margin: '2px 0 0', paddingLeft: 16 }}>
+              {r.lines.map((l, i) => <li key={'l' + i}>{l}</li>)}
+              {r.events.filter((e) => !who || e.by === who).map((e, i) => <li key={'e' + i} className="mk-muted">{e.text} — {e.by}, {when(e.at)}</li>)}
+              {r.audit.length > 0 && (
+                <li style={{ color: '#A35A00' }}>Audit trail:
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>{r.audit.map((a, i) => <li key={'a' + i}>{a.text}</li>)}</ul>
+                </li>
+              )}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </div>
     </section>
   );
 }

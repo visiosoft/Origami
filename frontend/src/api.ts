@@ -1048,6 +1048,9 @@ export const api = {
   fileRoom: {
     /** Nov 20 drawing sets: where a drawing stands, its history, publishing, approving, the city flag, who uploads base drawings. */
     drawing: (id: string) => request<import('./components/markup/DrawingSetPanel').DrawingState>(`/file-room/files/${encodeURIComponent(id)}/drawing`, { cache: 'no-store' } as any),
+    drawingLog: (id: string) => request<import('./components/markup/DrawingSetPanel').LogRevision[]>(`/file-room/files/${encodeURIComponent(id)}/log`, { cache: 'no-store' } as any),
+    setDrawingDate: (id: string, date: string | null) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/drawing-date`, { method: 'PUT', body: JSON.stringify({ date }) }),
+    setPendingSets: (id: string, ids: string[]) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/pending-sets`, { method: 'PUT', body: JSON.stringify({ ids }) }),
     drawingHistory: (id: string) => request<import('./components/markup/DrawingSetPanel').DrawingEvent[]>(`/file-room/files/${encodeURIComponent(id)}/history`, { cache: 'no-store' } as any),
     publishLayers: (id: string, layers: string[]) => request<{ id: string; rev: string; markups: number }>(`/file-room/files/${encodeURIComponent(id)}/publish`, { method: 'POST', body: JSON.stringify({ layers }) }),
     approveDrawing: (id: string, on: boolean) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/approve`, { method: 'POST', body: JSON.stringify({ on }) }),

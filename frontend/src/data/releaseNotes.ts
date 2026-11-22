@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-22b',
+    date: '2026-11-22',
+    title: 'Drawing sets the way Edward drew them',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'The first upload of a drawing is Rev 0; each architect revision is Rev 1, Rev 2…; each publish of approved markups adds .01, .02 (Rev 0.01, Rev 1.02).', where: 'Plan & File Room → a drawing → Drawing set' },
+      { area: 'Drawings', kind: 'new', text: 'You name your own markup layer the first time you draw (e.g. “C-10 Electrical – Move power by Losi”). Layers go Private → Routed → Approved (our team or everyone), Hold or Rejected; the state shows in front of the name. Admins and principals “Modify” by making a copy, never editing your layer.', where: 'A drawing → Layers' },
+      { area: 'Drawings', kind: 'new', text: 'Opening a drawing set takes you to the approved revision with only approved layers on. Turning on any other layer shows a warning with “Back to approved set”. Admins and principals can still open any revision.', where: 'Plan & File Room → open a drawing' },
+      { area: 'Drawings', kind: 'new', text: 'Drawing log per revision: drawing date, what was published and approved, and the audit trail (RFIs, tasks, change orders linked to its markups). Printable.', where: 'A drawing → Drawing set → Drawing log' },
+      { area: 'Drawings', kind: 'new', text: 'Link a set waiting for city approval (e.g. structural) to the base drawing: it is marked “Pending city approval” and shows as a chip on the drawing.', where: 'A drawing → Drawing set → Pending city approval' },
+    ],
+  },
+  {
     id: '2026-11-22a',
     date: '2026-11-22',
     title: 'Tidier task panel',
