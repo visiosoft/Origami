@@ -1,6 +1,17 @@
 import { tradeLabel } from '../data/tradeCsi';
 import { ContactEmail } from '../components/ContactEmail';
 
+/**
+ * Nov 22: Call dials through Quo. On a phone or tablet Quo's own link opens the
+ * Quo app and dials; on a computer a tel: link opens Quo when its desktop app is
+ * the computer's calling app (Quo doesn't take its app link from a web page there).
+ */
+export function quoCallHref(phone: string, ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): string {
+  const digits = String(phone || '').replace(/[^\d+]/g, '');
+  const e164 = digits.startsWith('+') ? digits : digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : digits;
+  return /iPhone|iPad|iPod|Android/i.test(ua) ? `openphone://dial?number=${encodeURIComponent(e164)}&action=call` : `tel:${e164}`;
+}
+
 /** Text, Email and Call in a person's panel: one look (Nov 22). */
 const contactPill = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' } as const;
 import { TextClient } from '../components/TextClient';
@@ -718,7 +729,7 @@ export function People() {
                     </button>
                   )}
                   {sel.phone && sel.phone !== '—' && (
-                    <a href={`tel:${sel.phone.replace(/[^\d+]/g, '')}`} style={{ ...contactPill, textDecoration: 'none' }}>
+                    <a href={quoCallHref(sel.phone)} title="Call through Quo" style={{ ...contactPill, textDecoration: 'none' }}>
                       <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>Call
                     </a>
                   )}
