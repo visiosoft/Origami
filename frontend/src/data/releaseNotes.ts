@@ -20,7 +20,7 @@ export const RELEASES: Release[] = [
     date: '2026-11-22',
     title: 'Tidier task panel',
     items: [
-      { area: 'Tasks', kind: 'improved', text: 'The top of a task holds just the main buttons — Complete task, Close without saving, Save & close. Duplicate, Convert to, Merge duplicates and Delete task are under “More ▾”.', where: 'Any task → More ▾' },
+      { area: 'Tasks', kind: 'improved', text: 'The top of a task is one tidy row: ✓ Complete task and More ▾ on the left; a saved dot, Save & close and ✕ (close without saving) on the right. Duplicate, Convert to, Merge duplicates and Delete task are under More ▾.', where: 'Any task → More ▾' },
     ],
   },
   {
