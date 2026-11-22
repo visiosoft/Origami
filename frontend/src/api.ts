@@ -1518,6 +1518,13 @@ export const api = {
     preview: () => request<{ open: number; toImport: { taskId: string; title: string; dueDate: string | null; createdAt: string | null; assignee: string | null; quoAssignee: string | null }[] }>('/quo/tasks/preview', { cache: 'no-store' } as any),
     importOpen: (taskIds?: string[]) => request<{ created: number; failed: { taskId: string; error: string }[] }>('/quo/tasks/import', { method: 'POST', body: JSON.stringify({ taskIds }) }),
   },
+  /** Nov 22: Quo call summaries and transcripts -> Call meetings (administrators). */
+  quoCalls: {
+    status: () => request<{ connected: boolean; url: string; lastEvent: { at: string; type: string; callId: string; action: string } | null; imported: number }>('/quo/calls', { cache: 'no-store' } as any),
+    connect: () => request<{ connected: boolean; url: string; lastEvent: any; imported: number }>('/quo/calls/connect', { method: 'POST' }),
+    disconnect: () => request<{ connected: boolean; url: string; lastEvent: any; imported: number }>('/quo/calls/disconnect', { method: 'POST' }),
+    importCall: (callId: string) => request<{ action: string; meetingId?: string }>('/quo/calls/import', { method: 'POST', body: JSON.stringify({ callId }) }),
+  },
   mail: {
     threads: (q = '', page = '', label = 'INBOX') => request<{ threads: MailThreadRow[]; nextPageToken: string | null }>(`/mail/threads?q=${encodeURIComponent(q)}&page=${encodeURIComponent(page)}&label=${encodeURIComponent(label)}`, { cache: 'no-store' } as any),
     /** Drafts (Batch 6): Gmail's own, so they show in Gmail too. */

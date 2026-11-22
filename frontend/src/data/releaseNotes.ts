@@ -20,6 +20,7 @@ export const RELEASES: Release[] = [
     date: '2026-11-22',
     title: 'Tidier task panel',
     items: [
+      { area: 'Meetings', kind: 'new', text: 'Quo call notes come into Meetings: when Quo finishes its summary of a call, a “Call with …” meeting appears with the summary and next steps (turn them into tasks like any meeting’s), matched to the person and their project, or the lead, by phone number; the transcript follows. An admin connects it once.', where: 'Settings → Integrations → Text messages → Quo call notes' },
       { area: 'People', kind: 'improved', text: 'A person’s panel has Text, Email and Call together in one row, in the same style; their recent emails are listed just below. Every phone number and Call button in Origami dials through Quo — on a phone it opens the Quo app; on a computer it uses Quo when the Quo desktop app is your calling app.', where: 'People → a person' },
       { area: 'Tasks', kind: 'improved', text: 'The top of a task is one tidy row: ✓ Complete task and More ▾ on the left; a saved dot, Save & close and ✕ (close without saving) on the right. Duplicate, Convert to, Merge duplicates and Delete task are under More ▾.', where: 'Any task → More ▾' },
     ],
