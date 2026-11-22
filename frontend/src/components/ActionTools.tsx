@@ -88,7 +88,7 @@ export function ActionMenu({ kind, id, topicType, projectId, projectName, onMade
     );
     return (
       <div ref={wrap} style={{ position: 'relative', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-        <button type="button" aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={toggle} style={pillBtn}>{busy ? 'Working…' : 'More ▾'}</button>
+        <button type="button" aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={toggle} style={pillBtn} aria-label="More actions">{busy ? 'Working…' : <><span className="more-word">More ▾</span><span className="more-dots" style={{ display: 'none', fontSize: 15, lineHeight: 1 }}>⋯</span></>}</button>
         {open && (
           <div role="menu" aria-label="More actions" className="more-menu"
             style={{ position: 'absolute', top: 'calc(100% + 6px)', ...(alignRight ? { right: 0 } : { left: 0 }), zIndex: 40, minWidth: 230, maxWidth: 'calc(100vw - 32px)', padding: 6, borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), .12)', boxShadow: '0 12px 32px rgba(var(--rgb-ink), .18)' }}>
