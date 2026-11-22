@@ -9,7 +9,7 @@ import { FileRoomFileEntity, MarkupLayerEntity, MarkupSymbolEntity, PdfMarkupEnt
 import type { SessionClaims } from '../auth/crypto.util';
 import { FileRoomService } from './file-room.service';
 import { STARTER_SYMBOLS } from '../seed-data/markup-symbols';
-import { isBaseArea, LAYER_CODE, nextLayerCode } from './drawing-sets';
+import { isBaseArea, LAYER_CODE, LAYER_STATE_LABEL, logEvent, mayMoveLayer, nextLayerCode, type LayerState } from './drawing-sets';
 import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, cleanSymbolImage, cleanSymbolName, isMarkable, isPhotoName, leadsMarkups, photoToPdf, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, cleanLayerRule, visibleWithLayers, type LayerAudience, type LayerRule, type LayerViewer, type MarkupData } from './markups';
 
 /** Where photos pinned to a drawing are kept in the project's File Room. */
@@ -49,9 +49,67 @@ export class MarkupsService {
     return visibleWithLayers(rows, await this.rulesFor(fileId), await this.viewer(claims));
   }
 
-  /** Each layer's audience on a drawing (only the ones that aren't Everyone). */
+  /** Each layer's audience on a drawing (the ones that aren't Everyone), and Nov 22: each review layer's state. */
   async layerAccess(fileId: string) {
-    return (await this.rulesFor(fileId)).filter((r) => r.audience !== 'everyone');
+    const rows = (await this.layerRepo?.find({ where: { fileId } })) || [];
+    return rows.filter((r) => r.audience !== 'everyone' || r.state)
+      .map((r) => ({ layerKey: r.layerKey, audience: r.audience as LayerAudience, people: r.people, state: r.state || null, stateBy: r.stateBy || null, stateAt: r.stateAt || null, copyOf: r.copyOf || null }));
+  }
+
+  /**
+   * Nov 22 (Edward p5-8): move a review layer along -- Private, Routed (asked to
+   * publish), Hold, Approved (for our team, or everyone on the project),
+   * Rejected (back to its owner only). Its owner routes or takes it back;
+   * i-1 / i-2 do the rest, and can route on the owner's behalf.
+   */
+  async setLayerState(fileId: string, key: string, body: { state?: string; audience?: string }, claims: SessionClaims | null) {
+    this.assertCanDraw(claims);
+    if (!this.layerRepo) throw new BadRequestException('Layer states aren’t available.');
+    const rows = (await this.repo.find({ where: { fileId } })).filter((m) => layerKey(m) === key);
+    if (!rows.length) throw new NotFoundException('That layer has no markups.');
+    const id = `${fileId}|${key}`;
+    const row = await this.layerRepo.findOneBy({ id });
+    const to = String(body?.state || '');
+    const lead = leadsMarkups(claims!.roleKey);
+    const owners = [...new Map(rows.filter((m) => m.authorId).map((m) => [m.authorId!, m.authorName || 'Owner'])).entries()];
+    if (!mayMoveLayer(to, { lead, owner: owners.some(([uid]) => uid === claims!.sub), from: row?.state })) {
+      throw new ForbiddenException(lead ? 'That isn’t a state a layer can be put in.' : 'Only its owner can route or take back a layer; an admin or principal approves, holds or rejects it.');
+    }
+    const now = new Date().toISOString();
+    const audience = to === 'approved' ? (body?.audience === 'everyone' ? 'everyone' : 'internal') : to === 'rejected' ? 'people' : 'internal';
+    const people = to === 'rejected' ? owners.map(([uid, name]) => ({ type: 'user' as const, id: uid, name })) : [];
+    const saved = await this.layerRepo.save(this.layerRepo.create({ ...(row || {}), id, fileId, layerKey: key, audience, people, state: to, stateBy: claims!.name, stateAt: now, updatedBy: claims!.name, updatedAt: now }));
+    const name = rows[0].layer || owners[0]?.[1] || 'layer';
+    const f = await this.file(fileId);
+    f.drawingLog = logEvent(f.drawingLog, { at: now, by: claims!.name || 'Someone', kind: 'layer-' + to, text: `${LAYER_STATE_LABEL[to as LayerState]}: ${name}${to === 'approved' ? (audience === 'everyone' ? ' (everyone on the project)' : ' (our team)') : ''}`, layer: rows[0].layer || null });
+    await this.files.save(f);
+    return { layerKey: key, state: saved.state, audience: saved.audience, people: saved.people };
+  }
+
+  /**
+   * "Modify" (Nov 22): i-1 / i-2 never change someone else's layer -- they copy
+   * it to "<name> (Modified)", Modified Approved, shared back to its owner.
+   */
+  async duplicateLayer(fileId: string, key: string, claims: SessionClaims | null) {
+    if (!leadsMarkups(claims?.roleKey)) throw new ForbiddenException('Only an admin or principal modifies someone’s layer (as a copy).');
+    if (!this.layerRepo) throw new BadRequestException('Layers aren’t available.');
+    const rows = (await this.repo.find({ where: { fileId } })).filter((m) => layerKey(m) === key);
+    if (!rows.length) throw new NotFoundException('That layer has no markups.');
+    const base = rows[0].layer || `${rows[0].authorName || 'Their'} layer`;
+    let name = cleanLayer(`${base} (Modified)`) || 'Modified';
+    const taken = new Set((await this.repo.find({ where: { fileId } })).map((m) => String(m.layer || '').toLowerCase()));
+    for (let n = 2; taken.has(name.toLowerCase()); n++) name = cleanLayer(`${base} (Modified ${n})`) || `Modified ${n}`;
+    const now = new Date().toISOString();
+    for (const m of rows) {
+      await this.repo.save(this.repo.create({ ...m, id: 'MK-' + randomUUID(), layer: name, private: false, authorId: claims!.sub, authorName: claims!.name || 'Someone', linkType: null, linkId: null, createdAt: now, updatedAt: now }));
+    }
+    const owners = [...new Map(rows.filter((m) => m.authorId).map((m) => [m.authorId!, m.authorName || 'Owner'])).entries()];
+    const nk = layerKey({ layer: name });
+    await this.layerRepo.save(this.layerRepo.create({ id: `${fileId}|${nk}`, fileId, layerKey: nk, audience: 'people', people: owners.map(([id, n]) => ({ type: 'user' as const, id, name: n })), state: 'modified', stateBy: claims!.name, stateAt: now, copyOf: key, updatedBy: claims!.name, updatedAt: now }));
+    const f = await this.file(fileId);
+    f.drawingLog = logEvent(f.drawingLog, { at: now, by: claims!.name || 'Someone', kind: 'layer-modified', text: `Modified Approved: ${name} (copied from ${base}, shared back to ${owners.map(([, n]) => n).join(', ') || 'its owner'})`, layer: name });
+    await this.files.save(f);
+    return { layer: name, layerKey: nk, markups: rows.length };
   }
 
   /**
@@ -65,12 +123,14 @@ export class MarkupsService {
     if (!rows.length) throw new NotFoundException('That layer has no markups.');
     if (!leadsMarkups(claims!.roleKey) && !rows.some((m) => m.authorId === claims!.sub)) throw new ForbiddenException('Only someone with markups on this layer (or an admin or principal) can change who sees it.');
     // Nov 20: a drawing-set review layer (I1, X1…) is made visible only by i-1 / i-2, once reviewed.
-    if (!leadsMarkups(claims!.roleKey) && LAYER_CODE.test(key.replace(/^L:/, '').toUpperCase())) throw new ForbiddenException('Review layers (I1, X1…) are shown to others by an admin or principal once they’ve been reviewed.');
+    if (!leadsMarkups(claims!.roleKey) && (LAYER_CODE.test(key.replace(/^L:/, '').toUpperCase()) || (await this.layerRepo.findOneBy({ id: `${fileId}|${key}` }))?.state)) throw new ForbiddenException('Review layers are shown to others by an admin or principal once they’ve been approved.');
     let rule;
     try { rule = cleanLayerRule(raw); } catch (e) { throw new BadRequestException((e as Error).message); }
     const id = `${fileId}|${key}`;
-    if (rule.audience === 'everyone') { await this.layerRepo.delete({ id }); return { layerKey: key, audience: 'everyone', people: [] }; }
-    await this.layerRepo.save(this.layerRepo.create({ id, fileId, layerKey: key, audience: rule.audience, people: rule.people, updatedBy: claims!.name, updatedAt: new Date().toISOString() }));
+    const existing = await this.layerRepo.findOneBy({ id });
+    // A review layer keeps its row (and state) even when shown to everyone.
+    if (rule.audience === 'everyone' && !existing?.state) { await this.layerRepo.delete({ id }); return { layerKey: key, audience: 'everyone', people: [] }; }
+    await this.layerRepo.save(this.layerRepo.create({ ...(existing || {}), id, fileId, layerKey: key, audience: rule.audience, people: rule.people, updatedBy: claims!.name, updatedAt: new Date().toISOString() }));
     return { layerKey: key, ...rule };
   }
 
@@ -163,16 +223,20 @@ export class MarkupsService {
     try { clean = cleanMarkup(raw); } catch (e) { throw new BadRequestException((e as Error).message); }
     await this.assertLinkTarget(f, clean.data);
     const now = new Date().toISOString();
-    // Nov 20 drawing sets: someone other than i-1 / i-2 marking up a base drawing draws on their own review
-    // layer -- I1, I2 for our team, X1, X2 for consultants and subs -- which starts Internal-only until published.
-    if (!clean.layer && !leadsMarkups(claims!.roleKey) && clean.kind !== 'scale' && f.projectId && isBaseArea(f.folderPath, (await this.fileRoom.buildSetOf?.(Number(f.projectId))?.catch(() => [])) || [])) {
-      const rows = await this.repo.find({ where: { fileId } });
-      const mine = rows.find((m) => m.authorId === claims!.sub && LAYER_CODE.test(String(m.layer || '')));
-      const outside = claims!.tier !== 'internal' && claims!.roleKey !== 'admin';
-      clean.layer = mine?.layer || nextLayerCode(rows.map((m) => m.layer), outside);
-      const id = `${fileId}|${layerKey({ layer: clean.layer })}`;
-      if (!mine && this.layerRepo && !(await this.layerRepo.findOneBy({ id }))) {
-        await this.layerRepo.save(this.layerRepo.create({ id, fileId, layerKey: layerKey({ layer: clean.layer }), audience: 'internal', people: [], updatedBy: claims!.name, updatedAt: now }));
+    // Nov 20/22 drawing sets: someone other than i-1 / i-2 marking up a base drawing draws on their own review
+    // layer -- named by them ("C-10 Electrical – Move power by Losi"), else I1 / X1 -- which starts Private:
+    // our team sees it, nobody else, until it's routed and approved.
+    if (!leadsMarkups(claims!.roleKey) && clean.kind !== 'scale' && f.projectId && isBaseArea(f.folderPath, (await this.fileRoom.buildSetOf?.(Number(f.projectId))?.catch(() => [])) || [])) {
+      if (!clean.layer) {
+        const rows = await this.repo.find({ where: { fileId } });
+        const mine = rows.find((m) => m.authorId === claims!.sub && LAYER_CODE.test(String(m.layer || '')));
+        const outside = claims!.tier !== 'internal' && claims!.roleKey !== 'admin';
+        clean.layer = mine?.layer || nextLayerCode(rows.map((m) => m.layer), outside);
+      }
+      const key = layerKey({ layer: clean.layer });
+      const id = `${fileId}|${key}`;
+      if (this.layerRepo && !(await this.layerRepo.findOneBy({ id }))) {
+        await this.layerRepo.save(this.layerRepo.create({ id, fileId, layerKey: key, audience: 'internal', people: [], state: 'private', stateBy: claims!.name, stateAt: now, updatedBy: claims!.name, updatedAt: now }));
       }
     }
     // One scale per page: the newest replaces any earlier one.

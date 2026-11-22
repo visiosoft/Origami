@@ -16,10 +16,24 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-22b',
+    date: '2026-11-22',
+    title: 'Drawing sets the way Edward drew them',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'The first upload of a drawing is Rev 0; each architect revision is Rev 1, Rev 2…; each publish of approved markups adds .01, .02 (Rev 0.01, Rev 1.02).', where: 'Plan & File Room → a drawing → Drawing set' },
+      { area: 'Drawings', kind: 'new', text: 'You name your own markup layer the first time you draw (e.g. “C-10 Electrical – Move power by Losi”). Layers go Private → Routed → Approved (our team or everyone), Hold or Rejected; the state shows in front of the name. Admins and principals “Modify” by making a copy, never editing your layer.', where: 'A drawing → Layers' },
+      { area: 'Drawings', kind: 'new', text: 'Opening a drawing set takes you to the approved revision with only approved layers on. Turning on any other layer shows a warning with “Back to approved set”. Admins and principals can still open any revision.', where: 'Plan & File Room → open a drawing' },
+      { area: 'Drawings', kind: 'new', text: 'Drawing log per revision: drawing date, what was published and approved, and the audit trail (RFIs, tasks, change orders linked to its markups). Printable.', where: 'A drawing → Drawing set → Drawing log' },
+      { area: 'Drawings', kind: 'new', text: 'Link a set waiting for city approval (e.g. structural) to the base drawing: it is marked “Pending city approval” and shows as a chip on the drawing.', where: 'A drawing → Drawing set → Pending city approval' },
+    ],
+  },
+  {
     id: '2026-11-22a',
     date: '2026-11-22',
     title: 'Tidier task panel',
     items: [
+      { area: 'Meetings', kind: 'new', text: 'Quo call notes come into Meetings: when Quo finishes its summary of a call, a “Call with …” meeting appears with the summary and next steps (turn them into tasks like any meeting’s), matched to the person and their project, or the lead, by phone number; the transcript follows. An admin connects it once.', where: 'Settings → Integrations → Text messages → Quo call notes' },
+      { area: 'People', kind: 'improved', text: 'A person’s panel has Text, Email and Call together in one row, in the same style; their recent emails are listed just below. Every phone number and Call button in Origami dials through Quo — on a phone it opens the Quo app; on a computer it uses Quo when the Quo desktop app is your calling app.', where: 'People → a person' },
       { area: 'Tasks', kind: 'improved', text: 'The top of a task is one tidy row: ✓ Complete task and More ▾ on the left; a saved dot, Save & close and ✕ (close without saving) on the right. Duplicate, Convert to, Merge duplicates and Delete task are under More ▾.', where: 'Any task → More ▾' },
     ],
   },

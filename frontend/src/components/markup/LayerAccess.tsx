@@ -3,7 +3,11 @@ import { api } from '../../api';
 
 export type LayerAudience = 'everyone' | 'internal' | 'people';
 export interface LayerPerson { type: 'user' | 'company'; id: string; name: string }
-export interface LayerRule { layerKey: string; audience: LayerAudience; people?: LayerPerson[] }
+export interface LayerRule { layerKey: string; audience: LayerAudience; people?: LayerPerson[]; state?: LayerState | null; stateBy?: string | null; stateAt?: string | null; copyOf?: string | null }
+/** Nov 22 (Edward p5-8): where a drawing-set review layer stands. */
+export type LayerState = 'private' | 'routed' | 'hold' | 'approved' | 'rejected' | 'modified';
+export const LAYER_STATE_LABEL: Record<LayerState, string> = { private: 'Private', routed: 'Routed', hold: 'Hold', approved: 'Approved', rejected: 'Rejected', modified: 'Modified Approved' };
+export const isPublishedState = (s?: string | null) => s === 'approved' || s === 'modified';
 
 /** The badge next to a restricted layer. */
 export function layerBadge(rule?: LayerRule): string {

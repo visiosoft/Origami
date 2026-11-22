@@ -1,5 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
-import { backfillPlan, canUploadBase, drawingHistory, isBaseArea, nextLayerCode, nextMinor, nextUploadRev, revLabel } from './drawing-sets';
+import { backfillPlan, canUploadBase, drawingHistory, drawingLogOf, mayMoveLayer, isBaseArea, nextLayerCode, nextMinor, nextUploadRev, revLabel } from './drawing-sets';
 import { DrawingSetsService, stampNotApproved } from './drawing-sets.service';
 import { MarkupsService } from './markups.service';
 
@@ -20,24 +20,28 @@ describe('drawing sets', () => {
     expect(canUploadBase(null, ['U-3'])).toBe(false);
   });
 
-  it('numbers revisions: the architect’s before the decimal, ours after it, up to .05', () => {
-    expect(revLabel(1, 0)).toBe('Rev 1.0');
+  it('numbers revisions: the original is Rev 0, the architect’s before the decimal, ours after it, up to .05 (Nov 22)', () => {
+    expect(revLabel(0, 0)).toBe('Rev 0');
+    expect(revLabel(0, 1)).toBe('Rev 0.01');
+    expect(revLabel(1, 0)).toBe('Rev 1');
     expect(revLabel(1, 2)).toBe('Rev 1.02');
     expect(revLabel(null, null)).toBe('');
-    expect(nextUploadRev([])).toEqual({ revMajor: 1, revMinor: 0 });
-    expect(nextUploadRev([{ id: 'a', revMajor: 1, revMinor: 0 }, { id: 'b', revMajor: 1, revMinor: 2 }])).toEqual({ revMajor: 2, revMinor: 0 });
-    expect(nextUploadRev([{ id: 'a' }, { id: 'b' }])).toEqual({ revMajor: 3, revMinor: 0 }); // two older, unnumbered
+    expect(nextUploadRev([])).toEqual({ revMajor: 0, revMinor: 0 });
+    expect(nextUploadRev([{ id: 'a', revMajor: 0, revMinor: 0 }, { id: 'b', revMajor: 0, revMinor: 1 }])).toEqual({ revMajor: 1, revMinor: 0 });
+    expect(nextUploadRev([{ id: 'a' }, { id: 'b' }])).toEqual({ revMajor: 2, revMinor: 0 }); // two older, unnumbered: Rev 0 and 1
     expect(nextMinor([{ id: 'a', revMajor: 1, revMinor: 0 }], 1)).toBe(1);
     expect(nextMinor([{ id: 'a', revMajor: 1, revMinor: 0 }, { id: 'b', revMajor: 1, revMinor: 4 }, { id: 'c', revMajor: 2, revMinor: 0 }], 1)).toBe(5);
     expect(() => nextMinor([{ id: 'a', revMajor: 1, revMinor: 5 }], 1)).toThrow(/architect’s next revision/);
   });
 
-  it('numbers drawings already in a set by date, leaving numbered ones alone', () => {
+  it('numbers drawings already in a set by date from Rev 0, and moves ones numbered from Rev 1 one lower', () => {
     const plan = backfillPlan([
       { id: 'a2', name: 'A1.pdf', groupId: 'G', updatedAt: '2026-11-10' }, { id: 'a1', name: 'A1.pdf', groupId: 'G', updatedAt: '2026-11-01' },
-      { id: 's', name: 'S1.pdf', updatedAt: '2026-11-05' }, { id: 'n', name: 'N.pdf', groupId: 'H', revMajor: 1, revMinor: 0 },
+      { id: 's', name: 'S1.pdf', updatedAt: '2026-11-05' },
+      { id: 'n1', name: 'N.pdf', groupId: 'H', revMajor: 1, revMinor: 0 }, { id: 'n2', name: 'N.pdf', groupId: 'H', revMajor: 1, revMinor: 1 },
+      { id: 'z', name: 'Z.pdf', groupId: 'Z', revMajor: 0, revMinor: 0 },
     ]);
-    expect(plan.map((p) => [p.id, p.rev])).toEqual([['a1', 'Rev 1.0'], ['a2', 'Rev 2.0'], ['s', 'Rev 1.0']]);
+    expect(plan.map((p) => [p.id, p.rev])).toEqual([['a1', 'Rev 0'], ['a2', 'Rev 1'], ['s', 'Rev 0'], ['n1', 'Rev 1 → Rev 0'], ['n2', 'Rev 1.01 → Rev 0.01']]);
   });
 
   it('gives review layers codes: I for our team, X for outside', () => {
@@ -56,7 +60,7 @@ describe('drawing sets', () => {
       shares: [{ fileId: 'F1', at: '2026-11-04T10:00:00Z', by: 'Astrid', to: 'kai@x.co' }],
     });
     expect(h.map((e) => e.kind)).toEqual(['share', 'rfi', 'layer', 'approve', 'upload']);
-    expect(h[2].text).toBe('Rev 1.0: started layer X1');
+    expect(h[2].text).toBe('Rev 1: started layer X1');
   });
 
   it('prints "not city-approved" across a published copy', async () => {
@@ -79,7 +83,7 @@ describe('drawing sets', () => {
       update: async (w: any, p: any) => files.filter((f) => f.id === w.id).forEach((f) => Object.assign(f, p)),
     };
     const marksRepo = { find: async (o?: any) => marks.filter((m) => !o?.where?.fileId || (typeof o.where.fileId === 'string' ? m.fileId === o.where.fileId : true)), create: (r: any) => r, save: async (r: any) => { marks.push(r); return r; }, findOneBy: async () => null, delete: async () => undefined };
-    const layerRepo = { find: async (o?: any) => layers.filter((l) => l.fileId === o?.where?.fileId), findOneBy: async (w: any) => layers.find((l) => l.id === w.id) || null, create: (r: any) => r, save: async (r: any) => { layers.push(r); return r; }, delete: async () => undefined };
+    const layerRepo = { find: async (o?: any) => layers.filter((l) => l.fileId === o?.where?.fileId), findOneBy: async (w: any) => layers.find((l) => l.id === w.id) || null, create: (r: any) => r, save: async (r: any) => { const i = layers.findIndex((l) => l.id === r.id); if (i >= 0) layers[i] = r; else layers.push(r); return r; }, delete: async () => undefined };
     const uploaded: any[] = [];
     const fileRoom = {
       buildSetOf: async () => buildSet,
@@ -108,12 +112,12 @@ describe('drawing sets', () => {
     expect(JSON.parse(store['fileRoom.baseUploaders'])).toEqual(['U-3']);
     await svc.assertBaseUpload(pm, 16, ['Architectural']);
     await expect(svc.setUploaders([], pm)).rejects.toThrow(/admin or principal/);
-    files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: false, revMajor: 1, revMinor: 0 });
+    files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: false, revMajor: 0, revMinor: 0 });
     const row = { id: 'F2', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: true };
     files.push(row);
     const [stamped] = await svc.stampUploads([row as any], { name: 'Edward' });
-    expect(stamped).toMatchObject({ revMajor: 2, revMinor: 0 });
-    expect(stamped.drawingLog![0].text).toBe('Rev 2.0 put in');
+    expect(stamped).toMatchObject({ revMajor: 1, revMinor: 0 });
+    expect(stamped.drawingLog![0].text).toBe('Rev 1 put in');
   });
 
   it('markups on a drawing set go on an Internal-only review layer: I1 for our team, X1 for a consultant; i-1 / i-2 draw freely', async () => {
@@ -130,6 +134,30 @@ describe('drawing sets', () => {
     await expect(markups.renameLayer('F1', { from: 'I1', to: 'Astrid' }, pm)).rejects.toThrow(/Review layers/);
   });
 
+  it('a typed layer name starts Private; the owner routes it; only i-1 / i-2 hold, approve or reject; Modify copies it back to the owner (Nov 22)', async () => {
+    const { markups, files, layers, marks } = setup();
+    files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: true });
+    const box = { kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.3, 0.3]] } };
+    await markups.create('F1', { ...box, layer: 'C-10 Electrical – Move power by Losi' }, kai);
+    const key = 'L:c-10 electrical – move power by losi';
+    expect(layers[0]).toMatchObject({ layerKey: key, audience: 'internal', state: 'private' });
+    await expect(markups.setLayerState('F1', key, { state: 'approved' }, kai)).rejects.toThrow(/Only its owner/);
+    await expect(markups.setLayerState('F1', key, { state: 'routed' }, pm)).rejects.toThrow(/Only its owner/);
+    expect(await markups.setLayerState('F1', key, { state: 'routed' }, kai)).toMatchObject({ state: 'routed', audience: 'internal' });
+    expect(await markups.setLayerState('F1', key, { state: 'private' }, kai)).toMatchObject({ state: 'private' });
+    expect(await markups.setLayerState('F1', key, { state: 'rejected' }, ed)).toMatchObject({ state: 'rejected', audience: 'people', people: [{ type: 'user', id: 'U-K', name: 'Kai' }] });
+    await expect(markups.setLayerAccess('F1', key, { audience: 'everyone' }, kai)).rejects.toThrow(/Review layers/);
+    expect(await markups.setLayerState('F1', key, { state: 'approved', audience: 'everyone' }, ed)).toMatchObject({ state: 'approved', audience: 'everyone' });
+    expect((await markups.layerAccess('F1')).find((r: any) => r.layerKey === key)).toMatchObject({ state: 'approved', audience: 'everyone' });
+    await expect(markups.duplicateLayer('F1', key, pm)).rejects.toThrow(/admin or principal/);
+    const copy = await markups.duplicateLayer('F1', key, ed);
+    expect(copy).toMatchObject({ layer: 'C-10 Electrical – Move power by Losi (Modified)', markups: 1 });
+    expect(marks.filter((m) => m.layer === copy.layer)).toHaveLength(1);
+    expect(marks.find((m) => m.layer === 'C-10 Electrical – Move power by Losi')).toMatchObject({ authorId: 'U-K' }); // the original is untouched
+    expect(layers.find((l) => l.layerKey === copy.layerKey)).toMatchObject({ state: 'modified', copyOf: key, audience: 'people', people: [{ id: 'U-K' }] });
+    expect(files[0].drawingLog.map((e: any) => e.kind)).toEqual(['layer-routed', 'layer-private', 'layer-rejected', 'layer-approved', 'layer-modified']);
+  });
+
   it('publishes chosen layers as the next revision after the decimal, approves one revision, and flags city approval', async () => {
     const { svc, markups, files, uploaded } = setup();
     files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: true, revMajor: 1, revMinor: 0 });
@@ -143,7 +171,7 @@ describe('drawing sets', () => {
     expect(neu).toMatchObject({ revMajor: 1, revMinor: 1, notCityApproved: true, cityNote: 'Structural, foundation only' });
     await svc.approve('F1', true, ed);
     let st = await svc.state(r.id);
-    expect(st).toMatchObject({ rev: 'Rev 1.01', isApproved: false, approved: { id: 'F1', rev: 'Rev 1.0', by: 'Edward' }, notCityApproved: true });
+    expect(st).toMatchObject({ rev: 'Rev 1.01', isApproved: false, approved: { id: 'F1', rev: 'Rev 1', by: 'Edward' }, notCityApproved: true });
     await svc.approve(r.id, true, ed);
     st = await svc.state('F1');
     expect(st.approved?.id).toBe(r.id);
@@ -157,10 +185,49 @@ describe('drawing sets', () => {
   it('numbers drawings already in sets only after a preview', async () => {
     const { svc, files } = setup();
     files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', updatedAt: '2026-11-01' }, { id: 'F2', projectId: 16, folderPath: ['Photos'], name: 'P.pdf' });
-    expect(await svc.backfill(null, false, ed)).toMatchObject({ count: 1, rows: [{ id: 'F1', rev: 'Rev 1.0' }] });
+    expect(await svc.backfill(null, false, ed)).toMatchObject({ count: 1, rows: [{ id: 'F1', rev: 'Rev 0' }] });
     expect(files[0].revMajor).toBeUndefined();
     await svc.backfill(null, true, ed);
-    expect(files[0]).toMatchObject({ revMajor: 1, revMinor: 0 });
+    expect(files[0]).toMatchObject({ revMajor: 0, revMinor: 0 });
     await expect(svc.backfill(null, true, pm)).rejects.toThrow(/admin/);
+  });
+
+  it('only the owner routes or takes back; i-1 / i-2 do the rest; Modified only by copying', () => {
+    expect(mayMoveLayer('routed', { lead: false, owner: true, from: 'private' })).toBe(true);
+    expect(mayMoveLayer('routed', { lead: false, owner: true, from: 'approved' })).toBe(false);
+    expect(mayMoveLayer('private', { lead: false, owner: true, from: 'routed' })).toBe(true);
+    expect(mayMoveLayer('approved', { lead: false, owner: true })).toBe(false);
+    expect(mayMoveLayer('routed', { lead: false, owner: false })).toBe(false);
+    expect(mayMoveLayer('hold', { lead: true, owner: false })).toBe(true);
+    expect(mayMoveLayer('modified', { lead: true, owner: false })).toBe(false);
+  });
+
+  it('writes the log Edward’s way: per revision, newest first, drawing date, markups, audit trail (Nov 22)', () => {
+    const log = drawingLogOf({
+      revisions: [
+        { id: 'R0', name: 'A1.pdf', revMajor: 0, revMinor: 0, uploadedBy: 'Astrid', updatedAt: '2026-07-13T17:00:00Z', drawingDate: '2026-05-11' },
+        { id: 'R1', name: 'A1.pdf', revMajor: 0, revMinor: 1, uploadedBy: 'Astrid', updatedAt: '2026-08-25T17:00:00Z', drawingLog: [{ at: '2026-08-25T17:00:00Z', by: 'Astrid', kind: 'publish', text: 'Rev 0.01 published from Rev 0 — layers x', items: ['Markup 1 – C-10 Electrical – Move power by Losi, approved 22 Aug 2026 by Edward'] }] },
+      ],
+      audit: [{ fileId: 'R1', at: '2026-09-01T00:00:00Z', text: 'RFI-004 “Panel location” · Answered' }],
+    });
+    expect(log.map((r) => r.rev)).toEqual(['Rev 0.01', 'Rev 0']);
+    expect(log[0]).toMatchObject({ heading: 'Rev 0.01: Published Aug 25, 2026 by Astrid', lines: ['Markup 1 – C-10 Electrical – Move power by Losi, approved 22 Aug 2026 by Edward'], audit: [{ text: 'RFI-004 “Panel location” · Answered' }] });
+    expect(log[1]).toMatchObject({ heading: 'Rev 0: Put in Jul 13, 2026 by Astrid', lines: ['Original drawing date May 11, 2026', 'File put in by Astrid on Jul 13, 2026'] });
+  });
+
+  it('sets the drawing date, links a pending city-approval set, and builds the log with the audit trail', async () => {
+    const { svc, files, marks } = setup();
+    files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: true, revMajor: 0, revMinor: 0, updatedAt: '2026-11-01T00:00:00Z', uploadedBy: 'Astrid' },
+      { id: 'S1', projectId: 16, folderPath: ['Structural'], name: 'S-Set.pdf' }, { id: 'X1', projectId: 99, folderPath: [], name: 'Other.pdf' });
+    await expect(svc.setDrawingDate('F1', '2026-05-11', pm)).rejects.toThrow(/admin or principal/);
+    expect(await svc.setDrawingDate('F1', '2026-05-11', ed)).toMatchObject({ drawingDate: '2026-05-11' });
+    await expect(svc.setPendingSets('F1', ['X1'], ed)).rejects.toThrow(/same project/);
+    expect(await svc.setPendingSets('F1', ['S1'], ed)).toMatchObject({ pendingSets: [{ id: 'S1', name: 'S-Set.pdf', cityNote: 'Pending city approval' }] });
+    expect(files.find((f) => f.id === 'S1')).toMatchObject({ notCityApproved: true });
+    marks.push({ id: 'MK1', fileId: 'F1', layer: 'X', linkType: 'rfi', linkId: 'RFI1', createdAt: '2026-11-02T00:00:00Z' });
+    (svc as any).data = { getRepository: () => ({ findOneBy: async (w: any) => (w.id === 'RFI1' ? { id: 'RFI1', number: 'RFI-004', subject: 'Panel location', status: 'Answered', updatedAt: '2026-11-03T00:00:00Z' } : null) }) };
+    const log = await svc.log('F1');
+    expect(log[0]).toMatchObject({ rev: 'Rev 0', drawingDate: '2026-05-11', audit: [{ text: 'RFI-004 “Panel location” · Answered' }] });
+    expect(log[0].lines[0]).toBe('Original drawing date May 11, 2026');
   });
 });

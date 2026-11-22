@@ -196,6 +196,7 @@ export function SmsSettings() {
         {saving ? 'Saving…' : 'Save SMS settings'}
       </div>
       {form['sms.provider'] === 'quo' && <QuoTasksPanel />}
+      {form['sms.provider'] === 'quo' && <QuoCallsPanel />}
     </div>
   );
 }
@@ -255,6 +256,49 @@ function QuoTasksPanel() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Nov 22: Quo's notes from calls -> Meetings. When Quo finishes its summary of
+ * a call, a "Call" meeting comes in with the summary and next steps (turned
+ * into tasks like any meeting's), matched to the person or lead by number;
+ * the transcript follows.
+ */
+function QuoCallsPanel() {
+  const { toast } = useApp();
+  const [st, setSt] = useState<Awaited<ReturnType<typeof api.quoCalls.status>> | null>(null);
+  const [busy, setBusy] = useState('');
+  const [callId, setCallId] = useState('');
+  useEffect(() => { api.quoCalls.status().then(setSt).catch(() => setSt(null)); }, []);
+  const run = async (what: string, fn: () => Promise<void>) => {
+    setBusy(what);
+    try { await fn(); } catch (e) { toast('⚠ ' + (e as Error).message); } finally { setBusy(''); }
+  };
+  if (!st) return null;
+  const pill = (primary: boolean, off = false) => ({ padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: off ? 'default' : 'pointer', background: primary ? 'var(--forest)' : 'var(--mist)', color: primary ? '#fff' : 'var(--forest)', opacity: off ? 0.55 : 1 } as const);
+  return (
+    <div style={{ ...card, marginTop: 16 }} aria-label="Quo call notes">
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 12 }}>Quo call notes → Meetings</div>
+      <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', lineHeight: 1.55, marginBottom: 12 }}>
+        When Quo finishes its summary of a call, the call comes into Meetings as “Call with …” — with the summary, the next steps (turn them into tasks like any meeting’s) and, a little later, the transcript.
+        It’s matched to the person (and their project) or lead by phone number. Quo’s call summaries must be on in Quo. Connect this on one system only (staging or live).
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        {st.connected
+          ? <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--c-1e6b36)' }}>✓ Receiving Quo call notes · {st.imported} call{st.imported === 1 ? '' : 's'} so far</span>
+          : <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Not connected</span>}
+        {!st.connected
+          ? <div role="button" onClick={() => !busy && void run('connect', async () => { setSt(await api.quoCalls.connect()); toast('Quo will now send its call notes here'); })} style={pill(true, !!busy)}>{busy === 'connect' ? 'Connecting…' : 'Connect Quo call notes'}</div>
+          : <div role="button" onClick={() => !busy && confirm('Stop receiving Quo call notes? Meetings already here stay.') && void run('disconnect', async () => { setSt(await api.quoCalls.disconnect()); })} style={pill(false, !!busy)}>Disconnect</div>}
+      </div>
+      {st.lastEvent && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 8 }}>Last: {st.lastEvent.type} · {st.lastEvent.action} · {new Date(st.lastEvent.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Bring in an earlier call:</span>
+        <input aria-label="Quo call id" value={callId} onChange={(e) => setCallId(e.target.value)} placeholder="Call id from Quo (AC…)" style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), .15)', fontSize: 12.5, fontFamily: 'inherit', width: 220 }} />
+        <div role="button" onClick={() => !busy && callId.trim() && void run('import', async () => { const r = await api.quoCalls.importCall(callId.trim()); toast(r.action === 'created' ? 'Call added to Meetings' : r.action === 'updated' ? 'Call updated in Meetings' : 'Nothing to bring in — no finished summary for that call'); setCallId(''); setSt(await api.quoCalls.status()); })} style={pill(false, !!busy || !callId.trim())}>{busy === 'import' ? 'Bringing in…' : 'Bring it in'}</div>
+      </div>
     </div>
   );
 }

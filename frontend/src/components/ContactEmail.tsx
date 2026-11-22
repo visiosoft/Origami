@@ -9,7 +9,7 @@ const when = (iso: string) => (iso ? new Date(iso).toLocaleDateString() : '');
  * in your own Gmail with their address, newest first, and an "Email" button
  * that starts one. Staff with My Mail connected; others see the button only.
  */
-export function ContactEmail({ email, name }: { email?: string | null; name?: string | null }) {
+export function ContactEmail({ email, name, hideButton }: { email?: string | null; name?: string | null; /** Nov 22: the Email button sits in the panel's action row instead. */ hideButton?: boolean }) {
   const navigate = useNavigate();
   const [st, setSt] = useState<{ connected: boolean; threads: MailThreadRow[] } | null>(null);
   const addr = String(email || '').trim();
@@ -20,8 +20,8 @@ export function ContactEmail({ email, name }: { email?: string | null; name?: st
   return (
     <section aria-label="Email with them" style={{ display: 'grid', gap: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', flex: 1 }}>Email</span>
-        <button type="button" onClick={() => navigate(`/mail?to=${encodeURIComponent(to)}`)} style={{ padding: '6px 14px', borderRadius: 999, border: 0, background: 'var(--forest)', color: '#fff', font: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Email</button>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', flex: 1 }}>{hideButton ? 'Recent emails' : 'Email'}</span>
+        {!hideButton && <button type="button" onClick={() => navigate(`/mail?to=${encodeURIComponent(to)}`)} style={{ padding: '6px 14px', borderRadius: 999, border: 0, background: 'var(--forest)', color: '#fff', font: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Email</button>}
       </div>
       {st && !st.connected && <div style={{ fontSize: 12, color: 'var(--muted)' }}>Connect your Gmail in My Mail to see your emails with them here.</div>}
       {st?.connected && !st.threads.length && <div style={{ fontSize: 12, color: 'var(--muted)' }}>No emails with them in your mailbox.</div>}

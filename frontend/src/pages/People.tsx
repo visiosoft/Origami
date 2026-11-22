@@ -1,5 +1,8 @@
 import { tradeLabel } from '../data/tradeCsi';
 import { ContactEmail } from '../components/ContactEmail';
+
+/** Text, Email and Call in a person's panel: one look (Nov 22). */
+const contactPill = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' } as const;
 import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -11,7 +14,7 @@ import { getTheme, useTheme } from '../theme';
 import { toCsv } from '../data/csv';
 import { SubContractorSummary } from '../components/Contractors';
 import { LoginCard } from '../components/StaffAccessCards';
-import { EmailLink, PhoneLink } from '../components/ContactLinks';
+import { EmailLink, PhoneLink, quoCallHref } from '../components/ContactLinks';
 import { SaveBar, useAutosave } from '../autosave';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
@@ -704,12 +707,25 @@ export function People() {
               </div>
               {contactStatusOf(sel) !== 'active' && <div style={{ fontSize: 12, color: 'var(--body)' }}>{sel.contactStatusReason || CONTACT_STATUS_HINT[contactStatusOf(sel)]}{sel.contactStatusAt ? ` · since ${new Date(sel.contactStatusAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</div>}
             </div>
-            {sel.phone && sel.phone !== '—' && (
-              <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-                <TextClient entityType="person" entityId={String(sel.id)} phone={sel.phone} clientName={sel.contact || sel.name} label="Text" />
+            {/* Nov 22: Text, Email and Call together in one row, the same style; recent emails below. */}
+            {((sel.phone && sel.phone !== '—') || (sel.email && sel.email !== '—')) && (
+              <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'grid', gap: 10 }}>
+                <div role="group" aria-label="Contact" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {sel.phone && sel.phone !== '—' && <TextClient entityType="person" entityId={String(sel.id)} phone={sel.phone} clientName={sel.contact || sel.name} label="Text" />}
+                  {sel.email && sel.email !== '—' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sel.email.trim()) && (
+                    <button type="button" onClick={() => { const n = sel.contact || sel.name; navigate(`/mail?to=${encodeURIComponent(n ? `${n} <${sel.email.trim()}>` : sel.email.trim())}`); }} style={contactPill}>
+                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>Email
+                    </button>
+                  )}
+                  {sel.phone && sel.phone !== '—' && (
+                    <a href={quoCallHref(sel.phone)} title="Call through Quo" style={{ ...contactPill, textDecoration: 'none' }}>
+                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>Call
+                    </a>
+                  )}
+                </div>
+                {sel.email && sel.email !== '—' && <ContactEmail email={sel.email} name={sel.contact || sel.name} hideButton />}
               </div>
             )}
-            {sel.email && sel.email !== '—' && <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}><ContactEmail email={sel.email} name={sel.contact || sel.name} /></div>}
             {!!(sel.businessCards?.front || sel.businessCards?.back) && (
               <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Business card</div>

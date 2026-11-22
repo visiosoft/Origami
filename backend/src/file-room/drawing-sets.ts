@@ -26,22 +26,23 @@ export function canUploadBase(claims: { sub?: string; roleKey?: string | null } 
 
 export const MAX_MINOR = 5;
 
-/** "Rev 1.0", "Rev 1.02". */
+/** "Rev 0", "Rev 0.01", "Rev 1", "Rev 1.02" (Nov 22: as Edward writes them). */
 export function revLabel(major?: number | null, minor?: number | null): string {
   if (major == null) return '';
-  return minor ? `Rev ${major}.${String(minor).padStart(2, '0')}` : `Rev ${major}.0`;
+  return minor ? `Rev ${major}.${String(minor).padStart(2, '0')}` : `Rev ${major}`;
 }
 
 type RevFile = { id: string; revMajor?: number | null; revMinor?: number | null; updatedAt?: string | null };
 
 /**
  * A new upload of a document already in the set is the architect's next
- * revision: one more before the decimal, 0 after. The first upload is Rev 1.0.
- * Older revisions with no number yet count by how many there are.
+ * revision: one more before the decimal, nothing after. Nov 22: the original
+ * is Rev 0 (Edward's "Base Dwg"), then Rev 1, Rev 2. Older revisions with no
+ * number yet count by how many there are.
  */
 export function nextUploadRev(others: RevFile[]): { revMajor: number; revMinor: number } {
   const majors = others.map((f) => f.revMajor).filter((n): n is number => n != null);
-  const top = majors.length ? Math.max(...majors) : others.length;
+  const top = majors.length ? Math.max(...majors) : others.length - 1;
   return { revMajor: top + 1, revMinor: 0 };
 }
 
@@ -55,7 +56,9 @@ export function nextMinor(group: RevFile[], major: number): number {
 
 /**
  * Numbers for drawings already in the set (a preview, then Apply): each
- * document's revisions by date, oldest Rev 1.0. Only documents with no number yet.
+ * document's revisions by date, oldest Rev 0. Documents with no number yet are
+ * numbered; documents numbered the earlier way (first one Rev 1, Nov 20) move
+ * one lower so they start at Rev 0.
  */
 export function backfillPlan<T extends RevFile & { groupId?: string | null; name: string; folderPath?: string[] | null }>(files: T[]): { id: string; name: string; rev: string; revMajor: number; revMinor: number }[] {
   const groups = new Map<string, T[]>();
@@ -65,9 +68,15 @@ export function backfillPlan<T extends RevFile & { groupId?: string | null; name
   }
   const out: { id: string; name: string; rev: string; revMajor: number; revMinor: number }[] = [];
   for (const g of groups.values()) {
-    if (g.some((f) => f.revMajor != null)) continue;
+    if (g.some((f) => f.revMajor != null)) {
+      const majors = g.map((f) => f.revMajor).filter((n): n is number => n != null);
+      if (Math.min(...majors) >= 1 && g.every((f) => f.revMajor != null)) {
+        for (const f of g) out.push({ id: f.id, name: f.name, rev: `${revLabel(f.revMajor, f.revMinor)} → ${revLabel(f.revMajor! - 1, f.revMinor)}`, revMajor: f.revMajor! - 1, revMinor: f.revMinor || 0 });
+      }
+      continue;
+    }
     g.sort((a, b) => String(a.updatedAt || '').localeCompare(String(b.updatedAt || '')));
-    g.forEach((f, i) => out.push({ id: f.id, name: f.name, rev: revLabel(i + 1, 0), revMajor: i + 1, revMinor: 0 }));
+    g.forEach((f, i) => out.push({ id: f.id, name: f.name, rev: revLabel(i, 0), revMajor: i, revMinor: 0 }));
   }
   return out;
 }
@@ -82,7 +91,7 @@ export function nextLayerCode(existing: (string | null | undefined)[], outside: 
   return `${prefix}${(used.length ? Math.max(...used) : 0) + 1}`;
 }
 
-export interface DrawingEvent { at: string; by: string; kind: string; text: string; layer?: string | null }
+export interface DrawingEvent { at: string; by: string; kind: string; text: string; layer?: string | null; items?: string[] }
 
 /** Append to a drawing's log, keeping the newest 300. */
 export function logEvent(log: DrawingEvent[] | null | undefined, e: DrawingEvent): DrawingEvent[] {
@@ -117,4 +126,66 @@ export function drawingHistory(input: {
   const seen = new Set<string>();
   return out.filter((e) => { const k = `${e.kind}|${e.text}|${e.at.slice(0, 16)}`; if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((a, b) => b.at.localeCompare(a.at));
+}
+
+// ---------------------------------------------------------------- review layer states (Nov 22, Edward p5-8)
+export const LAYER_STATES = ['private', 'routed', 'hold', 'approved', 'rejected', 'modified'] as const;
+export type LayerState = typeof LAYER_STATES[number];
+export const LAYER_STATE_LABEL: Record<LayerState, string> = { private: 'Private', routed: 'Routed', hold: 'Hold', approved: 'Approved', rejected: 'Rejected', modified: 'Modified Approved' };
+
+/**
+ * Who may move a layer to a state. Its owner asks to publish (Routed) or takes
+ * it back (Private); i-1 / i-2 do everything, including routing on the owner's
+ * behalf. A Modified Approved layer is only ever made by copying ("Modify").
+ */
+export function mayMoveLayer(to: string, o: { lead: boolean; owner: boolean; from?: string | null }): boolean {
+  if (!(LAYER_STATES as readonly string[]).includes(to) || to === 'modified') return false;
+  if (o.lead) return true;
+  if (!o.owner) return false;
+  if (to === 'routed') return !o.from || ['private', 'hold', 'rejected'].includes(o.from);
+  if (to === 'private') return o.from === 'routed';
+  return false;
+}
+
+/** Published layers: approved, or i-1 / i-2's modified copies. */
+export const isPublishedState = (s?: string | null) => s === 'approved' || s === 'modified';
+
+// ---------------------------------------------------------------- the drawing log, Edward's way (Nov 22, p6-7)
+const day = (iso?: string | null) => {
+  if (!iso) return '';
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso + 'T12:00:00Z' : iso);
+  return isNaN(+d) ? '' : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Los_Angeles' });
+};
+
+export interface LogRevision {
+  id: string; rev: string; heading: string; drawingDate: string | null;
+  lines: string[];
+  events: { at: string; by: string; text: string }[];
+  audit: { at: string; text: string }[];
+}
+
+/**
+ * The log per revision, newest first (Edward: "BaseDwgRev1.02: Published
+ * 29Sept2026 by Astrid · Revision 1 drawing date 23Sept2026 · Markup1 -
+ * Originated from C-10 Electrical, approved 22Aug2026 · Audit trail: …").
+ */
+export function drawingLogOf(input: {
+  revisions: { id: string; name: string; revMajor?: number | null; revMinor?: number | null; uploadedBy?: string | null; updatedAt?: string | null; drawingDate?: string | null; drawingLog?: DrawingEvent[] | null }[];
+  audit: { fileId: string; at: string; text: string }[];
+}): LogRevision[] {
+  const sorted = [...input.revisions].sort((a, b) => (b.revMajor ?? -1) - (a.revMajor ?? -1) || (b.revMinor ?? 0) - (a.revMinor ?? 0) || String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  return sorted.map((r) => {
+    const label = revLabel(r.revMajor, r.revMinor) || r.name;
+    const pub = (r.drawingLog || []).find((e) => e.kind === 'publish' && (e.items?.length || /published from/.test(e.text)));
+    const heading = `${r.revMajor == null ? r.name : `${label}`}: ${pub ? 'Published' : 'Put in'} ${day(pub?.at || r.updatedAt)} by ${pub?.by || r.uploadedBy || 'someone'}`;
+    const lines = [
+      r.drawingDate ? `${r.revMajor ? `Revision ${r.revMajor}` : 'Original'} drawing date ${day(r.drawingDate)}` : '',
+      ...(pub?.items || []),
+    ].filter(Boolean);
+    if (!pub && !r.revMinor) lines.push(`File put in by ${r.uploadedBy || 'someone'} on ${day(r.updatedAt)}`);
+    const events = (r.drawingLog || []).filter((e) => e.kind !== 'upload' && e !== pub).map((e) => ({ at: e.at, by: e.by, text: e.text }))
+      .sort((a, b) => b.at.localeCompare(a.at));
+    const audit = input.audit.filter((a) => a.fileId === r.id).sort((a, b) => b.at.localeCompare(a.at)).map(({ at, text }) => ({ at, text }));
+    return { id: r.id, rev: label, heading, drawingDate: r.drawingDate || null, lines, events, audit };
+  });
 }

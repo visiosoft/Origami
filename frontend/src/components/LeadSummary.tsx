@@ -1,3 +1,4 @@
+import { quoCallHref } from './ContactLinks';
 import { useNavigate } from 'react-router-dom';
 import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
 
@@ -51,7 +52,7 @@ export function LeadSummary({ lead }: { lead: Record<string, any> }) {
                 <div style={k}>{c.title || (c.id === 'C-primary' ? 'Primary contact' : 'Contact')}</div>
                 <div style={v}>{name || '—'}</div>
                 <div style={{ fontSize: 12.5, color: 'var(--body)', marginTop: 3, display: 'grid', gap: 2 }}>
-                  {c.phone && <a href={`tel:${c.phone}`} style={{ color: 'inherit' }}>{c.phone}</a>}
+                  {c.phone && <a href={quoCallHref(c.phone)} title="Call through Quo" style={{ color: 'inherit' }}>{c.phone}</a>}
                   {c.email && <a href={`mailto:${c.email}`} style={{ color: 'inherit', wordBreak: 'break-all' }}>{c.email}</a>}
                   {c.preferredContactMethod && <span style={{ color: 'var(--muted)' }}>Prefers {c.preferredContactMethod.toLowerCase()}</span>}
                 </div>

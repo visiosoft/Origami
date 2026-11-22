@@ -1048,6 +1048,9 @@ export const api = {
   fileRoom: {
     /** Nov 20 drawing sets: where a drawing stands, its history, publishing, approving, the city flag, who uploads base drawings. */
     drawing: (id: string) => request<import('./components/markup/DrawingSetPanel').DrawingState>(`/file-room/files/${encodeURIComponent(id)}/drawing`, { cache: 'no-store' } as any),
+    drawingLog: (id: string) => request<import('./components/markup/DrawingSetPanel').LogRevision[]>(`/file-room/files/${encodeURIComponent(id)}/log`, { cache: 'no-store' } as any),
+    setDrawingDate: (id: string, date: string | null) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/drawing-date`, { method: 'PUT', body: JSON.stringify({ date }) }),
+    setPendingSets: (id: string, ids: string[]) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/pending-sets`, { method: 'PUT', body: JSON.stringify({ ids }) }),
     drawingHistory: (id: string) => request<import('./components/markup/DrawingSetPanel').DrawingEvent[]>(`/file-room/files/${encodeURIComponent(id)}/history`, { cache: 'no-store' } as any),
     publishLayers: (id: string, layers: string[]) => request<{ id: string; rev: string; markups: number }>(`/file-room/files/${encodeURIComponent(id)}/publish`, { method: 'POST', body: JSON.stringify({ layers }) }),
     approveDrawing: (id: string, on: boolean) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/approve`, { method: 'POST', body: JSON.stringify({ on }) }),
@@ -1141,7 +1144,10 @@ export const api = {
     titleOcr: (image: string) => request<{ text: string }>('/file-room/title-ocr', { method: 'POST', body: JSON.stringify({ image }) }),
     setSheets: (id: string, names: Record<string, string>, replace = false) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { method: 'PUT', body: JSON.stringify({ names, replace }) }),
     /** Who sees each layer on a drawing (only restricted ones), and changing one (Oct 30 sync). */
-    layerAccess: (id: string) => request<{ layerKey: string; audience: 'everyone' | 'internal' | 'people'; people?: { type: 'user' | 'company'; id: string; name: string }[] }[]>(`/file-room/files/${encodeURIComponent(id)}/layer-access`, { cache: 'no-store' } as any),
+    /** Nov 22: a review layer's state, and "Modify" (copy) by i-1 / i-2. */
+    layerState: (id: string, layerKey: string, state: string, audience?: 'internal' | 'everyone') => request<{ layerKey: string; state: string; audience: 'everyone' | 'internal' | 'people'; people?: { type: 'user' | 'company'; id: string; name: string }[] }>(`/file-room/files/${encodeURIComponent(id)}/layers/state`, { method: 'POST', body: JSON.stringify({ layerKey, state, audience }) }),
+    duplicateLayer: (id: string, layerKey: string) => request<{ layer: string; layerKey: string; markups: number }>(`/file-room/files/${encodeURIComponent(id)}/layers/duplicate`, { method: 'POST', body: JSON.stringify({ layerKey }) }),
+    layerAccess: (id: string) => request<import('./components/markup/LayerAccess').LayerRule[]>(`/file-room/files/${encodeURIComponent(id)}/layer-access`, { cache: 'no-store' } as any),
     setLayerAccess: (id: string, layerKey: string, r: { audience: string; people: unknown[] }) => request<{ layerKey: string; audience: 'everyone' | 'internal' | 'people'; people?: { type: 'user' | 'company'; id: string; name: string }[] }>(`/file-room/files/${encodeURIComponent(id)}/layer-access`, { method: 'PUT', body: JSON.stringify({ layerKey, ...r }) }),
     renameLayer: (id: string, from: string | null, to: string, authorId?: string | null) => request<{ layer: string; updated: number }>(`/file-room/files/${encodeURIComponent(id)}/layers`, { method: 'PUT', body: JSON.stringify({ from, to, authorId }) }),
     addPinPhotos: (mid: string, files: File[] | FileList) => requestForm<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos`, filesForm(files)),
@@ -1517,6 +1523,13 @@ export const api = {
     disconnect: () => request<QuoTasksStatus>('/quo/tasks/disconnect', { method: 'POST' }),
     preview: () => request<{ open: number; toImport: { taskId: string; title: string; dueDate: string | null; createdAt: string | null; assignee: string | null; quoAssignee: string | null }[] }>('/quo/tasks/preview', { cache: 'no-store' } as any),
     importOpen: (taskIds?: string[]) => request<{ created: number; failed: { taskId: string; error: string }[] }>('/quo/tasks/import', { method: 'POST', body: JSON.stringify({ taskIds }) }),
+  },
+  /** Nov 22: Quo call summaries and transcripts -> Call meetings (administrators). */
+  quoCalls: {
+    status: () => request<{ connected: boolean; url: string; lastEvent: { at: string; type: string; callId: string; action: string } | null; imported: number }>('/quo/calls', { cache: 'no-store' } as any),
+    connect: () => request<{ connected: boolean; url: string; lastEvent: any; imported: number }>('/quo/calls/connect', { method: 'POST' }),
+    disconnect: () => request<{ connected: boolean; url: string; lastEvent: any; imported: number }>('/quo/calls/disconnect', { method: 'POST' }),
+    importCall: (callId: string) => request<{ action: string; meetingId?: string }>('/quo/calls/import', { method: 'POST', body: JSON.stringify({ callId }) }),
   },
   mail: {
     threads: (q = '', page = '', label = 'INBOX') => request<{ threads: MailThreadRow[]; nextPageToken: string | null }>(`/mail/threads?q=${encodeURIComponent(q)}&page=${encodeURIComponent(page)}&label=${encodeURIComponent(label)}`, { cache: 'no-store' } as any),

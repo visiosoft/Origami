@@ -46,13 +46,13 @@ export class QuoTasksService implements OnModuleInit {
     if (!k) throw new BadRequestException('Add the Quo API key first (Settings → Text messages).');
     return k;
   }
-  private async quo(path: string, init: RequestInit = {}) {
+  async quo(path: string, init: RequestInit = {}) {
     const res = await fetch(`${QUO_API}${path}`, { ...init, headers: { Authorization: await this.key(), 'Quo-Api-Version': QUO_VERSION, 'Content-Type': 'application/json', ...(init.headers || {}) } });
     const body: any = res.status === 204 ? {} : await res.json().catch(() => ({}));
     if (!res.ok) throw Object.assign(new BadRequestException(body?.message || `Quo answered ${res.status}.`), { quoStatus: res.status });
     return body;
   }
-  private async quoUser(id: string | null | undefined) {
+  async quoUser(id: string | null | undefined) {
     if (!id) return null;
     if (!this.quoUsers || Date.now() - this.quoUsers.at > 10 * 60_000) {
       const byId = new Map<string, { email: string; name: string }>();
@@ -67,7 +67,7 @@ export class QuoTasksService implements OnModuleInit {
     return this.quoUsers.byId.get(id) || null;
   }
   /** The ODIN user with the Quo user's email (main or other). */
-  private async odinUserFor(quoUserId: string | null | undefined) {
+  async odinUserFor(quoUserId: string | null | undefined) {
     const q = await this.quoUser(quoUserId);
     if (!q?.email) return null;
     const all = await this.users.find();

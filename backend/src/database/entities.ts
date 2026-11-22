@@ -1239,6 +1239,17 @@ export class MarkupLayerEntity {
   @Column({ type: 'simple-json', nullable: true }) people!: { type: 'user' | 'company'; id: string; name: string }[] | null;
   @Column({ type: 'nvarchar', length: 200, nullable: true }) updatedBy!: string | null;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+  /**
+   * Nov 22 drawing sets (Edward p5-8): where a review layer stands -- private |
+   * routed (asked to publish) | hold | approved | rejected | modified (Modified
+   * Approved: i-1 / i-2's copy of someone's layer, shared back to them). Null on
+   * layers outside drawing sets.
+   */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) state!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) stateBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) stateAt!: string | null;
+  /** A Modified Approved copy: the layer it was made from. */
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) copyOf!: string | null;
 }
 
 @Entity('pdf_markups')
@@ -1383,7 +1394,11 @@ export class FileRoomFileEntity {
   @Column({ type: 'bit', nullable: true }) notCityApproved!: boolean | null;
   @Column({ type: 'nvarchar', length: 300, nullable: true }) cityNote!: string | null;
   /** What happened to this drawing: uploads, publishes, approvals, flags (shown under the viewer). */
-  @Column({ type: 'simple-json', nullable: true }) drawingLog!: { at: string; by: string; kind: string; text: string; layer?: string | null }[] | null;
+  @Column({ type: 'simple-json', nullable: true }) drawingLog!: { at: string; by: string; kind: string; text: string; layer?: string | null; items?: string[] }[] | null;
+  /** Nov 22: the architect's date on the sheets ("Revision 1 drawing date 23 Sep 2026"), not the upload date. */
+  @Column({ type: 'nvarchar', length: 10, nullable: true }) drawingDate!: string | null;
+  /** Nov 22: pending city-approval sets linked to this base drawing (e.g. the structural set for early work). */
+  @Column({ type: 'simple-json', nullable: true }) pendingSetIds!: string[] | null;
 }
 
 /** A folder someone created that holds no files yet — otherwise it would vanish. */
