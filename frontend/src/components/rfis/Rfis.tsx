@@ -1,3 +1,6 @@
+import { SendRfiLog } from './SendRfiLog';
+import { createPortal } from 'react-dom';
+import { RfiCallouts } from './RfiCallouts';
 import { CsiSelect } from '../CsiSelect';
 import { CloseButton } from '../CloseButton';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -82,9 +85,22 @@ function StatusPill({ r }: { r: Rfi }) {
  * RFIs page). New RFIs start as a draft with just a subject; the drawer
  * takes it from there.
  */
+/** RFI drawings grouped by sheet page: each with its markups (Nov 19). */
+export function groupDrawings(list: { fileId: string; name: string; markupId?: string; page?: number }[]) {
+  const m = new Map<string, { key: string; fileId: string; name: string; page?: number; markupIds: string[] }>();
+  for (const d of list) {
+    const key = `${d.fileId}|${d.page || ''}`;
+    const g = m.get(key) || { key, fileId: d.fileId, name: d.name, page: d.page, markupIds: [] };
+    if (d.markupId && !g.markupIds.includes(d.markupId)) g.markupIds.push(d.markupId);
+    m.set(key, g);
+  }
+  return [...m.values()];
+}
+
 export function RfiLog({ projectId, projectName, openId, compact }: { projectId?: number; projectName?: string; openId?: string | null; compact?: boolean }) {
   const { toast } = useApp();
   const [rights, setRights] = useState<{ view: boolean; manage: boolean } | null>(null);
+  const [sendingLog, setSendingLog] = useState(false);
   // One page at a time, filtered and sorted on the server (with the counts for every RFI).
   const [data, setData] = useState<Awaited<ReturnType<typeof api.rfis.page>> | null>(null);
   const rows = (data?.rows || []) as Rfi[];
@@ -186,8 +202,10 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
           <option value="all">All</option>
           {(Object.keys(RFI_STATUS) as Rfi['status'][]).map((k) => <option key={k} value={k}>{RFI_STATUS[k].label}</option>)}
         </select>
+        {rights?.manage && !!projectId && <button type="button" onClick={() => setSendingLog(true)} style={btn()} title="Email this project's RFI Log as a PDF to the team and the people on the project">Send RFI Log</button>}
         {rights?.manage && <button type="button" onClick={() => setCreating(true)} style={btn(true)}>+ New RFI</button>}
       </div>
+      {sendingLog && !!projectId && <SendRfiLog projectId={projectId} projectName={projectName} onClose={() => setSendingLog(false)} />}
       {!compact && !loading && !!data?.any && (
         <div style={{ marginBottom: 14 }}><AkStats items={[
           { key: 'open', label: 'Awaiting an answer', value: counts.open, sub: 'sent, not answered', onClick: () => setStatus('open'), on: status === 'open' },
@@ -368,7 +386,8 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
   );
   const ro = !editable;
 
-  return (
+  // Portalled (Nov 17): inside the animated page a transformed ancestor clipped the fixed panel to the list.
+  return createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 820, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
         {editable && (
@@ -463,6 +482,9 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           <textarea readOnly={ro} value={draft.suggestion || ''} onChange={(e) => set({ suggestion: e.target.value })} rows={3} style={{ ...input, resize: 'vertical', lineHeight: 1.55 }} />
         </>)}
 
+        {/* Nov 17: the drawings and numbered callouts up top, so the reviewer knows where to look. */}
+        {rec.id && section('Drawings & callouts', <RfiCallouts rfi={{ id: rec.id, number: rec.number, status: rec.status }} drawings={draft.drawings || []} canManage={canManage} />)}
+
         {(rec.answer || rec.status === 'answered' || rec.status === 'closed') && section('Answer', <>
           <textarea readOnly={ro} value={draft.answer || ''} onChange={(e) => set({ answer: e.target.value })} rows={4} style={{ ...input, resize: 'vertical', lineHeight: 1.55, background: '#F4F8F4' }} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 10 }}>
@@ -483,10 +505,11 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           </div>
           <div style={{ ...lbl, marginTop: 12 }}>Drawings in the File Room</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
-            {(draft.drawings || []).map((d) => (
-              <span key={d.fileId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--mist)', fontSize: 12, fontWeight: 600 }}>
-                <a href={`/planroom?file=${encodeURIComponent(d.fileId)}${d.markupId ? `&markup=${encodeURIComponent(d.markupId)}` : ''}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--forest)', textDecoration: 'none' }}>{d.name}{d.page ? ` · p. ${d.page}` : ''}{d.markupId ? ' · markup' : ''}</a>
-                {!ro && <span onClick={() => set({ drawings: (draft.drawings || []).filter((x) => x.fileId !== d.fileId) })} style={{ cursor: 'pointer', color: MUTED }} title="Remove">×</span>}
+            {/* Nov 19 (Edward): one chip per sheet page, with how many markups are on it -- not one line per markup. */}
+            {groupDrawings(draft.drawings || []).map((g) => (
+              <span key={g.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--mist)', fontSize: 12, fontWeight: 600 }}>
+                <a href={`/planroom?file=${encodeURIComponent(g.fileId)}${g.markupIds[0] ? `&markup=${encodeURIComponent(g.markupIds[0])}` : ''}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--forest)', textDecoration: 'none' }}>{g.name}{g.page ? ` · p. ${g.page}` : ''}{g.markupIds.length ? ` · ${g.markupIds.length} markup${g.markupIds.length === 1 ? '' : 's'}` : ''}</a>
+                {!ro && <span onClick={() => set({ drawings: (draft.drawings || []).filter((x) => `${x.fileId}|${x.page || ''}` !== g.key) })} style={{ cursor: 'pointer', color: MUTED }} title="Remove">×</span>}
               </span>
             ))}
             {!(draft.drawings || []).length && <span style={{ fontSize: 12, color: 'var(--c-b5bdb8)' }}>None linked</span>}
@@ -597,7 +620,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
         ))}
       </div>
     </div>
-  );
+  , document.body);
 }
 
 // ------------------------------------------------------------------ from a task

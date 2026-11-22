@@ -91,6 +91,39 @@ export class CalendarService {
   }
 
   /**
+   * Nov 19: the connected company account's own calendar for a window --
+   * every event (cancelled ones too, so a cancellation reaches Origami), with
+   * guests and attached files. Read-only.
+   */
+  async companyEvents(timeMin: string, timeMax: string): Promise<any[]> {
+    return this.listEvents(await this.google.workspaceToken(), timeMin, timeMax, 'The connected Google account can’t read its calendar. Reconnect Google in Settings → Google so it grants calendar access.');
+  }
+
+  /** Nov 20: the same full read of one person's own calendar, with their own connection (Settings → My Calendar). */
+  async eventsAs(userId: string, refreshToken: string, timeMin: string, timeMax: string): Promise<any[]> {
+    return this.listEvents(await this.userToken(userId, refreshToken), timeMin, timeMax, 'Calendar connection needs reconnecting (Settings → My Calendar).');
+  }
+
+  private async listEvents(token: string, timeMin: string, timeMax: string, forbidden: string): Promise<any[]> {
+    const out: any[] = [];
+    let pageToken = '';
+    for (let page = 0; page < 10; page++) {
+      const params = new URLSearchParams({ timeMin, timeMax, singleEvents: 'true', showDeleted: 'true', maxResults: '250', supportsAttachments: 'true' });
+      if (pageToken) params.set('pageToken', pageToken);
+      const res = await fetch(`${EVENTS_URL}?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+      const body: any = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        this.log.error(`calendar events failed: ${JSON.stringify(body)}`);
+        throw new BadRequestException(res.status === 403 || res.status === 401 ? forbidden : body?.error?.message || 'Could not read the calendar.');
+      }
+      out.push(...(body.items || []));
+      pageToken = body.nextPageToken || '';
+      if (!pageToken) break;
+    }
+    return out;
+  }
+
+  /**
    * One person's own events for a window -- their real calendar, not a
    * busy/free strip. Read-only: this never writes anything to their calendar.
    */

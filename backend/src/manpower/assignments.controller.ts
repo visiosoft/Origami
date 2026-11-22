@@ -1,6 +1,6 @@
 import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Get, Headers, Param, Post, Put, Query, UseInterceptors } from '@nestjs/common';
-import { IsArray, IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { AuthService } from '../auth/auth.service';
 import { AssignmentsService } from './assignments.service';
@@ -10,6 +10,8 @@ export class AssignDto {
   @IsArray() employeeIds: string[];
   @IsNumber() projectId: number;
   @IsString() @IsOptional() workArea?: string;
+  /** Nov 17: who they report to on site (a user id); their daily report lists this crew. */
+  @IsString() @IsOptional() supervisorId?: string;
   @IsString() @IsOptional() startDate?: string;
   @IsString() @IsOptional() endDate?: string;
   @IsIn(['regular', 'temporary']) @IsOptional() assignmentType?: string;
@@ -20,6 +22,8 @@ export class AssignDto {
 export class TransferDto {
   @IsNumber() projectId: number;
   @IsString() @IsOptional() workArea?: string;
+  /** Nov 17: who they report to on site (a user id); their daily report lists this crew. */
+  @IsString() @IsOptional() supervisorId?: string;
   @IsString() @IsOptional() startDate?: string;
   @IsString() @IsOptional() designation?: string;
   @IsString() @IsOptional() notes?: string;
@@ -35,8 +39,15 @@ export class DemobilizeDto {
   @IsString() @IsOptional() notes?: string;
 }
 
+export class SetSupervisorDto {
+  @IsArray() @ArrayMaxSize(500) @IsString({ each: true }) ids!: string[];
+  @IsString() @IsOptional() supervisorId?: string | null;
+}
+
 export class UpdateAssignmentDto {
   @IsString() @IsOptional() workArea?: string;
+  /** Nov 17: who they report to on site (a user id); their daily report lists this crew. */
+  @IsString() @IsOptional() supervisorId?: string;
   @IsString() @IsOptional() designation?: string;
   @IsString() @IsOptional() endDate?: string;
   @IsString() @IsOptional() notes?: string;
@@ -65,6 +76,12 @@ export class AssignmentsController {
   @Post()
   async assign(@Body() dto: AssignDto, @Headers('authorization') auth?: string) {
     return this.service.assign(dto, await this.auth.actor(auth));
+  }
+
+  /** Nov 17 (Site crews): put several workers under one supervisor at once ('' = no one). Before :id. */
+  @Put('supervisor')
+  setSupervisor(@Body() dto: SetSupervisorDto) {
+    return this.service.setSupervisor(dto.ids || [], dto.supervisorId || null);
   }
 
   @Put(':id')

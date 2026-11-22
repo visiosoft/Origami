@@ -1,3 +1,4 @@
+import { todayISO } from './localDate';
 // The Project Program form, one wizard step per sheet of FORM - PROJECT PROGRAM.xlsx.
 //
 // The office fills this in early on every job: it is what the "Project Program
@@ -678,7 +679,7 @@ export function buildPrefill(project: any, lead: any): ProgramData {
       'main.projectTitle': first(project?.name),
       'main.projectScope': scope,
       'main.projectLocation': location,
-      'main.date': new Date().toISOString().slice(0, 10),
+      'main.date': todayISO(),
       'main.contactName': contact,
       'main.phone': first(lead?.phone),
       'main.address': fullAddress,

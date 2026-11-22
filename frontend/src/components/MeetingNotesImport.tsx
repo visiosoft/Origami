@@ -16,21 +16,30 @@ interface Row {
  * (each next step: who, what, when). Every row can be changed, retyped or left
  * out before it's added; each records the meeting it came from.
  */
-export function MeetingNotesImport({ meeting, text, onClose, onAdded }: {
-  meeting: { id: string; title: string; date: string };
+/** Same item, ignoring case, spacing and punctuation (the server checks the same way). */
+const norm = (s: string) => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+export function MeetingNotesImport({ meeting, text, existing = [], projects = [], onClose, onAdded }: {
+  meeting: { id: string; title: string; date: string; project?: string; projectId?: number | null };
   text: string;
+  /** Nov 20: what's already been raised from this meeting -- by anyone -- so it isn't raised twice. */
+  existing?: { subject?: string; assignedTo?: string | null }[];
+  projects?: { id: number; name: string }[];
   onClose: () => void;
   onAdded: (made: any[]) => void;
 }) {
   const { users, toast } = useApp();
+  const already = useMemo(() => new Map(existing.filter((t) => t.subject).map((t) => [norm(t.subject!), t] as const)), [existing]);
+  // Nov 20: a meeting with no project files its items under the one picked here, not "General".
+  const [projectId, setProjectId] = useState<number | null>(meeting.projectId ?? null);
   const people = useMemo(() => users.filter((u) => u.status !== 'suspended'), [users]);
   const parsed = useMemo(() => parseMeetingNotes(text, meeting.date), [text, meeting.date]);
   const [rows, setRows] = useState<Row[]>(() => [
-    ...parsed.records.map((r, i): Row => ({ key: 'r' + i, on: true, kind: r.kind || 'Observation', subject: r.title, description: r.description, assigneeId: '', others: [], dueDate: '', priority: '', tags: [] })),
+    ...parsed.records.map((r, i): Row => ({ key: 'r' + i, on: !already.has(norm(r.title)), kind: r.kind || 'Observation', subject: r.title, description: r.description, assigneeId: '', others: [], dueDate: '', priority: '', tags: [] })),
     ...parsed.tasks.map((t, i): Row => {
       const { matched, unmatched } = matchPeople(t.names, people);
       return {
-        key: 't' + i, on: true, kind: 'Task', subject: t.title, description: t.description, assigneeId: matched[0]?.id || '',
+        key: 't' + i, on: !already.has(norm(t.title)), kind: 'Task', subject: t.title, description: t.description, assigneeId: matched[0]?.id || '',
         others: [...matched.slice(1).map((p) => p.name), ...unmatched], dueDate: t.dueDate || '', priority: t.priority || '', tags: [],
       };
     }),
@@ -46,14 +55,20 @@ export function MeetingNotesImport({ meeting, text, onClose, onAdded }: {
       for (const r of picked) {
         const u = people.find((p) => p.id === r.assigneeId);
         const also = r.others.length ? `\n\nAlso named: ${r.others.join(', ')}.` : '';
+        // Others named who are people here follow the task as collaborators, so it shows under their "Mine".
+        const collaborators = r.others.map((n) => people.find((p) => p.name.toLowerCase() === n.toLowerCase())).filter((p): p is NonNullable<typeof p> => !!p && p.id !== u?.id).map((p) => ({ id: p.id, name: p.name }));
+        const proj = !meeting.project && projectId ? projects.find((p) => p.id === projectId) : null;
         made.push(await api.meetings.addAction(meeting.id, {
           topicType: r.kind, subject: r.subject.trim().slice(0, 300), description: (r.description.trim() + also).trim() || undefined,
           assignedTo: u?.name, assignedToId: u?.id, dueDate: r.kind === 'Task' ? r.dueDate || undefined : undefined,
           priority: r.kind === 'Task' && !r.dueDate ? (r.priority || 'High') : r.priority || undefined,
           tags: r.tags.length ? r.tags : undefined,
+          collaborators: collaborators.length ? collaborators : undefined,
+          ...(proj ? { project: proj.name, projectId: proj.id } : {}),
         }));
       }
-      toast(`${made.length} item${made.length === 1 ? '' : 's'} added from the notes`);
+      const dup = made.filter((m) => m?.duplicate).length;
+      toast(`${made.length - dup} item${made.length - dup === 1 ? '' : 's'} added from the notes${dup ? ` · ${dup} already there` : ''}`);
       onAdded(made);
       onClose();
     } catch (e) {
@@ -88,6 +103,7 @@ export function MeetingNotesImport({ meeting, text, onClose, onAdded }: {
               {r.kind === 'Task' && <input type="date" value={r.dueDate} onChange={(e) => patch(r.key, { dueDate: e.target.value })} aria-label="Due date" />}
               {r.kind === 'Task' && !r.dueDate && <span className="mt-muted" style={{ fontSize: 11.5 }}>No date in the notes — comes in as High priority</span>}
               {r.others.length > 0 && <span className="mt-muted" style={{ fontSize: 11.5 }}>Also named: {r.others.join(', ')}</span>}
+              {already.has(norm(r.subject)) && <span style={{ fontSize: 11.5, fontWeight: 700, color: '#2F6B3A' }}>Already raised{already.get(norm(r.subject))?.assignedTo ? ` · ${already.get(norm(r.subject))?.assignedTo}` : ''}</span>}
             </div>
             <TagPicker compact tags={r.tags} onChange={(tags) => patch(r.key, { tags })} />
           </div>
@@ -106,6 +122,17 @@ export function MeetingNotesImport({ meeting, text, onClose, onAdded }: {
         <p className="mt-muted" style={{ margin: 0 }}>
           Read from the notes of “{meeting.title}”. Check each one, change what’s wrong, untick what you don’t want. Every item notes that it came from this meeting.
         </p>
+        {!meeting.project && projects.length > 0 && (
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5 }}>
+            <b>Project</b>
+            <select aria-label="Project for these items" value={projectId ?? ''} onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">No project (General)</option>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <span className="mt-muted" style={{ fontSize: 11.5 }}>This meeting has no project — pick one so its items land there, not under General.</span>
+          </label>
+        )}
+        {existing.length > 0 && <div className="mt-muted" style={{ fontSize: 12 }}>{existing.length} item{existing.length === 1 ? ' was' : 's were'} already raised from this meeting; those are unticked so nobody adds them twice.</div>}
         <div style={{ display: 'grid', gap: 18, overflowY: 'auto' }}>
           {section('FOR RECORD', rows.filter((r) => r.key.startsWith('r')), 'each summary bullet, under its heading')}
           {section('Tasks', rows.filter((r) => r.key.startsWith('t')), 'from “Next steps”')}

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, Param, Post, Put, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Optional, Param, Post, Put, Req, Res } from '@nestjs/common';
+import { ProjectAccessService } from './project-access.service';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, SetPasswordDto, ForgotPasswordDto, NotificationPrefsDto } from './dto/auth.dto';
@@ -9,7 +10,7 @@ import { Roles } from './guards/roles.decorator';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly auth: AuthService, @Optional() private readonly access?: ProjectAccessService) {}
 
   @Public()
   @Post('login')
@@ -140,8 +141,11 @@ export class AuthController {
 
   @AnySignedIn()
   @Get('me')
-  me(@Headers('authorization') authorization?: string) {
-    return this.auth.me(authorization);
+  async me(@Headers('authorization') authorization?: string) {
+    const me: any = await this.auth.me(authorization);
+    // Viewing as (Nov 17): say whether they see every project or only their own, so the banner can explain.
+    if (me?.viewedBy && this.access) me.projectScope = await this.access.projectScope(await this.auth.verify(authorization));
+    return me;
   }
 
   /** The caller's own notification preferences. */

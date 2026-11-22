@@ -20,4 +20,13 @@ export class BidPublicController {
   submit(@Body() body: { token: string; decline?: boolean; total?: number | string | null; lineAmounts?: Record<string, unknown>; notes?: string }) {
     return this.bids.publicSubmit(body?.token, body || {});
   }
+
+  /** Nov 19: the sub asks a question (answered to them only), or says they'll come to the site visit. */
+  @Public()
+  @Post('question')
+  ask(@Body() body: { token: string; text: string }) { return this.bids.publicAsk(body?.token, body?.text); }
+
+  @Public()
+  @Post('attend')
+  attend(@Body() body: { token: string; attending: boolean }) { return this.bids.publicAttend(body?.token, !!body?.attending); }
 }

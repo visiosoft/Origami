@@ -432,9 +432,9 @@ function BackupSheetsPanel() {
 }
 
 /**
- * Weekly database copy (Batch 6): every table as JSON in one zip, secrets
- * left out, in the admin-only "Origami System Backups" Drive folder; the last
- * 8 are kept.
+ * Database copy (Batch 6, nightly since Nov 19): every table as JSON in one
+ * zip, secrets left out, in the admin-only "Origami System Backups" Drive
+ * folder (one subfolder per environment). Each copy is read back and checked.
  */
 function DatabaseCopyPanel() {
   const { toast, authUser } = useApp();
@@ -445,7 +445,7 @@ function DatabaseCopyPanel() {
   if (!isAdmin || !st) return null;
   const run = async () => {
     setBusy(true);
-    try { const r = await api.backup.runDatabase(); toast(`Database copy saved — ${r.tables} tables, ${(r.bytes / 1048576).toFixed(1)} MB`); setSt(await api.backup.database()); }
+    try { const r = await api.backup.runDatabase(); toast(r.verified === false ? '⚠ Copy saved but it failed its check — see below' : `Database copy saved and checked — ${r.tables} tables, ${(r.bytes / 1048576).toFixed(1)} MB`); setSt(await api.backup.database()); }
     catch (e) { toast('⚠ ' + (e as Error).message); setSt(await api.backup.database().catch(() => st)); }
     finally { setBusy(false); }
   };
@@ -454,21 +454,24 @@ function DatabaseCopyPanel() {
     try { setSt(await api.backup.setDatabase(!st.enabled)); } catch (e) { toast('⚠ ' + (e as Error).message); } finally { setBusy(false); }
   };
   const r = st.lastResult;
+  const keep = typeof st.keep === 'number' ? { daily: st.keep, weekly: 0, monthly: 0 } : st.keep;
   return (
     <div style={card} aria-label="Database copy">
       <SectionTitle>Database copy</SectionTitle>
       <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginBottom: 12, lineHeight: 1.55 }}>
-        Every Sunday at 3am, a copy of the whole database — every table as a JSON file, in one zip — goes to the Drive folder “{st.folder}”. The last {st.keep} are kept. Passwords, sign-in secrets and tokens are left out. The folder isn’t inside the File Room and isn’t shared; keep it to administrators in Drive.
+        {st.schedule || 'Every night at 3am'}, a copy of the whole database — every table as a JSON file, in one zip — goes to the Drive folder “{st.folder}”. Each copy is read back and checked. Kept: the last {keep.daily} nights, {keep.weekly} Sundays and {keep.monthly} month-starts (about a year); older ones go to Drive’s Trash. Admins are emailed if a copy fails or none is made for 36 hours.
+        <br />Passwords, sign-in secrets and tokens are left out. Uploaded files aren’t in the zip — they stay in Drive, and each copy lists where every file is. The folder isn’t inside the File Room and isn’t shared; keep it to administrators in Drive.
+        <br /><b>To restore:</b> each table’s JSON is loaded back by a developer into an empty database of the same version.
       </div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
-          <input type="checkbox" checked={st.enabled} disabled={busy} onChange={() => void toggle()} /> Every week
+          <input type="checkbox" checked={st.enabled} disabled={busy} onChange={() => void toggle()} /> Every night
         </label>
         <div onClick={() => !busy && void run()} role="button" aria-disabled={busy}
-          style={{ padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', background: 'var(--mist)', color: 'var(--forest)', opacity: busy ? 0.6 : 1 }}>{busy ? 'Copying…' : 'Back up now'}</div>
+          style={{ padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', background: 'var(--mist)', color: 'var(--forest)', opacity: busy ? 0.6 : 1 }}>{busy ? 'Copying and checking…' : 'Make a copy now'}</div>
         <span style={{ fontSize: 12, color: r && !r.ok ? '#8E2E0A' : 'var(--muted)' }}>
           {!r ? 'No copy yet' : r.ok
-            ? <>Last copy {new Date(r.at).toLocaleString()} — {r.tables} tables, {((r.bytes || 0) / 1048576).toFixed(1)} MB{r.link ? <> · <a href={r.link} target="_blank" rel="noreferrer" style={{ color: 'var(--forest)', fontWeight: 700 }}>Open in Drive</a></> : null}</>
+            ? <>Last copy {new Date(r.at).toLocaleString()} — {r.tables} tables, {(r.rows || 0).toLocaleString()} rows, {((r.bytes || 0) / 1048576).toFixed(1)} MB · {r.verified === false ? <b style={{ color: '#8E2E0A' }}>⚠ Problem: {(r.problems || []).slice(0, 3).join('; ')}</b> : r.verified ? <b style={{ color: 'var(--success-deep)' }}>✓ Checked</b> : 'not checked'}{r.link ? <> · <a href={r.link} target="_blank" rel="noreferrer" style={{ color: 'var(--forest)', fontWeight: 700 }}>Open in Drive</a></> : null}</>
             : `Last try ${new Date(r.at).toLocaleString()} failed: ${r.error}`}
         </span>
       </div>

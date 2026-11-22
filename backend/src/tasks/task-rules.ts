@@ -6,7 +6,10 @@
  * - putting a task on hold needs a reason (Oct 27 backlog: "On Hold = blocked, reason required").
  */
 
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+import { localToday } from '../common/local-date';
+
+/** The company's day (Nov 17: not UTC). */
+export const todayISO = () => localToday();
 
 /** A start date on or before today, on an assigned task that hasn't started: time to start it. */
 export function startDue(startDate: string | null | undefined, assigned: boolean, today = todayISO()) {
@@ -34,4 +37,29 @@ export function holdReasonMissing(before: { status?: string | null; holdReason?:
   if (!isHold(next)) return false;
   const reason = 'holdReason' in patch ? patch.holdReason : before.holdReason;
   return !String(reason ?? '').trim();
+}
+
+export const NEEDS_DUE_REASON = 'This task is overdue: say why the due date is changing (e.g. client hold) before moving or clearing it.';
+
+/**
+ * Nov 17 sync (Astrid): an overdue task's due date can still be moved or
+ * cleared, but only with a reason -- client hold, waiting on others -- so the
+ * compliance record shows why. `open` is false for finished or closed tasks.
+ */
+export function dueChangeReasonMissing(
+  before: { dueDate?: string | null },
+  patch: { dueDate?: string | null; dueReason?: string | null },
+  open: boolean,
+  today = todayISO(),
+) {
+  if (!open || !('dueDate' in patch)) return false;
+  const was = String(before.dueDate || '').slice(0, 10);
+  const next = String(patch.dueDate || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(was) || was >= today || next === was) return false;
+  return !String(patch.dueReason || '').trim();
+}
+
+/** The history line for a due date moved with a reason. */
+export function dueChangeNote(was: string | null | undefined, next: string | null | undefined, reason: string) {
+  return `Due date ${was ? String(was).slice(0, 10) : 'none'} → ${next ? String(next).slice(0, 10) : 'none'}. Reason: ${reason.trim().slice(0, 500)}`;
 }

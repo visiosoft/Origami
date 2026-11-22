@@ -1,3 +1,4 @@
+import { HelpPolicies } from './HelpPolicies';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
@@ -178,6 +179,7 @@ export function HelpBoard() {
           </section>
 
           <div className="hb-side">
+            <HelpPolicies />
             <section className="hb-card">
               <h2>Get help</h2>
               <span className="hb-sub">Your Origami team reads every ticket</span>

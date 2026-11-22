@@ -104,7 +104,7 @@ describe('K8: the estimate letter', () => {
     expect(out.to).toBe('kai@example.test');
     expect(mails[0].attachments).toBeUndefined();
     expect(mails[0].html).toContain('/sign-estimate?token=');
-    expect(mails[0].html).toContain('Review and accept the estimate');
+    expect(mails[0].html).toContain('Review it in your portal');
     expect(e.sentById).toBe('U1');
   });
 

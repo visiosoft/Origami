@@ -15,6 +15,7 @@ import { queryLog, type Scope } from './task-query';
 import { internalOnly } from '../database/task.types';
 import { Perm } from '../auth/guards/perm.guard';
 import type { SessionClaims } from '../auth/crypto.util';
+import { Claims } from '../auth/guards/claims.decorator';
 import { ProjectAccessService } from '../auth/project-access.service';
 
 @Perm('tasks', 'observations', 'meetings')
@@ -134,8 +135,9 @@ export class TasksController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateTaskDto, @Headers('authorization') auth?: string) {
-    return this.tasksService.update(id, dto, await this.auth.actor(auth));
+  async update(@Param('id') id: string, @Body() dto: UpdateTaskDto, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
+    // The role rides along so only i-1 / i-2 change who a task is for (Nov 20).
+    return this.tasksService.update(id, dto, { ...(await this.auth.actor(auth)), roleKey: claims?.roleKey } as any);
   }
 
   /** Save pressed in the task editor: send the emails held on the entry. */

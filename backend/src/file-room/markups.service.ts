@@ -8,6 +8,8 @@ import { randomUUID } from 'crypto';
 import { FileRoomFileEntity, MarkupLayerEntity, MarkupSymbolEntity, PdfMarkupEntity, PersonEntity } from '../database/entities';
 import type { SessionClaims } from '../auth/crypto.util';
 import { FileRoomService } from './file-room.service';
+import { STARTER_SYMBOLS } from '../seed-data/markup-symbols';
+import { isBaseArea, LAYER_CODE, nextLayerCode } from './drawing-sets';
 import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, cleanSymbolImage, cleanSymbolName, isMarkable, isPhotoName, leadsMarkups, photoToPdf, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, cleanLayerRule, visibleWithLayers, type LayerAudience, type LayerRule, type LayerViewer, type MarkupData } from './markups';
 
 /** Where photos pinned to a drawing are kept in the project's File Room. */
@@ -62,6 +64,8 @@ export class MarkupsService {
     const rows = (await this.list(fileId, claims)).filter((m) => layerKey(m) === key);
     if (!rows.length) throw new NotFoundException('That layer has no markups.');
     if (!leadsMarkups(claims!.roleKey) && !rows.some((m) => m.authorId === claims!.sub)) throw new ForbiddenException('Only someone with markups on this layer (or an admin or principal) can change who sees it.');
+    // Nov 20: a drawing-set review layer (I1, X1…) is made visible only by i-1 / i-2, once reviewed.
+    if (!leadsMarkups(claims!.roleKey) && LAYER_CODE.test(key.replace(/^L:/, '').toUpperCase())) throw new ForbiddenException('Review layers (I1, X1…) are shown to others by an admin or principal once they’ve been reviewed.');
     let rule;
     try { rule = cleanLayerRule(raw); } catch (e) { throw new BadRequestException((e as Error).message); }
     const id = `${fileId}|${key}`;
@@ -96,6 +100,24 @@ export class MarkupsService {
     await this.symbolRepo!.save(row);
     return { id: row.id, name: row.name, image: row.image };
   }
+  /** Nov 20: the starter symbols not yet in the library (matched by name). */
+  async starterPlan(claims: SessionClaims | null) {
+    this.assertSymbolAdmin(claims);
+    const have = new Set((await this.symbolRepo!.find()).map((s) => s.name.trim().toLowerCase()));
+    const add = STARTER_SYMBOLS.filter((s) => !have.has(s.name.toLowerCase()));
+    return { total: STARTER_SYMBOLS.length, toAdd: add.map(({ group, name, image }) => ({ group, name, image })), already: STARTER_SYMBOLS.length - add.length };
+  }
+  /** Add them (after the preview); ones already there by name are left alone. */
+  async addStarter(claims: SessionClaims | null) {
+    const { toAdd } = await this.starterPlan(claims);
+    let n = (await this.symbolRepo!.find()).length;
+    const at = new Date().toISOString();
+    for (const s of toAdd) {
+      await this.symbolRepo!.save(this.symbolRepo!.create({ id: 'SYM-' + randomUUID(), name: cleanSymbolName(s.name), image: cleanSymbolImage(s.image), sortOrder: n++, createdBy: claims!.name, createdAt: at }));
+    }
+    return { added: toAdd.length, symbols: await this.symbols() };
+  }
+
   /** Deleting a symbol leaves the ones already placed as a labelled box. */
   async removeSymbol(id: string, claims: SessionClaims | null) {
     this.assertSymbolAdmin(claims);
@@ -141,13 +163,29 @@ export class MarkupsService {
     try { clean = cleanMarkup(raw); } catch (e) { throw new BadRequestException((e as Error).message); }
     await this.assertLinkTarget(f, clean.data);
     const now = new Date().toISOString();
+    // Nov 20 drawing sets: someone other than i-1 / i-2 marking up a base drawing draws on their own review
+    // layer -- I1, I2 for our team, X1, X2 for consultants and subs -- which starts Internal-only until published.
+    if (!clean.layer && !leadsMarkups(claims!.roleKey) && clean.kind !== 'scale' && f.projectId && isBaseArea(f.folderPath, (await this.fileRoom.buildSetOf?.(Number(f.projectId))?.catch(() => [])) || [])) {
+      const rows = await this.repo.find({ where: { fileId } });
+      const mine = rows.find((m) => m.authorId === claims!.sub && LAYER_CODE.test(String(m.layer || '')));
+      const outside = claims!.tier !== 'internal' && claims!.roleKey !== 'admin';
+      clean.layer = mine?.layer || nextLayerCode(rows.map((m) => m.layer), outside);
+      const id = `${fileId}|${layerKey({ layer: clean.layer })}`;
+      if (!mine && this.layerRepo && !(await this.layerRepo.findOneBy({ id }))) {
+        await this.layerRepo.save(this.layerRepo.create({ id, fileId, layerKey: layerKey({ layer: clean.layer }), audience: 'internal', people: [], updatedBy: claims!.name, updatedAt: now }));
+      }
+    }
     // One scale per page: the newest replaces any earlier one.
     if (clean.kind === 'scale') {
       for (const old of (await this.repo.find({ where: { fileId, page: clean.page, kind: 'scale' } }))) await this.repo.delete({ id: old.id });
     }
     return this.repo.save(this.repo.create({
       id: 'MK-' + randomUUID(), fileId, page: clean.page, kind: clean.kind, data: clean.data as any, private: clean.private, layer: clean.layer,
-      authorId: claims!.sub, authorName: claims!.name || 'Someone', linkType: null, linkId: null, createdAt: now, updatedAt: now,
+      authorId: claims!.sub, authorName: claims!.name || 'Someone',
+      // Nov 17: drawn for an RFI (its draft layer) -- linked to it from the start.
+      linkType: (raw as any)?.linkType === 'rfi' && (raw as any)?.linkId ? 'rfi' : null,
+      linkId: (raw as any)?.linkType === 'rfi' && (raw as any)?.linkId ? String((raw as any).linkId).slice(0, 80) : null,
+      createdAt: now, updatedAt: now,
     }));
   }
 
@@ -197,6 +235,7 @@ export class MarkupsService {
     const to = cleanLayer(raw?.to);
     if (!to) throw new BadRequestException('Give the layer a name.');
     const from = cleanLayer(raw?.from);
+    if (!leadsMarkups(claims!.roleKey) && (LAYER_CODE.test(String(from || '').toUpperCase()) || LAYER_CODE.test(to.toUpperCase()))) throw new ForbiddenException('Review layers (I1, X1…) are named by an admin or principal.');
     const key = from ? layerKey({ layer: from }) : layerKey({ authorId: raw?.authorId || claims!.sub });
     if (!from && (raw?.authorId || claims!.sub) !== claims!.sub && !leadsMarkups(claims!.roleKey)) throw new ForbiddenException('Only its owner (or an admin or principal) can name someone’s own layer.');
     const rows = (await this.list(fileId, claims)).filter((m) => layerKey(m) === key);
@@ -301,6 +340,10 @@ export class MarkupsService {
     // Saved copies go in the project's markups folder (Batch 6), not next to the drawing.
     await this.fileRoom.ensurePath(Number(file.projectId), MARKUPS_PATH);
     const [saved] = await this.fileRoom.upload(Number(file.projectId), MARKUPS_PATH, [{ originalname: name, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], { name: claims!.name, id: claims!.sub });
-    return saved;
+    // Nov 20 (Edward): a saved marked-up copy stays private (our team only) until i-1 / i-2 approve it --
+    // retag it Client / External -- or publish the layers into the drawing.
+    const patch = { access: 'internal', notes: `Private — not approved. Marked-up copy of ${file.name}, saved by ${claims!.name || 'someone'}; an admin or principal shares it or publishes the layers.` };
+    await this.files.update({ id: (saved as any).id }, patch as any);
+    return { ...(saved as any), ...patch };
   }
 }

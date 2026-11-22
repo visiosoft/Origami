@@ -45,6 +45,14 @@ describe('weekly report', () => {
     expect(w.notes).toEqual([{ date: '2026-10-13', text: 'Footings poured' }]);
   });
 
+  it('lists inspections asked for that are still waiting (Nov 20)', () => {
+    const w = buildWeekly(7, '2026-10-12', [log({ id: 'fri', date: '2026-10-16', sections: { activity: { worked: 'yes' }, inspectors: { present: 'no', rows: [], requests: [
+      { id: 'r1', authority: 'City or Municipal Inspector', areas: 'Foundation', date: '2026-10-20', time: '09:00', status: 'requested' },
+      { id: 'r2', authority: 'Third Party Inspector', status: 'passed' },
+    ] } } })], [], employees, codes, '2026-10-19');
+    expect(w.inspections).toEqual([{ date: '2026-10-16', authority: 'City or Municipal Inspector', what: 'Foundation', outcome: 'Requested for 2026-10-20 09:00' }]);
+  });
+
   it('renders a spreadsheet and a PDF page', () => {
     expect(weeklyCsv('Chelliah', w)).toContain('Excavator,rented,1,6,2');
     expect(weeklyHtml('Chelliah', 'Origami', w)).toContain('2 weekdays with no report');

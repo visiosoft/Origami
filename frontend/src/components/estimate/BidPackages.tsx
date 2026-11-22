@@ -22,7 +22,10 @@ export function BidPackages({ projectId, estimateId, canEdit, onClose, onUsed }:
   const [rows, setRows] = useState<any[] | null>(null);
   const [subs, setSubs] = useState<({ id: string; companyName: string; email?: string } & PrequalFacts)[]>([]);
   const [making, setMaking] = useState(false);
-  const [form, setForm] = useState({ title: '', dueDate: '', notes: '', scopeIds: [] as string[] });
+  const [form, setForm] = useState({ title: '', dueDate: '', notes: '', scopeIds: [] as string[], instructions: '', visitDate: '', visitTime: '', visitPlace: '', visitNote: '' });
+  // Nov 19 (Edward): suggested subs (licences cover the package's CSI codes) and answers to their questions.
+  const [suggested, setSuggested] = useState<Record<string, string[]>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [inviting, setInviting] = useState<string | null>(null);
   const [pick, setPick] = useState<string[]>([]);
   const [find, setFind] = useState('');
@@ -44,7 +47,7 @@ export function BidPackages({ projectId, estimateId, canEdit, onClose, onUsed }:
           <button type="button" className="eg-btn" onClick={onClose}>Close</button>
         </h3>
         {making && (
-          <form className="bp-new" onSubmit={(e) => { e.preventDefault(); void run(() => api.finance.createBidPackage(projectId, estimateId, form), () => { setMaking(false); setForm({ title: '', dueDate: '', notes: '', scopeIds: [] }); toast('Package made — now invite subs'); }); }}>
+          <form className="bp-new" onSubmit={(e) => { e.preventDefault(); const { visitDate, visitTime, visitPlace, visitNote, ...rest } = form; void run(() => api.finance.createBidPackage(projectId, estimateId, { ...rest, siteVisit: visitDate ? { date: visitDate, time: visitTime, place: visitPlace, note: visitNote } : null } as any), () => { setMaking(false); setForm({ title: '', dueDate: '', notes: '', scopeIds: [], instructions: '', visitDate: '', visitTime: '', visitPlace: '', visitNote: '' }); toast('Package made — now invite subs'); }); }}>
             <div className="bp-grid">
               <label>Title<input value={form.title} placeholder="e.g. Tile and stone" onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
               <label>Prices due<input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></label>
@@ -53,6 +56,15 @@ export function BidPackages({ projectId, estimateId, canEdit, onClose, onUsed }:
               {scopes.map((s) => <label key={s.id} className="bp-check"><input type="checkbox" checked={form.scopeIds.includes(s.id)} onChange={(e) => setForm({ ...form, scopeIds: e.target.checked ? [...form.scopeIds, s.id] : form.scopeIds.filter((x) => x !== s.id) })} />{s.title || 'Scope'}</label>)}
             </fieldset>
             <label>Note to subs<textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
+            <label>Bid instructions<textarea rows={4} value={form.instructions} placeholder="How to price, what to include, drawings to use, how to submit, insurance needed…" onChange={(e) => setForm({ ...form, instructions: e.target.value })} /></label>
+            <fieldset><legend>Site visit (optional)</legend>
+              <div className="bp-grid">
+                <label>Date<input type="date" value={form.visitDate} onChange={(e) => setForm({ ...form, visitDate: e.target.value })} /></label>
+                <label>Time<input type="time" value={form.visitTime} onChange={(e) => setForm({ ...form, visitTime: e.target.value })} /></label>
+                <label>Where<input value={form.visitPlace} placeholder="Site address" onChange={(e) => setForm({ ...form, visitPlace: e.target.value })} /></label>
+                <label>Note<input value={form.visitNote} placeholder="e.g. park on the street" onChange={(e) => setForm({ ...form, visitNote: e.target.value })} /></label>
+              </div>
+            </fieldset>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" className="eg-btn" onClick={() => setMaking(false)}>Cancel</button>
               <button type="submit" className="eg-btn is-primary" disabled={busy || !form.scopeIds.length}>Make the package</button>
@@ -65,15 +77,34 @@ export function BidPackages({ projectId, estimateId, canEdit, onClose, onUsed }:
           <section key={p.id} className="bp">
             <div className="bp-head"><b>{p.number} · {p.title}</b><span className={`eg-chip is-${p.status === 'closed' ? 'accepted' : p.status === 'out' ? 'sent' : 'draft'}`}>{p.status === 'out' ? 'Out for pricing' : p.status === 'closed' ? 'Closed' : 'Draft'}</span>
               {p.dueDate && <span className="eg-scope-fig">Due {p.dueDate}</span>}
-              {canEdit && p.status !== 'closed' && <button type="button" className="eg-btn" style={{ marginLeft: 'auto' }} onClick={() => { setInviting(inviting === p.id ? null : p.id); setPick([]); }}>{inviting === p.id ? 'Cancel' : 'Invite subs…'}</button>}
+              {canEdit && p.status !== 'closed' && <button type="button" className="eg-btn" style={{ marginLeft: 'auto' }} onClick={() => { setInviting(inviting === p.id ? null : p.id); setPick([]); if (inviting !== p.id) api.finance.suggestBidSubs(projectId, p.id).then((s) => setSuggested((x) => ({ ...x, [p.id]: s.map((y) => y.contractorId) }))).catch(() => undefined); }}>{inviting === p.id ? 'Cancel' : 'Invite subs…'}</button>}
             </div>
             <div className="eg-scope-fig" style={{ margin: '2px 0 6px' }}>{p.content.scopes.map((s: any) => `${s.title} (${s.lines.length})`).join(' · ')}</div>
+            {p.siteVisit && <div className="eg-scope-fig">Site visit {p.siteVisit.date}{p.siteVisit.time ? ` ${p.siteVisit.time}` : ''}{p.siteVisit.place ? ` · ${p.siteVisit.place}` : ''} · {p.invites.filter((i: any) => i.attending).length} coming</div>}
+            {p.instructions && <details style={{ fontSize: 12.5, margin: '4px 0' }}><summary>Bid instructions</summary><div style={{ whiteSpace: 'pre-wrap', padding: '6px 0' }}>{p.instructions}</div></details>}
+            {p.invites.some((i: any) => (i.questions || []).length) && (
+              <div className="bp-questions" style={{ display: 'grid', gap: 6, margin: '6px 0' }}>
+                <b style={{ fontSize: 12.5 }}>Questions from bidders <span className="eg-scope-fig">(each answer goes only to the sub who asked)</span></b>
+                {p.invites.flatMap((i: any) => (i.questions || []).map((q: any) => (
+                  <div key={q.id} style={{ fontSize: 12.5, padding: '6px 8px', borderRadius: 8, background: 'var(--panel)' }}>
+                    <b>{i.vendorName}</b>: {q.text}
+                    {q.answer ? <div style={{ color: 'var(--success-deep)' }}>↳ {q.answer}</div> : canEdit ? (
+                      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                        <input aria-label={`Answer to ${i.vendorName}`} value={answers[q.id] || ''} placeholder="Your answer" onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })} style={{ flex: 1 }} />
+                        <button type="button" className="eg-btn is-primary" disabled={busy || !(answers[q.id] || '').trim()} onClick={() => void run(() => api.finance.answerBidQuestion(projectId, p.id, i.id, q.id, answers[q.id]), (r) => toast(r.emailed ? `Answered — emailed to ${i.vendorName}` : 'Answered — it shows on their bid page'))}>Answer</button>
+                      </div>
+                    ) : <div className="eg-scope-fig">Not answered yet</div>}
+                  </div>
+                )))}
+              </div>
+            )}
             {inviting === p.id && (
               <div className="bp-invite">
                 <input aria-label="Find a sub" placeholder="Find a sub…" value={find} onChange={(e) => setFind(e.target.value)} />
                 <div className="bp-subs">
-                  {subs.filter((c) => !find || c.companyName?.toLowerCase().includes(find.toLowerCase())).slice(0, 80).map((c) => (
-                    <label key={c.id} className="bp-check" title={prequalBlock(c) || undefined} style={prequalBlock(c) ? { opacity: 0.55 } : undefined}><input type="checkbox" disabled={!!prequalBlock(c)} checked={pick.includes(c.id)} onChange={(e) => setPick(e.target.checked ? [...pick, c.id] : pick.filter((x) => x !== c.id))} />{c.companyName}{prequalBlock(c) ? <span className="eg-scope-fig"> · {prequalBlock(c)}</span> : !c.email && <span className="eg-scope-fig"> · no email (copy the link)</span>}</label>
+                  {(suggested[p.id] || []).length > 0 && <div className="eg-scope-fig" style={{ fontWeight: 700 }}>Matches the scope ({(suggested[p.id] || []).length}) — their licences cover these CSI codes. Not prequalified yet doesn’t stop an invite.</div>}
+                  {[...subs].sort((a, b) => Number((suggested[p.id] || []).includes(b.id)) - Number((suggested[p.id] || []).includes(a.id))).filter((c) => !find || c.companyName?.toLowerCase().includes(find.toLowerCase())).slice(0, 80).map((c) => (
+                    <label key={c.id} className="bp-check" title={prequalBlock(c) ? `${prequalBlock(c)} — the invite asks for the prequal form too (Nov 17: prequal with the bid, full qualification before construction)` : undefined} style={c.prequalStatus === 'rejected' ? { opacity: 0.55 } : undefined}><input type="checkbox" disabled={c.prequalStatus === 'rejected'} checked={pick.includes(c.id)} onChange={(e) => setPick(e.target.checked ? [...pick, c.id] : pick.filter((x) => x !== c.id))} />{(suggested[p.id] || []).includes(c.id) && <span title="Licence covers this scope’s CSI codes">★ </span>}{c.companyName}{c.prequalStatus === 'rejected' ? <span className="eg-scope-fig"> · prequal turned down</span> : prequalBlock(c) ? <span className="eg-scope-fig"> · prequal form sent with the invite</span> : !c.email && <span className="eg-scope-fig"> · no email (copy the link)</span>}</label>
                   ))}
                 </div>
                 <button type="button" className="eg-btn is-primary" disabled={busy || !pick.length} onClick={() => void run(() => api.finance.inviteBid(projectId, p.id, pick), (r) => { setInviting(null); setLinks((x) => ({ ...x, ...Object.fromEntries(r.invited.map((v: any) => [`${p.id}:${v.contractorId}`, v.link])) })); const n = r.invited.filter((x: any) => x.emailed).length; toast(`${r.invited.length} invited${n < r.invited.length ? ` — ${r.invited.length - n} without email: copy their link` : ''}`); })}>Invite {pick.length || ''}</button>

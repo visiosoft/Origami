@@ -1,7 +1,9 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { todayISO } from './workforce.util';
+import { crewOf, outsideCrew } from './site-crews';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { DailyLogEntity, DailyReportTemplateEntity, LaborLogEntryEntity, UserEntity } from '../database/entities';
+import { DailyLogEntity, DailyReportTemplateEntity, EmployeeAssignmentEntity, EmployeeEntity, LaborLogEntryEntity, UserEntity } from '../database/entities';
 
 export interface ManpowerActor { name: string; id?: string }
 
@@ -12,6 +14,8 @@ export class DailyLogsService {
     @InjectRepository(LaborLogEntryEntity) private readonly entries: Repository<LaborLogEntryEntity>,
     @InjectRepository(DailyReportTemplateEntity) private readonly templates?: Repository<DailyReportTemplateEntity>,
     @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
+    @Optional() @InjectRepository(EmployeeAssignmentEntity) private readonly assignmentsRepo?: Repository<EmployeeAssignmentEntity>,
+    @Optional() @InjectRepository(EmployeeEntity) private readonly employeesRepo?: Repository<EmployeeEntity>,
   ) {}
 
   /** Everything logged in a date range, optionally for one project -- used by the Timesheet rollup too. */
@@ -74,6 +78,15 @@ export class DailyLogsService {
       entries,
       versions: versions.map((v) => ({ id: v.id, version: Number(v.version) || 1, status: v.status, autoReason: v.autoReason || null, supervisorName: v.supervisorName, createdAt: v.createdAt })),
     };
+  }
+
+  /** Nov 17: a supervisor's report may list only the workers in his crew on that project. */
+  async assertCrew(dto: { projectId: number; entries?: { employeeId?: string }[] }, supervisorId: string) {
+    if (!this.assignmentsRepo || !(dto.entries || []).length) return;
+    const crew = crewOf(await this.assignmentsRepo.find({ where: { projectId: Number(dto.projectId) } as any }) as any, supervisorId, todayISO(), Number(dto.projectId));
+    const names = new Map(((await this.employeesRepo?.find().catch(() => [])) || []).map((e: any) => [e.id, e.name]));
+    const bad = outsideCrew(dto.entries || [], crew, (id) => names.get(id) || id);
+    if (bad.length) throw new BadRequestException(`${bad.join(', ')} ${bad.length === 1 ? 'isn’t' : 'aren’t'} in your crew on this project. Ask the office to add them (Project → People → Site crews).`);
   }
 
   async save(dto: {

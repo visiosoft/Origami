@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   AUTHORITIES, DELIVERY_CONDITIONS, NO_WORK_REASONS, OPS_DELAYS, OUTCOMES, STOP_BY, VISITOR_TYPES, equipmentFormDone, equipmentHours, isRowCarried, rowId, transmittalDone,
-  type Delay, type DeliveryRow, type EquipmentRow, type FileRef, type OpsKey, type Sections, type YesNo,
+  type Delay, type DeliveryRow, type EquipmentRow, type FileRef, type InspectionRequest, type OpsKey, type Sections, type YesNo,
 } from '../../data/dailyReport';
 import {
   AddRow, Carry, ConvertButton, DelayBlock, INK, Label, MUTED, RemoveRow, SectionCard, YesNoPick, area, input, pill, useReport,
@@ -266,6 +266,74 @@ export function InspectorsSection({ s, set, na, convert, upload, baseline }: { s
       ))}
       <AddRow onClick={() => setIns({ rows: [...ins.rows, { id: rowId() }] })}>+ Add inspector</AddRow>
     </YesNoSection>
+  );
+}
+
+// ------------------------------------------------------------------ V.B Inspection requests (Nov 20)
+
+const REQ_STATUS: [NonNullable<InspectionRequest['status']>, string][] = [['requested', 'Requested'], ['passed', 'Passed'], ['partial', 'Partially passed'], ['conditional', 'Conditional'], ['failed', 'Failed']];
+
+/**
+ * Nov 20 (Edward): ask for an inspection from the daily report. "Request it"
+ * makes a task on the project for the Coordinator (else the PM), due the day
+ * before; recording the result adds it to the Inspectors rows above.
+ */
+export function InspectionRequestsSection({ s, set, request }: { s: Sections; set: Set; request: (r: InspectionRequest) => Promise<string | null> }) {
+  const { editable } = useReport();
+  const reqs = s.inspectors.requests || [];
+  const [busy, setBusy] = useState('');
+  const setReqs = (requests: InspectionRequest[]) => set((x) => ({ ...x, inspectors: { ...x.inspectors, requests } }));
+  const setRow = (id: string, p: Partial<InspectionRequest>) => setReqs(reqs.map((r) => (r.id === id ? { ...r, ...p } : r)));
+  const result = (r: InspectionRequest, status: NonNullable<InspectionRequest['status']>) => set((x) => {
+    const requests = (x.inspectors.requests || []).map((q) => (q.id === r.id ? { ...q, status } : q));
+    if (status === 'requested') return { ...x, inspectors: { ...x.inspectors, requests } };
+    // The result goes in as a normal Inspectors row: authority, what, outcome (photo and follow-up there).
+    const rows = x.inspectors.rows.some((row) => row.id === 'req-' + r.id)
+      ? x.inspectors.rows.map((row) => (row.id === 'req-' + r.id ? { ...row, outcome: status } : row))
+      : [...x.inspectors.rows.filter((row) => row.authority || row.what || row.outcome), { id: 'req-' + r.id, authority: r.authority, what: [r.areas, r.notes].filter(Boolean).join(' — '), outcome: status }];
+    return { ...x, inspectors: { ...x.inspectors, present: 'yes', rows, requests } };
+  });
+  const ask = async (r: InspectionRequest) => {
+    setBusy(r.id);
+    const id = await request(r);
+    if (id) setRow(r.id, { taskId: id, status: r.status || 'requested' });
+    setBusy('');
+  };
+  return (
+    <SectionCard roman="V.B" title="Inspection requests" summary={reqs.length ? `${reqs.length} requested${reqs.filter((r) => r.status && r.status !== 'requested').length ? ` · ${reqs.filter((r) => r.status && r.status !== 'requested').length} with a result` : ''}` : 'Need an inspection? Request it here'} defaultOpen={reqs.length > 0}>
+      {reqs.map((r) => (
+        <div key={r.id} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), .1)' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 220px' }}><Label>Inspection</Label>
+              <select aria-label="Inspection type" disabled={!editable} value={r.authority || ''} onChange={(e) => setRow(r.id, { authority: e.target.value })} style={input}>
+                <option value="">Choose…</option>{AUTHORITIES.map((a) => <option key={a}>{a}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: '1 1 180px' }}><Label>Agency or inspector</Label><input aria-label="Agency or inspector" disabled={!editable} value={r.agency || ''} onChange={(e) => setRow(r.id, { agency: e.target.value })} style={input} /></div>
+            <RemoveRow onClick={() => setReqs(reqs.filter((x) => x.id !== r.id))} label="Remove request" />
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div><Label>Wanted on</Label><input aria-label="Wanted on" type="date" disabled={!editable} value={r.date || ''} onChange={(e) => setRow(r.id, { date: e.target.value })} style={input} /></div>
+            <div><Label>Time</Label><input aria-label="Time" type="time" disabled={!editable} value={r.time || ''} onChange={(e) => setRow(r.id, { time: e.target.value })} style={input} /></div>
+            <div style={{ flex: '1 1 220px' }}><Label>Areas / sheets</Label><input aria-label="Areas or sheets" disabled={!editable} value={r.areas || ''} onChange={(e) => setRow(r.id, { areas: e.target.value })} placeholder="e.g. Foundation, S2.01" style={input} /></div>
+          </div>
+          <div><Label>Notes</Label><textarea aria-label="Request notes" disabled={!editable} value={r.notes || ''} onChange={(e) => setRow(r.id, { notes: e.target.value })} rows={2} style={area} /></div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {r.taskId
+              ? <a href={`/tasks?task=${encodeURIComponent(r.taskId)}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--forest)' }}>✓ Task made — open it →</a>
+              : editable && <button type="button" style={pill(true)} disabled={busy === r.id || !r.authority} onClick={() => void ask(r)} title={r.authority ? 'Make the task on the project for the Coordinator (or PM), due the day before' : 'Choose the inspection first'}>{busy === r.id ? 'Requesting…' : 'Request it — make the task'}</button>}
+            <span style={{ flex: 1 }} />
+            <label style={{ fontSize: 12.5, color: MUTED, display: 'inline-flex', gap: 6, alignItems: 'center' }}>Result
+              <select aria-label="Inspection result" disabled={!editable} value={r.status || 'requested'} onChange={(e) => result(r, e.target.value as NonNullable<InspectionRequest['status']>)} style={{ ...input, width: 'auto' }}>
+                {REQ_STATUS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </label>
+          </div>
+          {r.status && r.status !== 'requested' && <div style={{ fontSize: 12, color: MUTED }}>Added to V. Inspectors above — attach the inspection card there{r.status !== 'passed' ? ' and set the follow-up' : ''}.</div>}
+        </div>
+      ))}
+      {editable && <AddRow onClick={() => setReqs([...reqs, { id: rowId(), status: 'requested' }])}>+ Request an inspection</AddRow>}
+    </SectionCard>
   );
 }
 

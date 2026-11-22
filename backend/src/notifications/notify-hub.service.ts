@@ -1,9 +1,10 @@
 import { personOnProject } from '../people/person-projects';
+import { rfiLogs, rfiDueNotices } from '../rfis/rfi-alerts';
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { NotificationItemEntity, PersonEntity, ProjectEntity, ProjectTaskEntity, RoleEntity, TaskEntity, UserEntity } from '../database/entities';
+import { NotificationItemEntity, PersonEntity, ProjectEntity, ProjectTaskEntity, RfiEntity, RoleEntity, TaskEntity, UserEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
 import { SmsService } from '../sms/sms.service';
@@ -49,6 +50,7 @@ export class NotifyHub implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly google: GoogleService,
     @Optional() private readonly sms?: SmsService,
     @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
+    @Optional() @InjectRepository(RfiEntity) private readonly rfis?: Repository<RfiEntity>,
   ) {}
 
   /**
@@ -247,7 +249,24 @@ export class NotifyHub implements OnApplicationBootstrap, OnModuleDestroy {
     const tomorrow = addDays(today, 1);
     for (const t of tasks.filter((x) => x.due === tomorrow)) await this.deliver([t.userId], 'due_tomorrow', { title: `Due tomorrow: ${t.title}`, path: t.path });
     for (const t of tasks.filter((x) => x.due < today)) await this.deliver([t.userId], 'past_due', { title: `Past due (was due ${t.due}): ${t.title}`, path: t.path });
+    // Nov 17: open RFIs due tomorrow or past due -- their owner and the person they were sent to.
+    if (this.rfis) {
+      const open = await this.rfis.find({ where: { status: 'open' } as any }).catch(() => [] as RfiEntity[]);
+      if (open.length) {
+        const users = (await this.users.find()).filter((u) => u.status !== 'suspended').map((u) => ({ id: u.id, email: u.email, altEmails: (u as any).altEmails || [] }));
+        for (const n of rfiDueNotices(open as any, users, today)) await this.deliver([n.userId], 'rfi_due', { title: n.title, path: `/rfis?rfi=${encodeURIComponent(n.rfiId)}` });
+      }
+    }
     if (!monday) return;
+    // Nov 19: the weekly RFI Log for the projects each person is on.
+    if (this.rfis) {
+      const all = await this.rfis.find().catch(() => [] as RfiEntity[]);
+      if (all.length) {
+        const users = (await this.users.find()).filter((u) => u.status !== 'suspended' && (u as any).tier !== 'client' && (u as any).tier !== 'consultant').map((u) => ({ id: u.id, email: u.email, altEmails: (u as any).altEmails || [] }));
+        const roles = new Map(((await this.projects?.find({ select: { id: true, roles: true } as any }).catch(() => [])) || []).map((p) => [p.id, Object.values(p.roles || {}) as string[]]));
+        for (const n of rfiLogs(all as any, users, (pid) => roles.get(Number(pid)) || [], today)) await this.deliver([n.userId], 'rfi_log', { title: n.title, body: n.body, path: '/rfis' });
+      }
+    }
     const end = addDays(today, 21);
     const byUser = new Map<string, typeof tasks>();
     for (const t of tasks.filter((x) => x.due >= today && x.due <= end)) byUser.set(t.userId, [...(byUser.get(t.userId) || []), t]);

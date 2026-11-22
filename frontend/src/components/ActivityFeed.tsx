@@ -5,6 +5,8 @@ import { Avatar } from './Avatar';
 import { Pager } from './Pager';
 import type { ActivityEvent, TaskComment } from '../data/projectTasks';
 import { Skeleton } from './Skeleton';
+import { MailThread } from './LinkedMail';
+import type { LinkedMailRow } from '../api';
 
 /** "3 min ago" / "2 days ago" — falls back to the raw string if unparseable. */
 export function relativeTime(value: string): string {
@@ -30,7 +32,26 @@ function describe(e: ActivityEvent): string {
   }
 }
 
-type Entry = { kind: 'event'; at: string; event: ActivityEvent } | { kind: 'comment'; at: string; comment: TaskComment };
+type Entry = { kind: 'event'; at: string; event: ActivityEvent } | { kind: 'comment'; at: string; comment: TaskComment } | { kind: 'mail'; at: string; mail: LinkedMailRow };
+const ms = (at?: string | null) => { const t = Date.parse(at || ''); return Number.isNaN(t) ? 0 : t; };
+
+/**
+ * Nov 20 (Edward): emails linked to the task sit in its Activity & updates, by
+ * date. A page holds the emails that fall within it: the first page also takes
+ * anything newer, the last page anything older -- so none is lost or shown twice.
+ */
+export function withMail<E extends { at: string }>(entries: E[], mails: { at: string }[], first: boolean, last: boolean): (E | (typeof mails)[number])[] {
+  if (!mails.length) return entries;
+  const times = entries.map((e) => ms(e.at));
+  const newest = times.length ? Math.max(...times) : Infinity;
+  const oldest = times.length ? Math.min(...times) : -Infinity;
+  const mine = mails.filter((m) => {
+    const t = ms(m.at);
+    if (!entries.length) return first || last;
+    return (t <= newest && t >= oldest) || (first && t > newest) || (last && t < oldest);
+  });
+  return [...entries, ...mine].map((e, i) => ({ e, i })).sort((a, b) => ms(b.e.at) - ms(a.e.at) || a.i - b.i).map((x) => x.e);
+}
 /** One page of a task's history as the server sends it (GET …/:id/activity). */
 export interface HistoryPage { rows: Entry[]; total: number; page: number; size: number; pages: number }
 const FEED_SIZES = [10, 20, 50];
@@ -46,6 +67,7 @@ export function ActivityFeed({
   onComment,
   source,
   version = 0,
+  mailFor,
 }: {
   comments?: TaskComment[];
   activity?: ActivityEvent[];
@@ -55,6 +77,8 @@ export function ActivityFeed({
   source?: { kind: 'board' | 'log'; id: string };
   /** Bump after anything that adds to the history (a comment, a save) to reload page 1. */
   version?: number | string;
+  /** Nov 20: the task whose linked emails join the feed. */
+  mailFor?: { entityType: 'task'; entityId: string };
 }) {
   const { currentUser, users } = useApp();
   const [text, setText] = useState('');
@@ -109,12 +133,19 @@ export function ActivityFeed({
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [srcKey, version, pg, size]);
+  const [mails, setMails] = useState<LinkedMailRow[]>([]);
+  useEffect(() => {
+    if (!mailFor) { setMails([]); return; }
+    api.mail.linked(mailFor.entityType, mailFor.entityId).then((r) => setMails(Array.isArray(r) ? r : [])).catch(() => setMails([]));
+  }, [mailFor?.entityType, mailFor?.entityId]); // eslint-disable-line react-hooks/exhaustive-deps
   const pageInfo = source
     ? remote
     : { rows: [], total: local.length, page: Math.min(pg, Math.max(1, Math.ceil(local.length / size))), size, pages: Math.max(1, Math.ceil(local.length / size)) };
-  const entries: Entry[] = source
+  const plain: Entry[] = source
     ? (remote?.rows ?? [])
     : local.slice(((pageInfo?.page ?? 1) - 1) * size, (pageInfo?.page ?? 1) * size);
+  const curPage = pageInfo?.page ?? 1, lastPage = pageInfo?.pages ?? 1;
+  const entries = withMail(plain, mails.map((m): Entry => ({ kind: 'mail', at: m.lastAt || m.messages[0]?.date || '', mail: m })), curPage <= 1, curPage >= lastPage) as Entry[];
 
   const userFor = (name?: string, id?: string) =>
     users.find((u) => (id && u.id === id) || (name && u.name === name));
@@ -133,7 +164,7 @@ export function ActivityFeed({
   return (
     <div>
       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)', marginBottom: 10 }}>
-        Activity
+        Activity &amp; updates
       </div>
 
       {canManage && (
@@ -150,7 +181,7 @@ export function ActivityFeed({
               if (e.key === 'Escape') setMention(null);
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
             }}
-            placeholder="Write a comment… type @ to mention someone"
+            placeholder="Post a status update or comment… type @ to mention someone"
             rows={2}
             style={{
               flex: 1, boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9,
@@ -191,6 +222,7 @@ export function ActivityFeed({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {entries.map((entry, i) => {
+          if (entry.kind === 'mail') return <MailThread key={'mail:' + entry.mail.id} r={entry.mail} compact />;
           if (entry.kind === 'comment' || entry.event?.type === 'comment') {
             const author = entry.kind === 'comment' ? entry.comment.author : entry.event.by;
             const authorId = entry.kind === 'comment' ? entry.comment.authorId : entry.event.byId;

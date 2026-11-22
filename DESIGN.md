@@ -182,3 +182,11 @@ Do not make the three roles look like unrelated products. They share shell, typo
 - Never use copywriting clichés such as “Elevate”, “Seamless”, “Unleash”, or “Next-Gen”.
 - Never allow horizontal scrolling, clipped text, overlapping elements, or controls below a `44px` touch target.
 - Never use broken Unsplash URLs or decorative stock imagery in the operations dashboard. Data and work context are the visual content.
+## Backups (Nov 19)
+
+- **Database:** every night at 3am office time, `backend/src/backup/db-backup.service.ts` writes every table as JSON into one zip in the Google Drive folder "Origami System Backups / <env>". Secrets are left out.
+- **Checked:** each copy is read back and checked.
+- **Kept:** about a year of copies (14 nightly, 8 Sundays, 12 month-starts).
+- **Alerts:** admins are emailed when a copy fails, or when no good copy has been made for 36 hours.
+- **Files:** uploaded files live in Google Drive and are not copied. Each zip's `files-index.json` says where every file is.
+- **Restore:** create an empty database and start the app once against it, so TypeORM creates the tables. Then insert each `<table>.json` into its table. Secrets (passwords, sign-in tokens, API keys) are not in the copy, so people sign in again with a password reset, and integrations are reconnected.

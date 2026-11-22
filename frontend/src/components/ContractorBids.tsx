@@ -5,9 +5,10 @@ import { BID_OUTCOMES, OWED_A_JOB, outcomeLabel, type BidOutcome, type BidStats,
 import { BG, DANGER, INK, MUTED, Badge, bodyRow, btn, card, fmtDate, headRow, input, type Contractor, type Project, type SubcontractorTrade } from './manpowerUi';
 import { SortHeader, useSort } from './SortHeader';
 import { Skeleton } from './Skeleton';
+import { todayISO } from '../data/localDate';
 
 const usd = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }));
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayISO();
 type Draft = { projectId: string; projectName: string; tradeId: string; scope: string; dateReceived: string; dueDate: string; amount: string; outcome: BidOutcome; notes: string };
 const EMPTY = (): Draft => ({ projectId: '', projectName: '', tradeId: '', scope: '', dateReceived: today(), dueDate: '', amount: '', outcome: 'pending', notes: '' });
 const OTHER = 'other';

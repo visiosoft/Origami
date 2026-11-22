@@ -16,6 +16,288 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-22a',
+    date: '2026-11-22',
+    title: 'Tidier task panel',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'The top of a task holds just the main buttons — Complete task, Close without saving, Save & close. Duplicate, Convert to, Merge duplicates and Delete task are under “More ▾”.', where: 'Any task → More ▾' },
+    ],
+  },
+  {
+    id: '2026-11-21a',
+    date: '2026-11-21',
+    title: 'Edward’s screenshots: task emails, tags, drawings, symbols, inspections',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Emails linked to a task now sit in its Activity & updates, in date order with the comments, instead of in a box above.', where: 'Any task → Activity & updates' },
+      { area: 'Tasks', kind: 'improved', text: 'Only admins and principals change who a task is for (Internal, Client, External, Financial) — the chips show a lock for everyone else. Anyone can still add CRM, Design or Construction.', where: 'Any task → Standard tags' },
+      { area: 'Drawings', kind: 'improved', text: '“Save marked-up copy” keeps the copy private (our team only, marked “Private — not approved”) until an admin or principal shares it or publishes the layers. Compare puts the approved base first.', where: 'A drawing → Save marked-up copy / Compare' },
+      { area: 'Drawings', kind: 'new', text: '42 starter symbols — outlets, switches, lights, plumbing fixtures, HVAC, doors, windows, section and detail marks — an admin adds to the shared library after a preview.', where: 'Plan & File Room → Drawing sets → Starter drawing symbols' },
+      { area: 'Daily report', kind: 'new', text: 'Request an inspection from the daily report: it makes a task for the project’s Coordinator (or PM), due the day before; the result goes into V. Inspectors. Requests show on the daily and weekly reports.', where: 'Daily Report → V.B Inspection requests' },
+    ],
+  },
+  {
+    id: '2026-11-20c',
+    date: '2026-11-20',
+    title: 'Drawing sets: revisions, review layers, approved set',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Only admins, principals and the people they pick upload base drawings (the build set and “Base sets”). Each upload is the architect’s next revision: Rev 1.0, 2.0…', where: 'Plan & File Room → Drawing sets (admins)' },
+      { area: 'Drawings', kind: 'new', text: 'Markups on a drawing set go on review layers — I1, I2 for our team, X1, X2 for consultants and subs — seen by our team only until an admin or principal publishes them. Publishing draws the chosen layers into the drawing as the next revision after the decimal (Rev 1.01 … 1.05).', where: 'A drawing → Drawing set → Publish layers…' },
+      { area: 'Drawings', kind: 'new', text: 'Approve one revision as the working set. Anyone on another revision, or with review layers showing, sees “You’re not on the approved set — Back to approved set”.', where: 'A drawing → Drawing set' },
+      { area: 'Drawings', kind: 'new', text: 'Mark a set “Not city-approved — for early work only” (e.g. structural for the foundation): a warning in the list and on the drawing, printed on published copies.', where: 'A drawing → Drawing set' },
+      { area: 'Drawings', kind: 'new', text: 'Each drawing’s history — revisions, approvals, layers started, RFIs, emails — under the drawing, filterable by layer or person.', where: 'A drawing → Drawing set → History' },
+    ],
+  },
+  {
+    id: '2026-11-20b',
+    date: '2026-11-20',
+    title: 'Weekly Sync fixes: task bar, meetings, credits, letters',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Every task action is in one bar at the top: Complete, Duplicate, Convert to, Delete, then Close without saving / Save & close. “Activity” is now “Activity & updates”, for status updates.', where: 'Any task' },
+      { area: 'Meetings', kind: 'fixed', text: 'Importing the same meeting notes twice (or by two people) no longer makes the same task twice — items already raised are shown and left unticked. A meeting with no project asks which project its items belong to, so they stop landing under General; others named in an item follow it as collaborators.', where: 'Meetings → a meeting → Review → Items from the notes' },
+      { area: 'Tasks', kind: 'fixed', text: 'A task given to you shows in your list even on a project you aren’t on. The Task Board points to your meeting and request tasks in the Special Actions Log.', where: 'Task' },
+      { area: 'Meetings', kind: 'new', text: '“Sorted by”: anyone with Meetings rights can take over sorting a meeting’s items (or hand it on) when the organiser is away.', where: 'Meetings → a meeting' },
+      { area: 'Meetings', kind: 'new', text: 'Log a call or a text conversation as a meeting, with a summary, then turn it into tasks. From a client’s texts, “Log as meeting” brings the messages in. New filter: Calls & texts.', where: 'Meetings → Log a call / Log a text conversation' },
+      { area: 'Settings', kind: 'new', text: 'Usage & credits: texts (and AI, once it’s used) are counted each month against the credit you loaded. Administrators are emailed at 80% and as soon as Quo refuses for lack of credit. The ChatGPT key is kept here, masked.', where: 'Settings → Integrations → Usage & credits' },
+      { area: 'Estimating', kind: 'improved', text: 'The start page lists only projects with estimates. “Show all projects”, or searching, finds the rest.', where: 'Estimating' },
+      { area: 'Letters', kind: 'fixed', text: 'Introduction letters, contracts and proposals keep their layout with long names, emails and addresses; the Project Program PDF no longer cuts long titles or lets money overlap.', where: 'Introduction letter; Project Program PDF' },
+    ],
+  },
+  {
+    id: '2026-11-20a',
+    date: '2026-11-20',
+    title: 'Meetings from everyone’s calendars',
+    items: [
+      { area: 'Meetings', kind: 'improved', text: 'Meetings now come in from everyone’s own Google Calendar as well as the company one — not just systems@origamidb.com. A meeting several people are in comes in once; all-day, private and out-of-office events stay out. The panel lists whose calendars are read and who still needs to connect theirs (Settings → My Calendar). Press “Preview with everyone’s calendars”, then Apply, to start.', where: 'Meetings → Google Calendar' },
+    ],
+  },
+  {
+    id: '2026-11-19e',
+    date: '2026-11-19',
+    title: 'Edward’s notes, part 3: estimating, RFP, subs, CRM',
+    items: [
+      { area: 'Estimating', kind: 'improved', text: '“Share with owner” replaces “Mark as sent” and “Send to client”: the estimate goes into the owner’s portal to review and accept online, and they get a short email that it’s ready. Shared estimates show as “Shared”. PDF and Excel stay as a backup.', where: 'Estimating → an estimate' },
+      { area: 'Estimating', kind: 'new', text: 'Mark estimates valid with ★ (several can be). Valid ones come first in Financials → Pre-construction, with their combined total and each subcontractor on them (and whether there’s a subcontract yet).', where: 'Estimating → project list; Financials → Pre-construction' },
+      { area: 'Estimating', kind: 'new', text: 'Compare estimates: tick 2–4 of a project’s estimates (any numbers or revisions) to see each trade’s low and high side by side, with what changed between them — hide the change columns when you don’t need them.', where: 'Estimating → project → Compare estimates' },
+      { area: 'Subcontractors', kind: 'new', text: 'Bid packages are run from GC & Sub Prequalify & RFP → “RFP / Bid packages”: every package across projects, with bid instructions, a site visit subs can sign up for, and their questions — each answer goes only to the sub who asked. Subs whose licences cover the scope’s CSI codes are suggested first; “not prequalified yet” never stops an invite.', where: 'GC & Sub Prequalify & RFP → RFP / Bid packages' },
+      { area: 'Subcontractors', kind: 'improved', text: 'CSLB licences carry the CSI divisions they cover (a first draft, editable in Settings → Licence classifications); B-2 Residential Remodeling added. The prequal form picks licence classifications instead of free text.', where: 'Settings → Licence classifications; GC & Sub Prequalify' },
+      { area: 'CRM', kind: 'improved', text: 'Each lead shows its team (PC · PM) at the top and has a “Team & roles” tab. A task filed under a stage with no one picked goes to that stage’s owner — the Project Coordinator or Project Manager — and follows them if the role changes.', where: 'CRM & Leads → a lead' },
+      { area: 'People', kind: 'fixed', text: 'Business cards: a company logo spelled across lines (“ARKAY ENERGY / SOLUTIONS”) is read as the company, and the name is matched to the email (“raffie@…” → Raffie Karabed).', where: 'People → + Add → Read card' },
+    ],
+  },
+  {
+    id: '2026-11-19d',
+    date: '2026-11-19',
+    title: 'Edward’s notes, part 2: approvals, RFI Log, signed records, drawings',
+    items: [
+      { area: 'Daily report', kind: 'improved', text: 'Approve or send back a daily report right from Approvals, or when you open it in Daily Reports. Approving makes its hours count in payroll and the project’s labour cost; sending back asks the superintendent to fix it (with your note).', where: 'Approvals → Everything else → Daily report' },
+      { area: 'Files', kind: 'improved', text: 'Who a file is for (Internal / Client / External) is now set by administrators and principals (i-1, i-2) only. Several at once: tick the files, then “Who it’s for…”.', where: 'Plan & File Room' },
+      { area: 'RFIs', kind: 'new', text: '“Send RFI Log” on a project’s RFIs: a PDF of every RFI, open ones first, emailed to the project team and the people on the project (you choose who; everyone in Bcc).', where: 'Project → Special Actions → RFIs' },
+      { area: 'RFIs', kind: 'improved', text: 'The RFI PDF now includes its drawings: after the form, each marked-up sheet, cropped around the RFI’s markups and labelled.', where: 'RFI → PDF / Send by email' },
+      { area: 'Texts', kind: 'new', text: 'Mass texts: save a message as a template, and save the people you picked as a group (with its usual message). Pick a group or template next time instead of starting over.', where: 'Mass texts' },
+      { area: 'FOR RECORD', kind: 'new', text: '“Send for client signature…” sends a project’s FYIs, decisions and observations to the client together (all ticked). The signed PDF has a contents page, then each item. Items the client approves show as “Codified · AP-001”; filter by codified, not yet, or a signed bundle.', where: 'FOR RECORD' },
+      { area: 'Plan room', kind: 'new', text: 'Pick where the sheet number and title are: press ⌗, drag a box around the number, then one around the title — every page is read from those two places (scans too). It remembers them for the drawing.', where: 'Plan room → ⌗ (phones: ☰ menu)' },
+    ],
+  },
+  {
+    id: '2026-11-19c',
+    date: '2026-11-19',
+    title: 'Edward’s notes, part 1: task panel, meeting dates, RFIs, estimating',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Duplicate is now in the top bar next to ✓ Complete task; Convert to and Delete task sit just above the tags instead of at the bottom.', where: 'Any task' },
+      { area: 'Tasks', kind: 'improved', text: 'A new task’s Source is whoever made it (you can change it). Tasks from the project programme come from the project’s Architect (design work) or Project / Construction Manager. Every new task starts tagged Internal.', where: 'Any task → Source' },
+      { area: 'Tasks', kind: 'new', text: 'Emails linked to a task show above its activity, with their date and time and an “Open in My Mail” link.', where: 'Any task → Activity' },
+      { area: 'Meetings', kind: 'fixed', text: 'A meeting brought in from notes takes the date the notes give (“Meeting Date: November 12, 2026” or the transcript header), not the day it was imported. When a meeting’s notes name another day, a note offers “Use Nov 12”.', where: 'Meetings → open a meeting → Notes' },
+      { area: 'RFIs', kind: 'improved', text: 'An RFI’s drawings are listed once per sheet page with how many markups are on it — on the RFI and its PDF — instead of one line per markup.', where: 'RFI → Reference' },
+      { area: 'RFIs', kind: 'new', text: 'Weekly RFI Log: every Monday, the open and answered RFIs on the projects you’re on, overdue first. Choose how you get it under RFIs in your notification settings.', where: 'Settings → My account → Notifications → RFIs' },
+      { area: 'Estimating', kind: 'improved', text: 'The Estimating start page marks projects that already have estimates — how many, and when the latest changed.', where: 'Estimating' },
+      { area: 'Subcontractors', kind: 'improved', text: 'The prequal review no longer asks for a W-9 — that comes when we contract with them.', where: 'GC & Sub Prequalify & RFP' },
+    ],
+  },
+  {
+    id: '2026-11-19b',
+    date: '2026-11-19',
+    title: 'Nightly database backup to Google Drive, checked',
+    items: [
+      { area: 'Backups', kind: 'improved', text: 'The database copy to Google Drive now runs every night at 3am (it was weekly). Each copy is read back from Drive and checked — every table opens and has all its rows. About a year is kept: the last 14 nights, 8 Sundays and 12 month-starts. Staging and Prod copies go in their own folders. Admins get an email if a copy fails or none is made for 36 hours. Each copy also lists where every uploaded file sits in Drive.', where: 'Settings → Google → Database copy' },
+    ],
+  },
+  {
+    id: '2026-11-19a',
+    date: '2026-11-19',
+    title: 'Meetings from Google Calendar, meeting clean-up, quick reimbursables, daily report hours',
+    items: [
+      { area: 'Daily report', kind: 'improved', text: 'Hours buttons are now 4, 8, 9, 10, 11 and 12. You can still type any other number.', where: 'Daily Report → Crew' },
+      { area: 'Meetings', kind: 'new', text: 'Meetings now come in from the company Google Calendar by themselves. Before, only Gemini’s notes were fetched — and only for meetings someone had typed in, so calendar meetings never showed and transcripts were uploaded by hand. Press “Google Calendar” on Meetings, preview what would come in, then Apply: from then on, every hour, meetings a week back to two weeks ahead are added with their guests and Meet link, moved ones follow, cancelled ones are marked cancelled, and Gemini’s notes are read in after each meeting. Archived or deleted meetings are never brought back.', where: 'Special Actions → Meetings → Google Calendar' },
+      { area: 'Meetings', kind: 'new', text: 'Archive and delete meetings. Open a meeting and press Archive (hidden, can be brought back) or Delete. To clean up several at once — test meetings, empty records — press Select, tick them, then Archive or Delete. Archived ones are under the Archived tab, with Bring back. Grouped meetings from the Special Actions Log can be archived; their entries stay in the log.', where: 'Special Actions → Meetings → Select' },
+      { area: 'Reimbursables', kind: 'improved', text: 'Quick expenses: only the project and the CSI code are needed, plus a photo of the receipt (on a phone the button opens the camera). Anything left empty waits as “Needs details” for the project’s Project Coordinator, who is told and fills in the description, cost and date — then it goes for approval as usual.', where: 'Financials → Reimbursables → + Expense' },
+      { area: 'People', kind: 'improved', text: 'Cleaner categories: internal staff pick their role from one list (Executive, Administrator, Project Manager, Architect, Construction Manager, Estimator, Project Coordinator, Designer, Accounting, Superintendent, Foreman, Laborer), so the same role isn’t typed two ways — “PM” or “Site Super” is saved as Project Manager / Superintendent. Consultants pick from the full discipline list in Edward’s sheet (Arborist, Title Insurance, Waterproofing, Acoustical, Lighting, Attorney and more). Roles that already exist twice are merged under Settings → Roles → Duplicate roles.', where: 'People → + Add' },
+      { area: 'Daily report', kind: 'fixed', text: 'Pressing Delete or Backspace in the hours box only clears the hours — the worker stays on the sheet. Only “× Remove” takes a worker off. Workers with no hours are counted at the top.', where: 'Daily Report → Crew' },
+    ],
+  },
+  {
+    id: '2026-11-18h',
+    date: '2026-11-18',
+    title: 'Site crews: each supervisor sees only his workers',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Site crews on a project’s People tab: a column for each supervisor (the project’s superintendent and foreman, or anyone you add) and one for workers not in a crew yet. Tick workers and press “Put in this crew”.', where: 'Project → People → Site crews' },
+      { area: 'Daily report', kind: 'improved', text: 'A supervisor’s daily report lists only his own crew on that project — no company-wide list, so no picking the wrong person. Each row has a clear “× Remove”. If no crew is set up for him yet, it says to ask the office. Admins, PMs and Manpower managers still see all project staff and can add anyone.', where: 'Daily Report (field)' },
+      { area: 'Manpower', kind: 'improved', text: 'Each deployed worker’s row has a “Reports to” menu, so existing deployments can be put in a crew too.', where: 'Manpower → Deployment' },
+    ],
+  },
+  {
+    id: '2026-11-18g',
+    date: '2026-11-18',
+    title: 'Client approvals: several items, one signature',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Send RFIs, FOR RECORD decisions and observations, and change orders to the client together. They get one link, approve or decline each item (a decline needs a reason) and sign once. Each item’s history records the answer, an approved change order is recorded as client-approved (a declined one as rejected), and the signed PDF is saved in the project’s files under Approvals.', where: 'Project → Special Actions → Client approvals' },
+    ],
+  },
+  {
+    id: '2026-11-18f',
+    date: '2026-11-18',
+    title: 'Weekly reports saved to the project files',
+    items: [
+      { area: 'Daily reports', kind: 'new', text: 'The weekly report can be saved as a PDF in the project’s files (Reports › Weekly), as a snapshot of that week. Every Monday, last week’s report is saved by itself for each project that filed reports. Saving a week again adds a new version of the same file.', where: 'Daily Reports → Weekly report → Save PDF to project files' },
+    ],
+  },
+  {
+    id: '2026-11-18e',
+    date: '2026-11-18',
+    title: 'Today on the dashboard, and RFI alerts',
+    items: [
+      { area: 'Dashboard', kind: 'new', text: 'A “Today” panel at the top: your Emergency and Urgent tasks, tasks overdue or due today, and your RFIs — overdue, due in the next two days, or waiting on you. Click any line to open it.', where: 'Dashboard → Today' },
+      { area: 'RFIs', kind: 'new', text: 'RFI alerts: you hear when you become an RFI’s owner or an RFI is sent to you, and when an open RFI you own or were sent is due tomorrow or past due. Choose how (text, email, daily digest…) under RFIs in your notification settings.', where: 'Settings → My account → Notifications → RFIs' },
+    ],
+  },
+  {
+    id: '2026-11-18d',
+    date: '2026-11-18',
+    title: 'Fixes: text credits message, a meeting that wasn’t one',
+    items: [
+      { area: 'Texts', kind: 'fixed', text: 'When Quo refuses a text for lack of credits, the message now says which allowance ran out and where to add more: texts sent from Origami use Quo’s API credits (Quo → Settings → Billing), which are separate from the plan’s included texts shown in Quo.', where: 'Sending a text' },
+      { area: 'Meetings', kind: 'fixed', text: 'Special Actions entries made without a meeting no longer show up as an “Internal meeting” on the day they were made (that was the Nov 16 meeting next to the real Nov 12 one).', where: 'Meetings' },
+    ],
+  },
+  {
+    id: '2026-11-18c',
+    date: '2026-11-18',
+    title: 'Clearer task buttons and tidier Meetings filters',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: '“✓ Close task” is now “✓ Complete task”, so it isn’t confused with “Save & close”. Complete task finishes the task and archives it; Save & close only closes the panel.', where: 'Any task' },
+      { area: 'Meetings', kind: 'improved', text: 'The filters fit on one row: status and meeting type are dropdowns (with counts) instead of two more rows of buttons.', where: 'Meetings' },
+    ],
+  },
+  {
+    id: '2026-11-18b',
+    date: '2026-11-18',
+    title: 'Widen the task panel by dragging',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Drag the left edge of a task panel to make it wider or narrower. It remembers the width on this computer; double-click the edge to go back to the normal size.', where: 'Any task panel → its left edge' },
+    ],
+  },
+  {
+    id: '2026-11-18a',
+    date: '2026-11-18',
+    title: 'Task panel: one set of buttons, the same everywhere',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'The checkbox and ✕ beside a task’s title are gone — they did the same as the buttons at the top. Every task panel (task boards, Special Actions Log, Phase Board) now has the same bar: ✓ Close task (or ✓ Mark done on a subtask), Close without saving, and Save & close. Esc or clicking outside still saves and closes.', where: 'Any task' },
+    ],
+  },
+  {
+    id: '2026-11-17i',
+    date: '2026-11-17',
+    title: 'Pre-construction in Financials',
+    items: [
+      { area: 'Financials', kind: 'new', text: 'A Pre-construction view lists every estimate and revision side by side — build cost, the high end of the range, the design / precon fee and the total — so you can compare how the numbers moved.', where: 'Project → Financials → Pre-construction' },
+      { area: 'Financials', kind: 'new', text: '“Invoice precon fees…” makes a draft invoice for design or pre-construction fees from an estimate, before the contract is signed. These invoices sit outside the contract value: they don’t use it up or lock it. Also available before client billing is set up.', where: 'Project → Financials → Pre-construction' },
+    ],
+  },
+  {
+    id: '2026-11-17h',
+    date: '2026-11-17',
+    title: 'Estimating timers, CSI codes on trades, prequal with the bid, Policies in Help',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'A sent estimate shows how long it has been waiting on the client (“Sent · waiting 9 days”), in amber after a week. It stays in Estimating, not on the dashboard.', where: 'Estimating → a project' },
+      { area: 'Trades', kind: 'improved', text: 'Trade lists show the CSI division next to each trade (e.g. “26 · Electrician”, “C-10 Electrical · CSI 26”) so trades line up with estimate line items.', where: 'Workforce, Contractors, People → Sub / Vendor' },
+      { area: 'Bids', kind: 'improved', text: 'Subs no longer have to be prequalified before you invite them to bid: the bid email carries the prequal form, and full qualification comes before construction. Only a sub whose prequal was turned down can’t be invited.', where: 'Estimating → Bid packages → Invite' },
+      { area: 'Prequal', kind: 'improved', text: 'The W-9 is asked for at contract signing, not on the prequal form.', where: 'Prequal form' },
+      { area: 'Help', kind: 'new', text: 'Policies & procedures: SOPs, service levels and the disaster-recovery plan in one place for the team. Administrators add each as a link to the document.', where: 'Help & Support → Policies' },
+    ],
+  },
+  {
+    id: '2026-11-17g',
+    date: '2026-11-17',
+    title: 'RFIs: drawings and numbered callouts, kept off the set until answered',
+    items: [
+      { area: 'RFIs', kind: 'new', text: 'An RFI now shows its drawings and numbered callouts near the top, so the reviewer knows where to look. “✎ Mark up for this RFI” opens the drawing on the RFI’s own layer, which only our team sees — trades aren’t confused by markups before the RFI is vetted.', where: 'RFI → Drawings & callouts' },
+      { area: 'RFIs', kind: 'new', text: 'Once the RFI is answered (or closed), “Publish to the drawing set” moves its markups onto a normal layer everyone on the drawing sees. It’s noted in the RFI’s history.', where: 'RFI → Drawings & callouts' },
+      { area: 'RFIs', kind: 'fixed', text: 'On the RFI page the RFI panel could be cut off at the bottom of the list; it now opens full height.', where: 'RFI' },
+    ],
+  },
+  {
+    id: '2026-11-17f',
+    date: '2026-11-17',
+    title: 'Every file says who it’s for',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'Each file carries a tag: 🔒 Internal (our team only), 👤 Client (our team and the client) or 🌐 External (everyone on the project). Clients and outside people only see the files their tag allows; folder rules still apply too. Change it in the file’s panel, or pick several files and use “Who it’s for…”. New files in the build set start as Client, everything else as Internal.', where: 'File Room → a file → Who it’s for' },
+      { area: 'File Room', kind: 'new', text: 'Administrators: a one-time banner lists the existing build-set files clients would stop seeing (older files count as Internal). Preview it, then Apply to tag them Client. Nothing changes until you press Apply.', where: 'File Room (admins)' },
+    ],
+  },
+  {
+    id: '2026-11-17e',
+    date: '2026-11-17',
+    title: 'Tasks: epics, and merging duplicates',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Epics tie related tasks together on a board (e.g. “PG&E service”, “Permits”). Add one with + Epic, pick it in a task’s Epic field, click it to see only its tasks, and see its progress and target date at a glance. “Group by epic” lays the List view out by epic.', where: 'Task board → Epics' },
+      { area: 'Tasks', kind: 'new', text: 'Merge duplicates: open the task to keep, press ⇲ Merge duplicates… and tick the copies. Their files, comments and full history move onto it, their subtasks move under it, and each copy becomes a closed subtask marked “Merged into …”. Nothing is deleted.', where: 'Task → ⇲ Merge duplicates…' },
+    ],
+  },
+  {
+    id: '2026-11-17d',
+    date: '2026-11-17',
+    title: 'Tasks: a reason for moving an overdue date, and the same three close buttons',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Moving or clearing the due date of an overdue task now asks why (Client hold, Waiting on others, Scope change, Weather or your own words). The reason is kept in the task’s history.', where: 'Task → Due date' },
+      { area: 'Tasks', kind: 'improved', text: 'Every task panel has the same three buttons at the top: ✓ Close task (complete and archive), Close without saving (drops changes not saved yet) and Save & close.', where: 'Task boards and the Special Actions Log' },
+      { area: 'Tasks', kind: 'improved', text: 'Clients and consultants on a subtask now see the name of its parent task, and someone on a parent task sees its subtasks (except internal ones).', where: 'Task boards' },
+    ],
+  },
+  {
+    id: '2026-11-17c',
+    date: '2026-11-17',
+    title: 'From the Nov 17 meeting: View as, dates and the daily report crew',
+    items: [
+      { area: 'View as', kind: 'fixed', text: 'A project’s own team (its Project manager, Superintendent and so on) now counts as being on the project, and Dashboard items from other projects no longer show. The yellow bar says whether the person sees only their projects or, because of their role, every project.', where: 'Top bar → View as…' },
+      { area: 'Dates', kind: 'fixed', text: 'Some screens took “today” from world time, so in the evening a report or a week could show the next day. Dates now follow your own day.', where: 'Daily reports, Meetings, Dashboard' },
+      { area: 'Daily report', kind: 'improved', text: 'The worker list shows the supervisor’s own crew first, with a switch for everyone on the project. People not deployed on the project are only offered after “Add someone not on this project…”. Set who a worker reports to when you deploy or transfer them.', where: 'Daily report → Crew; Manpower → Deployment → Reports to' },
+    ],
+  },
+  {
+    id: '2026-11-17b',
+    date: '2026-11-17',
+    title: 'The full menu on phones and tablets',
+    items: [
+      { area: 'Menu', kind: 'fixed', text: 'On a phone or tablet the left menu showed only a few icons, and the other sections couldn’t be opened. Tap ☰ at the top of the icon strip for the full menu with names, every section and search; picking a page or tapping outside closes it.', where: 'Left menu → ☰' },
+    ],
+  },
+  {
+    id: '2026-11-17a',
+    date: '2026-11-17',
+    title: 'View as works on a phone',
+    items: [
+      { area: 'Admin', kind: 'fixed', text: 'On an iPhone, the View as list opened off the edge of the screen under the side menu. It now spans the screen below the header, and the button stays on one line.', where: 'Top bar → View as…' },
+    ],
+  },
+  {
+    id: '2026-11-16b',
+    date: '2026-11-16',
+    title: 'Markup text: readable on big drawings, easy to move and size',
+    items: [
+      { area: 'Markups', kind: 'fixed', text: 'Text on large drawings (like a 36×24 sheet) came out tiny. New text now reads at a normal size on any sheet; the size menu shows “12 pt (×3)” on a big sheet.', where: 'Plan room → Mark up → Text' },
+      { area: 'Markups', kind: 'improved', text: 'Drag your text to move it, even with the Text tool still on, and drag its corner square to make the letters any size. A−/A+ still step through the sizes, now up to 72 pt.' },
+    ],
+  },
+  {
     id: '2026-11-16a',
     date: '2026-11-16',
     title: 'Pick the funding source on invoices and change orders',

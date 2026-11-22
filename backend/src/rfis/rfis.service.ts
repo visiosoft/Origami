@@ -1,4 +1,5 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { NotifyHub } from '../notifications/notify-hub.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectEntity, RfiEntity, UserEntity, type RfiContact, type RfiDrawingRef, type RfiEvent } from '../database/entities';
@@ -10,6 +11,9 @@ import { newId } from '../manpower/workforce.util';
 import { SettingsService } from '../settings/settings.service';
 import { emailShell, loadEmailBrand } from '../email/shell';
 import { RFI_DISCIPLINES, rfiDocumentHtml, rfiEmailBody } from './rfi.document';
+import { logCounts, rfiLogHtml } from './rfi-log';
+import { FileRoomFileEntity, PdfMarkupEntity, PersonEntity } from '../database/entities';
+import { appendDrawings, type DrawingSheet } from './rfi-drawings';
 
 export const RFI_MODULE = 'rfis';
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -63,7 +67,112 @@ export class RfisService {
     private readonly google: GoogleService,
     private readonly settings: SettingsService,
     private readonly attachments?: AttachmentsService,
+    @Optional() private readonly hub?: NotifyHub,
+    @Optional() @InjectRepository(PersonEntity) private readonly people?: Repository<PersonEntity>,
+    @Optional() @InjectRepository(PdfMarkupEntity) private readonly markups?: Repository<PdfMarkupEntity>,
+    @Optional() @InjectRepository(FileRoomFileEntity) private readonly files?: Repository<FileRoomFileEntity>,
   ) {}
+
+  /**
+   * Nov 19 (Edward): the RFI's drawings after its form -- each referenced sheet
+   * page with the RFI's markups drawn in, cropped around them. Best effort: the
+   * form alone if a drawing can't be read.
+   */
+  private async withDrawings(r: RfiEntity, form: Buffer): Promise<Buffer> {
+    if (!this.markups || !this.files || !r.drawings?.length) return form;
+    try {
+      const groups = new Map<string, { fileId: string; page?: number; markupIds: string[] }>();
+      for (const d of r.drawings) {
+        const k = `${d.fileId}|${d.page || ''}`;
+        const g = groups.get(k) || { fileId: d.fileId, page: d.page, markupIds: [] };
+        if (d.markupId) g.markupIds.push(d.markupId);
+        groups.set(k, g);
+      }
+      const sheets: DrawingSheet[] = [];
+      const bytesOf = new Map<string, Uint8Array | null>();
+      for (const g of [...groups.values()].slice(0, 8)) {
+        const all = await this.markups.find({ where: { fileId: g.fileId } as any });
+        const mine = all.filter((m) => g.markupIds.includes(m.id) || ((m as any).linkType === 'rfi' && (m as any).linkId === r.id));
+        const pages = g.page ? [g.page] : [...new Set(mine.map((m) => m.page))];
+        if (!pages.length) continue;
+        if (!bytesOf.has(g.fileId)) {
+          const f = await this.files.findOneBy({ id: g.fileId });
+          const pdf = f?.driveId && /pdf$/i.test(`${f.ext || ''} ${f.mimeType || ''}`) && Number(f.size || 0) < 60e6 ? await this.google.driveFileBuffer(f.driveId).catch(() => null) : null;
+          bytesOf.set(g.fileId, pdf);
+        }
+        const bytes = bytesOf.get(g.fileId);
+        if (!bytes) continue;
+        const f = await this.files.findOneBy({ id: g.fileId });
+        for (const page of pages) {
+          const marks = mine.filter((m) => m.page === page).map((m) => ({ page: m.page, kind: m.kind, data: m.data as any }));
+          if (!marks.length) continue;
+          const sheet = (f?.sheetNames || {})[String(page)];
+          sheets.push({ bytes, page, marks, title: `${sheet || f?.name || 'Drawing'} · p. ${page}` });
+        }
+      }
+      return sheets.length ? Buffer.from(await appendDrawings(form, sheets)) : form;
+    } catch (e) {
+      this.log.warn(`${r.number} drawings not added to the PDF: ${(e as Error).message}`);
+      return form;
+    }
+  }
+
+  /**
+   * Nov 19 (Edward): who the project's RFI Log can go to -- the project team
+   * (logins) and the people on the project with an email.
+   */
+  async logRecipients(projectId: number, actor: Actor) {
+    await this.need(actor, 'view');
+    const p = await this.projects.findOneBy({ id: projectId });
+    if (!p) throw new NotFoundException('Project not found');
+    const ids = new Set(Object.values(p.roles || {}));
+    const team = (await this.users.find()).filter((u) => ids.has(u.id) && u.email && u.status !== 'suspended').map((u) => ({ name: u.name, email: u.email, kind: 'Team' }));
+    const people = ((await this.people?.find().catch(() => [])) || [])
+      .filter((x) => (Array.isArray(x.projectIds) && x.projectIds.map(Number).includes(projectId)) || (x.projects || []).includes(p.name))
+      .filter((x) => /@/.test(String(x.email || '')))
+      .map((x) => ({ name: x.name, email: String(x.email), kind: String(x.kind || 'Contact') }));
+    const seen = new Set<string>();
+    return [...team, ...people].filter((r) => { const k = r.email.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  }
+
+  /** The RFI Log as a PDF, emailed to the people picked (Nov 19). */
+  async sendLog(projectId: number, dto: { to?: string[]; note?: string }, actor: Actor) {
+    await this.need(actor, 'manage');
+    const to = [...new Set((Array.isArray(dto?.to) ? dto.to : []).map((e) => String(e).trim().toLowerCase()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)))].slice(0, 60);
+    if (!to.length) throw new BadRequestException('Pick at least one person to send it to.');
+    if (!(await this.google.isConnected())) throw new BadRequestException('No Google account is connected for sending mail (Settings → Integrations).');
+    const p = await this.projects.findOneBy({ id: projectId });
+    if (!p) throw new NotFoundException('Project not found');
+    const rows = await this.list(actor, projectId);
+    const brand = await loadEmailBrand(this.settings);
+    const day = today();
+    const html = rfiLogHtml(rows as any, p.name, brand.companyName, day);
+    const pdf = await this.google.htmlToPdf(html, `RFI Log ${p.name}`);
+    const c = logCounts(rows as any, day);
+    const note = cleanText(dto?.note, 2000);
+    // One email, everyone in Bcc, so recipients don't see each other's addresses.
+    await this.google.sendMail({
+      to: (await this.settings.get('google.senderEmail')) || (await this.settings.get('google.connectedEmail')) || to[0], bcc: to.join(', '),
+      subject: `RFI Log — ${p.name} (${c.open} open${c.overdue ? `, ${c.overdue} overdue` : ''})`,
+      html: emailShell({ brand, eyebrow: 'RFI Log', title: p.name, body: `${note ? `<p>${note.replace(/[<>&]/g, (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[ch]!)).replace(/\n/g, '<br>')}</p>` : ''}<p>The project’s RFI Log is attached: ${c.total} RFIs — ${c.open} open${c.overdue ? ` (${c.overdue} overdue)` : ''}, ${c.answered} answered, ${c.closed} closed.</p>`, footer: `Sent by ${actor.name} at ${brand.companyName}.` }),
+      attachments: [{ filename: `RFI Log - ${p.name}.pdf`, mimeType: 'application/pdf', content: pdf }],
+    });
+    return { sent: to.length, ...c };
+  }
+
+  /** Nov 17: tell someone an RFI is now theirs (owner set, or sent to them), their way. */
+  private async tellAssigned(r: RfiEntity, userIds: (string | null | undefined)[], actor: Actor, why: string) {
+    if (!this.hub) return;
+    const ids = userIds.filter((x): x is string => !!x);
+    if (!ids.length) return;
+    void this.hub.deliver(ids, 'rfi_assigned', { title: `${why}: ${r.number}${r.subject ? ` — ${r.subject}` : ''}`, body: r.dateDue ? `Due ${r.dateDue}.` : undefined, path: `/rfis?rfi=${encodeURIComponent(r.id)}`, actorId: actor.id }).catch(() => undefined);
+  }
+  private async userByEmail(email: string | null | undefined): Promise<string | null> {
+    const e = String(email || '').trim().toLowerCase();
+    if (!e) return null;
+    const u = (await this.users.find()).find((x) => String(x.email || '').toLowerCase() === e || ((x as any).altEmails || []).some((a: string) => String(a).toLowerCase() === e));
+    return u?.id || null;
+  }
 
   // ------------------------------------------------------------------ access
 
@@ -152,6 +261,7 @@ export class RfisService {
       this.event(r, actor, dto.sourceTaskId ? 'created from a task' : 'created');
       try { saved = await this.repo.save(r); } catch (e) { if (attempt === 2) throw e; }
     }
+    if (saved!.ownerId && saved!.ownerId !== actor.id) await this.tellAssigned(saved!, [saved!.ownerId], actor, 'You own a new RFI');
     return this.get(saved!.id, actor);
   }
 
@@ -188,9 +298,11 @@ export class RfisService {
     await this.need(actor, 'manage');
     const r = await this.load(id);
     if (r.status === 'closed' || r.status === 'void') throw new BadRequestException(`${r.number} is ${r.status} — reopen it to make changes.`);
+    const ownerBefore = r.ownerId;
     await this.applyFields(r, dto, actor);
     r.updatedAt = now(); r.updatedBy = actor.name;
     await this.repo.save(r);
+    if (r.ownerId && r.ownerId !== ownerBefore) await this.tellAssigned(r, [r.ownerId], actor, 'You now own an RFI');
     return this.get(id, actor);
   }
 
@@ -200,7 +312,7 @@ export class RfisService {
     const r = await this.load(id);
     const project = await this.projects.findOneBy({ id: r.projectId });
     const brand = await loadEmailBrand(this.settings);
-    const buffer = await this.google.htmlToPdf(rfiDocumentHtml(r, { name: project?.name || '', location: project?.location }, brand.companyName), r.number);
+    const buffer = await this.withDrawings(r, await this.google.htmlToPdf(rfiDocumentHtml(r, { name: project?.name || '', location: project?.location }, brand.companyName), r.number));
     return { buffer, filename: `${r.number} ${r.subject}`.replace(/[^\w\- ]+/g, '').slice(0, 80) + '.pdf' };
   }
 
@@ -224,7 +336,7 @@ export class RfisService {
     const owner = r.ownerId ? await this.users.findOneBy({ id: r.ownerId }) : null;
     let attachments: { filename: string; mimeType: string; content: Buffer }[] = [];
     try {
-      const pdf = await this.google.htmlToPdf(rfiDocumentHtml(r, { name: project?.name || '', location: project?.location }, brand.companyName), r.number);
+      const pdf = await this.withDrawings(r, await this.google.htmlToPdf(rfiDocumentHtml(r, { name: project?.name || '', location: project?.location }, brand.companyName), r.number));
       attachments = [{ filename: `${r.number}.pdf`, mimeType: 'application/pdf', content: pdf }];
     } catch (err) {
       this.log.warn(`${r.number} PDF not attached: ${(err as Error).message}`);
@@ -241,6 +353,8 @@ export class RfisService {
     this.event(r, actor, first ? `sent to ${r.to.name}` : `re-sent to ${r.to.name}`, cleanText(dto?.note, 500) || undefined);
     r.updatedAt = now(); r.updatedBy = actor.name;
     await this.repo.save(r);
+    // Nov 17: sent to someone with a login here -- it's on them now.
+    await this.tellAssigned(r, [await this.userByEmail(r.to?.email)], actor, 'An RFI was sent to you');
     return this.get(id, actor);
   }
 

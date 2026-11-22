@@ -3,6 +3,7 @@ import { FundingSourceEntity, LienReleaseEntity, SubInvoiceEntity } from '../dat
 import { FundingService } from './funding.service';
 import { ChangeOrderPublicController } from './co-public.controller';
 import { TrackingModule } from '../tracking/tracking.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
@@ -66,6 +67,7 @@ import {
     SettingsModule,
     TrackingModule,
     FileRoomModule,
+    NotificationsModule,
   ],
   controllers: [ChangeOrderPublicController, EstimatePublicController, BidPublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],

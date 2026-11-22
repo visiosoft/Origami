@@ -195,6 +195,26 @@ export class SmsBatchEntity {
   @Column({ type: 'simple-json' }) recipients!: { type: 'person' | 'lead'; id: string; name: string; phone: string; status: 'waiting' | 'sent' | 'failed' | 'skipped'; note?: string }[];
 }
 
+/**
+ * Nov 20 ("monitor API usage"): what Origami used of each paid service, per
+ * month -- texts (segments) and AI (tokens). OpenAI and Quo don't share the
+ * credit left through their APIs, so Origami counts its own use.
+ */
+@Entity('api_usage')
+export class ApiUsageEntity {
+  /** `${service}|${month}` */
+  @PrimaryColumn({ type: 'nvarchar', length: 40 }) id!: string;
+  /** quo | twilio | openai */
+  @Column({ type: 'nvarchar', length: 20 }) service!: string;
+  /** yyyy-mm */
+  @Column({ type: 'nvarchar', length: 7 }) month!: string;
+  @Column({ type: 'int', default: 0 }) units!: number;
+  @Column({ type: 'int', default: 0 }) calls!: number;
+  @Column({ type: 'int', default: 0 }) failures!: number;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) lastError!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+}
+
 @Entity('sms_messages')
 @Index('IX_sms_messages_entity', ['entityType', 'entityId'])
 export class SmsMessageEntity {
@@ -246,6 +266,9 @@ export class TrackedLinkEntity {
 @Index('IX_tasks_meetingId', ['meetingId'])
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** Nov 19 (Edward): a FOR RECORD entry the client approved and signed -- "codified" -- and in which bundle (AP-001). */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) codifiedIn!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) codifiedAt!: string | null;
   /** Who entered it (users.id); '' when no one was recorded. */
   @Column({ nullable: true }) createdById!: string;
   /** How many comments it has, so lists can show the count without loading them. */
@@ -372,6 +395,12 @@ export class MeetingEntity {
   @Column({ type: 'nvarchar', length: 40, nullable: true }) notesImportedAt!: string | null;
   /** Its Google Calendar event, when put on a calendar from Origami. */
   @Column({ type: 'nvarchar', length: 200, nullable: true }) calendarEventId!: string | null;
+  /** Nov 19: archived (test meetings, empty records) -- hidden from Meetings, can be brought back. */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) archivedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) archivedBy!: string | null;
+  /** Nov 20: who sorts this meeting's items -- the organiser by default; anyone with Meetings rights can take it over (organiser away). */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) sortedById!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) sortedBy!: string | null;
   @Column({ nullable: true }) reviewedBy!: string;
   @Column({ nullable: true }) reviewedAt!: string;
   @Column({ nullable: true }) createdBy!: string;
@@ -740,6 +769,53 @@ export class FaqEntity {
   @Column('int') order!: number;
 }
 
+/**
+ * Nov 17 sync: the company's standard documents -- SOPs, service levels,
+ * disaster recovery -- listed under Help & Support -> Policies for the team.
+ * Each is a link to the document (usually in Google Drive).
+ */
+@Entity('help_documents')
+export class HelpDocumentEntity {
+  @PrimaryColumn() id!: string;
+  @Column({ type: 'nvarchar', length: 200 }) title!: string;
+  /** sop | sla | disaster | policy | other */
+  @Column({ type: 'nvarchar', length: 20, default: 'sop' }) kind!: string;
+  @Column({ type: 'nvarchar', length: 1000 }) url!: string;
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) summary!: string | null;
+  @Column('int', { default: 0 }) order!: number;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) updatedBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+}
+
+/**
+ * Nov 17 sync (Edward): several RFIs, decisions, observations and change
+ * orders sent to the client together, approved or declined one by one and
+ * signed once online; the signed PDF is kept in the project's files.
+ */
+export interface BundleItem { kind: 'rfi' | 'record' | 'co'; id: string; label: string; summary: string; decision?: 'approved' | 'declined' | null; note?: string | null }
+@Entity('client_approval_bundles')
+export class ClientApprovalBundleEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column({ type: 'nvarchar', length: 20 }) number!: string; // AP-001
+  @Column({ type: 'nvarchar', length: 200 }) title!: string;
+  @Column({ type: 'simple-json' }) items!: BundleItem[];
+  /** draft | sent | signed */
+  @Column({ type: 'nvarchar', length: 12, default: 'draft' }) status!: string;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) sentTo!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) sentAt!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) sentBy!: string | null;
+  @Column({ type: 'nvarchar', length: 2000, nullable: true }) message!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) signedName!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) signedEmail!: string | null;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) signatureImage!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) signedIp!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) signedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 80, nullable: true }) signedFileId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) createdBy!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) createdAt!: string | null;
+}
+
 @Entity('consultants')
 export class ConsultantEntity {
   @PrimaryColumn() id!: string;
@@ -845,6 +921,8 @@ export class ProjectTaskEntity {
   @Column('int') order!: number;
   @Column({ default: false }) completed!: boolean;
   @Column({ nullable: true }) parentId!: string; // subtask -> parent task id
+  /** Nov 17: the epic it belongs to (ProjectEpicEntity id); subtasks follow their parent's. */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) epicId!: string | null;
   @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
   @Column({ type: 'simple-json', nullable: true }) comments!: TaskComment[];
   @Column() createdAt!: string;
@@ -880,6 +958,23 @@ export class ProjectTaskEntity {
   /** Moved to Confirmed by the originator; 7 days later it's archived. */
   @Column({ nullable: true }) confirmedAt!: string;
   @Column({ nullable: true }) archivedAt!: string;
+}
+
+/**
+ * An epic (Nov 17 sync): a named group that ties related tasks together on a
+ * board ("Permits", "PG&E service"), with a colour, an optional target date
+ * and progress from its tasks. projectId null = General Tasks.
+ */
+@Entity('project_epics')
+export class ProjectEpicEntity {
+  @PrimaryColumn() id!: string; // EP-<random>
+  @Column('int', { nullable: true }) projectId!: number | null;
+  @Column({ type: 'nvarchar', length: 120 }) name!: string;
+  @Column({ type: 'nvarchar', length: 20, default: '#5B7C99' }) color!: string;
+  @Column({ type: 'nvarchar', length: 10, nullable: true }) dueDate!: string | null;
+  @Column('int', { default: 0 }) order!: number;
+  @Column({ nullable: true }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) archivedAt!: string | null;
 }
 
 /**
@@ -1257,6 +1352,11 @@ export class FileRoomFileEntity {
   @Column({ nullable: true, default: true }) isLatest!: boolean;
   /** Free notes about the document — what it is, what changed, what to watch. */
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) notes!: string;
+  /**
+   * Nov 17: who it is for -- internal (staff only; also when empty), client
+   * (staff and the client) or external (everyone on the project: consultants, trades).
+   */
+  @Column({ type: 'nvarchar', length: 12, nullable: true }) access!: string | null;
   /** A drawing's sheet numbers by page ("1": "A100"), read from the title blocks and correctable (Oct 31). */
   @Column({ type: 'simple-json', nullable: true }) sheetNames!: Record<string, string> | null;
   /**
@@ -1270,6 +1370,20 @@ export class FileRoomFileEntity {
   @Column({ type: 'nvarchar', length: 20, nullable: true }) previewState!: string | null;
   @Column({ type: 'int', default: 0 }) previewTries!: number;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) previewAt!: string | null;
+  /**
+   * Nov 20 drawing sets: the revision -- architect's before the decimal (Rev 1.0),
+   * the team's published markups after it (Rev 1.01 … 1.05). Null outside drawing sets.
+   */
+  @Column({ type: 'int', nullable: true }) revMajor!: number | null;
+  @Column({ type: 'int', nullable: true }) revMinor!: number | null;
+  /** The approved working set of its document (one revision per document). */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) approvedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 120, nullable: true }) approvedBy!: string | null;
+  /** Not city-approved -- for early work only (e.g. a structural set used for the foundation). */
+  @Column({ type: 'bit', nullable: true }) notCityApproved!: boolean | null;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) cityNote!: string | null;
+  /** What happened to this drawing: uploads, publishes, approvals, flags (shown under the viewer). */
+  @Column({ type: 'simple-json', nullable: true }) drawingLog!: { at: string; by: string; kind: string; text: string; layer?: string | null }[] | null;
 }
 
 /** A folder someone created that holds no files yet — otherwise it would vanish. */
@@ -1531,6 +1645,8 @@ export class EmployeeAssignmentEntity {
   @Column('int') projectId!: number;
   /** Zone / block / area within the project's site, e.g. "Tower A". */
   @Column({ nullable: true }) workArea!: string;
+  /** Nov 17: the supervisor (user id) they report to here -- their daily report lists this crew. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) supervisorId!: string | null;
   @Column({ nullable: true }) tradeId!: string;
   @Column({ nullable: true }) designation!: string;
   @Column({ default: 'regular' }) assignmentType!: string; // regular | temporary
@@ -1665,6 +1781,8 @@ export class TimesheetLineEntity {
 @Entity('subcontractor_trades')
 export class SubcontractorTradeEntity {
   @PrimaryColumn() id!: string;
+  /** Nov 19: the CSI divisions this licence covers (e.g. C-10 → ['26']); empty for general licences (A, B, B-2). */
+  @Column({ type: 'simple-json', nullable: true }) csiDivisions!: string[] | null;
   @Column() code!: string;
   @Column() name!: string;
   @Column({ default: 'specialty' }) category!: string; // general_engineering | general_building | specialty | limited_specialty | other
@@ -2651,6 +2769,9 @@ export class BidPackageEntity {
   @Column({ type: 'simple-json' }) content!: { scopes: { key: string; title: string; csi: string | null; lines: { key: string; description: string }[]; notes: { kind: string; text: string }[] }[] };
   @Column({ type: 'nvarchar', length: 10, nullable: true }) dueDate!: string | null;
   @Column({ ...TEXT, nullable: true }) notes!: string | null;
+  /** Nov 19 (Edward): bid instructions, and a site visit subs can come to. */
+  @Column({ ...TEXT, nullable: true }) instructions!: string | null;
+  @Column({ type: 'simple-json', nullable: true }) siteVisit!: { date: string; time?: string | null; place?: string | null; note?: string | null } | null;
   /** draft | out | closed */
   @Column({ default: 'draft' }) status!: string;
   @Column() createdAt!: string;
@@ -2678,6 +2799,9 @@ export class BidInviteEntity {
   @Column({ type: 'nvarchar', length: 40, nullable: true }) viewedAt!: string | null;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) submittedAt!: string | null;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) decidedAt!: string | null;
+  /** Nov 19: "I'll attend" the site visit; and the sub's questions, each answered to them only. */
+  @Column({ type: 'bit', nullable: true }) attending!: boolean | null;
+  @Column({ type: 'simple-json', nullable: true }) questions!: { id: string; text: string; at: string; answer?: string | null; answeredAt?: string | null; answeredBy?: string | null }[] | null;
   @Column() createdAt!: string;
 }
 
@@ -2872,6 +2996,8 @@ export interface EstimateAreas { demolish?: number; footprint?: number; built?: 
 export class EstimateEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
   @Column('int') projectId!: number;
+  /** Nov 19 (Edward): marked valid in Estimating -- shown in Financials -> Precon (several can be). */
+  @Column({ default: false }) valid!: boolean;
   /**
    * A named company template ("Bathroom remodel"): projectId 0, never sent.
    * A new estimate can start from a template or from any other estimate.

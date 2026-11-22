@@ -119,9 +119,9 @@ export class EstimateLetterService {
     const note = String(dto?.note || '').trim().slice(0, 4000);
     await this.google.sendMail({
       to, cc: cc.join(', ') || undefined,
-      subject: `Estimate ${e.number} Rev ${e.rev} — ${project.name}`,
+      subject: `A new estimate is ready — ${project.name} (${e.number} Rev ${e.rev})`,
       html: emailShell({ brand: emailBrand as any, eyebrow: `Estimate · ${e.number} Rev ${e.rev}`, title: first ? `Hi ${escapeHtml(first)},` : 'Hello,',
-        body: estimateEmailBody({ number: e.number, rev: e.rev, title: e.title, projectName: project.name, total: money.total ? fresh.result.totals.totalProject : null, note }) + viewButton(link).replace('View the change order', 'Review and accept the estimate'),
+        body: estimateEmailBody({ number: e.number, rev: e.rev, title: e.title, projectName: project.name, total: money.total ? fresh.result.totals.totalProject : null, note }) + viewButton(link).replace('View the change order', 'Review it in your portal'),
         footer: `Sent by ${escapeHtml(actor.name)} at ${escapeHtml(emailBrand.companyName)}.` }),
     });
     e.sentTo = [to, ...cc].join(', ').slice(0, 300); e.sentById = actor.id || null;

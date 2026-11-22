@@ -18,6 +18,8 @@ const UNIT = /,?\s*((?:suite|ste\.?|unit|#|apt\.?|floor|fl\.?)\s*[\w-]+)\s*$/i;
 const TITLE_WORDS = /\b(president|vice|vp|ceo|cfo|coo|cto|owner|founder|principal|partner|director|manager|engineer|architect|designer|estimator|superintendent|foreman|coordinator|consultant|associate|sales|representative|rep|specialist|officer|administrator|supervisor|inspector|agent|broker|advisor|project|lead|head|executive|accountant|planner|surveyor|technician|electrician|plumber|contractor)\b/i;
 const COMPANY_WORDS = /\b(inc|llc|l\.l\.c|ltd|corp|corporation|co\.?|company|group|builders?|construction|contracting|contractors?|design|architects?|architecture|engineering|electric(al)?|plumbing|roofing|associates|partners|studio|services|supply|homes|development|properties|realty|solutions|systems|enterprises|industries)\b/i;
 
+/** "RAFFIE KARABED" → "Raffie Karabed"; mixed case ("McDonald") is left alone. */
+const titleCase = (s: string) => (s === s.toUpperCase() ? s.toLowerCase().replace(/(^|[\s'-])([a-z])/g, (_m, a: string, b: string) => a + b.toUpperCase()) : s);
 const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
 const digits = (s: string) => s.replace(/[^\d]/g, '');
 
@@ -74,14 +76,37 @@ export function parseBusinessCard(text: string): CardFields {
   const free = lines.map((l, i) => ({ l, i })).filter(({ l, i }) => !used.has(i) && !/\d{3,}/.test(l) && l.length > 1);
   const title = free.find(({ l }) => TITLE_WORDS.test(l) && !COMPANY_WORDS.test(l));
   if (title) { out.title = title.l; used.add(title.i); }
-  const company = free.find(({ l, i }) => !used.has(i) && COMPANY_WORDS.test(l));
-  if (company) { out.company = company.l; used.add(company.i); }
-  // The name: a short line of 2-4 words, letters only, preferably Capitalised.
-  const nameLine = free.find(({ l, i }) => !used.has(i) && /^[A-Za-z][A-Za-z.'\- ]+$/.test(l) && l.split(' ').length >= 2 && l.split(' ').length <= 4)
+  // Nov 19 (Edward's card: "ARKAY / ENERGY / SOLUTIONS" was read as the person): words that make up the
+  // email's or website's domain ("arkayenergy") belong to the company, not the name.
+  const domainKey = ((out.email.split('@')[1] || out.website || '').split('.')[0] || '').toLowerCase();
+  const wordsOf = (l: string) => l.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1);
+  const domainy = (l: string) => { const w = wordsOf(l); return !!domainKey && w.length > 0 && w.every((x) => domainKey.includes(x)) && w.join('').length >= 3; };
+  const companyish = (l: string) => COMPANY_WORDS.test(l) || domainy(l);
+  const first = free.find(({ l, i }) => !used.has(i) && companyish(l));
+  if (first) {
+    // A logo set on several lines ("ARKAY ENERGY" / "SOLUTIONS"): the neighbouring company-ish lines join it.
+    const parts = [first];
+    for (const dir of [-1, 1]) {
+      let at = first.i + dir;
+      for (;;) {
+        const next = free.find((f) => f.i === at && !used.has(f.i));
+        if (!next || !companyish(next.l) || wordsOf(next.l).length > 4) break;
+        if (dir < 0) parts.unshift(next); else parts.push(next);
+        at += dir;
+      }
+    }
+    out.company = clean(parts.map((p) => p.l).join(' '));
+    parts.forEach((p) => used.add(p.i));
+  }
+  // The name: the line holding the email's name part ("raffie@…" ↔ "RAFFIE KARABED"), else a short line of 2-4 words.
+  const local = (out.email.split('@')[0] || '').toLowerCase().split(/[._-]+/).filter((x) => x.length >= 3);
+  const byEmail = local.length ? free.find(({ l, i }) => !used.has(i) && wordsOf(l).some((w) => local.some((x) => x === w || (w.length >= 3 && x.startsWith(w)) || (x.length >= 3 && w.startsWith(x))))) : undefined;
+  const nameLine = byEmail
+    || free.find(({ l, i }) => !used.has(i) && !companyish(l) && /^[A-Za-z][A-Za-z.'\- ]+$/.test(l) && l.split(' ').length >= 2 && l.split(' ').length <= 4)
     || free.find(({ i }) => !used.has(i));
   if (nameLine) {
     used.add(nameLine.i);
-    out.name = nameLine.l.replace(/,.*$/, '');
+    out.name = titleCase(nameLine.l.replace(/,.*$/, ''));
     const words = out.name.split(' ').filter((w) => !/^(mr|mrs|ms|dr)\.?$/i.test(w));
     out.firstName = words[0] || '';
     out.lastName = words.length > 1 ? words[words.length - 1] : '';

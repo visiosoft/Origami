@@ -12,6 +12,8 @@ export class SubcontractorTradeDto {
   @IsString() @IsOptional() description?: string;
   @IsBoolean() @IsOptional() active?: boolean;
   @IsNumber() @IsOptional() order?: number;
+  /** Nov 19: CSI divisions this licence covers. */
+  @IsOptional() csiDivisions?: string[];
 }
 
 @Tiers('internal')

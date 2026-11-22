@@ -53,7 +53,8 @@ describe('markup quick fixes', () => {
   it('steps text sizes and stops at both ends', () => {
     expect(nextSize(12, 1)).toBe(14);
     expect(nextSize(12, -1)).toBe(10);
-    expect(nextSize(36, 1)).toBe(36);
+    expect(nextSize(36, 1)).toBe(48);
+    expect(nextSize(72, 1)).toBe(72);
     expect(nextSize(8, -1)).toBe(8);
     expect(nextSize(13, 1)).toBe(14);
   });
@@ -100,6 +101,9 @@ describe('comparing revisions', () => {
     expect(pickCompareDefault('c', revs)?.id).toBe('b');
     expect(pickCompareDefault('a', revs)?.id).toBe('b');
     expect(pickCompareDefault('x', [revs[0]])?.id).toBe('a');
+    // Nov 20 (Edward): against the approved base; on the approved one, against the newest.
+    expect(pickCompareDefault('c', revs, 'a')?.id).toBe('a');
+    expect(pickCompareDefault('a', revs, 'a')?.id).toBe('c');
   });
 });
 

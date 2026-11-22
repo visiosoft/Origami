@@ -46,4 +46,11 @@ describe('Emergency board tasks', () => {
     await flush();
     expect(hub.emergency).toHaveBeenCalledTimes(1);
   });
+
+  it('only i-1 / i-2 change who a task is for (Nov 20)', async () => {
+    const { svc } = setup();
+    await expect(svc.update('P1', { tags: ['external'] }, { id: 'U-2', name: 'Astrid', roleKey: 'pm' } as any)).rejects.toThrow(/admin or principal/);
+    await expect(svc.update('P1', { tags: ['construction'] }, { id: 'U-2', name: 'Astrid', roleKey: 'pm' } as any)).resolves.toBeTruthy();
+    await expect(svc.update('P1', { tags: ['external'] }, { id: 'U-1', name: 'Edward', roleKey: 'admin' } as any)).resolves.toBeTruthy();
+  });
 });

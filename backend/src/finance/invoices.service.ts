@@ -14,7 +14,8 @@ import { assertVersion, FinancialsService } from './financials.service';
 import { fromCents, pctOf, roundPct, sumCents, toCents } from './money';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
-const LINE_KINDS = ['progress', 'manual', 'adjustment', 'reimbursable', 'retention_release'];
+// 'precon' (Nov 17): pre-construction / design fees billed from an estimate before the contract -- outside the contract value.
+const LINE_KINDS = ['progress', 'manual', 'adjustment', 'reimbursable', 'retention_release', 'precon'];
 export const PAYMENT_METHODS = ['ach', 'check', 'wire', 'card', 'cash', 'other'];
 const now = () => new Date().toISOString();
 const addDays = (d: string, n: number) => new Date(Date.parse(d + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10);
@@ -183,6 +184,34 @@ export class InvoicesService {
   }
 
   /**
+   * Nov 17 sync: bill pre-construction / design fees from an estimate while the
+   * contract is still being negotiated. A standard draft with "precon" lines,
+   * which sit outside the contract value (it isn't used up or locked).
+   */
+  async createPreconDraft(projectId: number, dto: { estimateLabel?: string; lines?: { description?: string; amount?: number | string }[] }, actor: Actor) {
+    await this.fin.need(actor, 'prepareInvoice');
+    const lines = (dto.lines || []).filter((l) => Number(l?.amount) > 0);
+    if (!lines.length) throw new BadRequestException('Add at least one fee with an amount.');
+    const { value: s } = await this.fin.settingsFor(projectId);
+    const today = todayISO();
+    const inv = this.invoices.create({
+      id: newId('PI'), projectId, kind: 'standard', status: 'draft', invoiceDate: today,
+      dueDate: addDays(today, s.paymentTermsDays ?? 30), currency: s.currency || 'USD', fxRate: 1, baseCurrency: 'USD',
+      reference: s.contractNumber, poNumber: s.poNumber, description: `Pre-construction${dto.estimateLabel ? ` — ${String(dto.estimateLabel).slice(0, 80)}` : ''}`,
+      billToName: s.billToName, billToEmail: s.billToEmail, billToAddress: s.billToAddress,
+      retentionPct: 0, taxPct: s.taxPct, attachments: [], createdAt: now(), createdBy: actor.name,
+    });
+    const ctx = await this.fin.context(projectId);
+    const built = this.buildLines(inv, lines.map((l) => ({ kind: 'precon', description: String(l.description || 'Pre-construction fee').slice(0, 300), amount: Number(l.amount), taxable: false } as LineDto)), computeSov(ctx.input), await this.refs(projectId));
+    await this.invoices.manager.transaction(async (m) => {
+      await m.getRepository(ProjectInvoiceEntity).save(inv);
+      await m.getRepository(ProjectInvoiceLineEntity).save(built, { chunk: 40 });
+    });
+    await this.fin.log(null, { projectId, entityType: 'invoice', entityId: inv.id, action: 'invoice_drafted', reason: 'pre-construction fees', changes: { lines: { from: null, to: built.length } } }, actor);
+    return this.get(inv.id, actor);
+  }
+
+  /**
    * Turn line input into stored lines with their effective retention and tax,
    * and the progress snapshot as things stand now (refreshed again at issue).
    */
@@ -233,6 +262,13 @@ export class InvoicesService {
         if (!base.description) throw new BadRequestException(`Line ${i + 1}: describe the item.`);
         if (amountC <= 0) throw new BadRequestException(`Line ${i + 1}: the amount must be more than zero.`);
         Object.assign(base, { quantity: q, rate: rate == null ? null : fromCents(toCents(rate)), billingMethod: 'manual' });
+      } else if (d.kind === 'precon') {
+        // Nov 17: billed from an estimate before the contract -- not contract work, no retention.
+        amountC = toCents(d.amount as any);
+        if (!base.description) throw new BadRequestException(`Line ${i + 1}: describe the fee.`);
+        if (amountC <= 0) throw new BadRequestException(`Line ${i + 1}: the amount must be more than zero.`);
+        retentionApplies = false;
+        Object.assign(base, { quantity: null, rate: null, billingMethod: 'precon' });
       } else if (d.kind === 'reimbursable') {
         const r = d.reimbursableId ? refs.reimbs.get(d.reimbursableId) : undefined;
         if (!r || r.projectId !== inv.projectId) throw new BadRequestException(`Line ${i + 1}: that reimbursable isn't on this project.`);

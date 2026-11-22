@@ -9,6 +9,12 @@ import { normalizeMeetingStatus, settleMeetingStatus, type CapturedAction } from
 
 type Actor = { name: string; id?: string };
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
+/** Same action, ignoring case, spacing and punctuation. */
+export const sameSubject = (a: string, b: string) => {
+  const n = (s: string) => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return !!n(a) && n(a) === n(b);
+};
+
 /** FOR RECORD entries are records, not actions: they never hold a meeting open. */
 export const FOR_RECORD_TOPICS = ['FYI', 'Observation', 'Decision'];
 
@@ -64,9 +70,50 @@ export class MeetingsService implements OnApplicationBootstrap {
     return n;
   }
 
-  async list() {
-    const rows = await this.repo.find({ order: { date: 'DESC', time: 'DESC' } });
+  /** Archived meetings (Nov 19) only when asked for. */
+  async list(includeArchived = false) {
+    const rows = (await this.repo.find({ order: { date: 'DESC', time: 'DESC' } })).filter((m) => includeArchived || !m.archivedAt);
     return this.settle(rows);
+  }
+
+  /** Nov 19: archive (or bring back) meetings -- test meetings and empty records the team wants out of the way. */
+  /** Nov 20: hand a meeting's sorting to someone else (or take it over yourself). */
+  async setSorter(id: string, who: { id: string; name: string } | null, actor?: Actor) {
+    const m = await this.load(id);
+    m.sortedById = who?.id || null;
+    m.sortedBy = who?.name || null;
+    m.updatedAt = new Date().toISOString();
+    m.activity = [...(m.activity || []), { at: m.updatedAt, by: actor?.name || 'Someone', type: 'sorter', text: who ? `${who.name} sorts this meeting${actor?.id === who.id ? ' (took it over)' : ''}` : 'sorting back with the organiser' } as any];
+    await this.repo.save(m);
+    return (await this.settle([m]))[0];
+  }
+
+  async setArchived(ids: string[], on: boolean, actor?: Actor) {
+    const list = (await this.repo.find({ where: { id: In(ids) } })).filter((m) => ids.includes(m.id));
+    if (!list.length) throw new NotFoundException('Meeting not found');
+    const now = new Date().toISOString();
+    for (const m of list) {
+      m.archivedAt = on ? now : null;
+      m.archivedBy = on ? actor?.name || null : null;
+      m.updatedAt = now;
+      await this.repo.save(m);
+    }
+    return { updated: list.length };
+  }
+
+  /** Delete several at once; the actions raised in them stay in the Special Actions Log. */
+  async removeMany(ids: string[]) {
+    let removed = 0;
+    const calendarEventIds: string[] = [];
+    for (const id of ids) {
+      const m = await this.repo.findOneBy({ id });
+      if (!m) continue;
+      await this.tasksRepo.update({ meetingId: id }, { meetingId: null as any });
+      await this.repo.remove(m);
+      if (m.calendarEventId) calendarEventIds.push(m.calendarEventId);
+      removed++;
+    }
+    return { removed, calendarEventIds };
   }
 
   async get(id: string) {
@@ -125,13 +172,23 @@ export class MeetingsService implements OnApplicationBootstrap {
     const m = await this.load(id);
     await this.tasksRepo.update({ meetingId: id }, { meetingId: null as any });
     await this.repo.remove(m);
-    return { ok: true };
+    return { ok: true, calendarEventId: m.calendarEventId || null };
   }
 
   async addAction(id: string, dto: MeetingActionDto, actor: Actor) {
-    const m = await this.load(id);
+    let m = await this.load(id);
+    // Nov 20: several people importing the same notes don't make the same task twice.
+    const subject = dto.subject.trim();
+    const same = (await this.tasksRepo.find({ where: { meetingId: m.id } })).find((x) => x.meetingId === m.id && sameSubject(x.subject, subject));
+    if (same) return { ...same, duplicate: true };
+    // A meeting with no project takes the one picked for its items, so they don't land under "General".
+    if (!m.project && (dto.project || '').trim()) {
+      Object.assign(m, { project: dto.project!.trim(), projectId: dto.projectId ?? m.projectId ?? null });
+      m = await this.repo.save(m);
+    }
     const t = await this.tasks.create({
-      topicType: dto.topicType, subject: dto.subject.trim(), description: dto.description || '',
+      collaborators: Array.isArray(dto.collaborators) ? dto.collaborators.filter((c) => c && c.id && c.name) : undefined,
+      topicType: dto.topicType, subject, description: dto.description || '',
       assignedTo: dto.assignedTo, assignedToId: dto.assignedToId, dueDate: dto.dueDate || undefined, priority: dto.priority || undefined, tags: dto.tags,
       project: m.project || '', meetingType: m.type || 'Internal', meetingDate: m.date, meetingId: m.id, tab: 'internal',
       // Where it came from, e.g. "HOM Cafe Weekly Sync - 2026/10/24 12:45" (Oct 26 review notes).

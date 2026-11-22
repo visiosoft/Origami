@@ -64,6 +64,7 @@ export type MailLink = { id: string; entityType: 'lead' | 'project' | 'task'; en
 export type MailThreadRow = { id: string; subject: string; from: string; to: string; date: string; snippet: string; count: number; unread: boolean; links: MailLink[] };
 export type MailMessage = { id: string; threadId: string; from: string; to: string; cc: string; subject: string; date: string; messageId: string; unread: boolean; snippet: string; html: string; text: string; attachments: { id: string; filename: string; mimeType: string; size: number }[]; /** Opens of a tracked email you sent (Batch 6). */ opens?: { count: number; last: string | null } | null };
 export type MailThread = { id: string; subject: string; messages: MailMessage[]; links: MailLink[] };
+export type MassSaved = { templates: { id: string; name: string; body: string }[]; groups: { id: string; name: string; people: number[]; leads: string[]; body?: string }[] };
 export type LinkedMailRow = { id: string; threadId: string; subject: string | null; ownerName: string | null; mine: boolean; auto: boolean; lastAt: string | null; messages: { from: string; to: string; date: string; subject: string; text: string; attachments: string[] }[] };
 
 export type MassRecipient = { type: 'person' | 'lead'; id: string; name: string; phone: string; status: 'waiting' | 'sent' | 'failed' | 'skipped'; note?: string };
@@ -367,8 +368,8 @@ export interface FundingView {
 export interface PortalRetention { commitmentId: string; number: string; vendorName?: string; held: number; paidDate: string | null; paymentRef: string | null; block: string | null; waitingUnconditional: boolean; releases: LienRelease[] }
 
 export interface DbBackupStatus {
-  enabled: boolean; lastRun: string | null; folder: string; keep: number; connected: boolean;
-  lastResult: { at: string; ok: boolean; name?: string; bytes?: number; tables?: number; rows?: number; removed?: number; link?: string | null; error?: string } | null;
+  enabled: boolean; lastRun: string | null; folder: string; env?: string; schedule?: string; keep: { daily: number; weekly: number; monthly: number } | number; connected: boolean;
+  lastResult: { at: string; ok: boolean; verified?: boolean; problems?: string[]; name?: string; bytes?: number; tables?: number; rows?: number; removed?: number; link?: string | null; error?: string } | null;
 }
 
 export interface QuoTasksStatus { hasKey: boolean; connected: boolean; webhookId: string | null; url: string; imported: number; lastEvent: { at: string; type: string; taskId: string; action: string } | null }
@@ -434,6 +435,11 @@ export const api = {
     get: () => request<Record<string, string>>('/settings'),
     save: (data: Record<string, unknown>) => request<Record<string, string>>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   },
+  /** Nov 20: what Origami used of each paid service, and the credit loaded (admins). */
+  usage: {
+    status: () => request<{ services: any[] }>('/usage', { cache: 'no-store' } as any),
+    setCredits: (credits: Record<string, { amount?: number; units: number; since: string }>) => request<{ services: any[] }>('/usage/credits', { method: 'PUT', body: JSON.stringify(credits) }),
+  },
   sms: {
     status: () => request<{ provider?: 'twilio' | 'quo'; configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }>('/sms/status'),
     /** With entityType/entityId the text is recorded on that lead, contact or project. */
@@ -446,6 +452,9 @@ export const api = {
     /** Mass texts (Nov 13): who would get it, then send each their own. */
     massPreview: (pick: { people?: number[]; leads?: string[] }) => request<MassRecipient[]>('/sms/mass/preview', { method: 'POST', body: JSON.stringify(pick) }),
     massSend: (pick: { people?: number[]; leads?: string[] }, body: string) => request<{ id: string }>('/sms/mass', { method: 'POST', body: JSON.stringify({ ...pick, body }) }),
+    /** Nov 19: saved message templates and groups for mass texts, shared by the office. */
+    massSaved: () => request<MassSaved>('/sms/mass/saved', { cache: 'no-store' } as any),
+    massSaveAll: (d: MassSaved) => request<MassSaved>('/sms/mass/saved', { method: 'PUT', body: JSON.stringify(d) }),
     massList: () => request<{ id: string; at: string; body: string; byName: string | null; status: string; total: number; sent: number }[]>('/sms/mass', { cache: 'no-store' } as any),
     massGet: (id: string) => request<{ id: string; status: string; body: string; recipients: MassRecipient[]; sent: number; failed: number; skipped: number; waiting: number }>(`/sms/mass/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
     massStop: (id: string) => request(`/sms/mass/${encodeURIComponent(id)}/stop`, { method: 'POST' }),
@@ -519,6 +528,8 @@ export const api = {
   },
   dashboard: {
     /** The Dashboard's task cards, worked out on the server (today = the viewer's YYYY-MM-DD). */
+    /** Nov 17: the Today panel -- my urgent / due tasks and my RFIs. */
+    today: (today: string) => request<import('./components/TodayPanel').TodayData>(`/dashboard/today?today=${encodeURIComponent(today)}`, { cache: 'no-store' } as any),
     tasksSummary: (today: string) => request<TasksSummary>(`/dashboard/tasks-summary?today=${encodeURIComponent(today)}`),
     /** "My Tasks": my open work (assigned or collaborating), soonest due first -- `limit` rows and the total. */
     myTasks: (limit = 8) => request<{ total: number; rows: { key: string; title: string; context: string; dueDate?: string; priority?: string; where: 'board' | 'log'; to: string }[] }>(`/dashboard/my-tasks?limit=${limit}`),
@@ -590,7 +601,21 @@ export const api = {
     importRows: (rows: Record<string, string>[], dryRun: boolean, update: boolean, defaultKind?: string) => request('/people/import', { method: 'POST', body: JSON.stringify({ rows, dryRun, update, ...(defaultKind ? { defaultKind } : {}) }) }),
   },
   meetings: {
-    list: () => request<import('./data/meetings').Meeting[]>('/meetings'),
+    /** `archived`: include archived meetings (Nov 19). */
+    list: (archived?: boolean) => request<import('./data/meetings').Meeting[]>(archived ? '/meetings?archived=1' : '/meetings'),
+    /** Archive, bring back or delete several meetings (Nov 19). */
+    bulk: (ids: string[], action: 'archive' | 'unarchive' | 'delete') => request<{ updated?: number; removed?: number }>('/meetings/bulk', { method: 'POST', body: JSON.stringify({ ids, action }) }),
+    archive: (id: string, on = true) => request(`/meetings/${encodeURIComponent(id)}/${on ? 'archive' : 'unarchive'}`, { method: 'POST' }),
+    /** Nov 20: no user = take it over yourself; null = back to the organiser. */
+    sorter: (id: string, who?: { userId: string | null; name?: string }) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}/sorter`, { method: 'POST', body: JSON.stringify(who ?? {}) }),
+    /** Nov 19: meetings from the company Google Calendar -- status, first-run preview, apply (then hourly), on/off. */
+    calendarSync: () => request<import('./components/CalendarSyncPanel').CalSyncStatus>('/meetings/calendar-sync', { cache: 'no-store' } as any),
+    calendarPreview: () => request<import('./components/CalendarSyncPanel').CalSyncPreview>('/meetings/calendar-sync/preview', { method: 'POST' }),
+    calendarApply: () => request<NonNullable<import('./components/CalendarSyncPanel').CalSyncStatus['last']>>('/meetings/calendar-sync/apply', { method: 'POST' }),
+    calendarOn: (on: boolean) => request<import('./components/CalendarSyncPanel').CalSyncStatus>('/meetings/calendar-sync/settings', { method: 'POST', body: JSON.stringify({ on }) }),
+    /** Grouped "From Special Actions Log" meetings someone hid (the entries stay in the log). */
+    hiddenGroups: () => request<string[]>('/meetings/hidden-groups'),
+    setHiddenGroups: (keys: string[], hidden: boolean) => request<string[]>('/meetings/hidden-groups', { method: 'POST', body: JSON.stringify({ keys, hidden }) }),
     create: (d: unknown) => request<import('./data/meetings').Meeting>('/meetings', { method: 'POST', body: JSON.stringify(d) }),
     update: (id: string, d: unknown) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     remove: (id: string) => request(`/meetings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
@@ -602,7 +627,7 @@ export const api = {
     /** Pull the meeting's "Notes by Gemini" from Google: a Doc link, or found by title and date (Nov 3 sync). */
     importGoogle: (id: string, link?: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}/import-google`, { method: 'POST', body: JSON.stringify({ link: link || undefined }) }),
     /** Raise a task, or a FOR RECORD item (FYI, observation, decision), from the meeting: a Special Actions Log entry linked to it. */
-    addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string; priority?: string; tags?: string[] }) =>
+    addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string; priority?: string; tags?: string[]; collaborators?: { id: string; name: string }[]; project?: string; projectId?: number | null }) =>
       request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
   },
   tasks: {
@@ -727,6 +752,13 @@ export const api = {
   },
   rfis: {
     access: () => request<{ view: boolean; manage: boolean }>('/rfis/access'),
+    /** Nov 19: send a project's RFI Log -- who it can go to, then send. */
+    logRecipients: (projectId: number) => request<{ name: string; email: string; kind: string }[]>(`/rfis/log/recipients?projectId=${projectId}`),
+    sendLog: (projectId: number, to: string[], note?: string) => request<{ sent: number; total: number; open: number; overdue: number }>('/rfis/log/send', { method: 'POST', body: JSON.stringify({ projectId, to, note }) }),
+    /** Nov 17: the RFI's numbered callouts on its drawings; its own draft layer; publishing them to the set. */
+    callouts: (id: string) => request<{ id: string; n: number; fileId: string; page: number; kind: string; note: string; authorName: string; draft: boolean }[]>(`/rfis/${encodeURIComponent(id)}/callouts`, { cache: 'no-store' } as any),
+    draftLayer: (id: string, fileId: string) => request<{ layer: string; rfiId: string; number: string }>(`/rfis/${encodeURIComponent(id)}/draft-layer`, { method: 'POST', body: JSON.stringify({ fileId }) }),
+    publishMarkups: (id: string) => request<{ published: number; layer: string }>(`/rfis/${encodeURIComponent(id)}/publish-markups`, { method: 'POST' }),
     list: (projectId?: number) => request<any[]>(`/rfis${projectId ? `?projectId=${projectId}` : ''}`),
     /** One page of the RFI log, filtered and sorted on the server, with its counts and stat cards. */
     page: (o: { projectId?: number; status?: string; q?: string; csi?: string; sort?: string; dir?: string; page?: number; size?: number; today?: string }) => {
@@ -765,7 +797,7 @@ export const api = {
     /** Weekly database copy (Batch 6; admins): zipped JSON in Drive, last 8 kept. */
     database: () => request<DbBackupStatus>('/backup/database', { cache: 'no-store' } as any),
     setDatabase: (enabled: boolean) => request<DbBackupStatus>('/backup/database', { method: 'PUT', body: JSON.stringify({ enabled }) }),
-    runDatabase: () => request<{ ok: boolean; name: string; bytes: number; tables: number; rows: number; removed: number }>('/backup/database/run', { method: 'POST' }),
+    runDatabase: () => request<{ ok: boolean; verified?: boolean; name: string; bytes: number; tables: number; rows: number; removed: number }>('/backup/database/run', { method: 'POST' }),
     runSheets: (projectId?: number) => request<{ at: string; projects: number; failed: { project: string; error?: string }[] }>('/backup/sheets/run', { method: 'POST', body: JSON.stringify({ projectId }) }),
   },
   /** The shared tag bank (Oct 30 sync): standard tags plus everyone's custom ones. */
@@ -808,7 +840,25 @@ export const api = {
     remove: (key: string) => request(`/roles/${key}`, { method: 'DELETE' }),
     /** The PEOPLE ACCESS sheet's rows: a preview (dryRun) or applied. */
   },
+  /** Nov 17: client approval bundles -- RFIs, decisions and change orders sent together, signed once. */
+  clientApprovals: {
+    candidates: (projectId: number) => request<import('./components/ClientApprovals').Candidates>(`/client-approvals/candidates?projectId=${projectId}`, { cache: 'no-store' } as any),
+    list: (projectId: number) => request<import('./components/ClientApprovals').Bundle[]>(`/client-approvals?projectId=${projectId}`, { cache: 'no-store' } as any),
+    create: (d: { projectId: number; title?: string; items: { kind: string; id: string }[] }) => request<import('./components/ClientApprovals').Bundle>('/client-approvals', { method: 'POST', body: JSON.stringify(d) }),
+    send: (id: string, d: { to?: string; message?: string }) => request<{ sent: boolean; to: string }>(`/client-approvals/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
+    publicView: (token: string) => request<any>(`/client-approvals/public?token=${encodeURIComponent(token)}`, { cache: 'no-store' } as any),
+    publicSign: (token: string, d: unknown) => request<{ signed: boolean }>(`/client-approvals/public/sign?token=${encodeURIComponent(token)}`, { method: 'POST', body: JSON.stringify(d) }),
+  },
+  /** Nov 17: a board's epics (named groups of tasks) with progress. projectId null = General Tasks. */
+  epics: {
+    list: (projectId: number | null) => request<import('./data/projectTasks').Epic[]>(`/project-epics?projectId=${projectId == null ? 'general' : projectId}`, { cache: 'no-store' } as any),
+    create: (data: { projectId: number | null; name: string; color?: string; dueDate?: string | null }) => request<import('./data/projectTasks').Epic>('/project-epics', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: { name?: string; color?: string; dueDate?: string | null; order?: number }) => request<import('./data/projectTasks').Epic>(`/project-epics/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request<{ ok: boolean }>(`/project-epics/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
   projectTasks: {
+    /** Nov 17: merge duplicates into one task -- files, comments and history move; duplicates become closed subtasks. */
+    merge: (keepId: string, mergeIds: string[]) => request<import('./data/projectTasks').ProjectTask>('/project-tasks/merge', { method: 'POST', body: JSON.stringify({ keepId, mergeIds }) }),
     /** Save pressed in the task editor: send the emails held on the task and its subtasks. */
     notify: (id: string) => request<{ sent: number }>(`/project-tasks/${encodeURIComponent(id)}/notify`, { method: 'POST' }),
     /** projectId: a number scopes to that project; null scopes to the
@@ -996,6 +1046,20 @@ export const api = {
     url: (id: string, opts: { thumb?: boolean; download?: boolean; size?: number } = {}) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/content${opts.thumb ? `?thumb=1${opts.size ? `&size=${opts.size}` : ''}` : opts.download ? '?download=1' : ''}`,
   },
   fileRoom: {
+    /** Nov 20 drawing sets: where a drawing stands, its history, publishing, approving, the city flag, who uploads base drawings. */
+    drawing: (id: string) => request<import('./components/markup/DrawingSetPanel').DrawingState>(`/file-room/files/${encodeURIComponent(id)}/drawing`, { cache: 'no-store' } as any),
+    drawingHistory: (id: string) => request<import('./components/markup/DrawingSetPanel').DrawingEvent[]>(`/file-room/files/${encodeURIComponent(id)}/history`, { cache: 'no-store' } as any),
+    publishLayers: (id: string, layers: string[]) => request<{ id: string; rev: string; markups: number }>(`/file-room/files/${encodeURIComponent(id)}/publish`, { method: 'POST', body: JSON.stringify({ layers }) }),
+    approveDrawing: (id: string, on: boolean) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/approve`, { method: 'POST', body: JSON.stringify({ on }) }),
+    setCity: (id: string, body: { notCityApproved: boolean; cityNote?: string | null }) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/city`, { method: 'PUT', body: JSON.stringify(body) }),
+    baseUploaders: () => request<string[]>('/file-room/drawing-sets/uploaders', { cache: 'no-store' } as any),
+    setBaseUploaders: (ids: string[]) => request<string[]>('/file-room/drawing-sets/uploaders', { method: 'PUT', body: JSON.stringify({ ids }) }),
+    numberDrawings: (apply: boolean) => request<{ count: number; rows?: { id: string; name: string; rev: string }[]; applied?: boolean }>(`/file-room/drawing-sets/number${apply ? '?apply=1' : ''}`, { method: 'POST' }),
+    /** Nov 17: tag files Internal / Client / External. */
+    setAccess: (ids: string[], access: 'internal' | 'client' | 'external') => request<{ updated: number; access: string }>('/file-room/files/access', { method: 'PUT', body: JSON.stringify({ ids, access }) }),
+    /** Nov 17 (admin): untagged build-set files clients would stop seeing -- preview, then apply (tags them Client). */
+    buildSetPlan: () => request<{ applied: boolean; untagged: number; toClient: number; projects: { projectId: number; project: string; files: number }[] }>('/file-room/access/build-set-plan', { cache: 'no-store' } as any),
+    applyBuildSetPlan: () => request<{ applied: boolean; untagged: number; toClient: number; projects: { projectId: number; project: string; files: number }[] }>('/file-room/access/build-set-plan/apply', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
     /** The tree without the files: projects, folders, file counts per folder (counts[projectId][path joined by '>']) and totals. */
     /** Restricted folders (Nov 13): which folders of a project are kept to some people; set who may open one. */
@@ -1059,12 +1123,15 @@ export const api = {
     /** A photo for marking up (Nov 10): Drive's JPEG at up to 2400 px instead of the 12-48 MP original, which froze phones. */
     photoBytes: (id: string) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/content?thumb=1&size=2400`),
     markups: (id: string) => request<Markup[]>(`/file-room/files/${encodeURIComponent(id)}/markups`),
-    addMarkup: (id: string, m: Pick<Markup, 'kind' | 'page' | 'data' | 'private'> & { layer?: string | null }) => request<Markup>(`/file-room/files/${encodeURIComponent(id)}/markups`, { method: 'POST', body: JSON.stringify(m) }),
+    addMarkup: (id: string, m: Pick<Markup, 'kind' | 'page' | 'data' | 'private'> & { layer?: string | null; linkType?: string; linkId?: string }) => request<Markup>(`/file-room/files/${encodeURIComponent(id)}/markups`, { method: 'POST', body: JSON.stringify(m) }),
     editMarkup: (mid: string, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer' | 'linkType' | 'linkId'>>) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'PUT', body: JSON.stringify(patch) }),
     removeMarkup: (mid: string) => request(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'DELETE' }),
     /** Rename a layer on a drawing (from: its name, or null for someone's own unnamed layer). */
     /** The shared drawing-symbol library (admins add, rename, delete). */
     symbols: () => request<{ id: string; name: string; image: string }[]>('/file-room/symbols'),
+    /** Nov 20: the starter symbol set -- what would be added, then add it (admins). */
+    starterSymbols: () => request<{ total: number; already: number; toAdd: { group: string; name: string; image: string }[] }>('/file-room/symbols/starter', { cache: 'no-store' } as any),
+    addStarterSymbols: () => request<{ added: number }>('/file-room/symbols/starter', { method: 'POST' }),
     addSymbol: (name: string, image: string) => request<{ id: string; name: string; image: string }>('/file-room/symbols', { method: 'POST', body: JSON.stringify({ name, image }) }),
     renameSymbol: (id: string, name: string) => request<{ id: string; name: string; image: string }>(`/file-room/symbols/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ name }) }),
     removeSymbol: (id: string) => request(`/file-room/symbols/${encodeURIComponent(id)}`, { method: 'DELETE' }),
@@ -1152,6 +1219,13 @@ export const api = {
     update: (id: string, data: unknown) => request(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/tickets/${id}`, { method: 'DELETE' }),
   },
+  /** Nov 17: Help -> Policies (SOPs, SLA, disaster recovery) -- links, staff read, admins edit. */
+  helpDocuments: {
+    list: () => request<import('./components/HelpPolicies').HelpDoc[]>('/help-documents', { cache: 'no-store' } as any),
+    create: (d: unknown) => request('/help-documents', { method: 'POST', body: JSON.stringify(d) }),
+    update: (id: string, d: unknown) => request(`/help-documents/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/help-documents/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
   faqs: {
     list: () => request('/faqs'),
     create: (data: unknown) => request('/faqs', { method: 'POST', body: JSON.stringify(data) }),
@@ -1221,13 +1295,24 @@ export const api = {
     createBidPackage: (projectId: number, estimateId: string, d: { title?: string; scopeIds: string[]; dueDate?: string; notes?: string }) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(estimateId)}/bid-packages`, { method: 'POST', body: JSON.stringify(d) }),
     inviteBid: (projectId: number, packageId: string, contractorIds: string[]) => request<{ invited: { contractorId: string; vendorName: string; link: string; emailed: boolean }[] }>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/invite`, { method: 'POST', body: JSON.stringify({ contractorIds }) }),
     useBid: (projectId: number, packageId: string, inviteId: string) => request<{ rev: number; changed: number; vendorName: string }>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/use/${encodeURIComponent(inviteId)}`, { method: 'POST' }),
+    /** Nov 19: bid packages across projects; edit one; suggested subs by CSI; answer a sub's question. */
+    bidPackagesAll: () => request<any[]>('/finance/bid-packages', { cache: 'no-store' } as any),
+    updateBidPackage: (projectId: number, packageId: string, d: Record<string, unknown>) => request<any>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    suggestBidSubs: (projectId: number, packageId: string) => request<{ contractorId: string; companyName: string; matches: string[]; prequalBlock: string | null; turnedDown: boolean }[]>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/suggest`),
+    answerBidQuestion: (projectId: number, packageId: string, inviteId: string, questionId: string, answer: string) => request<{ answered: boolean; emailed: boolean }>(`/finance/projects/${projectId}/bid-packages/${encodeURIComponent(packageId)}/invites/${encodeURIComponent(inviteId)}/questions/${encodeURIComponent(questionId)}/answer`, { method: 'POST', body: JSON.stringify({ answer }) }),
     bidPublic: {
       get: (token: string) => request<any>(`/bid-public?token=${encodeURIComponent(token)}`),
+      ask: (token: string, text: string) => request<{ asked: boolean }>('/bid-public/question', { method: 'POST', body: JSON.stringify({ token, text }) }),
+      attend: (token: string, attending: boolean) => request<{ attending: boolean }>('/bid-public/attend', { method: 'POST', body: JSON.stringify({ token, attending }) }),
       submit: (token: string, d: { decline?: boolean; total?: string | number | null; lineAmounts?: Record<string, string>; notes?: string }) => request<{ status: string }>('/bid-public', { method: 'POST', body: JSON.stringify({ token, ...d }) }),
     },
     estimateSetup: (projectId: number, id: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { cache: 'no-store' } as any),
     runEstimateSetup: (projectId: number, id: string, steps: string[]) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { method: 'POST', body: JSON.stringify({ steps }) }),
     markEstimateAccepted: (projectId: number, id: string, signer: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/accepted`, { method: 'POST', body: JSON.stringify({ signer }) }),
+    /** Nov 19: valid for Financials -> Precon (several can be), and an estimate's subcontracted lines by sub. */
+    estimatesCompare: (projectId: number, ids: string[]) => request<any>(`/finance/projects/${projectId}/estimates-compare?ids=${ids.map(encodeURIComponent).join(',')}`),
+    estimateValid: (projectId: number, id: string, valid: boolean) => request<{ id: string; valid: boolean }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/valid`, { method: 'PUT', body: JSON.stringify({ valid }) }),
+    estimateSubLines: (projectId: number, id: string) => request<{ contractorId: string | null; sub: string; scopes: string[]; lines: number; cost: number | null }[]>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/sub-lines`),
     sendEstimate: (projectId: number, id: string, d: { to?: string; cc?: string; note?: string }) => request<{ sent: boolean; to: string }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
     estimatePublic: {
       get: (token: string) => request<any>(`/estimate-public?token=${encodeURIComponent(token)}`),
@@ -1260,6 +1345,8 @@ export const api = {
     activity: (projectId: number) => request(`/finance/projects/${projectId}/activity`),
     invoices: (projectId: number) => request(`/finance/projects/${projectId}/invoices`),
     createInvoice: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/invoices`, { method: 'POST', body: JSON.stringify(d) }),
+    /** Nov 17: a draft for pre-construction / design fees from an estimate, outside the contract value. */
+    createPreconInvoice: (projectId: number, d: { estimateLabel?: string; lines: { description: string; amount: number }[] }) => request<{ id: string }>(`/finance/projects/${projectId}/invoices/precon`, { method: 'POST', body: JSON.stringify(d) }),
     payments: (projectId: number) => request(`/finance/projects/${projectId}/payments`),
     updateItem: (kind: string, id: string, d: unknown) => request(`/finance/items/${kind}/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     reportProgress: (kind: string, id: string, d: unknown) => request(`/finance/items/${kind}/${encodeURIComponent(id)}/progress`, { method: 'POST', body: JSON.stringify(d) }),
@@ -1391,6 +1478,8 @@ export const api = {
     remove: () => request('/manpower/sample-data', { method: 'DELETE' }),
   },
   assignments: {
+    /** Nov 17 (Site crews): put several workers under one supervisor ('' = no one). */
+    setSupervisor: (ids: string[], supervisorId: string | null) => request<{ updated: number }>('/assignments/supervisor', { method: 'PUT', body: JSON.stringify({ ids, supervisorId: supervisorId || '' }) }),
     list: (opts?: { employeeId?: string; projectId?: number; status?: 'current' | 'ended'; workforceRequestId?: string }) => {
       const q = new URLSearchParams();
       if (opts?.employeeId) q.set('employeeId', opts.employeeId);
@@ -1642,6 +1731,8 @@ export const api = {
     /** A project's week rolled up from its daily reports; `week` is any day in it. */
     weekly: (projectId: number, week: string) => request<WeeklyReport>(`/daily-logs/weekly?projectId=${projectId}&week=${week}`),
     /** Email the week as PDF + Excel -- to the usual backup list, or to `to` (comma-separated). */
+    /** Nov 17: save the week as a PDF in the project's files (Reports / Weekly). Mondays do last week by themselves. */
+    saveWeekly: (projectId: number, week: string) => request<{ saved: boolean; fileId: string | null; name: string; folder: string[]; weekStart: string }>('/daily-logs/weekly/save', { method: 'POST', body: JSON.stringify({ projectId, week }) }),
     emailWeekly: (projectId: number, week: string, to?: string) => request<{ sent: boolean; to: string[]; attachments: string[] }>('/daily-logs/weekly/email', { method: 'POST', body: JSON.stringify({ projectId, week, to }) }),
     /** Email the day as PDF + Excel -- to the usual backup list, or to `to` (comma-separated). */
     email: (id: string, to?: string) => request<{ sent: boolean; to: string[]; attachments: string[] }>(`/daily-logs/${id}/email`, { method: 'POST', body: JSON.stringify({ to }) }),

@@ -28,6 +28,27 @@ describe('MeetingsService', () => {
     return { svc, meetings, tasks, rfis, cos, created };
   };
 
+  it('archives and brings back meetings; archived ones are hidden unless asked for (Nov 19)', async () => {
+    const { svc, meetings } = setup();
+    const a = await svc.create({ title: 'Test meeting', date: '2026-11-01' }, { name: 'A' });
+    const b = await svc.create({ title: 'OAC', date: '2026-11-02' }, { name: 'A' });
+    await svc.setArchived([a.id], true, { name: 'Astrid' });
+    expect(meetings.find((m) => m.id === a.id)).toMatchObject({ archivedBy: 'Astrid' });
+    expect((await svc.list()).map((m: any) => m.id)).toEqual([b.id]);
+    expect((await svc.list(true)).map((m: any) => m.id).sort()).toEqual([a.id, b.id].sort());
+    await svc.setArchived([a.id], false);
+    expect((await svc.list()).length).toBe(2);
+    expect(meetings.find((m) => m.id === a.id).archivedAt).toBeNull();
+  });
+
+  it('deletes several meetings, keeping the actions raised in them', async () => {
+    const { svc, meetings, tasks } = setup();
+    meetings.push({ id: 'M1', title: 'x', date: '2026-11-01' }, { id: 'M2', title: 'y', date: '2026-11-01' });
+    expect(await svc.removeMany(['M1', 'M2', 'nope'])).toEqual({ removed: 2, calendarEventIds: [] });
+    expect(meetings).toHaveLength(0);
+    expect(tasks.map((t) => t.meetingId)).toEqual([null, null]);
+  });
+
   it('needs a title and a real date', async () => {
     const { svc } = setup();
     await expect(svc.create({ title: ' ', date: '2026-10-08' }, { name: 'A' })).rejects.toBeInstanceOf(BadRequestException);
@@ -58,6 +79,33 @@ describe('MeetingsService', () => {
     const m = await svc.create({ title: 'Site walk', date: '2026-10-08', type: 'Site', project: 'Chelliah Residence', projectId: 2 }, { name: 'A' });
     await svc.addAction(m.id, { topicType: 'Observation', subject: '  Water at north footing ', assignedTo: 'Edward' }, { name: 'George' });
     expect(created[0]).toMatchObject({ topicType: 'Observation', subject: 'Water at north footing', project: 'Chelliah Residence', meetingType: 'Site', meetingDate: '2026-10-08', meetingId: m.id });
+  });
+
+  it('the same item from the same meeting is raised once, however many people import the notes (Nov 20)', async () => {
+    const { svc, created } = setup();
+    const m = await svc.create({ title: 'Weekly Sync', date: '2026-11-20' }, { name: 'A' });
+    const first: any = await svc.addAction(m.id, { topicType: 'Task', subject: 'Fix Calendar Sync: read each person’s own calendar', assignedTo: 'Ehsan' }, { name: 'Ehsan' });
+    const again: any = await svc.addAction(m.id, { topicType: 'Task', subject: '  fix calendar sync — read each person’s own calendar ' }, { name: 'Astrid' });
+    expect(created).toHaveLength(1);
+    expect(again).toMatchObject({ id: first.id, duplicate: true });
+  });
+
+  it('files items under the picked project when the meeting has none, with the others named as collaborators (Nov 20)', async () => {
+    const { svc, created, meetings } = setup();
+    const m = await svc.create({ title: 'Weekly Sync', date: '2026-11-20' }, { name: 'A' });
+    await svc.addAction(m.id, { topicType: 'Task', subject: 'Send subcontract example', project: '1311 Countryside Ct', projectId: 16, collaborators: [{ id: 'U-E', name: 'Ehsan' }] }, { name: 'A' });
+    expect(created[0]).toMatchObject({ project: '1311 Countryside Ct', collaborators: [{ id: 'U-E', name: 'Ehsan' }] });
+    expect(meetings.find((x) => x.id === m.id)).toMatchObject({ project: '1311 Countryside Ct', projectId: 16 });
+  });
+
+  it('someone else can take over sorting a meeting (Nov 20)', async () => {
+    const { svc, meetings } = setup();
+    const m = await svc.create({ title: 'OAC', date: '2026-11-20' }, { name: 'Edward', id: 'U-E' });
+    await svc.setSorter(m.id, { id: 'U-AC', name: 'Andrea Castillo' }, { name: 'Andrea Castillo', id: 'U-AC' });
+    expect(meetings[0]).toMatchObject({ sortedById: 'U-AC', sortedBy: 'Andrea Castillo' });
+    expect(meetings[0].activity.at(-1).text).toMatch(/took it over/);
+    await svc.setSorter(m.id, null, { name: 'Edward' });
+    expect(meetings[0].sortedBy).toBeNull();
   });
 
   it('records a decision from a meeting', async () => {

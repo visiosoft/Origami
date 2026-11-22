@@ -47,7 +47,7 @@ describe('access enforcement', () => {
     expect(narrow([{ projectId: 7 }, { projectId: 8 }, { projectId: null }, { other: 1 }], allowed)).toEqual([{ projectId: 7 }, { projectId: null }, { other: 1 }]);
     expect(narrow({ rows: [{ projectId: 8 }], total: 1 }, allowed)).toEqual({ rows: [], total: 1 });
     expect(() => narrow({ id: 'INV-1', projectId: 8 }, allowed)).toThrow(ForbiddenException);
-    const log = [{ id: 'a', project: 'Countryside' }, { id: 'b', project: 'HOM Cafe' }, { id: 'c', project: '', assignedToId: 'U-G' }, { id: 'd', project: '' }];
-    expect(onMyProjects(log, new Set(['Countryside']), george).map((t) => t.id)).toEqual(['a', 'c']);
+    const log = [{ id: 'a', project: 'Countryside' }, { id: 'b', project: 'HOM Cafe' }, { id: 'c', project: '', assignedToId: 'U-G' }, { id: 'd', project: '' }, { id: 'e', project: 'HOM Cafe', assignedToId: 'U-G' }];
+    expect(onMyProjects(log, new Set(['Countryside']), george).map((t) => t.id)).toEqual(['a', 'c', 'e']);
   });
 });

@@ -395,13 +395,33 @@ export function boundsOf(m: Pick<Markup, 'kind' | 'data'>, textW = 0.15, textH =
 
 // ------------------------------------------------------------------ text size, search, rendering
 
-/** Text sizes offered (PDF points). */
-export const TEXT_SIZES = [8, 10, 12, 14, 18, 24, 36] as const;
+/** Text sizes offered (points, as on a letter-size page; multiplied on bigger sheets). */
+export const TEXT_SIZES = [8, 10, 12, 14, 18, 24, 36, 48, 72] as const;
+/** Dragging a text's corner sizes it freely within these (page points). */
+export const TEXT_FREE_MIN = 4;
+export const TEXT_FREE_MAX = 400;
 
-/** The next size up (dir 1) or down (-1) from `size`, stopping at the ends. */
-export function nextSize(size: number, dir: 1 | -1): number {
-  if (dir > 0) return TEXT_SIZES.find((s) => s > size) ?? TEXT_SIZES[TEXT_SIZES.length - 1];
-  return [...TEXT_SIZES].reverse().find((s) => s < size) ?? TEXT_SIZES[0];
+/**
+ * How much bigger text has to be on this sheet to read like it does on a
+ * letter page (Nov 16): a 36x24 drawing is ~2,592 pt wide, so 12 pt there is
+ * a speck. 1 for letter/legal/tabloid-ish widths, ~3 for ARCH D, 4 for ARCH E.
+ */
+export function sheetTextScale(pageWidthPt: number | null | undefined): number {
+  const w = Number(pageWidthPt) || 0;
+  return Math.max(1, Math.round(w / 792));
+}
+
+/** The next size up (dir 1) or down (-1) from `size`, on this sheet's steps (`k` = sheetTextScale), stopping at the ends. */
+export function nextSize(size: number, dir: 1 | -1, k = 1): number {
+  const steps = TEXT_SIZES.map((s) => s * k);
+  if (dir > 0) return steps.find((s) => s > size + 0.01) ?? steps[steps.length - 1];
+  return [...steps].reverse().find((s) => s < size - 0.01) ?? steps[0];
+}
+
+/** The size scaled by a corner drag: `ratio` of the original, kept within the free range. */
+export function draggedSize(size0: number, ratio: number): number {
+  const v = Math.round(size0 * (Number.isFinite(ratio) && ratio > 0 ? ratio : 1));
+  return Math.max(TEXT_FREE_MIN, Math.min(TEXT_FREE_MAX, v));
 }
 
 /** One run of a page's text, as a box in page-relative (0-1, as shown) coordinates. */
@@ -475,8 +495,11 @@ export function overlayPixels(older: Uint8ClampedArray, newer: Uint8ClampedArray
 export interface Revision { id: string; name: string; updatedAt?: string; isLatest?: boolean }
 
 /** Which revision to compare with by default: the one just before this, else the one just after. */
-export function pickCompareDefault(currentId: string, revisions: Revision[]): Revision | null {
+export function pickCompareDefault(currentId: string, revisions: Revision[], approvedId?: string | null): Revision | null {
   const list = [...revisions].sort((a, b) => (a.updatedAt || '').localeCompare(b.updatedAt || ''));
+  // Nov 20 (Edward): compare against the approved base; on the approved one, against the newest.
+  if (approvedId && approvedId !== currentId) { const a = list.find((r) => r.id === approvedId); if (a) return a; }
+  if (approvedId && approvedId === currentId) return list.filter((r) => r.id !== currentId).pop() || null;
   const i = list.findIndex((r) => r.id === currentId);
   if (i < 0) return list.filter((r) => r.id !== currentId).pop() || null;
   return list[i - 1] || list[i + 1] || null;
@@ -512,4 +535,37 @@ export const groupOfTool = (tool: string) => TOOL_GROUPS.find((g) => g.tools.inc
 /** A second tap close in time and place: finishes a polyline, or zooms (phones have no double-click). */
 export function isDoubleTap(prev: { t: number; x: number; y: number } | null, next: { t: number; x: number; y: number }, ms = 320, px = 28): boolean {
   return !!prev && next.t - prev.t <= ms && Math.hypot(next.x - prev.x, next.y - prev.y) <= px;
+}
+
+/**
+ * Nov 19 (Edward: "let us select an area to read page numbers and an area to
+ * read titles"): where on the sheet its number and title are, as fractions of
+ * the page (0..1 from the top-left). Used for every page of the drawing.
+ */
+export type TitleBox = { x0: number; y0: number; x1: number; y1: number };
+export type TitleAreas = { num?: TitleBox | null; title?: TitleBox | null };
+
+const inBox = (r: { x0: number; y0: number; x1: number; y1: number }, b: TitleBox) => {
+  const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2;
+  return cx >= b.x0 && cx <= b.x1 && cy >= b.y0 && cy <= b.y1;
+};
+
+/** The sheet name from the text inside the chosen areas (null when the number area has nothing). */
+export function sheetNameInAreas(runs: { str: string; x0: number; y0: number; x1: number; y1: number }[], areas: TitleAreas): string | null {
+  if (!areas.num) return null;
+  const read = (b: TitleBox) => runs.filter((r) => r.str.trim() && inBox(r, b)).sort((a, z) => a.y0 - z.y0 || a.x0 - z.x0).map((r) => r.str.replace(/\s+/g, ' ').trim());
+  const numTexts = read(areas.num);
+  const num = numTexts.find((s) => SHEET_RE.test(s)) || numTexts.sort((a, b) => a.length - b.length)[0];
+  if (!num) return null;
+  const title = areas.title ? read(areas.title).filter((s) => s !== num).join(' ').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+  return sheetLabel(num, title || null);
+}
+
+/** From OCR of the two areas (a scanned sheet): the number area's text and the title area's text. */
+export function sheetNameFromAreaText(numText: string, titleText: string): string | null {
+  const lines = numText.split(/\r?\n/).map((l) => l.replace(/^sheet( no\.?| number)?[:\s]*/i, '').trim()).filter(Boolean);
+  const num = lines.find((l) => SHEET_RE.test(l)) || lines[0];
+  if (!num) return null;
+  const title = titleText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).join(' ').replace(/\s+/g, ' ').slice(0, 80);
+  return sheetLabel(num, title || null);
 }

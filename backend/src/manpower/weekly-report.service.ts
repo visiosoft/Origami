@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CsiCodeEntity, DailyLogEntity, EmployeeEntity, LaborLogEntryEntity, ProjectEntity } from '../database/entities';
@@ -7,6 +7,11 @@ import { SettingsService } from '../settings/settings.service';
 import { emailShell, escapeHtml, loadEmailBrand } from '../email/shell';
 import { DailyLogBackupService } from './daily-log-backup.service';
 import { mondayOf, weekDates } from './weekly-timesheets.service';
+import { addDays as addDaysIso, localToday } from '../common/local-date';
+import { FileRoomService } from '../file-room/file-room.service';
+
+/** Where weekly report PDFs are kept in a project's files. */
+export const WEEKLY_FOLDER = ['Reports', 'Weekly'];
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const OPS: Record<string, string> = {
@@ -97,6 +102,8 @@ export function buildWeekly(
       if (a.dForce?.on) delay(date, 'Force majeure', a.dForce);
     }
     if (s.inspectors?.present === 'yes') for (const r of s.inspectors.rows || []) if (filled(r)) out.inspections.push({ date, authority: r.authority || '', what: r.what || '', outcome: OUTCOME[r.outcome] || '' });
+    // Nov 20: inspections asked for that day and still waiting (a result goes in as a row above).
+    for (const r of s.inspectors?.requests || []) if (r?.authority && (!r.status || r.status === 'requested')) out.inspections.push({ date, authority: r.authority, what: [r.areas, r.notes].filter(Boolean).join(' — '), outcome: `Requested${r.date ? ` for ${r.date}${r.time ? ` ${r.time}` : ''}` : ''}` });
     if (s.visitors?.present === 'yes') for (const r of s.visitors.rows || []) if (filled(r)) out.visitors.push({ date, type: r.type || '', name: r.name || '', details: r.details || '' });
     if (s.deliveries?.present === 'yes') for (const r of s.deliveries.rows || []) if (filled(r)) out.deliveries.push({ date, supplier: r.supplier || '', poRef: r.poRef || '', items: r.items || '', qty: r.qty ?? '', receivedBy: r.receivedBy || '', condition: r.condition || '', notes: r.notes || '' });
     if (s.equipment?.used === 'yes') for (const r of s.equipment.rows || []) {
@@ -174,11 +181,17 @@ export class WeeklyReportService {
     private readonly backup: DailyLogBackupService,
     private readonly google: GoogleService,
     private readonly settings: SettingsService,
+    @Optional() private readonly fileRoom?: FileRoomService,
   ) {}
+
+  /** The company time zone (Settings -> reminders), for "this week" and "as of". */
+  private async tz(): Promise<string | undefined> {
+    return ((await this.settings.get('reminders.timezone').catch(() => null)) as string | null) || undefined;
+  }
 
   async week(projectId: number, anyDay: string) {
     if (!Number.isFinite(projectId) || projectId <= 0) throw new BadRequestException('Pick a project.');
-    const weekStart = mondayOf(ISO.test(anyDay || '') ? anyDay : new Date().toISOString().slice(0, 10));
+    const weekStart = mondayOf(ISO.test(anyDay || '') ? anyDay : localToday(await this.tz()));
     const dates = weekDates(weekStart);
     const logs = (await this.logs.find({ where: { projectId } })).filter((l) => l.date >= dates[0] && l.date <= dates[6]);
     const ids = logs.map((l) => l.id);
@@ -186,7 +199,36 @@ export class WeeklyReportService {
       ids.length ? this.entries.find({ where: ids.map((id) => ({ dailyLogId: id })) }) : Promise.resolve([]),
       this.employees.find(), this.codes.find(),
     ]);
-    return buildWeekly(projectId, weekStart, logs, entries, employees, codes, new Date().toISOString().slice(0, 10));
+    return buildWeekly(projectId, weekStart, logs, entries, employees, codes, localToday(await this.tz()));
+  }
+
+  /**
+   * Nov 17 sync (Edward): the weekly report is a snapshot in time -- save it as a
+   * PDF in the project's files (Reports / Weekly). Saving the same week again
+   * makes a new version of that file.
+   */
+  async saveToFiles(projectId: number, anyDay: string, actor: { id?: string; name: string } = { name: 'Origami' }) {
+    if (!this.fileRoom) throw new BadRequestException('The File Room isn’t available.');
+    if (!(await this.google.isConnected())) throw new BadRequestException('Connect a Google account (Settings -> Integrations) to save reports to the project files.');
+    const project = await this.projects.findOneBy({ id: projectId });
+    if (!project) throw new NotFoundException('Project not found');
+    const w = await this.week(projectId, anyDay);
+    const brand = await loadEmailBrand(this.settings);
+    const base = `Weekly report ${w.weekStart} - ${project.name}`.replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 120);
+    const pdf = await this.google.htmlToPdf(weeklyHtml(project.name, brand.companyName, w), base, undefined, true);
+    const [saved] = await this.fileRoom.upload(projectId, WEEKLY_FOLDER, [{ originalname: `${base}.pdf`, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], { id: actor.id || '', name: actor.name } as any);
+    return { saved: true, fileId: saved?.id || null, name: `${base}.pdf`, folder: WEEKLY_FOLDER, weekStart: w.weekStart };
+  }
+
+  /** Monday: last week's report into each active project's files (projects with at least one report that week). */
+  async saveLastWeekForAll(today: string) {
+    if (!this.fileRoom || !(await this.google.isConnected().catch(() => false))) return { saved: 0 };
+    const lastWeek = mondayOf(addDaysIso(today, -7));
+    const end = addDaysIso(lastWeek, 6);
+    const ids = [...new Set((await this.logs.find()).filter((l) => l.date >= lastWeek && l.date <= end && l.status !== 'draft').map((l) => l.projectId))];
+    let saved = 0;
+    for (const id of ids) { try { await this.saveToFiles(Number(id), lastWeek); saved++; } catch { /* next project */ } }
+    return { saved };
   }
 
   /** Email the week as PDF + Excel, to the daily-log backup list or to given addresses. */

@@ -4,11 +4,12 @@ import { useApp } from '../AppContext';
 import { outcomeLabel } from '../data/contractorBids';
 import { INTERACTION_KINDS, companyOf, type ContactActivity as Activity, type ContactInteraction, type Person } from '../data/people';
 import { Skeleton } from './Skeleton';
+import { todayISO } from '../data/localDate';
 
 const head: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 };
 const input: React.CSSProperties = { boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--ink)', outline: 'none', minWidth: 0 };
 const ALERT_LABEL: Record<string, string> = { responsiveness: 'Responsiveness', interactions: 'Interactions', pulse: 'Pulse' };
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayISO();
 const day = (v?: string | null) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? new Date(v.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
 const kindLabel = (k: string) => (INTERACTION_KINDS.find(([x]) => x === k) || [k, k])[1];
 

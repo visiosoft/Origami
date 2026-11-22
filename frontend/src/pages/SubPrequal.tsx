@@ -1,7 +1,9 @@
+import { TradePicker, useSubcontractorTrades } from '../components/SubcontractorTrades';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { PREQUAL_LABEL } from '../data/prequal';
+import { RfpPackages } from '../components/RfpPackages';
 
 type Row = Awaited<ReturnType<typeof api.prequal.list>>[number];
 const field = { padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.15)', font: 'inherit', fontSize: 13, background: 'var(--surface)' } as const;
@@ -14,7 +16,7 @@ const TONE: Record<string, [string, string]> = { approved: ['var(--mint)', 'var(
  * Only approved companies with a current licence and insurance can be
  * invited to bid.
  */
-export function SubPrequal() {
+function PrequalList() {
   const { toast, can } = useApp();
   const manage = can('sub_prequal', 'manage') || can('manpower_con', 'manage') || can('fin_resources', 'manage');
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -24,11 +26,12 @@ export function SubPrequal() {
   const [form, setForm] = useState<Record<string, any>>({});
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const { trades } = useSubcontractorTrades();
   const load = () => api.prequal.list().then((r) => { setRows(r); if (open) { const n = r.find((x) => x.id === open.id); if (n) setOpen(n); } }).catch(() => setRows([]));
   useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!open) return;
-    setForm({ licenseNumber: open.licenseNumber || '', licenseExpiry: open.licenseExpiry || '', insuranceProvider: open.insuranceProvider || '', insurancePolicyNumber: open.insurancePolicyNumber || '', insuranceExpiry: open.insuranceExpiry || '', trades: open.prequal?.trades || '', yearsInBusiness: open.prequal?.yearsInBusiness ?? '', references: open.prequal?.references || '', w9OnFile: !!open.prequal?.w9OnFile });
+    setForm({ licenseNumber: open.licenseNumber || '', licenseExpiry: open.licenseExpiry || '', insuranceProvider: open.insuranceProvider || '', insurancePolicyNumber: open.insurancePolicyNumber || '', insuranceExpiry: open.insuranceExpiry || '', trades: open.prequal?.trades || '', tradeIds: open.tradeIds || [], yearsInBusiness: open.prequal?.yearsInBusiness ?? '', references: open.prequal?.references || '', w9OnFile: !!open.prequal?.w9OnFile });
     setNote(open.prequalNotes || '');
   }, [open?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -40,7 +43,7 @@ export function SubPrequal() {
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-        Before a sub is asked to bid: their licence, insurance, trades and references, reviewed here. Only <b>prequalified</b> companies with a <b>current licence and insurance</b> can be invited to a bid package.
+        Before a sub is asked to bid: their licence, insurance, licence classifications and references, reviewed here. A sub who isn’t prequalified yet can still be invited to bid (the prequal form goes with the invite); only one that was <b>turned down</b> can’t.
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <button type="button" style={pill(show === 'all')} onClick={() => setShow('all')}>All ({count(() => true)})</button>
@@ -76,9 +79,13 @@ export function SubPrequal() {
                 <label key={k} style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--body)' }}>{l}<input type={t} disabled={!manage} value={form[k] ?? ''} onChange={(e) => setForm({ ...form, [k]: e.target.value })} style={field} /></label>
               ))}
             </div>
-            <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--body)' }}>Trades<input disabled={!manage} value={form.trades || ''} onChange={(e) => setForm({ ...form, trades: e.target.value })} style={field} /></label>
+            {/* Nov 19 (Edward): the CSLB licence classifications they hold (with the CSI codes each covers), not free text. */}
+            <div style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--body)' }}>Licence classifications
+              <TradePicker trades={trades} value={form.tradeIds || []} disabled={!manage} onChange={(ids) => setForm({ ...form, tradeIds: ids })} />
+            </div>
+            <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--body)' }}>Trade notes<input disabled={!manage} value={form.trades || ''} placeholder="Anything else about what they do" onChange={(e) => setForm({ ...form, trades: e.target.value })} style={field} /></label>
             <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--body)' }}>References<textarea rows={3} disabled={!manage} value={form.references || ''} onChange={(e) => setForm({ ...form, references: e.target.value })} style={field} /></label>
-            <label style={{ display: 'flex', gap: 8, fontSize: 13 }}><input type="checkbox" disabled={!manage} checked={!!form.w9OnFile} onChange={(e) => setForm({ ...form, w9OnFile: e.target.checked })} />W-9 on file</label>
+            {/* Nov 19 (Edward): no W-9 at prequalifying -- it's asked for when we contract with them. */}
             <div style={{ fontSize: 12.5 }}><b>Files</b> — {open.attachments.length ? open.attachments.map((a) => a.name).join(', ') : 'none yet (the sub can upload from their link, or add them on the Contractors page)'}</div>
             {manage && (
               <>
@@ -98,6 +105,27 @@ export function SubPrequal() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * GC & Sub Prequalify & RFP (Nov 19 tabs): prequalification of subs, and the
+ * bid packages (RFP) -- moved here from Estimating (Edward).
+ */
+export function SubPrequal() {
+  const { can } = useApp();
+  const q = new URLSearchParams(window.location.search);
+  const [tab, setTab] = useState<'prequal' | 'rfp'>(q.get('tab') === 'rfp' ? 'rfp' : 'prequal');
+  const start = q.get('project') && q.get('estimate') ? { projectId: Number(q.get('project')), estimateId: String(q.get('estimate')) } : null;
+  const canEdit = can('estimating', 'manage') || can('precon_estimates', 'manage') || can('fin_project', 'manage') || can('sub_prequal', 'manage');
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      <div role="tablist" style={{ display: 'flex', gap: 6 }}>
+        <button type="button" role="tab" aria-selected={tab === 'prequal'} style={pill(tab === 'prequal')} onClick={() => setTab('prequal')}>Prequalification</button>
+        <button type="button" role="tab" aria-selected={tab === 'rfp'} style={pill(tab === 'rfp')} onClick={() => setTab('rfp')}>RFP / Bid packages</button>
+      </div>
+      {tab === 'prequal' ? <PrequalList /> : <RfpPackages canEdit={canEdit} start={start} />}
     </div>
   );
 }

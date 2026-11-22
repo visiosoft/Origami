@@ -8,6 +8,51 @@ import {
 } from './manpowerUi';
 import { Skeleton } from './Skeleton';
 
+// ---- Nov 17: who a worker reports to on site; that supervisor's daily report lists them.
+type Staff = { id: string; name: string; roleKey?: string };
+let staffCache: Promise<Staff[]> | null = null;
+const FIELD = /super|foreman/i;
+export function useSupervisors() {
+  const [list, setList] = useState<Staff[]>([]);
+  useEffect(() => {
+    staffCache ||= (api.users.directory() as Promise<Staff[]>).then((r) => (Array.isArray(r) ? r : [])).catch(() => { staffCache = null; return []; });
+    let live = true;
+    staffCache.then((r) => live && setList([...r].sort((a, b) => Number(FIELD.test(b.roleKey || '')) - Number(FIELD.test(a.roleKey || '')) || a.name.localeCompare(b.name))));
+    return () => { live = false; };
+  }, []);
+  return list;
+}
+export function SupervisorSelect({ value, onChange, blank = 'Project superintendent (default)' }: { value: string; onChange: (v: string) => void; blank?: string }) {
+  const list = useSupervisors();
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} style={input} aria-label="Reports to">
+      <option value="">{blank}</option>
+      {list.map((u) => <option key={u.id} value={u.id}>{u.name}{FIELD.test(u.roleKey || '') ? '' : ' (office)'}</option>)}
+    </select>
+  );
+}
+function SupervisorName({ id }: { id?: string | null }) {
+  const list = useSupervisors();
+  const u = id ? list.find((x) => x.id === id) : null;
+  return u ? <div style={{ fontSize: 11, color: MUTED }}>Reports to {u.name}</div> : null;
+}
+
+/** Nov 17: change who an already-deployed worker reports to, right in the list. */
+function ReportsToInline({ assignmentId, value }: { assignmentId: string; value: string }) {
+  const { toast } = useApp();
+  const list = useSupervisors();
+  const [v, setV] = useState(value);
+  useEffect(() => setV(value), [value]);
+  return (
+    <select aria-label="Reports to" value={v} onClick={(e) => e.stopPropagation()}
+      onChange={(e) => { const next = e.target.value; setV(next); api.assignments.setSupervisor([assignmentId], next || null).then(() => toast(next ? `Reports to ${list.find((u) => u.id === next)?.name || 'them'} now` : 'Not in a crew')).catch((err: Error) => { setV(value); toast('⚠ ' + err.message); }); }}
+      style={{ display: 'block', marginTop: 3, fontSize: 11, padding: '2px 4px', borderRadius: 6, border: '1px solid rgba(var(--rgb-shade), .14)', background: 'var(--surface)', color: 'var(--muted)', maxWidth: 160 }}>
+      <option value="">Reports to: no one</option>
+      {list.map((u) => <option key={u.id} value={u.id}>Reports to {u.name}</option>)}
+    </select>
+  );
+}
+
 const LEFT = ['resigned', 'terminated', 'contract_expired', 'demobilized'];
 export const lifecycle = (e: Employee) => e.employmentStatus || (e.status === 'inactive' ? 'resigned' : 'active');
 export const isDeployable = (e: Employee) => lifecycle(e) === 'active';
@@ -130,7 +175,9 @@ export function DeploymentBoard(props: Ctx & { canManage: boolean; reload: () =>
                         </span>
                         <span style={{ fontSize: 12.5 }}>{tradeName(a.tradeId) || '—'}</span>
                         <span style={{ fontSize: 12.5 }}>{a.designation || '—'}</span>
-                        <span style={{ fontSize: 12.5 }}>{a.workArea || '—'}</span>
+                        <span style={{ fontSize: 12.5 }}>{a.workArea || '—'}{canManage
+                          ? <ReportsToInline assignmentId={a.id} value={a.supervisorId || ''} />
+                          : <SupervisorName id={a.supervisorId} />}</span>
                         <span style={{ fontSize: 12, color: MUTED }}>{fmtDate(a.startDate)}</span>
                         <span>{a.assignmentType === 'temporary' ? <Badge tone="amber">Temp · to {fmtDate(a.endDate)}</Badge> : <Badge tone="green">Regular</Badge>}</span>
                         {canManage && (
@@ -230,6 +277,7 @@ export function AssignDrawer(props: Ctx & {
   const { tradeName, regularOf, projectName } = helpers(props);
   const [projectId, setProjectId] = useState<number | ''>(defaults.projectId ?? '');
   const [workArea, setWorkArea] = useState('');
+  const [supervisorId, setSupervisorId] = useState('');
   const [startDate, setStartDate] = useState(todayISO());
   const [type, setType] = useState<'regular' | 'temporary'>(defaults.type || 'regular');
   const [endDate, setEndDate] = useState('');
@@ -253,7 +301,7 @@ export function AssignDrawer(props: Ctx & {
     setSaving(true);
     try {
       await api.assignments.assign({
-        employeeIds: Array.from(picked), projectId: Number(projectId), workArea: workArea || undefined, startDate,
+        employeeIds: Array.from(picked), projectId: Number(projectId), workArea: workArea || undefined, supervisorId: supervisorId || undefined, startDate,
         assignmentType: type, endDate: endDate || undefined, designation: designation || undefined, notes: notes || undefined,
       });
       toast(`${picked.size} worker${picked.size === 1 ? '' : 's'} deployed to ${projectName(Number(projectId))}`);
@@ -280,6 +328,7 @@ export function AssignDrawer(props: Ctx & {
           </select>
         </div>
         <div><Label text="Work area / zone" /><input value={workArea} onChange={(e) => setWorkArea(e.target.value)} placeholder="e.g. Tower A" style={input} /></div>
+        <div><Label text="Reports to" /><SupervisorSelect value={supervisorId} onChange={setSupervisorId} /></div>
         <div><Label text="Start date" /><input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={input} /></div>
         <div>
           <Label text="Type" />
@@ -330,6 +379,7 @@ export function TransferDrawer({ projects, assignment, employee, projectName, on
   const { toast } = useApp();
   const [projectId, setProjectId] = useState<number | ''>('');
   const [workArea, setWorkArea] = useState('');
+  const [supervisorId, setSupervisorId] = useState('');
   const [startDate, setStartDate] = useState(todayISO());
   const [designation, setDesignation] = useState(assignment.designation || '');
   const [notes, setNotes] = useState('');
@@ -339,7 +389,7 @@ export function TransferDrawer({ projects, assignment, employee, projectName, on
     if (!projectId) { toast('⚠ Pick where they are going'); return; }
     setSaving(true);
     try {
-      await api.assignments.transfer(assignment.id, { projectId: Number(projectId), workArea: workArea || undefined, startDate, designation: designation || undefined, notes: notes || undefined });
+      await api.assignments.transfer(assignment.id, { projectId: Number(projectId), workArea: workArea || undefined, supervisorId: supervisorId || undefined, startDate, designation: designation || undefined, notes: notes || undefined });
       toast(`${employee?.name || 'Worker'} transferred to ${projectName(Number(projectId))}`);
       onDone();
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not transfer')); }
@@ -360,6 +410,7 @@ export function TransferDrawer({ projects, assignment, employee, projectName, on
           </select>
         </div>
         <div><Label text="Work area / zone" /><input value={workArea} onChange={(e) => setWorkArea(e.target.value)} style={input} /></div>
+        <div><Label text="Reports to" /><SupervisorSelect value={supervisorId} onChange={setSupervisorId} blank={projectId === assignment.projectId ? 'Same supervisor' : 'Project superintendent (default)'} /></div>
         <div><Label text="Effective date" /><input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={input} /></div>
         <div><Label text="Designation on new site" /><input value={designation} onChange={(e) => setDesignation(e.target.value)} style={input} /></div>
         <div><Label text="Reason / notes" /><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} style={{ ...input, resize: 'vertical' }} /></div>

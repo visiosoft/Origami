@@ -38,6 +38,8 @@ export interface User {
   isSuperintendent?: boolean;
   /** Set while an administrator views the app as this role or person (Nov 13): who is really looking. */
   viewedBy?: { sub: string; name: string; email: string; as: string } | null;
+  /** While viewing as: every project, only their own, or (outside accounts) the ones they're linked to. */
+  projectScope?: 'all' | 'assigned' | 'linked';
   /** The account's own role permissions, returned by who-am-I. */
   rolePermissions?: RolePermissions;
   /** The role's display name, from who-am-I. */

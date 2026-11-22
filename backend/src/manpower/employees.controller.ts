@@ -1,3 +1,7 @@
+import { Claims } from '../auth/guards/claims.decorator';
+import type { SessionClaims } from '../auth/crypto.util';
+import { ProjectAccessService } from '../auth/project-access.service';
+import { crewLimited } from './site-crews';
 import { ManageWrites } from '../auth/guards/perm.guard';
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -17,11 +21,16 @@ export class EmployeesController {
     private readonly service: EmployeesService,
     private readonly auth: AuthService,
     private readonly attachments: AttachmentsService,
+    private readonly access: ProjectAccessService,
   ) {}
 
   @Get()
-  findAll() {
-    return this.service.findAll();
+  async findAll(@Claims() claims?: SessionClaims | null) {
+    const all = await this.service.findAll();
+    // Nov 17: a field supervisor sees only the workers in his crews (Site crews), not the whole company.
+    if (!claims || !crewLimited(claims, await this.access.permissions(claims))) return all;
+    const mine = await this.service.crewMembers(claims.sub);
+    return (all as any[]).filter((e) => mine.has(e.id));
   }
 
   @Get(':id')

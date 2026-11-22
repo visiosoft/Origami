@@ -1,6 +1,8 @@
+import { stageRoleKey } from './stage-role';
+import { localToday } from '../common/local-date';
 import { isPhoto, photoPlace } from '../file-room/layout';
-import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
-import { cleanTags } from '../database/task.types';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional, ForbiddenException } from '@nestjs/common';
+import { ACCESS_TAG_LEADS, accessTagsChanged, cleanTags, NOT_ACCESS_TAG_LEAD } from '../database/task.types';
 import { TagsService } from '../tags/tags.service';
 import { activityPage } from '../common/activity-page';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -9,7 +11,7 @@ import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '
 import { ListCache } from '../database/list-cache';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from './mentions';
-import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from './task-rules';
+import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing, dueChangeReasonMissing, dueChangeNote, NEEDS_DUE_REASON } from './task-rules';
 import { SettingsService } from '../settings/settings.service';
 import { withAutoChecklists } from '../project-tasks/auto-checklist';
 import { backfillSerials, logSerialKind, nextSerial, serialYear } from '../database/serials';
@@ -153,6 +155,26 @@ export class TasksService implements OnApplicationBootstrap {
   }
 
   /** A lead became a project: its tasks with no project go to it (and stay linked to the lead). */
+  /**
+   * Nov 19: a lead's roles changed -- its open stage tasks nobody was given go
+   * to the new role holder. Tasks someone picked a person for are left alone.
+   */
+  async followLeadRoles(leadId: string, roles: Record<string, string>) {
+    const statuses = await this.statuses().catch(() => DEFAULT_LOG_STATUSES as LogStatus[]);
+    const rows = (await this.repo.findBy({ leadId } as any)).filter((t) => !t.archivedAt && !isClosedStatus(statuses, t.status) && !t.assignedToId && !String(t.assignedTo || '').trim());
+    let n = 0;
+    for (const t of rows) {
+      const key = stageRoleKey(normalizeList<string>(t.labels));
+      const uid = key ? roles[key] : null;
+      if (!uid) continue;
+      const u = await resolveAssignee(this.users, { id: uid });
+      if (!u.id) continue;
+      await this.repo.update({ id: t.id }, { assignedToId: u.id, assignedTo: u.name, status: bucketOf(t.status || 'To Do', true) || 'Assigned' } as any);
+      n++;
+    }
+    return n;
+  }
+
   async adoptLead(leadId: string, projectName: string) {
     const rows = await this.repo.findBy({ leadId });
     for (const t of rows.filter((x) => !x.project)) await this.repo.update({ id: t.id }, { project: projectName });
@@ -356,6 +378,13 @@ export class TasksService implements OnApplicationBootstrap {
     dto = { ...dto, ...(await this.leadFields(dto)) };
     const defer = !!dto.deferNotify;
     delete dto.deferNotify; delete dto.pendingNotices;
+    // Nov 19 (Edward): a lead's stage task with no one picked goes to whoever holds that stage's role on the lead.
+    if (!dto.assignedToId && !String(dto.assignedTo || '').trim() && dto.leadId && this.deals) {
+      const key = stageRoleKey(normalizeList<string>(dto.labels));
+      const deal = key ? await this.deals.findOneBy({ id: dto.leadId } as any).catch(() => null) : null;
+      const uid = key ? (deal as any)?.roles?.[key] : null;
+      if (uid) dto = { ...dto, assignedToId: uid, assignedTo: undefined };
+    }
     const assignee = await resolveAssignee(this.users, { id: dto.assignedToId, name: dto.assignedTo });
     // Tags (Oct 30 sync): Internal by default, where it was made, money is Financial; custom ones join the shared list.
     const tagged = this.tagBank
@@ -369,7 +398,7 @@ export class TasksService implements OnApplicationBootstrap {
     const task = this.repo.create({
       tab: 'internal',
       meetingType: 'Internal',
-      meetingDate: new Date().toISOString().slice(0, 10),
+      meetingDate: localToday(),
       status: 'To Do',
       topicType: 'Task',
       description: '',
@@ -462,9 +491,17 @@ export class TasksService implements OnApplicationBootstrap {
     }
 
     const note = cleanCompletionNote(patch.completionNote); delete patch.completionNote;
+    // Nov 17: moving an overdue entry's due date needs a reason; it goes in the history.
+    const dueReason = String(patch.dueReason || '').trim(); delete patch.dueReason;
+    const statusesNow = await this.statuses();
+    if (dueChangeReasonMissing(task, { ...patch, dueReason }, !isClosedStatus(statusesNow, task.status) && !task.archivedAt && !['Complete', 'Confirmed'].includes(task.status))) throw new BadRequestException(NEEDS_DUE_REASON);
+    const dueEvents: ActivityEvent[] = dueReason && 'dueDate' in patch && (patch.dueDate || '') !== (task.dueDate || '')
+      ? [event('comment', actor, { text: dueChangeNote(task.dueDate, patch.dueDate, dueReason) })] : [];
     await this.bucketRules(task, patch, actor);
     if ('priority' in patch) patch.priority = cleanPriority(patch.priority);
     if ('tags' in patch) patch.tags = cleanTags(patch.tags, task.tags);
+    // Nov 20: who a task is for is i-1 / i-2's call.
+    if ('tags' in patch && (actor as any)?.roleKey && !ACCESS_TAG_LEADS.includes((actor as any).roleKey) && accessTagsChanged(task.tags, patch.tags)) throw new ForbiddenException(NOT_ACCESS_TAG_LEAD);
     if ('labels' in patch && this.tagBank) {
       const t = await this.tagBank.editedTags({ tags: 'tags' in patch ? patch.tags : task.tags, labelsBefore: task.labels, labels: normalizeList<string>(patch.labels), actor });
       patch.labels = t.labels;
@@ -506,7 +543,7 @@ export class TasksService implements OnApplicationBootstrap {
     }
 
     if (closingNow) { const at = new Date().toISOString(); patch.archivedAt = at; patch.closedAt = at; }
-    const events = [...diffEvents(task, patch, actor), ...collabEvents, ...noteEvents, ...(closingNow ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
+    const events = [...diffEvents(task, patch, actor), ...dueEvents, ...collabEvents, ...noteEvents, ...(closingNow ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
     const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
       ? String(patch.assignedToId)
       : null;

@@ -55,6 +55,7 @@ const ConsultantMatrix = page(() => import('./pages/ConsultantMatrix'), 'Consult
 const MyCalendar = page(() => import('./pages/MyCalendar'), 'MyCalendar');
 const SignProposal = page(() => import('./pages/SignProposal'), 'SignProposal');
 const SignEstimate = page(() => import('./pages/SignEstimate'), 'SignEstimate');
+const ApproveBundle = page(() => import('./pages/ApproveBundle'), 'ApproveBundle');
 const TextPrefs = page(() => import('./pages/TextPrefs'), 'TextPrefs');
 const SubPrequal = page(() => import('./pages/SubPrequal'), 'SubPrequal');
 const Mail = page(() => import('./pages/Mail'), 'Mail');
@@ -118,6 +119,8 @@ export default function App() {
       <Route path="/sign-proposal" element={<SignProposal />} />
       {/* Public on purpose — a client accepts an estimate from the emailed link, no account (K8). */}
       <Route path="/sign-estimate" element={<SignEstimate />} />
+      {/* Public on purpose -- a client approves RFIs, decisions and change orders from the emailed link (Nov 17). */}
+      <Route path="/approve" element={<ApproveBundle />} />
       {/* Public on purpose — the text settings link at the foot of every text (Nov 13). */}
       <Route path="/texts" element={<TextPrefs />} />
       {/* Public on purpose — a sub fills in their prequalification from our private link (Nov 13). */}

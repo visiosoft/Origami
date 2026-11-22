@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { ChangeOrderEntity, ProjectEntity, ProjectTaskEntity, RfiEntity } from '../database/entities';
 import { FinancialsService } from './financials.service';
 import { computeSov } from './finance.calc';
+import { localToday } from '../common/local-date';
 
 /** The status columns a Daily Report shows for tasks and RFIs (Section I.H / I.I). */
 export const ROLLUP_STATUSES = ['To Do', 'Assigned', 'In Progress', 'On Hold', 'Complete', 'Confirmed'] as const;
@@ -50,7 +51,7 @@ export class DailyReportSummaryService {
   ) {}
 
   async summary(projectId: number, onDate?: string) {
-    const today = day(onDate) || new Date().toISOString().slice(0, 10);
+    const today = day(onDate) || localToday();
     const [project, tasks, rfis, cos] = await Promise.all([
       this.projects.findOneBy({ id: projectId }),
       this.tasks.find({ where: { projectId } }),

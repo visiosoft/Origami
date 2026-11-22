@@ -569,3 +569,38 @@
 .view-as-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 24px 10px; padding: 10px 16px; border-radius: 12px; background: #F6E3A1; color: #3A2E05; font-size: 13.5px; }
 .view-as-banner button { margin-left: auto; padding: 7px 14px; border-radius: 999px; border: 0; background: #3A2E05; color: #FFF8DC; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 @media (max-width: 700px) { .view-as-banner { margin: 0 12px 10px; } }
+/* View as on a phone (Nov 17): the list spans the screen under the header, above the side rail, and scrolls above the keyboard. */
+.view-as-btn { white-space: nowrap; }
+@media (max-width: 700px) {
+  .view-as-btn { padding: 7px 11px; font-size: 12.5px; }
+  .view-as-pop { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 76px); width: auto; max-width: none; z-index: 1000; }
+  .view-as-list { max-height: 45dvh; }
+}
+
+/* ---------- Full menu on phones and tablets (Nov 17) ----------
+   At 1024px and below the sidebar is an icon strip with the section headings hidden,
+   so most of the menu couldn't be reached. ☰ opens the whole menu over the page. */
+.nav-expand { display: none; }
+.nav-backdrop { display: none; }
+@media (max-width: 1024px) {
+  .nav-expand { display: grid; place-items: center; width: 40px; height: 40px; margin: 10px auto 4px; border-radius: 999px; border: 1px solid rgba(var(--rgb-shade), 0.12); background: var(--surface); color: var(--ink); cursor: pointer; flex-shrink: 0; }
+  .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 1190; background: rgba(20, 24, 22, 0.35); }
+  .sidebar.is-expanded { position: fixed !important; top: 8px; left: 8px; bottom: 8px; width: min(300px, calc(100vw - 32px)) !important; z-index: 1200; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28); background: var(--surface); }
+  .sidebar.is-expanded .nav-expand { margin: 10px 10px 0 auto; }
+  .sidebar.is-expanded .brand-full,
+  .sidebar.is-expanded .nav-group-label,
+  .sidebar.is-expanded .nav-group-chevron,
+  .sidebar.is-expanded .nav-item-label,
+  .sidebar.is-expanded .nav-item-note,
+  .sidebar.is-expanded .nav-item-badge,
+  .sidebar.is-expanded .user-info,
+  .sidebar.is-expanded .user-signout { display: revert !important; }
+  .sidebar.is-expanded .nav-item-label, .sidebar.is-expanded .user-info { display: block !important; }
+  .sidebar.is-expanded .brand-mark-only { display: none !important; }
+  .sidebar.is-expanded .nav-search { display: flex !important; }
+  .sidebar.is-expanded .nav-search-icon { display: none !important; }
+  .sidebar.is-expanded .nav-item { justify-content: flex-start; }
+  .sidebar.is-expanded .brand { justify-content: flex-start; padding: 4px 18px 10px; }
+  .sidebar.is-expanded .user-chip { justify-content: flex-start; }
+  .sidebar.is-expanded .nav { overflow-y: auto; }
+}

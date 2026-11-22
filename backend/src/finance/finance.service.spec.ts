@@ -416,7 +416,7 @@ describe('phase 2: reimbursables, retention release and credit notes', () => {
   it('reimbursables: submitted, approved, billed at cost plus markup outside the contract; voiding frees them', async () => {
     const s = await readyProject({ retention: 10, tax: 5 });
     await s.fin.saveSettings(7, { reimbursableMarkupPct: 10, version: v(s.t.pfin.rows, () => true) }, finance);
-    let r = await s.reimb.create(7, { description: 'Blueprint printing', category: 'printing', cost: 1000, vendor: 'FedEx Office' }, site);
+    let r = await s.reimb.create(7, { description: 'Blueprint printing', category: 'printing', cost: 1000, vendor: 'FedEx Office', csiCodeId: 'C01' }, site);
     expect(r).toMatchObject({ number: 'RE-001', status: 'submitted', markupPct: 10, billAmount: 1100 });
     await expect(s.reimb.decide(r.id, { decision: 'approve', version: r.version }, site)).rejects.toThrow(/doesn't allow approving reimbursables/);
     await expect(s.inv.createDraft(7, { billReady: true }, finance)).rejects.toThrow(/Nothing is ready/);
@@ -433,11 +433,29 @@ describe('phase 2: reimbursables, retention release and credit notes', () => {
     expect(s.t.reimbs.rows[0]).toMatchObject({ status: 'approved', invoiceId: null });
   });
 
+  it('reimbursables: a quick entry needs only the project and CSI code; it waits for details, then goes for approval (Nov 19)', async () => {
+    const s = await readyProject();
+    await expect(s.reimb.create(7, { description: 'Gas' , cost: 40 }, site)).rejects.toThrow(/CSI code/);
+    let r = await s.reimb.create(7, { csiCodeId: 'C01' }, site);
+    expect(r).toMatchObject({ status: 'needs_details', description: '', cost: 0 });
+    expect(s.t.approvals.rows.filter((a: any) => a.entityId === r.id)).toHaveLength(0);
+    await expect(s.reimb.decide(r.id, { decision: 'approve', version: r.version }, finance)).rejects.toThrow(/Fill in the description, cost/);
+    r = await s.reimb.update(r.id, { description: 'Plan printing', version: r.version }, finance);
+    expect(r.status).toBe('needs_details');
+    r = await s.reimb.update(r.id, { cost: 120, version: r.version }, finance);
+    expect(r.status).toBe('submitted');
+    expect(s.t.approvals.rows.filter((a: any) => a.entityId === r.id).map((a: any) => a.decision)).toEqual(['submitted']);
+    r = await s.reimb.decide(r.id, { decision: 'approve', version: r.version }, finance);
+    expect(r.status).toBe('approved');
+    // A complete entry still goes straight for approval.
+    expect((await s.reimb.create(7, { csiCodeId: 'C01', description: 'Tolls', cost: 12 }, site)).status).toBe('submitted');
+  });
+
   it('reimbursables: a receipt number already used on another expense is flagged (same vendor, or no vendor)', async () => {
     const s = await readyProject();
     const a = await s.reimb.create(7, { description: 'Lumber', cost: 200, vendor: 'Home Depot', receiptNumber: 'R-1043', csiCodeId: '06 10 00' }, site);
     expect(a).toMatchObject({ receiptNumber: 'R-1043', csiCodeId: '06 10 00', receiptDuplicates: [] });
-    const b = await s.reimb.create(7, { description: 'Lumber again', cost: 200, vendor: 'home depot', receiptNumber: 'r 1043' }, site);
+    const b = await s.reimb.create(7, { description: 'Lumber again', cost: 200, vendor: 'home depot', receiptNumber: 'r 1043', csiCodeId: '06 10 00' }, site);
     expect(b.receiptDuplicates.map((x: any) => x.number)).toEqual([a.number]);
     // Another shop printing the same number is not a duplicate.
     expect(await s.reimb.checkReceipt({ receipt: '1043-R', vendor: 'Lowes' }, site)).toEqual([]);
@@ -503,7 +521,7 @@ describe('phase 2: reimbursables, retention release and credit notes', () => {
     const s = await readyProject();
     const co = await s.cos.create(7, { title: 'Upgrade', items: [{ description: 'Tile', amount: 500 }] }, site);
     await s.cos.act(co.id, 'submit', { version: co.version }, site);
-    await s.reimb.create(7, { description: 'Mileage', cost: 80 }, site);
+    await s.reimb.create(7, { description: 'Mileage', cost: 80, csiCodeId: 'C01' }, site);
     const forSite = await s.hub.pending(site);
     expect(forSite.map((x: any) => [x.type, x.canAct])).toEqual([['change_order', false], ['reimbursable', false]]);
     const forFinance = await s.hub.pending(finance);

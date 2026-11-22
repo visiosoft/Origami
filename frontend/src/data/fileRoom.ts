@@ -21,7 +21,30 @@ export interface FileRoomFile {
   previewState?: string | null;
   /** Set when the thumbnail is ready; part of its URL, so the browser keeps it for good. */
   thumbV?: string | null;
+  /** Nov 17: who it is for -- internal (also when empty), client, external. */
+  access?: FileAccess | null;
+  /** Nov 20 drawing sets: Rev 1.0 (architect) / 1.02 (our published markups), the approved set, the city flag. */
+  revMajor?: number | null;
+  revMinor?: number | null;
+  approvedAt?: string | null;
+  notCityApproved?: boolean | null;
+  cityNote?: string | null;
 }
+
+/** "Rev 1.0", "Rev 1.02" -- mirrors backend file-room/drawing-sets.ts. */
+export function revLabel(major?: number | null, minor?: number | null): string {
+  if (major == null) return '';
+  return minor ? `Rev ${major}.${String(minor).padStart(2, '0')}` : `Rev ${major}.0`;
+}
+
+/** Nov 17: the three audience tags on every file. Colour plus an icon and a word, never colour alone. */
+export type FileAccess = 'internal' | 'client' | 'external';
+export const FILE_ACCESS: { key: FileAccess; label: string; icon: string; bg: string; c: string; hint: string }[] = [
+  { key: 'internal', label: 'Internal', icon: '🔒', bg: 'var(--c-efede8)', c: 'var(--body)', hint: 'Our team only' },
+  { key: 'client', label: 'Client', icon: '👤', bg: '#E3EDF8', c: '#1F4E80', hint: 'Our team and the client' },
+  { key: 'external', label: 'External', icon: '🌐', bg: '#FBEBDD', c: '#8A4B12', hint: 'Everyone on the project: client, consultants, trades' },
+];
+export const fileAccessInfo = (a?: string | null) => FILE_ACCESS.find((x) => x.key === a) || FILE_ACCESS[0];
 
 export interface FileRoomFolder {
   id: string;

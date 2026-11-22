@@ -14,6 +14,11 @@ describe('texting through Quo', () => {
   it('passes Quo’s own reason on', async () => {
     expect(quoError(401, {})).toMatch(/refused the API key/);
     expect(quoError(400, { message: 'Invalid to number' })).toBe('Invalid to number');
+    // Nov 17: a 402 says which allowance ran out and where to top it up.
+    const credits = quoError(402, { title: 'Not Enough Credits', message: 'Your workspace does not have enough credits', code: '0200402' });
+    expect(credits).toMatch(/^Quo: Not Enough Credits — Your workspace does not have enough credits\./);
+    expect(credits).toMatch(/API credits/);
+    expect(quoError(402, { title: 'Subscription Expired' })).toMatch(/Renew the Quo subscription/);
     const fail = jest.fn().mockResolvedValue({ ok: false, status: 422, json: async () => ({ errors: [{ message: 'Not allowed' }] }) });
     await expect(sendViaQuo({ apiKey: 'K', from: '+1' }, '+1', 'x', fail as any)).rejects.toThrow('Not allowed');
     const ok = jest.fn().mockResolvedValue({ ok: true, status: 202, json: async () => ({ data: { id: 'AC123' } }) });

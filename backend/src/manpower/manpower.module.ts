@@ -1,3 +1,4 @@
+import { FileRoomModule } from '../file-room/file-room.module';
 import { Module } from '@nestjs/common';
 import { DailyLogBackupService } from './daily-log-backup.service';
 import { WeeklyReportService } from './weekly-report.service';
@@ -76,6 +77,7 @@ import { SampleDataController } from './sample-data.controller';
     GoogleModule,
     SettingsModule,
     ProjectTasksModule,
+    FileRoomModule,
   ],
   controllers: [PicklistsController, 
     EmployeesController, CsiCodesController, DailyLogsController, TimesheetsController,

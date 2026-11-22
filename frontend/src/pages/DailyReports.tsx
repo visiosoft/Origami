@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akToday } from '../components/ActionKit';
 import { WeeklyReport } from '../components/dailyReport/WeeklyReport';
 import { Skeleton } from '../components/Skeleton';
+import { weekStartISO } from '../data/localDate';
 
 interface LogRow {
   id: string; projectId: number; date: string; supervisorName?: string; notes?: string; status: string;
@@ -22,11 +22,11 @@ const TASK = { start: 'Start', continued: 'Continued', completing: 'Done' } as R
 /**
  * Construction -> Daily Reports: every site's daily log, newest first -- who ran
  * the site, crew, hours and notes. A row opens the day: each worker's hours,
- * cost code and what they worked on. Approving stays in Manpower -> Approvals.
+ * cost code and what they worked on. Nov 19: a submitted report can be approved
+ * or sent back right here (also from Approvals and Manpower).
  */
 export function DailyReports() {
-  const navigate = useNavigate();
-  const { can } = useApp();
+  const { can, toast } = useApp();
   const [logs, setLogs] = useState<LogRow[] | null>(null);
   const [projects, setProjects] = useState<Record<number, string>>({});
   const [names, setNames] = useState<Record<string, string>>({});
@@ -57,6 +57,15 @@ export function DailyReports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logs]);
 
+  const decide = async (l: LogRow, how: 'approve' | 'reject') => {
+    let note: string | undefined;
+    if (how === 'reject') { note = window.prompt('What should the superintendent fix?')?.trim(); if (!note) return; }
+    try {
+      if (how === 'approve') await api.dailyLogs.approve(l.id); else await api.dailyLogs.reject(l.id, note);
+      toast(how === 'approve' ? 'Approved — its hours now count in payroll and labour cost' : 'Sent back to the superintendent');
+      api.dailyLogs.list().then((r: any) => setLogs(Array.isArray(r) ? r : [])).catch(() => undefined);
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not done')); }
+  };
   const toggle = (l: LogRow) => {
     if (openId === l.id) { setOpenId(null); return; }
     setOpenId(l.id);
@@ -66,7 +75,7 @@ export function DailyReports() {
   const all = (logs || []).filter((l) => l.status !== 'draft' || (l.crewCount || 0) > 0);
   const inProject = project ? all.filter((l) => l.projectId === project) : all;
   const shown = inProject.filter((l) => status === 'all' || l.status === status);
-  const weekStart = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
+  const weekStart = weekStartISO();
   const thisWeek = inProject.filter((l) => l.date >= weekStart && l.date <= akToday() && l.status !== 'draft');
   const waiting = inProject.filter((l) => l.status === 'submitted' && !l.autoReason);
   const sentBack = inProject.filter((l) => l.status === 'rejected');
@@ -77,7 +86,7 @@ export function DailyReports() {
   return (
     <AkPage
       lead="Each site’s day — crew, hours, cost codes, what got done and the superintendent’s notes. Superintendents fill these in on Daily Report (field)."
-      action={canApprove && waiting.length ? <button type="button" className="ak-btn is-dark" onClick={() => navigate('/manpower_con?tab=approvals')}>Approve {waiting.length} in Manpower</button> : undefined}
+      action={canApprove && waiting.length ? <button type="button" className="ak-btn is-dark" onClick={() => setStatus('submitted' as Status)}>{waiting.length} waiting for approval</button> : undefined}
     >
       <div className="ak-tools">
         <AkSeg<'days' | 'weekly'> value={mode} onChange={setMode} options={[['days', 'Daily reports'], ['weekly', 'Weekly report']]} />
@@ -131,7 +140,14 @@ export function DailyReports() {
                   )}
                   {l.notes && <div className="ak-notes"><b>Site notes</b><br />{l.notes}</div>}
                   {l.status === 'rejected' && l.rejectionNote && <div className="ak-notes" style={{ color: '#9A4318' }}><b>Sent back:</b> {l.rejectionNote}</div>}
-                  {l.status === 'approved' && l.approvedByName && <div className="ak-notes">Approved by {l.approvedByName} — timesheets created.</div>}
+                  {l.status === 'approved' && l.approvedByName && <div className="ak-notes">Approved by {l.approvedByName} — its hours count in payroll and the project’s labour cost.</div>}
+                  {canApprove && l.status === 'submitted' && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+                      <button type="button" className="ak-btn is-dark" onClick={() => decide(l, 'approve')}>✓ Approve</button>
+                      <button type="button" className="ak-btn" onClick={() => decide(l, 'reject')}>Send back…</button>
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>Approving makes its hours count in payroll and the project’s labour cost. Sending back asks the superintendent to fix it.</span>
+                    </div>
+                  )}
                 </div>
               )}
             </Fragment>

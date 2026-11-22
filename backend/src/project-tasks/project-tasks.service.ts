@@ -1,5 +1,5 @@
 import { isPhoto, photoPlace } from '../file-room/layout';
-import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional, ForbiddenException } from '@nestjs/common';
 import { activityPage } from '../common/activity-page';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Not, Repository } from 'typeorm';
@@ -7,13 +7,14 @@ import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '
 import { ListCache } from '../database/list-cache';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { TagsService } from '../tags/tags.service';
-import { cleanTags } from '../database/task.types';
+import { ACCESS_TAG_LEADS, accessTagsChanged, cleanTags, NOT_ACCESS_TAG_LEAD } from '../database/task.types';
 import { mentionedIds } from '../tasks/mentions';
-import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from '../tasks/task-rules';
+import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing, dueChangeReasonMissing, dueChangeNote, NEEDS_DUE_REASON } from '../tasks/task-rules';
 import { ChecklistTemplateEntity, LeadEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
 import { resolveLead } from '../tasks/lead-link';
 import { holdNotices, overdue, stillTrue, type PendingNotice } from '../notifications/pending-notices';
 import { withAutoChecklists } from './auto-checklist';
+import { mergeProblem, planMerge } from './task-merge';
 import { DEFAULT_TASKS } from '../seed-data/project-tasks';
 import { SectionsService } from './sections.service';
 import {
@@ -323,6 +324,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     // 'T-' + Date.now() could repeat, and saving a repeat overwrote the other task.
     const id = newTaskId();
     delete dto.id;
+    // Nov 17: a subtask is in its parent's epic.
+    if (dto.parentId) dto.epicId = (await Promise.resolve(this.repo.findOneBy({ id: dto.parentId })).catch(() => null))?.epicId ?? null;
     if (dto.status) {
       dto = { ...dto, status: normalizeTaskStatus(dto.status) };
       const p: Record<string, any> = { status: dto.status };
@@ -341,11 +344,12 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if (this.tagBank && !dto.phaseId) {
       const t = await this.tagBank.newItemTags({ tags: dto.tags, labels: normalizeList<string>(dto.labels), actor, assigneeId: assignee.id, leadId: dto.leadId || null, projectId: dto.projectId == null ? null : Number(dto.projectId) });
       dto = { ...dto, tags: t.tags, labels: t.labels };
-    } else dto = { ...dto, tags: cleanTags(dto.tags) };
+    } else dto = { ...dto, tags: cleanTags(dto.tags).length ? cleanTags(dto.tags) : ['internal'] }; // Nov 19: Internal by default on every task
     // Checklist templates marked "add automatically to" tasks (not subtasks).
     const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
     const checklist = withAutoChecklists(templates, { kind: 'task', labels: normalizeList<string>(dto.labels) }, normalizeList(dto.checklist));
-    const requester = dto.requestedById || dto.requestedBy ? await resolveAssignee(this.users, { id: dto.requestedById, name: dto.requestedBy }) : null;
+    // Nov 19 (Edward): the source is whoever makes the task, unless one is picked.
+    const requester = dto.requestedById || dto.requestedBy ? await resolveAssignee(this.users, { id: dto.requestedById, name: dto.requestedBy }) : actor.id ? { id: actor.id, name: actor.name } : null;
     let status: string = dto.status || (dto.completed ? 'Done' : 'Not started');
     if (status === 'Not started' && assignee.name) status = 'Assigned';
     const board = !dto.phaseId;
@@ -409,6 +413,30 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     return { surface: 'board' as const, taskId: t.id, title: t.title, description: t.description, projectId: t.projectId, dueDate: t.dueDate, priority: t.priority, status: t.status, actor };
   }
 
+  /**
+   * Nov 17: merge duplicate tasks into one. The kept task gains the others'
+   * files, comments and history; each duplicate becomes a closed subtask of it
+   * and their subtasks move under it. All or nothing.
+   */
+  async merge(keepId: string, mergeIds: string[], actor: UploadActor = { name: 'Unknown' }) {
+    const ids = [...new Set((mergeIds || []).map(String))].filter((x) => x !== keepId);
+    return this.repo.manager.transaction(async (m) => {
+      const repo = m.getRepository(ProjectTaskEntity);
+      const keep = await repo.findOneBy({ id: keepId });
+      const dupes = await Promise.all(ids.map((id) => repo.findOneBy({ id })));
+      const problem = mergeProblem(keep as any, dupes as any);
+      if (problem) throw new BadRequestException(problem);
+      const plan = planMerge(keep as any, dupes as any, { name: actor.name, id: actor.id });
+      for (const d of plan.dupes) {
+        // The duplicate's own subtasks now sit under the kept task.
+        await repo.update({ parentId: d.id } as any, { parentId: keep!.id, epicId: keep!.epicId ?? null } as any);
+        await repo.update({ id: d.id } as any, d.patch as any);
+      }
+      Object.assign(keep!, plan.keep);
+      return repo.save(keep!);
+    });
+  }
+
   async update(id: string, dto: any, actor: UploadActor = { name: 'Unknown' }) {
     let task = await this.repo.findOneBy({ id });
     if (!task) task = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) } as Partial<ProjectTaskEntity>);
@@ -433,12 +461,18 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       patch.requestedById = src.id ?? null;
     }
     if ('tags' in patch) patch.tags = cleanTags(patch.tags, task.tags);
+    // Nov 20: who a task is for is i-1 / i-2's call.
+    if ('tags' in patch && (actor as any)?.roleKey && !ACCESS_TAG_LEADS.includes((actor as any).roleKey) && accessTagsChanged(task.tags, patch.tags)) throw new ForbiddenException(NOT_ACCESS_TAG_LEAD);
     if ('labels' in patch && this.tagBank) {
       const t = await this.tagBank.editedTags({ tags: 'tags' in patch ? patch.tags : task.tags, labelsBefore: task.labels, labels: normalizeList<string>(patch.labels), actor });
       patch.labels = t.labels;
       patch.tags = cleanTags(t.tags, task.tags);
     }
     const note = cleanCompletionNote(patch.completionNote); delete patch.completionNote;
+    // Nov 17: moving an overdue task's due date needs a reason; it goes in the history.
+    const dueReason = String(patch.dueReason || '').trim(); delete patch.dueReason;
+    const dueEvents: ActivityEvent[] = dueReason && 'dueDate' in patch && (patch.dueDate || '') !== (task.dueDate || '')
+      ? [event('comment', actor, { text: dueChangeNote(task.dueDate, patch.dueDate, dueReason) })] : [];
     if ('status' in patch) patch.status = normalizeTaskStatus(patch.status);
     await this.syncBucketSection(task, patch);
     await this.syncStatus(task, patch, actor);
@@ -450,6 +484,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       if (('assignee' in patch || 'assigneeId' in patch) && (task.assigneeId || task.assignee) && !(patch.assigneeId || (patch.assignee || '').trim())) throw new BadRequestException('A subtask needs an assignee.');
     }
     if (isDoneStatus(patch.status) && !isDoneStatus(task.status) && !task.parentId) await this.assertSubtasksDone(id);
+    if (dueChangeReasonMissing(task, { ...patch, dueReason }, !isDoneStatus(task.status) && !task.archivedAt && !task.completed)) throw new BadRequestException(NEEDS_DUE_REASON);
 
     // Collaborators: a clean list, recorded in the activity, and newcomers told.
     let joined: { id: string; name: string }[] = [];
@@ -473,7 +508,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     }
 
     if (closing) { const at = new Date().toISOString(); patch.archivedAt = at; patch.closedAt = at; patch.completed = true; }
-    const events = [...diffEvents(task, patch, actor), ...collabEvents, ...noteEvents, ...(closing ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
+    const events = [...diffEvents(task, patch, actor), ...dueEvents, ...collabEvents, ...noteEvents, ...(closing ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
     const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
       ? String(patch.assigneeId)
       : null;
@@ -503,6 +538,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     const saved = await this.repo.save(task);
     // Its subtasks (all finished -- checked above) go into the archive with it.
     if (closing) for (const s of await this.repo.findBy({ parentId: id })) if (!s.archivedAt) await this.repo.update({ id: s.id }, { archivedAt: saved.archivedAt } as any);
+    // Nov 17: subtasks follow their parent's epic.
+    if ('epicId' in patch && !saved.parentId) await this.repo.update({ parentId: id } as any, { epicId: saved.epicId ?? null } as any);
     if (!defer) this.sendNotices(saved, notices);
     if (nowEmergency) this.alertEmergency(saved, actor);
     // High Viz work: everyone who follows High Viz hears when it moves.

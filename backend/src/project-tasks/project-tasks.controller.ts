@@ -1,3 +1,4 @@
+import { ArrayMaxSize, IsArray, IsString } from 'class-validator';
 import { internalOnly } from '../database/task.types';
 import {
   Controller, Get, Post, Put, Delete, Param, Query, Body, Headers, Res, UploadedFiles, UseInterceptors, ForbiddenException,
@@ -18,6 +19,11 @@ import type { SessionClaims } from '../auth/crypto.util';
 import { Perm } from '../auth/guards/perm.guard';
 
 @Perm('projects', 'tasks', 'design', 'pm')
+export class MergeTasksDto {
+  @IsString() keepId!: string;
+  @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) mergeIds!: string[];
+}
+
 @Controller('project-tasks')
 export class ProjectTasksController {
   constructor(
@@ -101,6 +107,14 @@ export class ProjectTasksController {
     return this.service.reorder(dto.sectionId, dto.ids ?? []);
   }
 
+  /** Nov 17: merge duplicates into one task (staff; same board; history and files kept). Before `:id`. */
+  @Tiers('internal')
+  @Post('merge')
+  async merge(@Body() dto: MergeTasksDto, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
+    for (const id of [dto.keepId, ...(dto.mergeIds || [])]) await this.mayTouch(id, claims ?? null);
+    return this.service.merge(dto.keepId, dto.mergeIds || [], await this.auth.actor(auth));
+  }
+
   @Tiers('internal')
   @Post()
   async create(@Body() dto: CreateProjectTaskDto, @Headers('authorization') auth?: string) {
@@ -110,7 +124,8 @@ export class ProjectTasksController {
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateProjectTaskDto, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
     await this.mayTouch(id, claims ?? null);
-    return this.service.update(id, dto, await this.auth.actor(auth));
+    // The role rides along so only i-1 / i-2 change who a task is for (Nov 20).
+    return this.service.update(id, dto, { ...(await this.auth.actor(auth)), roleKey: claims?.roleKey } as any);
   }
 
   /** Save pressed in the task editor: send the emails held on the task and its subtasks. */

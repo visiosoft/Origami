@@ -14,9 +14,12 @@ const W = 612, H = 792, M = 48; // page and margin, points
 const TOP = H - 100, BOTTOM = 64; // the flow area between running head and footer
 const INK = rgb(0.07, 0.1, 0.09), BODY = rgb(0.25, 0.29, 0.27), MUTED = rgb(0.45, 0.5, 0.48), RULE = rgb(0.9, 0.91, 0.9), FAINT = rgb(0.96, 0.97, 0.96);
 
-/** Standard PDF fonts read Latin-1 only: quotes and dashes become their plain forms, anything else "?". */
-const clean = (s: unknown) => String(s ?? '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-').replace(/…/g, '...').replace(/·/g, '·')
-  .replace(/[^\x09\x0a\x0d\x20-\x7e\xa0-\xff]/g, '?');
+/** Common characters outside Latin-1, as their plain forms (Nov 20: they printed as "?"). */
+const PLAIN: Record<string, string> = { '•': '-', '‣': '-', '◦': '-', '™': 'TM', '€': 'EUR', '≈': '~', '≤': '<=', '≥': '>=', '→': '->', '←': '<-', '✓': 'v', '✔': 'v', '✗': 'x', 'Ł': 'L', 'ł': 'l', 'Đ': 'D', 'đ': 'd', 'Œ': 'OE', 'œ': 'oe', '′': "'", '″': '"', '\u00a0': ' ', '\u2009': ' ', '\u202f': ' ' };
+
+/** Standard PDF fonts read Latin-1 only: quotes and dashes become their plain forms, accented letters lose an accent Latin-1 lacks, anything else "?". */
+export const clean = (s: unknown) => String(s ?? '').replace(/[‘’‚‛]/g, "'").replace(/[“”„‟]/g, '"').replace(/[–—―‒]/g, '-').replace(/…/g, '...')
+  .replace(/[^\x09\x0a\x0d\x20-\x7e\xa0-\xff]/g, (c) => PLAIN[c] ?? (c.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7e\xa0-\xff]/g, '') || '?'));
 
 function hexRgb(hex: string): RGB {
   let h = hex.replace('#', '');
@@ -26,6 +29,17 @@ function hexRgb(hex: string): RGB {
 }
 /** A colour mixed with white: 0 = white, 1 = the colour. */
 const tint = (c: RGB, k: number) => rgb(1 - (1 - c.red) * k, 1 - (1 - c.green) * k, 1 - (1 - c.blue) * k);
+
+/**
+ * Nov 20 ("character limits in the project programming template"): a value
+ * fitted into a width -- smaller type first, down to 7pt, then wrapped -- so a
+ * long budget or answer never runs over the column beside it.
+ */
+export function fitText(text: string, font: PDFFont, size: number, maxW: number): { size: number; lines: string[] } {
+  let s = size;
+  while (s > 7 && font.widthOfTextAtSize(clean(text), s) > maxW) s -= 0.5;
+  return { size: s, lines: wrap(text, font, s, maxW) };
+}
 
 /** Text wrapped to a width, word by word; a word too long for a line is broken by letters. */
 export function wrap(text: string, font: PDFFont, size: number, maxW: number): string[] {
@@ -110,11 +124,15 @@ export async function buildProgramPdf(opts: { brand: Branding; projectName: stri
   glanceHead();
   steps.forEach((s, i) => {
     const lines = wrap(s.name, font, 10.5, (hasMoney ? W - 2 * M - 230 : W - 2 * M - 50));
-    const h = lines.length * 14 + 8;
+    const bud = fitText(s.totals?.budget || '-', font, 10.5, 84), act = fitText(s.totals?.actual || '-', font, 10.5, 84);
+    const h = Math.max(lines.length * 14, hasMoney && s.totals ? Math.max(bud.lines.length, act.lines.length) * 12 : 0) + 8;
     if (ensure(h)) glanceHead();
     text(String(i + 1), M + 8, y, 10.5, bold, accent);
     lines.forEach((l, k) => text(l, M + 34, y - k * 14, 10.5, font, INK));
-    if (hasMoney && s.totals) { right(s.totals.budget || '-', W - M - 100, y, 10.5, font, INK); right(s.totals.actual || '-', W - M - 8, y, 10.5, font, BODY); }
+    if (hasMoney && s.totals) {
+      bud.lines.forEach((l, k) => right(l, W - M - 100, y - k * 12, bud.size, font, INK));
+      act.lines.forEach((l, k) => right(l, W - M - 8, y - k * 12, act.size, font, BODY));
+    }
     y -= h;
     page.drawLine({ start: { x: M, y: y + 10 }, end: { x: W - M, y: y + 10 }, thickness: 0.6, color: RULE });
   });
@@ -160,11 +178,16 @@ export async function buildProgramPdf(opts: { brand: Branding; projectName: stri
   steps.forEach((step, i) => {
     // A section starts a page of its own only when there's little room left.
     if (i === 0 || y < BOTTOM + 220) newPage(); else y -= 18;
-    page.drawRectangle({ x: M, y: y - 14, width: W - 2 * M, height: 40, color: tint(accent, 0.1) });
-    page.drawRectangle({ x: M, y: y - 14, width: 4, height: 40, color: accent });
+    // Nov 20: a long section title takes two lines (smaller if it must) instead of being cut after the first.
+    const title = fitText(step.name, bold, 15, W - 2 * M - 32);
+    const tl = title.lines.slice(0, 2);
+    if (title.lines.length > 2) tl[1] = wrap(title.lines.slice(1).join(' '), bold, title.size, W - 2 * M - 48)[0] + '...';
+    const extra = (tl.length - 1) * (title.size + 3);
+    page.drawRectangle({ x: M, y: y - 14 - extra, width: W - 2 * M, height: 40 + extra, color: tint(accent, 0.1) });
+    page.drawRectangle({ x: M, y: y - 14 - extra, width: 4, height: 40 + extra, color: accent });
     text(`SECTION ${i + 1} OF ${steps.length}`, M + 16, y + 12, 8, bold, accent);
-    text(wrap(step.name, bold, 15, W - 2 * M - 32)[0] || '', M + 16, y - 4, 15, bold, INK);
-    y -= 38;
+    tl.forEach((l, k) => text(l, M + 16, y - 4 - k * (title.size + 3), title.size, bold, INK));
+    y -= 38 + extra;
     if (step.blurb) { for (const l of wrap(step.blurb, font, 9.5, W - 2 * M)) { ensure(13); text(l, M, y, 9.5, font, BODY); y -= 13; } y -= 4; }
 
     for (const block of step.blocks) {
@@ -181,11 +204,12 @@ export async function buildProgramPdf(opts: { brand: Branding; projectName: stri
         ensure(40); head();
         for (const r of block.rows) {
           const d = wrap(r.label, font, 9.5, 230), n = wrap(dash(r.notes), font, 8.5, W - M - cols.notes);
-          const h = Math.max(d.length * 12, n.length * 11) + 8;
+          const bu = fitText(dash(r.budget), font, 9.5, cols.budgetR - cols.desc - 236), ac = fitText(dash(r.actual), font, 9.5, cols.actualR - cols.budgetR - 8);
+          const h = Math.max(d.length * 12, n.length * 11, bu.lines.length * 11, ac.lines.length * 11) + 8;
           if (ensure(h)) head();
           d.forEach((l, k) => text(l, cols.desc, y - k * 12, 9.5, font, INK));
-          right(dash(r.budget), cols.budgetR, y, 9.5, font, INK);
-          right(dash(r.actual), cols.actualR, y, 9.5, font, BODY);
+          bu.lines.forEach((l, k) => right(l, cols.budgetR, y - k * 11, bu.size, font, INK));
+          ac.lines.forEach((l, k) => right(l, cols.actualR, y - k * 11, ac.size, font, BODY));
           n.forEach((l, k) => text(l, cols.notes, y - k * 11, 8.5, font, MUTED));
           y -= h;
           page.drawLine({ start: { x: M, y: y + 9 }, end: { x: W - M, y: y + 9 }, thickness: 0.5, color: RULE });
@@ -203,11 +227,12 @@ export async function buildProgramPdf(opts: { brand: Branding; projectName: stri
         const labelW = 190;
         for (const r of block.rows) {
           const ls = wrap(r.label, font, 8.5, labelW - 10);
-          const vs = block.kind === 'weeks' ? [dash(r.value)] : wrap(dash(r.value), font, 9.5, W - 2 * M - labelW - 6);
+          const wk = fitText(dash(r.value), font, 9.5, W - 2 * M - labelW - 12);
+          const vs = block.kind === 'weeks' ? wk.lines : wrap(dash(r.value), font, 9.5, W - 2 * M - labelW - 6);
           const h = Math.max(ls.length * 11, vs.length * 12.5) + 8;
           ensure(h);
           ls.forEach((l, k) => text(l, M + 6, y - k * 11, 8.5, font, MUTED));
-          if (block.kind === 'weeks') right(vs[0], W - M - 6, y, 9.5, font, String(r.value ?? '').trim() ? INK : MUTED);
+          if (block.kind === 'weeks') vs.forEach((l, k) => right(l, W - M - 6, y - k * 12.5, wk.size, font, String(r.value ?? '').trim() ? INK : MUTED));
           else vs.forEach((l, k) => text(l, M + labelW, y - k * 12.5, 9.5, font, String(r.value ?? '').trim() ? INK : MUTED));
           y -= h;
           page.drawLine({ start: { x: M, y: y + 9 }, end: { x: W - M, y: y + 9 }, thickness: 0.5, color: RULE });
@@ -218,8 +243,9 @@ export async function buildProgramPdf(opts: { brand: Branding; projectName: stri
     if (step.totals) {
       ensure(34); y -= 4;
       page.drawRectangle({ x: M, y: y - 12, width: W - 2 * M, height: 28, color: FAINT });
-      text('Budget subtotal', M + 10, y - 2, 9, font, MUTED); right(step.totals.budget || '-', M + 250, y - 2, 11, bold, accent);
-      text('Actual to date', M + 290, y - 2, 9, font, MUTED); right(step.totals.actual || '-', W - M - 10, y - 2, 11, bold, INK);
+      const tb = fitText(step.totals.budget || '-', bold, 11, 150), ta = fitText(step.totals.actual || '-', bold, 11, W - 2 * M - 370);
+      text('Budget subtotal', M + 10, y - 2, 9, font, MUTED); right(tb.lines[0] || '-', M + 250, y - 2, tb.size, bold, accent);
+      text('Actual to date', M + 290, y - 2, 9, font, MUTED); right(ta.lines[0] || '-', W - M - 10, y - 2, ta.size, bold, INK);
       y -= 36;
     }
   });
@@ -233,11 +259,14 @@ export async function buildProgramPdf(opts: { brand: Branding; projectName: stri
     page = p;
     if (logo) { const s = fit(logo, 90, 24); p.drawImage(logo, { x: M, y: H - 32 - s.height, ...s }); }
     else text(b.companyName || '', M, H - 46, 10, bold, INK);
-    right(wrap(head, font, 8.5, 360)[0] || '', W - M, H - 44, 8.5, font, MUTED);
+    // Nov 20: a long project name shrinks, then takes a second line, rather than being cut.
+    const hd = fitText(head, font, 8.5, 360);
+    hd.lines.slice(0, 2).forEach((l, k) => right(l, W - M, H - 44 + (hd.lines.length > 1 ? 5 : 0) - k * (hd.size + 2), hd.size, font, MUTED));
     p.drawLine({ start: { x: M, y: H - 58 }, end: { x: W - M, y: H - 58 }, thickness: 1.2, color: accent });
     p.drawLine({ start: { x: M, y: 44 }, end: { x: W - M, y: 44 }, thickness: 0.5, color: RULE });
     if (footLogo) { const s = fit(footLogo, 14, 14); p.drawImage(footLogo, { x: M, y: 24, ...s }); }
-    text(wrap(foot, font, 8, 400)[0] || '', M + (footLogo ? 20 : 0), 28, 8, font, MUTED);
+    const ft = fitText(foot, font, 8, 400);
+    ft.lines.slice(0, 2).forEach((l, k) => text(l, M + (footLogo ? 20 : 0), 28 + (ft.lines.length > 1 ? 4 : 0) - k * (ft.size + 2), ft.size, font, MUTED));
     right(`${i + 1} / ${pages.length}`, W - M, 28, 8.5, bold, accent);
   });
 

@@ -59,3 +59,21 @@ export function sameMeeting(a: { title?: string | null; date?: string | null }, 
   const x = norm(a.title || ''); const y = norm(b.title);
   return !!x && !!y && (x === y || x.includes(y) || y.includes(x));
 }
+
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+/**
+ * Nov 19 (Edward): the date a meeting's notes or transcript say it was held --
+ * "Meeting Date: November 12, 2026", or a Gemini / Fathom header like
+ * "… Weekly Sync - 2026/11/12 13:58 PST - Transcript". Null when none.
+ */
+export function dateInNotes(text: string | null | undefined): string | null {
+  const t = String(text || '').slice(0, 4000);
+  const iso = (y: number, m: number, d: number) => (y > 2000 && m >= 1 && m <= 12 && d >= 1 && d <= 31 ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : null);
+  const labelled = /\b(?:meeting\s+)?date\s*[:-]\s*(?:[a-z]+,?\s+)?([a-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})/i.exec(t);
+  if (labelled) { const m = MONTHS.findIndex((x) => x.startsWith(labelled[1].toLowerCase().slice(0, 3))); const r = m >= 0 ? iso(+labelled[3], m + 1, +labelled[2]) : null; if (r) return r; }
+  const slash = /\b(20\d{2})[/-](\d{1,2})[/-](\d{1,2})\b/.exec(t);
+  if (slash) return iso(+slash[1], +slash[2], +slash[3]);
+  const words = /\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2}),?\s+(20\d{2})\b/i.exec(t);
+  if (words) return iso(+words[3], MONTHS.indexOf(words[1].toLowerCase()) + 1, +words[2]);
+  return null;
+}

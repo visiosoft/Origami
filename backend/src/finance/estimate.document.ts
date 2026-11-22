@@ -139,5 +139,5 @@ export function estimateEmailBody(d: { number: string; rev: number; title?: stri
     <p style="margin:0 0 4px;font-size:12px;color:#7E9B93;">${e(d.projectName)} · ${e(d.number)} Rev ${e(d.rev)}</p>
     <p style="margin:0 0 12px;font-size:15px;font-weight:700;color:#0B1A12;">${e(d.title || 'Estimate')}</p>
     ${d.total != null ? `<p style="margin:0 0 16px;font-size:13.5px;color:#0B1A12;">Total: <b>${usd(d.total)}</b></p>` : ''}
-    <p style="margin:0;font-size:13.5px;line-height:1.6;color:#43514D;">The estimate is attached as a PDF. To accept it, open it with the button below and sign — or reply to this email with any questions.</p>`;
+    <p style="margin:0;font-size:13.5px;line-height:1.6;color:#43514D;">A new estimate is ready in your portal. Review it with the button below, and accept and sign it online when you’re happy — or reply to this email with any questions.</p>`;
 }

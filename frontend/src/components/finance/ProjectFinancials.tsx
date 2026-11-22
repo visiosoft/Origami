@@ -1,3 +1,4 @@
+import { PreconPanel } from './PreconPanel';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
@@ -15,7 +16,7 @@ import { FundingPanel } from './Funding';
 import { Skeleton } from '../Skeleton';
 import { ChangeOrderWorkspace } from './ChangeEvents';
 
-type View = 'sov' | 'changes' | 'reimbursables' | 'retention' | 'funding' | 'invoices' | 'payments' | 'jobcost' | 'profit' | 'activity';
+type View = 'sov' | 'changes' | 'reimbursables' | 'retention' | 'funding' | 'invoices' | 'payments' | 'jobcost' | 'profit' | 'activity' | 'precon';
 type Filter = 'all' | 'design' | 'construction' | 'other' | 'unphased';
 
 /**
@@ -81,7 +82,15 @@ export function ProjectFinancials({ projectId, category, initialView }: { projec
             {r.manage && <div onClick={() => setSetupOpen(true)} style={btn()} title="If a client pays you for this project">Set up client billing</div>}
           </div>
         )}
+        {/* Nov 17: before the contract -- estimates side by side, and pre-construction fees billed from one. */}
+        {(r.view || r.prepareInvoice) && (
+          <div style={{ ...card, padding: '14px 18px' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 8 }}>Pre-construction</div>
+            <PreconPanel projectId={projectId} canInvoice={!!r.prepareInvoice} onInvoiced={(id) => { void loadInvoices(); setOpenInvoice(id); }} />
+          </div>
+        )}
         {costSide && <JobCostPanel projectId={projectId} overview={data} initialSub={initialView === 'subcontracts' ? 'commitments' : undefined} />}
+        {openInvoice && <InvoiceDrawer invoiceId={openInvoice} overview={data} onClose={() => { setOpenInvoice(null); refresh(); }} onChanged={refresh} />}
       </div>
     );
   }
@@ -110,7 +119,7 @@ export function ProjectFinancials({ projectId, category, initialView }: { projec
         {([
           // Schedule of values, invoices, payments, change orders -- in that order, as the office reads them.
           ['sov', 'Schedule of values'], ['invoices', `Invoices${invoices ? ` (${invoices.length})` : ''}`],
-          ['payments', 'Payments'], ...(r.viewChangeOrders ? [['changes', 'Change orders']] : []), ...(r.viewReimbursables ? [['reimbursables', 'Reimbursables']] : []), ['retention', 'Retention'], ['funding', 'Funding'],
+          ['payments', 'Payments'], ['precon', 'Pre-construction'], ...(r.viewChangeOrders ? [['changes', 'Change orders']] : []), ...(r.viewReimbursables ? [['reimbursables', 'Reimbursables']] : []), ['retention', 'Retention'], ['funding', 'Funding'],
           ...(r.viewProfitability || r.manageCosts ? [['jobcost', 'Job cost']] : []), ...(r.viewProfitability ? [['profit', 'Profitability']] : []), ['activity', 'Activity'],
         ] as [View, string][]).map(([k, l]) => (
           <div key={k} onClick={() => setView(k)} style={{ padding: '9px 13px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: view === k ? ACCENT : MUTED, borderBottom: '2px solid ' + (view === k ? ACCENT : 'transparent'), marginBottom: -1 }}>{l}</div>
@@ -133,6 +142,7 @@ export function ProjectFinancials({ projectId, category, initialView }: { projec
       {view === 'invoices' && (
         <InvoiceList invoices={invoices} canManage={r.prepareInvoice} busy={busy} billableNow={s.billableNow} onOpen={setOpenInvoice} onNew={newInvoice} />
       )}
+      {view === 'precon' && <PreconPanel projectId={projectId} canInvoice={!!r.prepareInvoice} onInvoiced={(id) => { void loadInvoices(); setOpenInvoice(id); }} />}
       {view === 'payments' && <PaymentList projectId={projectId} onOpenInvoice={setOpenInvoice} />}
       {view === 'activity' && <ActivityList projectId={projectId} />}
 

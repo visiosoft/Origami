@@ -22,3 +22,15 @@ describe('business card reading', () => {
     expect(parseBusinessCard('Jo Park\njo@gmail.com').company).toBe('');
   });
 });
+
+describe('Edward’s card (Nov 19)', () => {
+  const { parseBusinessCard } = require('./business-card');
+  it('reads Raffie Karabed of Arkay Energy Solutions, not “ARKAY ENERGY”', () => {
+    const text = ['ARKAY ENERGY', 'SOLUTIONS', 'RAFFIE KARABED', 'President', 'Cell 408-218-7956', 'raffie@arkayenergy.com', 'www.arkayenergy.com', '1101 S Winchester Blvd, San Jose, CA 95128'].join('\n');
+    const f = parseBusinessCard(text);
+    expect([f.firstName, f.lastName]).toEqual(['Raffie', 'Karabed']);
+    expect(f.company).toBe('ARKAY ENERGY SOLUTIONS');
+    expect(f.mobile).toBe('408-218-7956');
+    expect(f.title).toBe('President');
+  });
+});

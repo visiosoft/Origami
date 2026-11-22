@@ -1,3 +1,4 @@
+import { RfiMarkupsService } from './rfi-markups.service';
 import { queryRfis } from './rfi-query';
 import {
   Body, Controller, Delete, ForbiddenException, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
@@ -24,6 +25,7 @@ export class RfisController {
     private readonly access: ManpowerAccess,
     private readonly auth: AuthService,
     private readonly attachments: AttachmentsService,
+    private readonly rfiMarkups: RfiMarkupsService,
   ) {}
 
   private actor(a?: string) { return this.access.actor(a); }
@@ -39,6 +41,10 @@ export class RfisController {
     const id = Number(projectId);
     return this.rfis.list(await this.actor(a), Number.isFinite(id) && id > 0 ? id : undefined);
   }
+
+  /** Nov 19: send the project's RFI Log -- who it can go to, then send it. */
+  @Get('log/recipients') async logRecipients(@Query('projectId') pid: string, @Headers('authorization') a?: string) { return this.rfis.logRecipients(Number(pid), await this.actor(a)); }
+  @Post('log/send') async sendLog(@Body() body: { projectId?: number; to?: string[]; note?: string }, @Headers('authorization') a?: string) { return this.rfis.sendLog(Number(body?.projectId), body || {}, await this.actor(a)); }
 
   /** One page of the RFI log -- filtered, searched and sorted here -- with the counts and stat cards. */
   @Get('page')
@@ -87,6 +93,27 @@ export class RfisController {
   @Post(':id/mark-sent')
   async markSent(@Param('id') id: string, @Headers('authorization') a?: string) {
     return this.rfis.markSent(id, await this.actor(a));
+  }
+
+  // ---- Nov 17: the RFI's own drawing layer (draft, our team only) and publishing it to the set
+  @Get(':id/callouts')
+  async callouts(@Param('id') id: string, @Headers('authorization') a?: string) {
+    await this.rfis.get(id, await this.actor(a));
+    return this.rfiMarkups.callouts(id);
+  }
+
+  @Post(':id/draft-layer')
+  async draftLayer(@Param('id') id: string, @Body() dto: { fileId?: string }, @Headers('authorization') a?: string) {
+    const actor = await this.actor(a);
+    if (!(await this.rfis.rights(actor)).manage) throw new ForbiddenException("Your role doesn't allow changing RFIs.");
+    return this.rfiMarkups.draftLayer(id, String(dto?.fileId || ''), actor);
+  }
+
+  @Post(':id/publish-markups')
+  async publishMarkups(@Param('id') id: string, @Headers('authorization') a?: string) {
+    const actor = await this.actor(a);
+    if (!(await this.rfis.rights(actor)).manage) throw new ForbiddenException("Your role doesn't allow changing RFIs.");
+    return this.rfiMarkups.publish(id, actor);
   }
 
   @Post(':id/answer')

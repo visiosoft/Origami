@@ -9,6 +9,7 @@ export interface AssignInput {
   employeeIds: string[];
   projectId: number;
   workArea?: string;
+  supervisorId?: string;
   startDate?: string;
   endDate?: string;
   assignmentType?: string;
@@ -21,9 +22,16 @@ export interface AssignInput {
 export interface TransferInput {
   projectId: number;
   workArea?: string;
+  supervisorId?: string;
   startDate?: string;
   designation?: string;
   notes?: string;
+}
+
+/** Nov 17: who a new crew member reports to by default -- the project's superintendent, else its foreman. */
+export function crewLead(project: { roles?: Record<string, string> | null } | null | undefined): string | null {
+  const r = project?.roles || {};
+  return r.superintendent || r.foreman || null;
 }
 
 @Injectable()
@@ -74,7 +82,8 @@ export class AssignmentsService {
   async assign(dto: AssignInput, actor: ManpowerActor) {
     const ids = Array.from(new Set(dto.employeeIds || []));
     if (!ids.length) throw new BadRequestException('Pick at least one worker.');
-    await this.requireProject(dto.projectId);
+    const project = await this.requireProject(dto.projectId);
+    const supervisorId = dto.supervisorId || crewLead(project);
     const startDate = dto.startDate || todayISO();
     this.checkDates(startDate, dto.endDate);
     const type = dto.assignmentType === 'temporary' ? 'temporary' : 'regular';
@@ -99,7 +108,7 @@ export class AssignmentsService {
       const rows = ids.map((id) => {
         const e = byId.get(id)!;
         return m.getRepository(EmployeeAssignmentEntity).create({
-          id: newId('ASG'), employeeId: id, projectId: Number(dto.projectId), workArea: dto.workArea,
+          id: newId('ASG'), employeeId: id, projectId: Number(dto.projectId), workArea: dto.workArea, supervisorId,
           tradeId: e.tradeId, designation: dto.designation || e.designation || e.jobTitle,
           assignmentType: type, startDate, endDate: dto.endDate, status: 'active',
           workforceRequestId: dto.workforceRequestId, requestLineId: dto.requestLineId,
@@ -120,13 +129,13 @@ export class AssignmentsService {
 
   /** Move a worker to another project or work area: the old stint closes on the day the new one starts. */
   async transfer(id: string, dto: TransferInput, actor: ManpowerActor) {
-    await this.requireProject(dto.projectId);
+    const project = await this.requireProject(dto.projectId);
     const effective = dto.startDate || todayISO();
     return this.repo.manager.transaction(async (m) => {
       const repo = m.getRepository(EmployeeAssignmentEntity);
       const from = await this.requireOpen(m, id);
       if (effective < from.startDate) throw new BadRequestException('A transfer cannot take effect before the current assignment started.');
-      if (Number(dto.projectId) === from.projectId && (dto.workArea || '') === (from.workArea || '')) {
+      if (Number(dto.projectId) === from.projectId && (dto.workArea || '') === (from.workArea || '') && (!dto.supervisorId || dto.supervisorId === from.supervisorId)) {
         throw new BadRequestException('That is the same project and work area they are already on.');
       }
       const now = new Date().toISOString();
@@ -134,6 +143,7 @@ export class AssignmentsService {
       await repo.save(from);
       const to = repo.create({
         id: newId('ASG'), employeeId: from.employeeId, projectId: Number(dto.projectId), workArea: dto.workArea,
+        supervisorId: dto.supervisorId || (Number(dto.projectId) === from.projectId ? from.supervisorId : crewLead(project)),
         tradeId: from.tradeId, designation: dto.designation || from.designation, assignmentType: from.assignmentType,
         startDate: effective, status: 'active', transferredFromId: from.id, notes: dto.notes,
         createdByName: actor.name, createdAt: now, updatedAt: now,
@@ -175,12 +185,23 @@ export class AssignmentsService {
     });
   }
 
+  /** Nov 17 (Site crews): several open stints now report to one supervisor (null = no one). */
+  async setSupervisor(ids: string[], supervisorId: string | null) {
+    const list = [...new Set((ids || []).map(String))];
+    if (!list.length) throw new BadRequestException('Pick at least one worker.');
+    const rows = await this.repo.find({ where: { id: In(list) } });
+    const at = new Date().toISOString();
+    for (const a of rows) { a.supervisorId = supervisorId || null; a.updatedAt = at; }
+    await this.repo.save(rows, { chunk: 40 });
+    return { updated: rows.length, supervisorId: supervisorId || null };
+  }
+
   /** Small corrections on an open stint (area, designation, planned end, notes). Moving projects is a transfer. */
-  async update(id: string, dto: { workArea?: string; designation?: string; endDate?: string; notes?: string }) {
+  async update(id: string, dto: { workArea?: string; supervisorId?: string; designation?: string; endDate?: string; notes?: string }) {
     return this.repo.manager.transaction(async (m) => {
       const a = await this.requireOpen(m, id);
       if (dto.endDate !== undefined) this.checkDates(a.startDate, dto.endDate || undefined);
-      for (const k of ['workArea', 'designation', 'endDate', 'notes'] as const) {
+      for (const k of ['workArea', 'supervisorId', 'designation', 'endDate', 'notes'] as const) {
         if (dto[k] !== undefined) (a as any)[k] = dto[k] || null;
       }
       if (a.assignmentType === 'temporary' && !a.endDate) throw new BadRequestException('A temporary assignment needs an end date.');

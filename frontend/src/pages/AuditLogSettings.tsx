@@ -4,6 +4,7 @@ import { useApp } from '../AppContext';
 import { downloadCsv } from '../components/finance/financeUi';
 import { auditCsvRows, changeText, headline, typeLabel, type AuditRow } from '../data/audit';
 import { Pager } from '../components/Pager';
+import { todayISO } from '../data/localDate';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)',
@@ -53,7 +54,7 @@ export function AuditLogSettings() {
   const list = rows || [];
   // Everything matching the filters (up to 5,000 entries), not just the page showing.
   const csv = () => api.audit.list({ ...filterQuery(), limit: '5000' })
-    .then((all) => downloadCsv(`audit-log-${new Date().toISOString().slice(0, 10)}`,
+    .then((all) => downloadCsv(`audit-log-${todayISO()}`,
       [['at', 'When'], ['who', 'Who'], ['type', 'Type'], ['record', 'Record'], ['action', 'Action'], ['project', 'Project'], ['changes', 'Changes']], auditCsvRows(Array.isArray(all) ? all : [])))
     .catch((e: any) => toastRef.current('⚠ ' + (e?.message || 'Could not export')));
 

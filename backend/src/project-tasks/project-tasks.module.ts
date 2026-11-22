@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ChecklistTemplateEntity, LeadEntity, ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, TaskEntity, UserEntity } from '../database/entities';
+import { ChecklistTemplateEntity, LeadEntity, ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, ProjectEpicEntity, TaskEntity, UserEntity } from '../database/entities';
+import { EpicsController } from './epics.controller';
+import { EpicsService } from './epics.service';
 import { ChecklistTemplatesController } from './checklist-templates.controller';
 import { ChecklistTemplatesService } from './checklist-templates.service';
 import { GoogleModule } from '../google/google.module';
@@ -17,9 +19,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [SettingsModule, NotificationsModule, TypeOrmModule.forFeature([ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity, ChecklistTemplateEntity, LeadEntity, TaskEntity]), GoogleModule, AuthModule],
-  controllers: [ProjectTasksController, SectionsController, PhasesController, ProjectHoldController, ChecklistTemplatesController],
-  providers: [ProjectTasksService, SectionsService, PhasesService, ProjectHoldService, ChecklistTemplatesService],
+  imports: [SettingsModule, NotificationsModule, TypeOrmModule.forFeature([ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity, ChecklistTemplateEntity, LeadEntity, TaskEntity, ProjectEpicEntity]), GoogleModule, AuthModule],
+  controllers: [ProjectTasksController, SectionsController, PhasesController, ProjectHoldController, ChecklistTemplatesController, EpicsController],
+  providers: [ProjectTasksService, SectionsService, PhasesService, ProjectHoldService, ChecklistTemplatesService, EpicsService],
   exports: [ProjectHoldService, ProjectTasksService, SectionsService, PhasesService],
 })
 export class ProjectTasksModule {}

@@ -6,10 +6,20 @@ export interface Emp { id: string; name: string; workerId?: string; tradeId?: st
 export interface Code { id: string; code: string; division: string; active: boolean }
 
 const STATUSES: [string, string][] = [['start', 'Start'], ['continued', 'Cont.'], ['completing', 'Done']];
-const QUICK_HOURS = [4, 8, 10, 12];
+const QUICK_HOURS = [4, 8, 9, 10, 11, 12];
+
+/**
+ * Nov 19: what the hours box holds. Empty (Delete / Backspace) clears the
+ * hours but keeps the worker on the sheet -- only "× Remove" takes a row off.
+ */
+export function parseHours(v: string): number | undefined {
+  if (String(v).trim() === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(24, Math.max(0, n)) : undefined;
+}
 const TEAMS = ['A', 'B', 'C', 'D'];
 // Columns: worker · hours · cost code · task · team · work done
-const COLS = 'minmax(190px, 1.3fr) 250px minmax(150px, 1fr) 150px 128px minmax(170px, 1.4fr)';
+const COLS = 'minmax(190px, 1.3fr) 340px minmax(150px, 1fr) 150px 128px minmax(170px, 1.4fr)';
 
 const cellBtn = (on: boolean, disabled?: boolean): CSSProperties => ({
   minWidth: 30, height: 28, padding: '0 7px', borderRadius: 7, fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
@@ -31,20 +41,29 @@ const pill = (on: boolean): CSSProperties => ({
  * the row; "fill down" sets everyone at once; ↑ ↓ and Enter move between rows.
  * Rows copied from the previous day and not changed are highlighted yellow.
  */
-export function CrewSheet({ employees, codes, onSite, entries, setEntries, editable, carried }: {
+export function CrewSheet({ employees, codes, onSite, crew, crewOnly, entries, setEntries, editable, carried }: {
+  /** Nov 17: a supervisor -- only his crew, no switch, no one from outside it. */
+  crewOnly?: boolean;
   employees: Emp[]; codes: Code[]; onSite: Map<string, string>; entries: Entry[];
+  /** Nov 17: the report supervisor's own crew, when it's narrower than everyone on the project. */
+  crew?: Set<string> | null;
   setEntries: (fn: (e: Entry[]) => Entry[]) => void; editable: boolean; carried?: (e: Entry) => boolean;
 }) {
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
   const [pickQ, setPickQ] = useState('');
+  // Nov 17 (George picked the wrong person from the whole company): my crew first, the project's staff on a switch,
+  // anyone else only on purpose.
+  const [scope, setScope] = useState<'crew' | 'project'>('crew');
+  const [anyone, setAnyone] = useState(false);
+  const shownSite = (id: string) => (crewOnly ? !!crew?.has(id) : crew && scope === 'crew' ? crew.has(id) : onSite.has(id));
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const entryOf = (id: string) => entries.find((e) => e.employeeId === id);
   const inLog = new Set(entries.map((e) => e.employeeId));
   const q = query.trim().toLowerCase();
   const rows = employees
-    .filter((e) => inLog.has(e.id) || onSite.has(e.id))
+    .filter((e) => inLog.has(e.id) || shownSite(e.id))
     .filter((e) => !q || [e.name, e.workerId, e.trade, e.designation].filter(Boolean).join(' ').toLowerCase().includes(q))
     .sort((a, b) => Number(inLog.has(b.id)) - Number(inLog.has(a.id)) || Number(onSite.has(b.id)) - Number(onSite.has(a.id)) || a.name.localeCompare(b.name));
   const orphans = entries.filter((e) => !employees.some((x) => x.id === e.employeeId));
@@ -55,12 +74,13 @@ export function CrewSheet({ employees, codes, onSite, entries, setEntries, edita
     ? es.map((e) => (e.employeeId === id ? { ...e, ...p } : e))
     : [...es, { employeeId: id, hours: 8, taskStatus: 'continued', csiCodeId: lastCode, taskDetail: '', team: '', ...p }]));
   const remove = (id: string) => setEntries((es) => es.filter((e) => e.employeeId !== id));
-  const setHours = (id: string, h: number) => (h > 0 ? patch(id, { hours: h }) : remove(id));
+  const setHours = (id: string, h: number | undefined) => { if (h !== undefined || entryOf(id)) patch(id, { hours: h }); };
   const everyone = (p: Partial<Entry>) => setEntries((es) => es.map((e) => ({ ...e, ...p })));
-  const addCrew = () => setEntries((es) => [...es, ...employees.filter((e) => onSite.has(e.id) && !es.some((x) => x.employeeId === e.id)).map((e) => ({ employeeId: e.id, hours: 8, taskStatus: 'continued', csiCodeId: lastCode, taskDetail: '', team: '' }))]);
+  const addCrew = () => setEntries((es) => [...es, ...employees.filter((e) => shownSite(e.id) && !es.some((x) => x.employeeId === e.id)).map((e) => ({ employeeId: e.id, hours: 8, taskStatus: 'continued', csiCodeId: lastCode, taskDetail: '', team: '' }))]);
   const totalHours = entries.reduce((a, e) => a + (Number(e.hours) || 0), 0);
   const noCode = entries.filter((e) => !e.csiCodeId).length;
-  const crewMissing = employees.filter((e) => onSite.has(e.id) && !inLog.has(e.id)).length;
+  const noHours = entries.filter((e) => !(Number(e.hours) > 0)).length;
+  const crewMissing = employees.filter((e) => shownSite(e.id) && !inLog.has(e.id)).length;
 
   const move = (ev: React.KeyboardEvent<HTMLElement>, col: string, row: number) => {
     const dir = ev.key === 'ArrowDown' || (ev.key === 'Enter' && !ev.shiftKey) ? 1 : ev.key === 'ArrowUp' || (ev.key === 'Enter' && ev.shiftKey) ? -1 : 0;
@@ -76,7 +96,7 @@ export function CrewSheet({ employees, codes, onSite, entries, setEntries, edita
     const hl = on && !!carried?.(e!);
     return (
       <div key={id} title={hl ? 'Carried over from the previous report — not changed yet' : undefined}
-        style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid ' + LINE, minWidth: 1100,
+        style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid ' + LINE, minWidth: 1190,
           background: on ? (e!.csiCodeId ? '#F6FAF6' : '#FFF9E6') : 'var(--surface)', ...(hl ? { ...CARRIED, borderRadius: 0, boxShadow: 'inset 3px 0 0 rgba(245, 196, 67, 1)' } : {}) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <span style={{ width: 8, height: 8, borderRadius: 999, flex: 'none', background: on ? '#2E8B57' : 'transparent', border: on ? 'none' : '1.5px solid rgba(var(--rgb-shade), .18)' }} />
@@ -89,10 +109,10 @@ export function CrewSheet({ employees, codes, onSite, entries, setEntries, edita
         </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <input data-cell={`h-${i}`} type="number" min={0} max={24} step={0.5} disabled={!editable} value={on ? e!.hours ?? '' : ''} placeholder="0"
-            onChange={(ev) => setHours(id, Math.min(24, Math.max(0, Number(ev.target.value) || 0)))} onKeyDown={(ev) => move(ev, 'h', i)}
+            onChange={(ev) => setHours(id, parseHours(ev.target.value))} onKeyDown={(ev) => move(ev, 'h', i)}
             style={{ ...cellInput, width: 52, textAlign: 'center', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} aria-label={`Hours for ${emp?.name || id}`} />
-          {QUICK_HOURS.map((h) => <button key={h} type="button" disabled={!editable} onClick={() => setHours(id, on && e!.hours === h ? 0 : h)} style={cellBtn(on && Number(e!.hours) === h, !editable)}>{h}</button>)}
-          {on && editable && <button type="button" title="Take off the log" onClick={() => remove(id)} style={{ ...cellBtn(false), color: '#8E2E0A', minWidth: 26, padding: 0 }}>×</button>}
+          {QUICK_HOURS.map((h) => <button key={h} type="button" disabled={!editable} onClick={() => setHours(id, on && Number(e!.hours) === h ? undefined : h)} style={cellBtn(on && Number(e!.hours) === h, !editable)}>{h}</button>)}
+          {on && editable && <button type="button" title="Remove from today’s report" aria-label="Remove from today" onClick={() => remove(id)} style={{ ...cellBtn(false), color: '#8E2E0A', minWidth: 26, padding: '0 8px' }}>× Remove</button>}
         </div>
         <select data-cell={`c-${i}`} disabled={!editable} value={e?.csiCodeId || ''} onChange={(ev) => patch(id, { csiCodeId: ev.target.value })} onKeyDown={(ev) => move(ev, 'c', i)}
           title={code ? `${code.code} — ${code.division}` : ''} style={{ ...cellInput, borderColor: on && !e!.csiCodeId ? '#D9B650' : 'rgba(var(--rgb-shade), .12)', color: code ? INK : MUTED }}>
@@ -114,19 +134,30 @@ export function CrewSheet({ employees, codes, onSite, entries, setEntries, edita
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: MUTED, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: INK }}>{entries.length}</b> on the timesheet · <b style={{ color: INK }}>{totalHours}</b> h{noCode ? <span style={{ color: 'var(--c-8a6d12)' }}> · {noCode} need a cost code</span> : null}</span>
+        <span style={{ fontSize: 12.5, color: MUTED, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: INK }}>{entries.length}</b> on the timesheet · <b style={{ color: INK }}>{totalHours}</b> h{noCode ? <span style={{ color: 'var(--c-8a6d12)' }}> · {noCode} need a cost code</span> : null}{noHours ? <span style={{ color: 'var(--c-8a6d12)' }}> · {noHours} {noHours === 1 ? 'worker has' : 'workers have'} no hours</span> : null}</span>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 12.5, color: MUTED }}><b style={{ color: INK }}>{onSite.size}</b> assigned to this project</span>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person…" style={{ ...cellInput, width: 170, height: 32, borderRadius: 999, padding: '0 12px' }} />
       </div>
       {editable && (
         <div style={{ padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--panel)', borderRadius: 'var(--r-12)', position: 'relative', zIndex: 6 }}>
+          {crew && !crewOnly && (
+            <span role="group" aria-label="Who to list" style={{ display: 'inline-flex', gap: 4 }}>
+              <button type="button" onClick={() => setScope('crew')} style={pill(scope === 'crew')} aria-pressed={scope === 'crew'}>My crew ({crew.size})</button>
+              <button type="button" onClick={() => setScope('project')} style={pill(scope === 'project')} aria-pressed={scope === 'project'}>All project staff ({onSite.size})</button>
+            </span>
+          )}
+          {crewOnly && crew && crew.size === 0 && (
+            <span role="status" style={{ fontSize: 12.5, color: '#7A4B00', background: '#FBEFD5', padding: '6px 10px', borderRadius: 9 }}>
+              No crew set up for you on this project yet — ask the office to add your workers (Project → People → Site crews).
+            </span>
+          )}
           {crewMissing > 0 && <button type="button" onClick={addCrew} style={pill(true)}>+ Put the crew on ({crewMissing}) · 8 h</button>}
           <div style={{ position: 'relative' }}>
             <button type="button" onClick={() => { setAdding((a) => !a); setPickQ(''); }} style={pill(adding)}>+ Add worker</button>
             {adding && (() => {
               const pq = pickQ.trim().toLowerCase();
-              const others = employees.filter((e) => !inLog.has(e.id) && (!pq || [e.name, e.workerId, e.trade, e.designation].filter(Boolean).join(' ').toLowerCase().includes(pq)))
+              const others = employees.filter((e) => !inLog.has(e.id) && (crewOnly ? !!crew?.has(e.id) : anyone || onSite.has(e.id)) && (!pq || [e.name, e.workerId, e.trade, e.designation].filter(Boolean).join(' ').toLowerCase().includes(pq)))
                 .sort((a, b) => Number(onSite.has(b.id)) - Number(onSite.has(a.id)) || a.name.localeCompare(b.name)).slice(0, 8);
               return (
                 <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 20, width: 300, background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-12)', boxShadow: '0 12px 32px rgba(var(--rgb-ink), .14)', padding: 8 }}>
@@ -140,7 +171,13 @@ export function CrewSheet({ employees, codes, onSite, entries, setEntries, edita
                         <span style={{ fontSize: 11, color: MUTED }}>{[e.workerId, e.trade || e.designation, onSite.has(e.id) ? 'assigned here' : 'not deployed here'].filter(Boolean).join(' · ')}</span>
                       </button>
                     ))}
-                    {!others.length && <span style={{ fontSize: 12.5, color: MUTED, padding: 8 }}>No one else matches.</span>}
+                    {!others.length && <span style={{ fontSize: 12.5, color: MUTED, padding: 8 }}>No one else {anyone ? 'matches' : 'on this project matches'}.</span>}
+                    {!anyone && !crewOnly && (
+                      <button type="button" onClick={() => { if (window.confirm('Show everyone in the company, not only people deployed on this project?')) setAnyone(true); }}
+                        style={{ textAlign: 'left', padding: '7px 8px', border: 0, borderTop: '1px solid ' + LINE, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: ACCENT, fontWeight: 700 }}>
+                        Add someone not on this project…
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -163,7 +200,7 @@ export function CrewSheet({ employees, codes, onSite, entries, setEntries, edita
       )}
       <div style={{ border: '1px solid ' + LINE, borderRadius: 'var(--r-12)', overflow: 'hidden' }}>
         <div ref={sheetRef} style={{ overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, padding: '10px 14px', background: 'var(--panel)', fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.07em', minWidth: 1100 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, padding: '10px 14px', background: 'var(--panel)', fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.07em', minWidth: 1190 }}>
             <span>Worker</span><span>Hours</span><span>Cost code</span><span>Task</span><span>Team</span><span>Work done</span>
           </div>
           {rows.map((emp, i) => row(emp, emp.id, i))}

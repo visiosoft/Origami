@@ -61,6 +61,15 @@ export function WeeklyReport({ projects, initialProject }: { projects: { id: num
     finally { setSending(false); }
   };
 
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (!projectId) return;
+    setSaving(true);
+    try { const r = await api.dailyLogs.saveWeekly(projectId, week); toast(`Saved to the project files: ${r.folder.join(' › ')} › ${r.name}`); }
+    catch (e) { toast('⚠ ' + ((e as Error).message || 'Not saved')); }
+    finally { setSaving(false); }
+  };
+
   const t = data?.totals;
   const thisWeek = week === mondayOf(akToday());
   return (
@@ -78,6 +87,7 @@ export function WeeklyReport({ projects, initialProject }: { projects: { id: num
         </div>
         <span style={{ flex: 1 }} />
         <input className="ak-search" value={to} onChange={(e) => setTo(e.target.value)} placeholder="Email to (blank = the usual list)" aria-label="Email to" />
+        <button type="button" className="ak-btn" disabled={!projectId || saving} onClick={save} title="Save this week as a PDF in the project's files (Reports › Weekly). Every Monday last week is saved by itself.">{saving ? 'Saving…' : 'Save PDF to project files'}</button>
         <button type="button" className="ak-btn is-dark" disabled={!projectId || sending} onClick={email}>{sending ? 'Sending…' : 'Email PDF / Excel'}</button>
       </div>
 

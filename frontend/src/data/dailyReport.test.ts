@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { carriedCount, emptySections, equipmentFormDone, equipmentHours, isCarried, isRowCarried, normalizeSections, templateOf, transmittalDone } from './dailyReport';
+import { carriedCount, dayBefore, emptySections, inspectionTask, equipmentFormDone, equipmentHours, isCarried, isRowCarried, normalizeSections, templateOf, transmittalDone } from './dailyReport';
 
 describe('daily report helpers', () => {
   it('fills in a partial or old report so every section exists', () => {
@@ -68,5 +68,17 @@ describe('VII / VIII forms', () => {
     const t = templateOf(s);
     expect(t.deliveries.rows).toEqual([{ id: 'd', supplier: 'Home Depot', contractorId: 'C1' }]);
     expect(t.equipment.rows).toEqual([{ id: 'e', equipment: 'Excavator', ownership: 'rented', supplier: 'Sunbelt', operator: 'Kai' }]);
+  });
+});
+
+describe('inspection requests (Nov 20)', () => {
+  it('make a task due the day before, and older reports read with none', () => {
+    expect(dayBefore('2026-12-01')).toBe('2026-11-30');
+    expect(dayBefore('')).toBe('');
+    const t = inspectionTask({ id: 'r', authority: 'City or Municipal Inspector', areas: 'Foundation, S2.01', date: '2026-11-25', time: '09:00', agency: 'Milpitas Building' }, 'Nov 21, 2026');
+    expect(t).toMatchObject({ title: 'Inspection request: City or Municipal Inspector — Foundation, S2.01', dueDate: '2026-11-24' });
+    expect(t.description).toMatch(/Wanted on 2026-11-25 at 09:00/);
+    expect(normalizeSections({ inspectors: { present: 'no', rows: [] } }).inspectors.requests).toEqual([]);
+    expect(templateOf(normalizeSections({ inspectors: { present: 'no', rows: [], requests: [{ id: 'r' }] } })).inspectors.requests).toEqual([]);
   });
 });

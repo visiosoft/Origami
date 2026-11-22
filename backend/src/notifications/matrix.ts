@@ -10,7 +10,7 @@ export type Matrix = Record<string, Channel[]>;
 export interface NotifyEvent {
   key: string;
   label: string;
-  group: 'CRM' | 'Projects' | 'Tasks';
+  group: 'CRM' | 'Projects' | 'Tasks' | 'RFIs' | 'Finance';
   hint: string;
   /** The menu item someone needs to see to hear about it (company-wide events). */
   module?: string;
@@ -33,6 +33,13 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
   { key: 'due_tomorrow', label: 'Coming due in 1 day', group: 'Tasks', hint: 'A task assigned to you is due tomorrow.', defaults: ['email_now'] },
   { key: 'past_due', label: 'Past due tasks', group: 'Tasks', hint: 'A task assigned to you is past its due date (each day until it’s done).', defaults: ['email_daily'] },
   { key: 'three_week', label: 'Three-week look-ahead', group: 'Tasks', hint: 'Every Monday: your tasks due in the next three weeks.', defaults: ['email_weekly'] },
+  // Nov 17: "how do I know an RFI is coming?"
+  { key: 'rfi_assigned', label: 'RFI assigned to me', group: 'RFIs', module: 'rfis', hint: 'You become an RFI’s owner, or an RFI is sent to you.', defaults: ['email_now'] },
+  // Nov 19 (Edward): the RFI Log every week, for the projects you're on.
+  { key: 'rfi_log', label: 'RFI Log', group: 'RFIs', module: 'rfis', hint: 'Every Monday: the open and answered RFIs on the projects you’re on, with what’s overdue.', defaults: ['email_weekly'] },
+  { key: 'rfi_due', label: 'RFIs coming due', group: 'RFIs', module: 'rfis', hint: 'An open RFI you own or were sent is due tomorrow, or past due (each day until it’s answered).', defaults: ['email_daily'] },
+  // Nov 19: quick reimbursables from the field wait for the project coordinator.
+  { key: 'reimbursable_details', label: 'Reimbursables needing details', group: 'Finance', hint: 'Someone sent a quick reimbursable (project, CSI code, photo) on a project where you’re the Project Coordinator — add the description, cost and date.', defaults: ['email_now'] },
 ];
 export const EVENT_KEYS = NOTIFY_EVENTS.map((e) => e.key);
 export const eventOf = (key: string) => NOTIFY_EVENTS.find((e) => e.key === key);

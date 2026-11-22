@@ -20,6 +20,8 @@ interface Waiting {
   canAct: boolean;
   /** The project it's for, when it has one. */
   project?: string;
+  /** Nov 19 (Edward): a daily report can be approved or sent back right here. */
+  dailyLogId?: string;
 }
 type Kind = 'change_order' | 'contract' | 'client_contract' | 'reimbursable' | 'finance' | 'daily_report' | 'timesheet' | 'workforce';
 const KIND: Record<Kind, string> = {
@@ -39,7 +41,8 @@ const usd = (n: number) => n.toLocaleString('en-US', { style: 'currency', curren
 /** `projectName`: shown inside a project (its Special Actions tab) -- that project's items only. */
 export function Approvals({ projectName }: { projectName?: string } = {}) {
   const navigate = useNavigate();
-  const { can } = useApp();
+  const { can, toast } = useApp();
+  const [deciding, setDeciding] = useState<string | null>(null);
   const [rows, setRows] = useState<Waiting[] | null>(null);
   const [kind, setKind] = useState<'all' | Kind>('all');
   const [group, setGroup] = useState<'main' | 'other'>('main');
@@ -78,7 +81,7 @@ export function Approvals({ projectName }: { projectName?: string } = {}) {
         });
       }
       for (const l of Array.isArray(logs) ? logs : []) {
-        out.push({ key: 'd' + l.id, kind: 'daily_report', project: pn(l.projectId), title: `${pn(l.projectId)} — daily report`, sub: [l.supervisorName && 'by ' + l.supervisorName, l.totalHours != null && `${l.totalHours} h`].filter(Boolean).join(' · '), since: l.submittedAt || l.date, canAct: canManpower, to: `/daily_reports?report=${encodeURIComponent(l.id)}` });
+        out.push({ key: 'd' + l.id, kind: 'daily_report', project: pn(l.projectId), title: `${pn(l.projectId)} — daily report`, sub: [l.supervisorName && 'by ' + l.supervisorName, l.totalHours != null && `${l.totalHours} h`].filter(Boolean).join(' · '), since: l.submittedAt || l.date, canAct: canManpower, to: `/daily_reports?report=${encodeURIComponent(l.id)}`, dailyLogId: l.id });
       }
       for (const t of Array.isArray(sheets) ? sheets : []) {
         out.push({ key: 't' + t.id, kind: 'timesheet', title: `${t.employeeName} — week of ${new Date(t.weekStart + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, sub: `${t.totalHours} h`, since: t.submittedAt, canAct: true, to: '/manpower_con?tab=approvals' });
@@ -92,6 +95,20 @@ export function Approvals({ projectName }: { projectName?: string } = {}) {
     })();
     return () => { live = false; };
   }, [can]);
+
+  /** Nov 19 (Edward: "how to approve and then what?") -- approve or send back a daily report from the list. */
+  const decideLog = async (r: Waiting, how: 'approve' | 'reject') => {
+    if (!r.dailyLogId) return;
+    let note: string | undefined;
+    if (how === 'reject') { note = window.prompt('What should the superintendent fix?')?.trim(); if (!note) return; }
+    setDeciding(r.key);
+    try {
+      if (how === 'approve') await api.dailyLogs.approve(r.dailyLogId); else await api.dailyLogs.reject(r.dailyLogId, note);
+      setRows((x) => (x || []).filter((y) => y.key !== r.key));
+      toast(how === 'approve' ? 'Approved — its hours now count in payroll and the project’s labour cost' : 'Sent back to the superintendent');
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not done')); }
+    finally { setDeciding(null); }
+  };
 
   const all = (rows || []).filter((r) => !projectName || r.project === projectName);
   const inGroup = all.filter((r) => (group === 'main' ? MAIN.includes(r.kind) : !MAIN.includes(r.kind)));
@@ -138,6 +155,13 @@ export function Approvals({ projectName }: { projectName?: string } = {}) {
             right={<>
               {r.amount != null && <b style={{ fontSize: 13 }}>{usd(r.amount)}</b>}
               <AkPill tone="soft">{KIND[r.kind]}</AkPill>
+              {r.dailyLogId && r.canAct && (
+                <span style={{ display: 'inline-flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                  <button type="button" className="ak-btn is-dark" disabled={deciding === r.key} title="Approve: its hours count in payroll and the project’s labour cost"
+                    onClick={() => decideLog(r, 'approve')}>{deciding === r.key ? '…' : '✓ Approve'}</button>
+                  <button type="button" className="ak-btn" disabled={deciding === r.key} title="Send it back to the superintendent with a note" onClick={() => decideLog(r, 'reject')}>Send back</button>
+                </span>
+              )}
               <span style={{ fontSize: 12.5, fontWeight: 700, color: r.canAct ? 'var(--forest)' : 'var(--muted)' }}>{r.canAct ? 'Review →' : 'View'}</span>
             </>}
           />

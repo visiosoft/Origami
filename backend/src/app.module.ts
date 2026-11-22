@@ -30,6 +30,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { TagsModule } from './tags/tags.module';
 import { BackupModule } from './backup/backup.module';
 import { SmsModule } from './sms/sms.module';
+import { UsageModule } from './usage/usage.module';
 import { MailModule } from './mail/mail.module';
 import { TrackingModule } from './tracking/tracking.module';
 import { ProjectProgramModule } from './project-program/project-program.module';
@@ -38,6 +39,7 @@ import { GuestAccessModule } from './guest-access/guest-access.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import { ManpowerModule } from './manpower/manpower.module';
 import { FinanceModule } from './finance/finance.module';
+import { ClientApprovalsModule } from './client-approvals/client-approvals.module';
 import { QuoModule } from './quo/quo.module';
 import { ViewsModule } from './views/views.module';
 import { SpecialActionsModule } from './special-actions/special-actions.module';
@@ -105,10 +107,12 @@ import { PermGuard } from './auth/guards/perm.guard';
     TagsModule,
     BackupModule,
     SmsModule,
+    UsageModule,
     MailModule,
     TrackingModule,
     ManpowerModule,
     FinanceModule,
+    ClientApprovalsModule,
     ViewsModule,
     SpecialActionsModule,
   ],

@@ -15,6 +15,7 @@ import {
   type ChangeOrder, type ChangeOrderItem, type Overview, type Rights,
 } from './financeUi';
 import { Skeleton } from '../Skeleton';
+import { todayISO } from '../../data/localDate';
 
 /** Where a change can land: existing milestones and tasks, or new ones created when it's approved. */
 interface Targets { phases: { id: string; name: string }[]; tasks: { id: string; name: string; phaseId: string | null }[] }
@@ -402,7 +403,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
           fields={[{ key: 'to', label: 'To (client email)', required: true, initial: billTo, placeholder: 'client@example.com' }, { key: 'cc', label: 'Copy to', placeholder: 'Comma-separated, optional' },
             { key: 'note', label: 'Note above the summary', type: 'textarea', placeholder: 'e.g. As discussed on site Tuesday — please sign and return.' }]} />}
         {step === 'client' && <ReasonBox title="Record the client’s approval" confirm="Approve change order" onCancel={() => setStep(null)} onSubmit={(v) => act('client_approve', v)}
-          fields={[{ key: 'signer', label: 'Signed / approved by', required: true }, { key: 'date', label: 'Date', type: 'date', initial: new Date().toISOString().slice(0, 10), required: true }, { key: 'reference', label: 'Reference', placeholder: 'Signed CO, email of 9/20…' }, { key: 'comment', label: 'Note', type: 'textarea' }]} />}
+          fields={[{ key: 'signer', label: 'Signed / approved by', required: true }, { key: 'date', label: 'Date', type: 'date', initial: todayISO(), required: true }, { key: 'reference', label: 'Reference', placeholder: 'Signed CO, email of 9/20…' }, { key: 'comment', label: 'Note', type: 'textarea' }]} />}
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid ' + LINE, paddingTop: 14 }}>
           {editable && !co.submittedAt && <div onClick={remove} style={{ ...btn(), color: DANGER }}>Delete draft</div>}

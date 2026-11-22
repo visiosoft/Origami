@@ -1,3 +1,4 @@
+import { tradeLabel } from '../data/tradeCsi';
 import { ContactEmail } from '../components/ContactEmail';
 import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
@@ -30,6 +31,8 @@ import {
 import { Skeleton } from '../components/Skeleton';
 import { ConsultantFix } from '../components/ConsultantFix';
 import { PeopleProjectFix } from '../components/PeopleProjectFix';
+import { todayISO } from '../data/localDate';
+import { CONSULTANT_DISCIPLINES, INTERNAL_ROLES, canonicalRole } from '../data/disciplines';
 
 const BG = 'var(--font-display)';
 // Internal people are split by level (Executive … Labor); everyone else by kind.
@@ -63,15 +66,16 @@ const splitName = (full: string): [string, string] => {
   const w = String(full || '').trim().split(/\s+/).filter(Boolean);
   return w.length < 2 ? [w[0] || '', ''] : [w.slice(0, -1).join(' '), w[w.length - 1]];
 };
-/** Disciplines a consultant or authority is picked from (subcontractor trades come from Settings). */
-const CONSULTANT_DISCIPLINES = ['Architect', 'Structural Engineer', 'Civil Engineer', 'MEP Engineer', 'Mechanical Engineer', 'Electrical Engineer', 'Plumbing Engineer', 'Geotechnical Engineer', 'Surveyor', 'Interior Designer', 'Landscape Architect', 'Hazmat', 'Energy / Title 24', 'Permit Expediter', 'Building Department', 'Fire Department', 'Planning Department', 'Utility'];
+const DISCIPLINE_LIST = [...CONSULTANT_DISCIPLINES];
+const INTERNAL_ROLE_LIST = [...INTERNAL_ROLES];
 
 /** What the directory stores for a person, composed from the form and the profile editor. */
 function personPayload(np: NewPerson, profile: PersonProfile): Record<string, any> {
   const needsComply = ['Consultant', 'Sub', 'Vendor'].includes(np.kind);
   const payload: Record<string, any> = {
     name: np.name.trim(),
-    role: np.role.trim() || np.kind,
+    // Nov 19: one name per internal role ("PM" is saved as Project Manager).
+    role: (np.kind === 'Staff' ? canonicalRole(np.role) : np.role.trim()) || np.kind,
     company: np.company.trim() || np.name.trim(),
     contact: (np.contactFirst !== undefined || np.contactLast !== undefined ? [np.contactFirst, np.contactLast].map((x) => (x || '').trim()).filter(Boolean).join(' ') : np.contact.trim()) || undefined,
     kind: np.kind,
@@ -92,7 +96,7 @@ function personPayload(np: NewPerson, profile: PersonProfile): Record<string, an
 const BLANK_PAYLOAD = personPayload(BLANK, normalizeProfile({}));
 
 /** Pick from a set list (trades, disciplines, companies) -- typing is the exception, behind "Other…". */
-function PickOrType({ value, options, onChange, placeholder, newLabel = 'Other…' }: { value: string; options: string[]; onChange: (v: string) => void; placeholder?: string; newLabel?: string }) {
+function PickOrType({ value, options, onChange, placeholder, newLabel = 'Other…', label = (o: string) => o }: { value: string; options: string[]; onChange: (v: string) => void; placeholder?: string; newLabel?: string; label?: (o: string) => string }) {
   const listed = options.includes(value);
   const [typing, setTyping] = useState(!!value && !listed);
   const box: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
@@ -105,7 +109,7 @@ function PickOrType({ value, options, onChange, placeholder, newLabel = 'Other�
   return (
     <select value={listed ? value : ''} onChange={(e) => { if (e.target.value === '__new') { setTyping(true); onChange(''); } else onChange(e.target.value); }} style={box}>
       <option value="">Choose…</option>
-      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      {options.map((o) => <option key={o} value={o}>{label(o)}</option>)}
       <option value="__new">{newLabel}</option>
     </select>
   );
@@ -205,7 +209,7 @@ export function People() {
     const rows = [['Name', 'Type', 'Role', 'Company', 'Phone', 'Email', 'Projects', 'Since'],
       ...pickedShown.map((p) => [p.name, p.kind, p.role, p.company, p.phone, p.email, p.projects.join('; '), p.since])];
     const url = URL.createObjectURL(new Blob(['\uFEFF' + toCsv(rows)], { type: 'text/csv;charset=utf-8' }));
-    const a = document.createElement('a'); a.href = url; a.download = `people-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `people-${todayISO()}.csv`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
@@ -842,11 +846,13 @@ export function People() {
                 <div>{lbl('Last name')}<input value={profile.lastName} placeholder="e.g. Whitfield" aria-label="Last name" onChange={(e) => setPersonName({ lastName: e.target.value })} style={textBox} /></div>
               </>}
               {isCompany
-                ? <div>{lbl(np.kind === 'Sub' || np.kind === 'Vendor' ? 'Trade' : 'Discipline')}<PickOrType value={np.role} options={np.kind === 'Sub' || np.kind === 'Vendor' ? tradeNames : CONSULTANT_DISCIPLINES} placeholder="Type the trade" onChange={(role) => setNp({ ...np, role })} /></div>
+                ? <div>{lbl(np.kind === 'Sub' || np.kind === 'Vendor' ? 'Trade' : 'Discipline')}<PickOrType value={np.role} options={np.kind === 'Sub' || np.kind === 'Vendor' ? tradeNames : DISCIPLINE_LIST} label={np.kind === 'Sub' || np.kind === 'Vendor' ? tradeLabel : undefined} placeholder="Type the trade" onChange={(role) => setNp({ ...np, role })} /></div>
                 : np.kind === 'Consultant'
                   // A consultant is a person now (Nov 10), still with their discipline.
-                  ? <div>{lbl('Discipline')}<PickOrType value={np.role} options={CONSULTANT_DISCIPLINES} placeholder="e.g. Structural engineer" onChange={(role) => setNp({ ...np, role })} /></div>
-                  : field('Role or title', 'role', 'e.g. Project Coordinator')}
+                  ? <div>{lbl('Discipline')}<PickOrType value={np.role} options={DISCIPLINE_LIST} placeholder="e.g. Structural engineer" onChange={(role) => setNp({ ...np, role })} /></div>
+                  : np.kind === 'Staff'
+                    ? <div>{lbl('Role')}<PickOrType value={np.role} options={INTERNAL_ROLE_LIST} placeholder="e.g. Project Coordinator" onChange={(role) => setNp({ ...np, role })} /></div>
+                    : field('Role or title', 'role', 'e.g. Project Coordinator')}
               <div>{lbl(np.kind === 'Consultant' ? 'Firm' : 'Company shown in lists', isCompany ? 'same as above if left blank' : undefined)}<PickOrType value={np.company} options={companyNames} placeholder={isCompany ? 'Same as above if left blank' : 'e.g. Origami Design + Build'} newLabel="+ New company…" onChange={(company) => setNp({ ...np, company })} /></div>
               {isCompany && <>
                 <div>{lbl('Primary contact · first name')}<input value={np.contactFirst ?? splitName(np.contact)[0]} placeholder="e.g. Dana" aria-label="Primary contact first name" onChange={(e) => setNp({ ...np, contactFirst: e.target.value, contactLast: np.contactLast ?? splitName(np.contact)[1] })} style={textBox} /></div>

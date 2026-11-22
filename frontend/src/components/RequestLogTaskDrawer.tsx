@@ -1,3 +1,5 @@
+import { PanelResizeHandle, usePanelWidth } from './PanelResize';
+import { TaskCloseBar } from './TaskCloseBar';
 import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
@@ -14,9 +16,10 @@ import { CollaboratorPicker } from './CollaboratorPicker';
 import { useApp } from '../AppContext';
 import { isMine, raisedBy } from './TaskScope';
 import { api } from '../api';
-import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
+import { keepEdits, mergeSaved, useAutosave } from '../autosave';
 import { AssigneePicker } from './AssigneePicker';
-import { askCompletionNote, askHoldReason } from './CompletionNote';
+import { askCompletionNote, askDueReason, askHoldReason } from './CompletionNote';
+import { dueReasonNeeded } from '../data/dueReason';
 import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
@@ -64,6 +67,8 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
 
   /** Edits stay in the draft until Save, or 3 seconds after typing stops; only changed fields are sent. */
   const numberOf = useTaskNumber();
+  // Nov 18: drag the left edge to resize; remembered in this browser.
+  const panelW = usePanelWidth('log-task', 760);
   const auto = useAutosave<Task>({
     draft: t, saved: task, fields: [...FIELDS], enabled: canManage, label: 'task',
     // Emails (assigned, added as a collaborator, done) wait for the Save button.
@@ -74,6 +79,16 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   // Marking it complete (or confirmed straight away) asks what was done; the note saves with the status.
   const closedNames = new Set(statuses.filter((s) => s.closed).map((s) => s.name));
   const set = (patch: Partial<Task>) => {
+    // Nov 17: an overdue entry's date moves only with a reason, saved with it straight away.
+    if ('dueDate' in patch && dueReasonNeeded(task.dueDate, patch.dueDate, !closedNames.has(task.status) && !task.archivedAt)) {
+      void askDueReason(logTaskTitle(t)).then((why) => {
+        if (!why) return;
+        put(patch);
+        api.tasks.update(t.id, { dueDate: patch.dueDate || '', dueReason: why, deferNotify: true } as Partial<Task>)
+          .then((res: any) => apply(res)).catch((e: Error) => toast('⚠ ' + (e.message || 'Could not change the date')));
+      });
+      return;
+    }
     // Putting it on hold asks why (the reason is required).
     if (patch.status === 'On hold' && t.status !== 'On hold' && !(patch.holdReason || '').trim()) {
       void askHoldReason(logTaskTitle(t)).then((reason) => { if (reason) put({ ...patch, holdReason: reason }); });
@@ -85,11 +100,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   const targets = useLinkTargets();
   /** "Close task": complete and into the archive at once (Reopen from Archived). */
   const closeTask = async () => {
-    if (!window.confirm('Close this task and move it to the archive? You can reopen it from Archived.')) return;
+    if (!window.confirm('Mark this task complete and move it to the archive? You can reopen it from Archived.')) return;
     try {
       if (auto.dirty) await auto.saveNow();
       const res = await api.tasks.update(t.id, { close: true } as Partial<Task>) as Task;
-      onChanged?.(res); toast('Task closed and archived'); onClose();
+      onChanged?.(res); toast('Task completed and archived'); onClose();
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not closed')); }
   };
   const reopen = async () => {
@@ -128,10 +143,18 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   };
   return (
     <div onClick={() => onClose()} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 760, maxWidth: '95vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
+      <PanelResizeHandle {...panelW} />
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: panelW.width, maxWidth: '95vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
         {canManage && (
           <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-            <SaveBar auto={auto} onDone={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }} />
+            {/* Nov 17: the same three buttons on every task. */}
+            <TaskCloseBar auto={auto} archived={!!task.archivedAt} onFinish={closeTask} onReopen={reopen}
+              onDiscard={onClose} onSaveClose={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }}
+              extra={
+                /* Nov 22: the main buttons on top; Duplicate, Convert to and Delete under "More ▾". */
+                <ActionMenu kind="log" id={t.id} topicType={t.topicType} projectName={t.project} parts="menu" onMade={refreshTrail}
+                  extraItems={canDelete ? [{ label: 'Delete task', danger: true, onClick: () => deleteTask() }] : []} />
+              } />
           </div>
         )}
         {/* Header */}
@@ -149,13 +172,10 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--rgb-shade), 0.15)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; }} />
             <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={t.project || (t.leadName ? leadLabel(t.leadName) : 'General (no project)')} source={t.originator} by={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '') || t.originator} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={numberOf(task) || '#' + t.id} /></div>
-              {canManage && (task.archivedAt
-                ? <button type="button" onClick={reopen} title="Bring it back into the Special Actions Log" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
-                : <button type="button" onClick={closeTask} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
             </div>
             <div style={{ marginTop: 8 }}><ActionTrail sourceType={t.sourceType} sourceId={t.sourceId} sourceLabel={t.sourceLabel} derived={t.derivedRefs} /></div>
           </div>
-          <span style={{ marginLeft: 16 }}><CloseButton onClick={onClose} /></span>
+          {!canManage && <span style={{ marginLeft: 16 }}><CloseButton onClick={onClose} /></span>}
         </div>
 
         {/* Meta */}
@@ -305,7 +325,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
           </div>
 
           <div style={{ marginTop: 18 }}>
-            <TagPicker tags={t.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
+            <TagPicker leadOnlyAccess tags={t.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)' }}>CSI code</span>
               <CsiSelect value={t.csiCodeId} disabled={!canManage} onChange={(csiCodeId) => set({ csiCodeId: csiCodeId || null })} style={{ ...inputStyle, width: 'auto', minWidth: 220 }} />
@@ -359,20 +379,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
           <div style={{ marginTop: 10, padding: '11px 13px', background: 'var(--mist)', borderRadius: 10, fontSize: 10.5, color: 'var(--body)', lineHeight: 1.55 }}>Lead time is inherited from the task template ({lt.source}). Every due-date change, with who made it, is listed above.</div>
         </div>
 
-        {canManage && (
-          <div style={{ padding: '20px 28px 0' }}>
-            <ActionMenu kind="log" id={t.id} topicType={t.topicType} projectName={t.project} onMade={refreshTrail} />
-          </div>
-        )}
-        {canDelete && (
-          <div style={{ padding: '12px 28px 0' }}>
-            <div onClick={() => deleteTask()} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
-          </div>
-        )}
 
         {/* Activity — real comments and a record of what changed, a page at a time from the server */}
         <div style={{ padding: '20px 28px 26px' }}>
-          <ActivityFeed
+          {/* Nov 19 (Edward): emails linked to this task, with when they were sent and a link to them. */}
+          <ActivityFeed mailFor={{ entityType: 'task', entityId: t.id }}
             source={{ kind: 'log', id: t.id }}
             version={`${t.activity?.length ?? 0}:${t.comments?.length ?? 0}`}
             canManage={canManage}

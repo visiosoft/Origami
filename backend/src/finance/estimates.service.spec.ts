@@ -82,6 +82,16 @@ describe('estimates', () => {
     expect(out.result.totals.totalBuild).toBe(589157);
   });
 
+  it('Nov 19: an estimate marked valid shows so in the list; its subcontracted lines group by sub', async () => {
+    const { svc } = setup();
+    const e = await svc.create(7, {}, actor);
+    await svc.saveSheet(7, e.estimate.id, sheet(e.estimate.version), actor);
+    await svc.setValid(7, e.estimate.id, true, actor);
+    expect((await svc.list(7, actor)).rows[0].valid).toBe(true);
+    const subs = await svc.subLines(7, e.estimate.id, actor);
+    expect(subs).toEqual([{ contractorId: null, sub: 'Ricardo kitchen and bath', scopes: ['Primary bathroom'], lines: 1, cost: 2000 }]);
+  });
+
   it('Nov 13: a line with Qty and Unit cost saves Qty × Unit cost as its sub cost; square feet give the cost per sq ft', async () => {
     const { svc } = setup();
     const e = await svc.create(7, {}, actor);

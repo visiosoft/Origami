@@ -95,6 +95,8 @@ export interface Autosave {
   error: string;
   /** Save now (the Save button). Resolves true when everything is saved. */
   saveNow: () => Promise<boolean>;
+  /** Nov 17 "Close without saving": drop what isn't saved yet; closing the editor then saves nothing. */
+  discard: () => void;
 }
 
 export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>): Autosave {
@@ -113,6 +115,8 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
   const epoch = useRef(0);
   // The options as of the last commit -- on a switch to another record these are still the old record's.
   const committed = useRef(o);
+  // "Close without saving" was pressed: nothing more goes out from this editor.
+  const discarded = useRef(false);
 
   const pending = useCallback((): Partial<T> | null => {
     const { draft, fields } = latest.current;
@@ -174,7 +178,8 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
 
   const schedule = useCallback(() => {
     if (timer.current) window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => { timer.current = null; if (latest.current.enabled ?? true) void run(); }, delay);
+    if (discarded.current) return;
+    timer.current = window.setTimeout(() => { timer.current = null; if (!discarded.current && (latest.current.enabled ?? true)) void run(); }, delay);
   }, [delay, run]);
 
   // The record was reloaded from outside (another id, or a fresh copy with nothing pending): take it as the baseline.
@@ -210,7 +215,7 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
   // Leaving: closing the editor saves what's pending; closing the tab asks first.
   useEffect(() => {
     const beforeUnload = (e: BeforeUnloadEvent) => {
-      if (!pending() || !(latest.current.enabled ?? true)) return;
+      if (discarded.current || !pending() || !(latest.current.enabled ?? true)) return;
       void run();
       e.preventDefault();
       e.returnValue = '';
@@ -219,7 +224,7 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
     return () => {
       window.removeEventListener('beforeunload', beforeUnload);
       if (timer.current) window.clearTimeout(timer.current);
-      if (pending() && (latest.current.enabled ?? true)) void run();
+      if (!discarded.current && pending() && (latest.current.enabled ?? true)) void run();
     };
   }, [pending, run]);
 
@@ -233,9 +238,14 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
   }, [pending, run]);
 
   const dirty = state === 'dirty' || state === 'error' || !!pending();
-  const saveNow = useCallback(() => run(), [run]);
+  const saveNow = useCallback(() => { discarded.current = false; return run(); }, [run]);
+  const discard = useCallback(() => {
+    discarded.current = true;
+    if (timer.current) { window.clearTimeout(timer.current); timer.current = null; }
+    setState('saved'); setError('');
+  }, []);
   useRegister(o.label || 'changes', state, dirty, enabled || dirty);
-  return { state, dirty, lastSavedAt, error, saveNow };
+  return { state, dirty, lastSavedAt, error, saveNow, discard };
 }
 
 // ------------------------------------------------------------------ the top-bar indicator
@@ -299,10 +309,12 @@ const ago = (t: number | null) => {
  * Save status and the Save button. `blocked` explains why it can't save yet
  * (e.g. "Add a name to save").
  */
-export function SaveBar({ auto, blocked, compact, onDone }: {
+export function SaveBar({ auto, blocked, compact, onDone, onDiscard }: {
   auto: Autosave; blocked?: string; compact?: boolean;
   /** Given: the button is "Save & close" -- it saves now and then calls this (only once saved). */
   onDone?: () => void;
+  /** Given: a "Close without saving" button (Nov 17) -- drops unsaved edits, then calls this. */
+  onDiscard?: () => void;
 }) {
   const [, tick] = useState(0);
   const [flash, setFlash] = useState(false);
@@ -327,6 +339,16 @@ export function SaveBar({ auto, blocked, compact, onDone }: {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', minWidth: 0 }}>
       {!compact && <span style={{ fontSize: 11.5, color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{status}</span>}
+      {onDiscard && (
+        <button type="button" onClick={() => {
+          if (dirty && !window.confirm('Close without saving? The changes not saved yet will be lost.')) return;
+          auto.discard(); onDiscard();
+        }}
+          title={dirty ? 'Drop the changes not saved yet and close' : 'Close (nothing unsaved)'}
+          style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap', border: '1px solid rgba(var(--rgb-shade), .14)', background: 'var(--surface)', color: 'var(--body)', cursor: 'pointer' }}>
+          Close without saving
+        </button>
+      )}
       <button
         type="button"
         disabled={!canPress}

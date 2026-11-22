@@ -106,6 +106,10 @@ export interface ProjectTask extends ActionTrailFields {
   order: number;
   completed: boolean;
   parentId?: string | null;
+  /** Nov 17: the epic it belongs to. */
+  epicId?: string | null;
+  /** Shown only for context (an outside account is on one of its subtasks). */
+  contextOnly?: boolean;
   attachments?: Attachment[];
   comments?: TaskComment[];
   /** How many comments (lists leave the comments themselves out). */
@@ -219,4 +223,10 @@ export function createdByText(t: { activity?: ActivityEvent[]; assignee?: string
   const a = assignedByOf(t);
   const re = a && a.at !== c.at && a.by && a.by !== c.by ? ` · reassigned by ${a.by}` : '';
   return `Created by ${c.by || 'someone'}${when ? ' · ' + when : ''}${re}`;
+}
+
+/** Nov 17: an epic -- a named group tying related tasks together on a board. */
+export interface Epic {
+  id: string; projectId: number | null; name: string; color: string; dueDate?: string | null; order: number;
+  total?: number; done?: number;
 }

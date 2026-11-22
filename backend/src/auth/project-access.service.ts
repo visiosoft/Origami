@@ -131,10 +131,30 @@ export class ProjectAccessService {
     const me = { email: claims.email, altEmails: (await this.altEmailsOf(claims.sub)) };
     const mine = (await this.people.find())
       .filter((p) => (p.userId && p.userId === claims.sub) || sharesEmail(p, me));
-    if (!mine.length) return new Set();
     // By project id (Nov 13); people not moved to ids yet are matched by name.
     const projects = await this.projectRefs();
-    return new Set(mine.flatMap((p) => personProjectIds(p, projects)));
+    const out = new Set(mine.flatMap((p) => personProjectIds(p, projects)));
+    // Nov 17: a project's own team (Project manager, Superintendent, ...) counts as being on it.
+    for (const id of await this.roleProjectIds(claims.sub)) out.add(id);
+    return out;
+  }
+
+  /** Projects whose team roles name this login (ProjectEntity.roles: role key -> user id). */
+  private async roleProjectIds(userId: string): Promise<number[]> {
+    if (!userId || userId.startsWith('VIEW-')) return [];
+    const rows = await this.projects.find({ select: { id: true, roles: true } as any });
+    return rows.filter((p: any) => Object.values(p.roles || {}).some((v) => v === userId)).map((p) => p.id);
+  }
+
+  /**
+   * How far the caller's project access reaches (Nov 17, View as): 'all'
+   * (administrators and portfolio-wide staff), 'assigned' (only their own
+   * projects), or 'linked' (outside accounts: projects they're linked to).
+   */
+  async projectScope(claims: SessionClaims | null): Promise<'all' | 'assigned' | 'linked'> {
+    if (!claims) return 'linked';
+    if (!this.isStaff(claims)) return 'linked';
+    return (await this.assignedOnly(claims)) ? 'assigned' : 'all';
   }
 
   private altCache = new Map<string, { at: number; alt: string[] }>();

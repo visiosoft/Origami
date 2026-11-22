@@ -1,13 +1,15 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { MeetingEntity, UserEntity } from '../database/entities';
+import { MeetingEntity, ProjectEntity, UserEntity } from '../database/entities';
+import { projectFor } from './calendar-sync';
 import { CalendarService } from '../google/calendar.service';
 import { emailsOf } from '../common/emails';
 import { GoogleService } from '../google/google.service';
-import { docIdFrom, endedBefore, notesQuery, parseNotesDocName, sameMeeting, splitGeminiDoc } from './google-notes';
+import { dateInNotes, docIdFrom, endedBefore, notesQuery, parseNotesDocName, sameMeeting, splitGeminiDoc } from './google-notes';
 import { MeetingsService } from './meetings.service';
 import type { Actor } from '../manpower/manpower-access.service';
+import { addDays, localToday } from '../common/local-date';
 
 /**
  * Meeting notes arrive by themselves (Nov 3 sync): every hour, meetings that
@@ -27,7 +29,11 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     @Optional() private readonly meetingsService?: MeetingsService,
     @Optional() private readonly calendar?: CalendarService,
     @Optional() @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
+    @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
   ) {}
+
+  /** Docs being brought in right now: a second import of the same Doc waits its turn (Nov 20: no duplicate meetings). */
+  private inFlight = new Map<string, Promise<unknown>>();
 
   onApplicationBootstrap() {
     this.timer = setInterval(() => { void this.sweep(); }, 3600_000);
@@ -39,8 +45,9 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
   async sweep(now = new Date()) {
     const workspace = !!this.google && (await this.google.isConnected().catch(() => false));
     if (!workspace && !this.calendar) return { checked: 0, imported: 0 };
-    const since = new Date(now.getTime() - 3 * 864e5).toISOString().slice(0, 10);
-    const due = (await this.meetings.find()).filter((m) => !m.notesDocId && !String(m.minutes || '').trim() && (m.date || '') >= since && endedBefore(m.date, m.time, now));
+    // Nov 19: a week back (it was 3 days -- a meeting typed in late was never picked up).
+    const since = new Date(now.getTime() - 7 * 864e5).toISOString().slice(0, 10);
+    const due = (await this.meetings.find()).filter((m) => !m.archivedAt && !m.notesDocId && !String(m.minutes || '').trim() && (m.date || '') >= since && endedBefore(m.date, m.time, now));
     let imported = 0;
     for (const m of due) {
       try { if ((workspace && (await this.importFor(m))) || (await this.importViaAttendees(m))) imported++; }
@@ -55,8 +62,12 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     let id = docId || (link ? docIdFrom(link) : null);
     if (link && !id) throw new BadRequestException('Paste the link to the Google Doc (docs.google.com/document/d/…).');
     if (!id) {
-      const found = await this.google.findDocs(notesQuery(m.title, m.date), 5);
-      id = found[0]?.id || null;
+      // Nov 19: Gemini names the Doc by the organiser's day -- a day either side covers a time-zone shift.
+      for (const d of /^\d{4}-\d{2}-\d{2}$/.test(m.date || '') ? [m.date, addDays(m.date, -1), addDays(m.date, 1)] : [m.date]) {
+        const found = await this.google.findDocs(notesQuery(m.title, d), 5);
+        id = found[0]?.id || null;
+        if (id) break;
+      }
       if (!id) return null;
     }
     const doc = await this.google.exportDocText(id);
@@ -143,14 +154,27 @@ export class GoogleNotesService implements OnApplicationBootstrap, OnModuleDestr
     if (!this.google || !(await this.google.isConnected().catch(() => false))) throw new BadRequestException('Connect Google Workspace first (Settings → Google).');
     const id = input.docId || (input.link ? docIdFrom(input.link) : null);
     if (!id) throw new BadRequestException('Pick a notes Doc, or paste its link (docs.google.com/document/d/…).');
-    const doc = await this.google.exportDocText(id);
+    const before = this.inFlight.get(id);
+    if (before) await before.catch(() => undefined);
+    const run = this.importDocOnce(id, actor);
+    this.inFlight.set(id, run);
+    try { return await run; } finally { if (this.inFlight.get(id) === run) this.inFlight.delete(id); }
+  }
+
+  private async importDocOnce(id: string, actor: Actor) {
+    const doc = await this.google!.exportDocText(id);
     const p = parseNotesDocName(doc.name);
+    // Nov 19: no date in the Doc's name -- take the one the notes give, not today's (a Nov 12 meeting landed on Nov 16).
+    if (!p.date) p.date = dateInNotes(doc.text);
     const all = await this.meetings.find();
     let m = all.find((x) => x.notesDocId === id) || all.find((x) => sameMeeting(x, p)) || null;
     let created = false;
     if (!m) {
       if (!this.meetingsService) throw new BadRequestException('Meetings aren’t available.');
-      m = await this.meetingsService.create({ title: p.title, date: p.date || new Date().toISOString().slice(0, 10), time: p.time || undefined, locationType: 'virtual', status: 'occurred' } as any, actor) as MeetingEntity;
+      // Nov 20: a meeting made from notes takes the project its title names, so its items don't land under "General".
+      const list = this.projects ? (await this.projects.find().catch(() => [])).filter((x: any) => !x.archivedAt) : [];
+      const project = projectFor(p.title, list.map((x) => ({ id: x.id, name: x.name })));
+      m = await this.meetingsService.create({ title: p.title, date: p.date || localToday(), time: p.time || undefined, locationType: 'virtual', status: 'occurred', ...(project ? { project: project.name, projectId: project.id } : {}) } as any, actor) as MeetingEntity;
       created = true;
     }
     const saved = await this.importFor(m, undefined, id);

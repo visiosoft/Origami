@@ -98,6 +98,10 @@ export class FinanceController {
   // --- estimates (the prime contract built like the team's sheet)
   @Get('projects/:id/estimates') async estimateList(@Param('id') id: string, @Headers('authorization') a?: string) { return this.estimates.list(Number(id), await this.actor(a)); }
   @Post('projects/:id/estimates') async estimateNew(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.create(Number(id), dto || {}, await this.actor(a), await this.canSee(a)); }
+  @Get('projects/:id/estimates-compare') async estimatesCompare(@Param('id') id: string, @Query('ids') ids: string, @Headers('authorization') a?: string) { return this.estimates.compareAcross(Number(id), String(ids || '').split(',').filter(Boolean), await this.actor(a)); }
+  /** Nov 19: valid for Financials -> Precon, and its subcontracted lines by sub. */
+  @Put('projects/:id/estimates/:eid/valid') async estimateValid(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.setValid(Number(id), eid, !!dto?.valid, await this.actor(a)); }
+  @Get('projects/:id/estimates/:eid/sub-lines') async estimateSubLines(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.subLines(Number(id), eid, await this.actor(a)); }
   @Get('projects/:id/estimates/:eid') async estimate(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.get(Number(id), eid, await this.actor(a)); }
   @Put('projects/:id/estimates/:eid') async estimateSettings(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.saveSettings(Number(id), eid, dto || {}, await this.actor(a)); }
   @Put('projects/:id/estimates/:eid/sheet') async estimateSheet(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.saveSheet(Number(id), eid, dto || {}, await this.actor(a)); }
@@ -116,6 +120,11 @@ export class FinanceController {
   @Get('projects/:id/estimates/:eid/setup') async estimateSetup(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.setup.preview(Number(id), eid, await this.actor(a)); }
   @Post('projects/:id/estimates/:eid/setup') async estimateSetupRun(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.setup.apply(Number(id), eid, dto || {}, await this.actor(a)); }
   @Post('projects/:id/estimates/:eid/accepted') async estimateAccepted(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.setup.markAccepted(Number(id), eid, dto || {}, await this.actor(a)); }
+  /** Nov 19: bid packages across projects (GC & Sub Prequalify & RFP), editing one, suggested subs, answering a sub's question. */
+  @Get('bid-packages') async bidPackagesAll(@Headers('authorization') a?: string) { return this.bidPackages.all(await this.actor(a)); }
+  @Put('projects/:id/bid-packages/:pid') async bidPackageUpdate(@Param('id') id: string, @Param('pid') pid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.bidPackages.update(Number(id), pid, dto || {}, await this.actor(a)); }
+  @Get('projects/:id/bid-packages/:pid/suggest') async bidPackageSuggest(@Param('id') id: string, @Param('pid') pid: string, @Headers('authorization') a?: string) { return this.bidPackages.suggest(Number(id), pid, await this.actor(a)); }
+  @Post('projects/:id/bid-packages/:pid/invites/:iid/questions/:qid/answer') async bidAnswer(@Param('id') id: string, @Param('pid') pid: string, @Param('iid') iid: string, @Param('qid') qid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.bidPackages.answer(Number(id), pid, iid, qid, String(dto?.answer || ''), await this.actor(a)); }
   @Get('projects/:id/estimates/:eid/bid-packages') async bidPackageList(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.bidPackages.list(Number(id), eid, await this.actor(a)); }
   @Post('projects/:id/estimates/:eid/bid-packages') async bidPackageNew(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.bidPackages.create(Number(id), eid, dto || {}, await this.actor(a)); }
   @Post('projects/:id/bid-packages/:pid/invite') async bidInvite(@Param('id') id: string, @Param('pid') pid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.bidPackages.invite(Number(id), pid, dto || {}, await this.actor(a)); }
@@ -141,6 +150,8 @@ export class FinanceController {
   @Delete('projects/:id/estimates/:eid') async estimateDelete(@Param('id') id: string, @Param('eid') eid: string, @Headers('authorization') a?: string) { return this.estimates.remove(Number(id), eid, await this.actor(a)); }
   @Get('projects/:id/activity') async activity(@Param('id') id: string, @Headers('authorization') a?: string) { return this.fin.activity(Number(id), await this.actor(a)); }
   @Get('projects/:id/invoices') async invoiceList(@Param('id') id: string, @Headers('authorization') a?: string) { return this.invoices.list(Number(id), await this.actor(a)); }
+  /** Nov 17: a draft for pre-construction / design fees from an estimate (outside the contract value). */
+  @Post('projects/:id/invoices/precon') async preconDraft(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.createPreconDraft(Number(id), dto || {}, await this.actor(a)); }
   @Post('projects/:id/invoices') async draft(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.createDraft(Number(id), dto, await this.actor(a)); }
   @Get('projects/:id/payments') async payments(@Param('id') id: string, @Headers('authorization') a?: string) { return this.invoices.projectPayments(Number(id), await this.actor(a)); }
   // --- change events -> CORs -> PCCO -> CCOs (Oct 26 review notes)

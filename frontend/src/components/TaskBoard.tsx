@@ -1,3 +1,5 @@
+import { PanelResizeHandle, usePanelWidth } from './PanelResize';
+import { TaskCloseBar } from './TaskCloseBar';
 import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -11,7 +13,7 @@ import { SavedViews } from './SavedViews';
 import { SortHeader, sortFromString, sortRows, sortToString, type SortState } from './SortHeader';
 import { ActionMenu, ActionTrail, OriginatorLine } from './ActionTools';
 import { CollaboratorPicker } from './CollaboratorPicker';
-import { DraftScope, SaveBar } from '../autosave';
+import { DraftScope } from '../autosave';
 import { api, persist } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
@@ -23,7 +25,9 @@ import {
 } from '../data/projectTasks';
 import { Avatar } from './Avatar';
 import { AssigneePicker } from './AssigneePicker';
-import { askCompletionNote, askHoldReason } from './CompletionNote';
+import { askCompletionNote, askDueReason, askHoldReason } from './CompletionNote';
+import { dueReasonNeeded } from '../data/dueReason';
+import { EpicSelect, EpicStrip, EpicTag, MergeDialog, NO_EPIC, useEpics } from './TaskEpics';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
 import { QuickAddTask, quickTaskFields } from './QuickAddTask';
 import { TaskLinkBadge } from './TaskLinkBadge';
@@ -40,6 +44,7 @@ import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, 
 import { linkPriorityDue, PRIORITY_HINT, priorityOption } from '../data/priority';
 import { filesFromClipboard, nameClipboardFile } from './Attachments';
 import { Skeleton } from './Skeleton';
+import { todayISO } from '../data/localDate';
 
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = {
@@ -67,7 +72,7 @@ function PriorityPill({ p }: { p?: Priority }) {
  */
 /** The fields the task panel edits; they autosave together. */
 /** `sectionId` isn't here: the server sets the column from the status (Nov 10). */
-const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'description', 'checklist', 'labels', 'tags', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy'];
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'description', 'checklist', 'labels', 'tags', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy', 'epicId'];
 
 /** "Q3 PRD draft" -> "QP": the card's tile. */
 const initialsOf = (title: string) => {
@@ -135,6 +140,12 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
   const [query, setQuery] = useState('');
   const [tagFilter, setTagFilter] = useState('');
+  // Nov 17: epics -- filter the board to one, or lay the list out by epic.
+  const { epics, reload: reloadEpics } = useEpics(projectId);
+  const [epicFilter, setEpicFilter] = useState('');
+  const [groupByEpic, setGroupByEpic] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const epicById = useMemo(() => new Map(epics.map((e) => [e.id, e])), [epics]);
   const canManage = can('tasks', 'manage');
   // New cards belong to one project's board, not the all-projects view.
   const canAdd = canManage && !all;
@@ -233,12 +244,15 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const inDoneCol = (id: string) => /^(done|complete|completed|confirmed)$/i.test(sections.find((s) => s.id === id)?.name.trim() || '');
   const placed = (t: ProjectTask): ProjectTask => (doneColId && !t.parentId && isFinished(t) && !inDoneCol(t.sectionId) ? { ...t, sectionId: doneColId } : t);
   // Search also finds the task's full number (NARV-T-2026-0007).
-  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query) || (!!query.trim() && numberOf(t).toLowerCase().includes(query.trim().toLowerCase()))).filter((t) => matchesTag(t, tagFilter)).map(placed);
+  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query) || (!!query.trim() && numberOf(t).toLowerCase().includes(query.trim().toLowerCase()))).filter((t) => matchesTag(t, tagFilter)).filter((t) => !epicFilter || (epicFilter === NO_EPIC ? !t.epicId : t.epicId === epicFilter)).map(placed);
   const phaseTaskCount = tasks.filter((t) => t.phaseId && !t.parentId).length;
   // Counts are absolute, not relative to the active scope.
   const mineCount = inScopeOfBoard.filter((t) => !t.parentId && isMine(t, currentUser)).length;
   const allCount = inScopeOfBoard.filter((t) => !t.parentId).length;
-  const selected = tasks.find((t) => t.id === selectedId) || null;
+  // Nov 17: a parent shown only for context (an outside account is on one of its subtasks) doesn't open.
+  const selected = tasks.find((t) => t.id === selectedId && !(t as any).contextOnly) || null;
+  // Nov 18: drag the panel's left edge to widen it; remembered in this browser.
+  const panelW = usePanelWidth('task', 440);
   // The open task in full -- its comments and history -- since the list leaves them out.
   const fetchingFull = useRef<string | null>(null);
   useEffect(() => {
@@ -269,6 +283,12 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     return patch.status === 'On hold' || holdColumn(into);
   };
   const withCompletionNote = async (t: ProjectTask | undefined, patch: Partial<ProjectTask>): Promise<Partial<ProjectTask> | null> => {
+    // Nov 17: an overdue task's date moves only with a reason.
+    if (t && 'dueDate' in patch && !(patch as any).dueReason && dueReasonNeeded(t.dueDate, patch.dueDate, !isFinished(t) && !t.archivedAt)) {
+      const why = await askDueReason(t.title);
+      if (!why) return null;
+      patch = { ...patch, dueReason: why } as Partial<ProjectTask>;
+    }
     if (needsHoldReason(t, patch)) {
       const reason = await askHoldReason(t!.title);
       return reason ? { ...patch, holdReason: reason } : null;
@@ -321,9 +341,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     if (!t) return;
     const open = subsOf(id).filter((s) => !isFinished(s)).length;
     if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
-    if (!window.confirm(`Close “${t.title}” and move it to the archive? You can reopen it from Archived.`)) return;
+    if (!window.confirm(`Mark “${t.title}” complete and move it to the archive? You can reopen it from Archived.`)) return;
     api.projectTasks.update(id, { close: true } as any)
-      .then(() => { if (selectedId === id) setSelectedId(null); toast('Task closed and archived'); load(); })
+      .then(() => { if (selectedId === id) setSelectedId(null); toast('Task completed and archived'); load(); })
       .catch((e: Error) => toast('⚠ ' + (e.message || 'Not closed')));
   };
   const reopenTask = (id: string) => {
@@ -521,8 +541,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               {subs.length > 6 && <li className="tb-subtasks-more" onClick={(e) => { e.stopPropagation(); setSelectedId(t.id); }}>+{subs.length - 6} more</li>}
             </ul>
           )}
-          {(t.parentId || subs.length > 0 || (t.labels?.length || 0) > 0 || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
+          {(t.parentId || subs.length > 0 || (t.labels?.length || 0) > 0 || (t.epicId && epicById.has(t.epicId)) || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
             <div className="tb-tags">
+              {!t.parentId && <EpicTag epic={t.epicId ? epicById.get(t.epicId) : null} />}
               {linkBadge(t)}
               {t.status && t.status !== 'Not started' && t.status !== 'Done' && <span className="tb-status" title={STATUS_HINT[t.status]}>{statusLabel(t.status)}</span>}
               {(t.labels || []).map((l) => <LabelChip key={l} label={l} />)}
@@ -546,7 +567,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               <select className="tb-move" value={t.sectionId} aria-label="Move to another column" title="Move to…"
                 onClick={(e) => e.stopPropagation()} onChange={(e) => moveTask(t.id, e.target.value)}>
                 {sections.map((sec) => <option key={sec.id} value={sec.id}>{sec.id === t.sectionId ? `Move ▾` : `→ ${sec.name}`}</option>)}
-                {!t.parentId && <option value={CLOSE_OPT}>✓ Close (archive)</option>}
+                {!t.parentId && <option value={CLOSE_OPT}>✓ Complete (archive)</option>}
               </select>
             )}
             <span className="tb-who"><AvatarStack people={taskPeople(t)} size={24} /></span>
@@ -596,7 +617,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 <select className="tb-move" value={t.sectionId} aria-label="Move to another column" title="Move to…"
                   onClick={(e) => e.stopPropagation()} onChange={(e) => moveTask(t.id, e.target.value)}>
                   {sections.map((sec) => <option key={sec.id} value={sec.id}>{sec.id === t.sectionId ? `Move ▾` : `→ ${sec.name}`}</option>)}
-                {!t.parentId && <option value={CLOSE_OPT}>✓ Close (archive)</option>}
+                {!t.parentId && <option value={CLOSE_OPT}>✓ Complete (archive)</option>}
                 </select>
               )}
               <span style={{ marginLeft: 'auto' }}><AvatarStack people={taskPeople(t)} size={22} /></span>
@@ -783,8 +804,13 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
         <span style={{ width: 58, flexShrink: 0, textAlign: 'right' }}><SortHeader k="who" sort={listSort} onSort={toggleListSort} align="right">Who</SortHeader></span>
       </div>
 
-      {sections.map((sec) => {
-        const secTasks = sortRows(topLevelBySection(visibleTasks, sec.id), LIST_BY, listSort);
+      {(groupByEpic && epics.length
+        // Nov 17: laid out by epic instead of by column.
+        ? [...epics.map((e) => ({ id: 'E:' + e.id, name: e.name, epic: true, rows: visibleTasks.filter((t) => !t.parentId && t.epicId === e.id) })),
+          { id: 'E:none', name: 'No epic', epic: true, rows: visibleTasks.filter((t) => !t.parentId && !t.epicId) }]
+        : sections.map((sec) => ({ id: sec.id, name: sec.name, epic: false, rows: topLevelBySection(visibleTasks, sec.id) }))
+      ).map((sec) => {
+        const secTasks = sortRows(sec.rows, LIST_BY, listSort);
         return (
           <div key={sec.id}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--forest)', marginBottom: 8 }}>
@@ -794,7 +820,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No tasks</div>}
               {sortRows(secTasks, LIST_BY, listSort).slice(0, limitOf(sec.id)).map((t) => listRow(t, 0))}
               {secTasks.length > limitOf(sec.id) && <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }}>{moreButton(sec.id, secTasks.length)}</div>}
-              {canAdd && (addingIn === sec.id ? (
+              {canAdd && !sec.epic && (addingIn === sec.id ? (
                 <QuickAddTask onAdd={(q) => addTask(sec.id, q.title, null, quickTaskFields(q))} onCancel={() => setAddingIn(null)} style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }} />
               ) : (
                 <div onClick={() => { setAddingIn(sec.id); }} style={{ padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', fontSize: 12, color: 'var(--c-9aa39d)', cursor: 'pointer' }}>
@@ -935,7 +961,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     const total = topLevel.length;
     const completed = topLevel.filter((t) => t.completed).length;
     const incomplete = total - completed;
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayISO();
     const overdue = topLevel.filter((t) => !t.completed && t.dueDate && t.dueDate < todayStr).length;
 
     const bySection = sections.map((sec) => ({ name: sec.name, count: topLevelBySection(visibleTasks, sec.id).filter((t) => !t.completed).length }));
@@ -1059,6 +1085,11 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
       )}
       </div>
 
+      {projectId !== 'all' && !restricted && (
+        <EpicStrip projectId={projectId} epics={epics} tasks={tasks} active={epicFilter} onPick={setEpicFilter} onChanged={reloadEpics}
+          canManage={canManage} grouped={groupByEpic} onGrouped={(v) => { setGroupByEpic(v); if (v) setView('list'); }} />
+      )}
+
       {view === 'board' ? boardView() : view === 'list' ? listView() : view === 'timeline' ? timelineView() : dashboardView()}
 
       {/* Task detail panel */}
@@ -1075,6 +1106,16 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
           const open = (patch.completed === true || patch.status === 'Done' || patch.status === 'Confirmed') ? subsOf(selected.id).filter((s) => !s.completed).length : 0;
           if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
           // Finishing it asks what was done; the note saves with the status.
+          // Nov 17: moving an overdue date asks why, and saves the date with its reason straight away.
+          if ('dueDate' in patch && dueReasonNeeded(selected.dueDate, patch.dueDate, !isFinished(selected) && !selected.archivedAt)) {
+            void askDueReason(selected.title).then((why) => {
+              if (!why) return;
+              setDraft(patch);
+              api.projectTasks.update(selected.id, { dueDate: patch.dueDate || '', dueReason: why, deferNotify: true })
+                .then(replaceTask).catch((e: Error) => toast('⚠ ' + (e.message || 'Could not change the date')));
+            });
+            return;
+          }
           if (!needsNote(d, patch) && !needsHoldReason(d, patch)) { setDraft(patch); return; }
           void withCompletionNote(d, patch).then((p) => { if (p) setDraft(p); });
         };
@@ -1083,24 +1124,35 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
         // Portalled: a transformed ancestor would otherwise trap the fixed overlay inside the board.
         return createPortal(
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 440, maxWidth: '96vw', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
+          {!isMobile && <PanelResizeHandle {...panelW} />}
+          <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : panelW.width, maxWidth: '96vw', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
             {canManage && (
               <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-                <SaveBar auto={auto} onDone={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }} />
+                {/* Nov 17: the same three buttons on every task -- finish it, save and close, or close without saving. */}
+                <TaskCloseBar auto={auto} archived={!!selected.archivedAt} subtask={!!selected.parentId} done={!!d.completed}
+                  onFinish={() => (selected.parentId ? set({ completed: true }) : closeTask(selected.id))} onReopen={() => reopenTask(selected.id)}
+                  onDiscard={() => setSelectedId(null)} onSaveClose={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }}
+                  extra={
+                    /* Nov 22: the main buttons on top; Duplicate, Convert to, Merge and Delete under "More ▾". */
+                    <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} parts="menu" onMade={(made) => {
+                      load();
+                      if (made.some((m) => m.kind !== 'board')) toast('Done — open it from the link');
+                    }} extraItems={[
+                      ...(!selected.parentId && !selected.archivedAt && !restricted ? [{ label: '⇲ Merge duplicates…', onClick: () => setMerging(true) }] : []),
+                      { label: 'Delete task', danger: true, onClick: () => deleteTask(selected.id) },
+                    ]} />
+                  } />
               </div>
             )}
             <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <input type="checkbox" checked={!!d.completed} disabled={!canManage} onChange={() => set({ completed: !d.completed })} style={{ marginTop: 5 }} />
               <textarea value={d.title || ''} disabled={!canManage} onChange={(e) => set({ title: e.target.value })} rows={1} style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)', background: 'transparent' }} />
-              <CloseButton onClick={() => setSelectedId(null)} />
+              {/* Nov 18: the bar above closes it; this ✕ only for people who can't edit (no bar). */}
+              {!canManage && <CloseButton onClick={() => setSelectedId(null)} />}
             </div>
             {/* Who raised it, when, and its number -- at the top (Oct 2026). */}
             <div style={{ padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={projectName || (selected.projectId == null ? (selected.leadName ? leadLabel(selected.leadName) : 'General Tasks') : `Project ${selected.projectId}`)} source={d.requestedBy} by={selected.createdByName || createdByOf(selected)?.by} at={createdByOf(selected)?.at || selected.createdAt} number={numberOf(selected) || '#' + selected.id} /></div>
-                {canManage && !selected.parentId && (selected.archivedAt
-                  ? <button type="button" onClick={() => reopenTask(selected.id)} title="Bring it back onto the board" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
-                  : <button type="button" onClick={() => closeTask(selected.id)} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
               </div>
               {selected.parentId && (
                 <div onClick={() => setSelectedId(selected.parentId!)} style={{ fontSize: 12, color: 'var(--forest)', fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>
@@ -1162,6 +1214,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                       style={{ ...inputStyle, width: '100%', resize: 'vertical', background: 'var(--amber-light)' }} />
                   </Field>
                 </div>
+              )}
+              {!selected.parentId && projectId !== 'all' && (epics.length > 0 || d.epicId) && (
+                <Field label="Epic"><EpicSelect epics={epics} value={d.epicId} disabled={!canManage} onChange={(v) => set({ epicId: v })} /></Field>
               )}
               <Field label="Lead">
                 <LeadSelect value={d.leadId} name={d.leadName} disabled={!canManage} onChange={(v) => set({ leadId: v })} style={{ ...inputStyle, width: '100%' }} />
@@ -1244,7 +1299,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 onChange={(labels) => set({ labels })}
               />
               <div style={{ marginTop: 12 }}>
-                <TagPicker tags={d.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
+                <TagPicker leadOnlyAccess tags={d.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
               </div>
             </div>
 
@@ -1262,28 +1317,20 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               />
             </div>
 
-            {canManage && (
-              <div style={{ padding: '16px 22px 4px' }}>
-                <div style={{ marginBottom: 12 }}>
-                  <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} onMade={(made) => {
-                    // Copies onto this board appear at once; the task's own history now notes them.
-                    load();
-                    if (made.some((m) => m.kind !== 'board')) toast('Done — open it from the link');
-                  }} />
-                </div>
-                <div onClick={() => deleteTask(selected.id)} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
-              </div>
-            )}
-
             {/* Activity — comments plus a record of what changed, a page at a time from the server */}
             <div style={{ padding: '16px 22px 24px' }}>
-              <ActivityFeed
+              {/* Nov 19 (Edward): emails linked to this task, with when they were sent and a link to them. */}
+              <ActivityFeed mailFor={{ entityType: 'task', entityId: selected.id }}
                 source={{ kind: 'board', id: selected.id }}
                 version={`${selected.activity?.length ?? 0}:${selected.comments?.length ?? 0}:${selected.commentCount ?? 0}`}
                 canManage={canManage}
                 onComment={addComment}
               />
             </div>
+            {merging && (
+              <MergeDialog keep={selected} tasks={tasks} numberOf={(t) => numberOf(t) || '#' + t.id} onClose={() => setMerging(false)}
+                onMerged={(res) => { setMerging(false); replaceTask(res); load(); toast('Merged — the files, comments and history are on this task'); }} />
+            )}
           </div>
         </div>,
         document.body);

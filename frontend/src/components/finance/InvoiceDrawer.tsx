@@ -26,7 +26,7 @@ const pctOfC = (cents: number, p: number) => { const x = (cents * p) / 100; retu
 const d = (cents: number) => cents / 100;
 const isWork = (k: LineKind) => k === 'progress' || k === 'manual';
 const KIND_BADGE: Record<LineKind, [string, 'green' | 'blue' | 'amber' | 'grey' | 'red']> = {
-  progress: ['SOV', 'green'], manual: ['Item', 'blue'], adjustment: ['Adj.', 'amber'], reimbursable: ['Reimb.', 'grey'], retention_release: ['Retention', 'blue'],
+  progress: ['SOV', 'green'], manual: ['Item', 'blue'], adjustment: ['Adj.', 'amber'], reimbursable: ['Reimb.', 'grey'], retention_release: ['Retention', 'blue'], precon: ['Precon', 'amber'],
 };
 
 /** Items that can carry a progress line, as the server's billableItems(). */

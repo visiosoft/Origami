@@ -18,16 +18,28 @@ import { SortSelect, sortFromString, sortToString, useSort } from '../components
 import './Meetings.css';
 import { Skeleton } from '../components/Skeleton';
 import { MeetingNotesImport } from '../components/MeetingNotesImport';
-import { parseMeetingNotes } from '../data/meetingNotes';
+import { dateInNotes, parseMeetingNotes } from '../data/meetingNotes';
 import { TagPicker } from '../components/TagPicker';
 import { OutsideMeeting } from '../components/OutsideMeeting';
+import { CalendarSyncPanel } from '../components/CalendarSyncPanel';
+import { localISO, weekStartISO } from '../data/localDate';
 
-type View = 'upcoming' | 'past' | 'all';
+type View = 'upcoming' | 'past' | 'all' | 'archived';
 type StatusFilter = 'all' | 'review' | MeetingStatus;
-type WhereFilter = 'all' | MeetingLocationType;
-interface Item { key: string; kind: 'meeting' | 'legacy'; date: string; time?: string; title: string; type: string; project?: string; status: string; actions: Task[]; meeting?: Meeting }
+type WhereFilter = 'all' | 'calls' | MeetingLocationType;
+interface Item { key: string; kind: 'meeting' | 'legacy'; date: string; time?: string; title: string; type: string; project?: string; status: string; actions: Task[]; meeting?: Meeting; archived?: boolean }
 const CO_LABEL: Record<string, string> = { draft: 'Pending', internal_review: 'Internal review', submitted: 'With client', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' };
 const isoDay = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
+/** Made in the app with no meeting: its meeting date is just the day it was created. */
+export const stampedNotMet = (t: { meetingId?: string | null; meetingDate?: string | null; activity?: { type?: string; at?: string }[] | null }) => {
+  if (t.meetingId) return false;
+  const created = (t.activity || []).find((a) => a?.type === 'created')?.at;
+  if (!created) return false; // old spreadsheet rows: their date is the meeting's
+  const madeOn = new Date(created);
+  const local = `${madeOn.getFullYear()}-${String(madeOn.getMonth() + 1).padStart(2, '0')}-${String(madeOn.getDate()).padStart(2, '0')}`;
+  const md = isoDay(t.meetingDate || '');
+  return !!md && (md === local || md === String(created).slice(0, 10));
+};
 const timeLabel = (t?: string) => {
   if (!t || !/^\d{2}:\d{2}/.test(t)) return '';
   const [h, m] = t.split(':').map(Number);
@@ -49,7 +61,7 @@ const linkOk = (u?: string) => !!u && /^https?:\/\//i.test(u.trim());
  */
 /** `projectName`/`projectId`: shown inside a project (its Special Actions tab) -- that project's only, no project picker. */
 export function Meetings({ projectName, projectId }: { projectName?: string; projectId?: number } = {}) {
-  const { can } = useApp();
+  const { can, toast } = useApp();
   const [meetings, setMeetings] = useState<Meeting[] | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
@@ -63,14 +75,23 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
   const [q, setQ] = useState('');
   // ?open=<meeting id> opens that meeting (links from Special Actions).
   const [params] = useSearchParams();
-  const [openKey, setOpenKey] = useState<string | null>(params.get('open'));
+  // Nov 20: /meetings?log=call|text opens "Log a call / text", pre-filled (from a text thread: title, project and the messages).
+  const [openKey, setOpenKey] = useState<string | null>(params.get('log') === 'call' || params.get('log') === 'text' ? 'new:' + params.get('log') : params.get('open'));
+  const [logSeed] = useState<Partial<Meeting>>(() => ({ title: params.get('title') || '', project: params.get('project') || '', minutes: params.get('notes') || '' }));
   const [googleOpen, setGoogleOpen] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
   /** A meeting just filled in from Google opens straight on its review. */
   const [reviewFirst, setReviewFirst] = useState<string | null>(null);
-  const canEdit = can('meetings', 'manage') || can('tasks', 'manage');
+  const canEdit = can('meetings', 'manage') || can('tasks', 'manage') || can('observations', 'manage');
+  // Nov 19: clean-up -- archive / bring back / delete, one at a time or several picked.
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   useEffect(() => {
-    api.meetings.list().then((r) => setMeetings(Array.isArray(r) ? r : [])).catch(() => setMeetings([]));
+    api.meetings.list(true).then((r) => setMeetings(Array.isArray(r) ? r : [])).catch(() => setMeetings([]));
+    api.meetings.hiddenGroups().then((r) => setHidden(new Set(Array.isArray(r) ? r : []))).catch(() => { });
     api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => { });
     api.projects.list().then((r: any) => setProjects((Array.isArray(r) ? r : []).map((p: any) => ({ id: p.id, name: p.name })))).catch(() => { });
     api.rfis.list().then((r) => setRfis(Array.isArray(r) ? r : [])).catch(() => { });
@@ -82,31 +103,36 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
     // In a project: matched by id (a renamed project kept its meetings hidden when matched by name), else by name.
     const inProject = (m: Meeting) => (!projectName && projectId == null) || (projectId != null && m.projectId === projectId) || (!!projectName && m.project === projectName);
     const out: Item[] = (meetings || []).filter(inProject).map((m) => ({
-      key: m.id, kind: 'meeting', date: m.date, time: m.time, title: m.title, type: m.type, project: m.project, status: meetingStatus(m.status), meeting: m,
+      key: m.id, kind: 'meeting', date: m.date, time: m.time, title: m.title, type: m.type, project: m.project, status: meetingStatus(m.status), meeting: m, archived: !!m.archivedAt,
       actions: tasks.filter((t) => t.meetingId === m.id),
     }));
     // Meetings that exist only as Special Actions Log entries (meeting type + date), grouped.
     const groups = new Map<string, Task[]>();
     for (const t of tasks) {
       if (t.meetingId || !String(t.meetingDate || '').trim()) continue;
+      // Nov 17: entries made in the app carry "today" as their meeting date by default -- that's not a meeting
+      // (it showed a made-up "Internal meeting" on Nov 16 next to the real Nov 12 one). Only entries whose date
+      // was given for a meeting (or imported from the old spreadsheet) group into one.
+      if (stampedNotMet(t)) continue;
       const k = `${t.meetingType || 'Internal'}|${t.meetingDate}|${t.project || ''}`;
       groups.set(k, [...(groups.get(k) || []), t]);
     }
     for (const [k, list] of groups) {
       const [type, md, proj] = k.split('|');
-      out.push({ key: 'legacy:' + k, kind: 'legacy', date: isoDay(md) || raisedOn(list[0]) || '', title: `${type} meeting${isoDay(md) ? '' : ' · ' + md}`, type, project: proj, status: 'legacy', actions: list });
+      out.push({ key: 'legacy:' + k, kind: 'legacy', date: isoDay(md) || raisedOn(list[0]) || '', title: `${type} meeting${isoDay(md) ? '' : ' · ' + md}`, type, project: proj, status: 'legacy', actions: list, archived: hidden.has('legacy:' + k) });
     }
     return out;
-  }, [meetings, tasks, projectName, projectId]);
+  }, [meetings, tasks, projectName, projectId, hidden]);
 
-  const real = items.filter((i) => i.kind === 'meeting');
-  const isUpcoming = (i: Item) => i.kind === 'meeting' && isPlanned(i.status) && i.date >= today;
+  const archivedCount = items.filter((i) => i.archived).length;
+  const real = items.filter((i) => i.kind === 'meeting' && !i.archived);
+  const isUpcoming = (i: Item) => i.kind === 'meeting' && !i.archived && isPlanned(i.status) && i.date >= today;
   const toReview = (i: Item) => i.kind === 'meeting' && needsReview({ status: i.status as MeetingStatus, date: i.date }, today);
   const statusOk = (i: Item) => status === 'all' || (status === 'review' ? toReview(i) : i.status === status);
-  const whereOk = (i: Item) => where === 'all' || i.meeting?.locationType === where;
+  const whereOk = (i: Item) => where === 'all' || (where === 'calls' ? ['call', 'text'].includes(String(i.meeting?.locationType || '')) : i.meeting?.locationType === where);
   const needle = q.trim().toLowerCase();
   const shown = items
-    .filter((i) => (view === 'all' || (view === 'upcoming' ? isUpcoming(i) : !isUpcoming(i)))
+    .filter((i) => (view === 'archived' ? !!i.archived : !i.archived && (view === 'all' || (view === 'upcoming' ? isUpcoming(i) : !isUpcoming(i))))
       && statusOk(i) && whereOk(i)
       && (!project || i.project === project)
       && (!needle || [i.title, i.meeting?.serial, i.type, i.project, i.meeting?.location, ...(i.meeting?.attendees || []).map((a) => a.name)].filter(Boolean).join(' ').toLowerCase().includes(needle)))
@@ -115,13 +141,54 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
   const viewValue = { view, status, where, project, q, sort: sortToString(sort) };
   const upcoming = items.filter(isUpcoming).sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`));
   const reviewCount = real.filter(toReview).length;
-  const weekStart = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
-  const weekEnd = (() => { const d = new Date(weekStart + 'T12:00:00'); d.setDate(d.getDate() + 6); return d.toISOString().slice(0, 10); })();
+  const weekStart = weekStartISO();
+  const weekEnd = (() => { const d = new Date(weekStart + 'T12:00:00'); d.setDate(d.getDate() + 6); return localISO(d); })();
   const thisWeek = real.filter((i) => i.status !== 'cancelled' && i.date >= weekStart && i.date <= weekEnd).length;
-  const openActions = items.reduce((a, i) => a + i.actions.filter((t) => !isForRecord(t) && !isLogClosed(t.status)).length, 0);
+  const openActions = items.filter((i) => !i.archived).reduce((a, i) => a + i.actions.filter((t) => !isForRecord(t) && !isLogClosed(t.status)).length, 0);
   const projectNames = useMemo(() => [...new Set(items.map((i) => i.project).filter(Boolean) as string[])].sort(), [items]);
-  const opened = openKey === 'new' ? null : items.find((i) => i.key === openKey) || null;
+  const opened = openKey?.startsWith('new') ? null : items.find((i) => i.key === openKey) || null;
   const pickStatus = (s: StatusFilter) => { setStatus(s); if (s !== 'all') setView('all'); };
+
+  // Archive / bring back / delete (Nov 19). Grouped Special Actions Log meetings are hidden rather than archived --
+  // their entries stay in the log; deleting never touches them.
+  const applyArchived = (keys: string[], on: boolean) => {
+    const ids = new Set(keys);
+    const now = new Date().toISOString();
+    setMeetings((p) => (p || []).map((m) => (ids.has(m.id) ? { ...m, archivedAt: on ? now : null } : m)));
+    setHidden((h) => { const n = new Set(h); for (const k of keys) if (k.startsWith('legacy:')) { if (on) n.add(k); else n.delete(k); } return n; });
+  };
+  const archiveKeys = async (keys: string[], on: boolean) => {
+    const ids = keys.filter((k) => !k.startsWith('legacy:'));
+    const groups = keys.filter((k) => k.startsWith('legacy:'));
+    if (ids.length) await api.meetings.bulk(ids, on ? 'archive' : 'unarchive');
+    if (groups.length) await api.meetings.setHiddenGroups(groups, on);
+    applyArchived(keys, on);
+  };
+  const runBulk = async (action: 'archive' | 'unarchive' | 'delete') => {
+    const keys = [...picked];
+    if (!keys.length) return;
+    const ids = keys.filter((k) => !k.startsWith('legacy:'));
+    if (action === 'delete') {
+      if (!ids.length) { toast('⚠ Meetings from the Special Actions Log can be archived, not deleted'); return; }
+      const skipped = keys.length - ids.length;
+      if (!confirm(`Delete ${ids.length} meeting${ids.length === 1 ? '' : 's'} for good? Actions raised in them stay in the Special Actions Log.${skipped ? ` (${skipped} from the Special Actions Log can only be archived — they’re left as they are.)` : ''}`)) return;
+    }
+    setBulkBusy(true);
+    try {
+      if (action === 'delete') {
+        await api.meetings.bulk(ids, 'delete');
+        const gone = new Set(ids);
+        setMeetings((p) => (p || []).filter((m) => !gone.has(m.id)));
+        setTasks((ts) => ts.map((t) => (t.meetingId && gone.has(t.meetingId) ? { ...t, meetingId: undefined } : t)));
+        toast(`Deleted ${ids.length} meeting${ids.length === 1 ? '' : 's'}`);
+      } else {
+        await archiveKeys(keys, action === 'archive');
+        toast(action === 'archive' ? `Archived ${keys.length} — find them under Archived` : `Brought back ${keys.length}`);
+      }
+      setPicked(new Set()); setSelecting(false);
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not done')); }
+    finally { setBulkBusy(false); }
+  };
 
   // Open on Past when nothing is coming up.
   useEffect(() => { if (meetings && !upcoming.length && view === 'upcoming') setView('past'); }, [meetings === null]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -130,7 +197,10 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
     <AkPage
       lead="Plan meetings, keep their notes, recordings and transcripts, then review them: pull out the tasks, RFIs and change orders, and the observations, FYIs and decisions to keep FOR RECORD."
       action={canEdit ? <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" className="ak-btn" onClick={() => setCalOpen(true)} title="Meetings on the company calendar and everyone’s own Google Calendar come in by themselves">Google Calendar</button>
         <button type="button" className="ak-btn" onClick={() => setGoogleOpen(true)} title="Bring in the “Notes by Gemini” from a Google Meet">Import notes from Google</button>
+        <button type="button" className="ak-btn" onClick={() => setOpenKey('new:call')} title="A phone or in-person call that already happened: note it, then turn it into tasks like any meeting">Log a call</button>
+        <button type="button" className="ak-btn" onClick={() => setOpenKey('new:text')} title="A text conversation that already happened: note it, then turn it into tasks like any meeting">Log a text conversation</button>
         <button type="button" className="ak-btn is-dark" onClick={() => setOpenKey('new')}>+ Meeting</button>
       </span> : undefined}
     >
@@ -142,31 +212,49 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
       ]} />
 
       <div className="ak-tools">
-        <AkSeg<View> value={view} onChange={setView} options={[['upcoming', 'Coming up', upcoming.length], ['past', 'Past'], ['all', 'All']]} />
+        <AkSeg<View> value={view} onChange={(v) => { setView(v); setPicked(new Set()); }} options={[['upcoming', 'Coming up', upcoming.length], ['past', 'Past'], ['all', 'All'], ...(archivedCount ? [['archived', 'Archived', archivedCount] as [View, string, number]] : [])]} />
         {!projectName && <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
           <option value="">All projects</option>
           {projectNames.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>}
+        {/* Nov 18: status and type are dropdowns in the one row, not two more rows of buttons. */}
+        <select className="ak-select" aria-label="Status" value={status} onChange={(e) => pickStatus(e.target.value as StatusFilter)}>
+          <option value="all">Any status</option>
+          <option value="review">To review ({reviewCount})</option>
+          {MEETING_STATUSES.map((st) => <option key={st.key} value={st.key}>{st.label} ({real.filter((i) => i.status === st.key).length})</option>)}
+        </select>
+        <select className="ak-select" aria-label="Meeting type" value={where} onChange={(e) => setWhere(e.target.value as WhereFilter)}>
+          <option value="all">Any type</option>
+          <option value="calls">Calls &amp; texts ({real.filter((i) => ['call', 'text'].includes(String(i.meeting?.locationType || ''))).length})</option>
+          {MEETING_LOCATION_TYPES.map((l) => <option key={l.key} value={l.key}>{l.short} ({real.filter((i) => i.meeting?.locationType === l.key).length})</option>)}
+        </select>
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, project, attendee…" />
+        {canEdit && <button type="button" className={'ak-btn' + (selecting ? ' is-dark' : '')} aria-pressed={selecting} onClick={() => { setSelecting((x) => !x); setPicked(new Set()); }}>{selecting ? 'Done selecting' : 'Select'}</button>}
         <SortSelect className="ak-select" value={sort} onChange={setSort} options={[
           { key: 'default', dir: 'asc', label: view === 'upcoming' ? 'Soonest first' : 'Newest first' }, { key: 'date', dir: 'desc', label: 'Newest first' }, { key: 'date', dir: 'asc', label: 'Oldest first' },
           { key: 'title', dir: 'asc', label: 'A–Z' }, { key: 'project', dir: 'asc', label: 'Project' }, { key: 'type', dir: 'asc', label: 'Meeting type' },
         ]} />
       </div>
-      <div className="ak-tools">
-        <AkSeg<StatusFilter> value={status} onChange={pickStatus}
-          options={[['all', 'Any status'], ['review', 'To review', reviewCount], ...MEETING_STATUSES.map((s) => [s.key, s.label, real.filter((i) => i.status === s.key).length] as [StatusFilter, string, number])]} />
-        <AkSeg<WhereFilter> value={where} onChange={setWhere}
-          options={[['all', 'Any way'], ...MEETING_LOCATION_TYPES.map((l) => [l.key, l.short, real.filter((i) => i.meeting?.locationType === l.key).length] as [WhereFilter, string, number])]} />
-      </div>
       <SavedViews page="meetings" value={viewValue} defaults={{ view: 'upcoming', status: 'all', where: 'all', project: '', q: '', sort: '' }}
         onApply={(v) => { setView(v.view as View); setStatus(v.status as StatusFilter); setWhere(v.where as WhereFilter); setProject(String(v.project || '')); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
 
+      {selecting && (
+        <div className="mt-bulk" role="toolbar" aria-label="Selected meetings" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px', margin: '0 0 10px', borderRadius: 12, background: 'var(--panel)' }}>
+          <b style={{ fontSize: 13, color: 'var(--ink)' }}>{picked.size} selected</b>
+          <button type="button" className="ak-link" onClick={() => setPicked(new Set(sorted.map((i) => i.key)))}>Select all {sorted.length}</button>
+          {picked.size > 0 && <button type="button" className="ak-link" onClick={() => setPicked(new Set())}>Clear</button>}
+          <span style={{ flex: 1 }} />
+          {view === 'archived'
+            ? <button type="button" className="ak-btn" disabled={!picked.size || bulkBusy} onClick={() => runBulk('unarchive')}>Bring back</button>
+            : <button type="button" className="ak-btn" disabled={!picked.size || bulkBusy} onClick={() => runBulk('archive')}>Archive</button>}
+          <button type="button" className="ak-btn mt-danger" disabled={!picked.size || bulkBusy} onClick={() => runBulk('delete')}>Delete</button>
+        </div>
+      )}
       <section className="ak-card">
         {meetings === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {meetings && !shown.length && (
           <div className="ak-empty">
-            {view === 'upcoming' && status === 'all' ? 'Nothing coming up.' : 'No meetings here.'}
+            {view === 'archived' ? 'Nothing archived.' : view === 'upcoming' && status === 'all' ? 'Nothing coming up.' : 'No meetings here.'}
             {/* Nov 10: meetings that already happened (or are still marked Scheduled with a past date) live under Past -- say so. */}
             {view === 'upcoming' && real.length > 0 && <> <button type="button" className="ak-link" onClick={() => setView('all')}>Show all {real.length} meeting{real.length === 1 ? '' : 's'}</button></>}
             {canEdit && <> · <button type="button" className="ak-link" onClick={() => setOpenKey('new')}>Schedule one</button></>}
@@ -179,13 +267,15 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
           const lt = locationTypeInfo(i.meeting?.locationType);
           const late = i.kind === 'meeting' && isPlanned(i.status) && i.date < today;
           return (
-            <AkRow key={i.key} index={n} muted={i.status === 'cancelled' || i.status === 'complete'} onClick={() => setOpenKey(i.key)}
-              lead={<AkDate iso={i.date} />}
+            <AkRow key={i.key} index={n} muted={i.archived || i.status === 'cancelled' || i.status === 'complete'}
+              onClick={() => (selecting ? setPicked((s) => { const x = new Set(s); if (x.has(i.key)) x.delete(i.key); else x.add(i.key); return x; }) : setOpenKey(i.key))}
+              lead={selecting ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><input type="checkbox" readOnly checked={picked.has(i.key)} aria-label={`Select ${i.title}`} style={{ width: 18, height: 18 }} /><AkDate iso={i.date} /></span> : <AkDate iso={i.date} />}
               title={i.title}
               sub={[i.meeting?.serial, i.type !== 'Internal' || i.kind === 'meeting' ? i.type : '', i.project, timeLabel(i.time), i.meeting?.attendees?.length ? `${i.meeting.attendees.length} attending` : '', i.meeting?.location].filter(Boolean).join(' · ')}
               right={<>
                 {(acts.length > 0 || rec > 0) && <span className="ak-hide-sm" style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[acts.length && `${acts.length} ${acts.length === 1 ? 'action' : 'actions'}${open ? ` · ${open} open` : ''}`, rec && `${rec} on record`].filter(Boolean).join(' · ')}</span>}
                 {lt && <span className="ak-hide-sm"><AkPill tone="outline" title={lt.label}>{lt.short}</AkPill></span>}
+                {i.archived && <AkPill tone="outline">Archived</AkPill>}
                 {i.kind === 'legacy' ? <AkPill tone="soft">From Special Actions Log</AkPill>
                   : late ? <AkPill tone="warn" title="Its date has passed — mark it occurred, rescheduled or cancelled">Not marked occurred</AkPill>
                     : <AkPill tone={meetingStatusInfo(i.status).tone} title={meetingStatusInfo(i.status).hint}>{meetingStatusInfo(i.status).label}</AkPill>}
@@ -195,10 +285,11 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
         })}
       </section>
 
-      {openKey === 'new' && (
-        <NewMeeting projects={projects} onClose={() => setOpenKey(null)}
+      {openKey?.startsWith('new') && (
+        <NewMeeting projects={projects} log={openKey === 'new:call' ? 'call' : openKey === 'new:text' ? 'text' : undefined} seed={openKey === 'new' ? undefined : logSeed} onClose={() => setOpenKey(null)}
           onCreated={(m) => { setMeetings((p) => [m, ...(p || [])]); setOpenKey(m.id); }} />
       )}
+      {calOpen && <CalendarSyncPanel onClose={() => setCalOpen(false)} onApplied={() => { api.meetings.list(true).then((r) => setMeetings(Array.isArray(r) ? r : [])).catch(() => { }); }} />}
       {googleOpen && (
         <GoogleNotesPicker onClose={() => setGoogleOpen(false)} onImported={(m) => {
           setMeetings((p) => [m, ...(p || []).filter((x) => x.id !== m.id)]);
@@ -209,6 +300,7 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
         <MeetingPanel key={opened.key} item={opened} startReview={reviewFirst === opened.key} projects={projects} rfis={rfis} cos={cos} canEdit={canEdit}
           onClose={() => setOpenKey(null)}
           onSaved={(m) => setMeetings((p) => (p || []).map((x) => (x.id === m.id ? m : x)))}
+          onArchived={(on) => { void archiveKeys([opened.key], on).then(() => { toast(on ? 'Archived — find it under Archived' : 'Brought back'); setOpenKey(null); }).catch((e: Error) => toast('⚠ ' + e.message)); }}
           onDeleted={(id) => { setMeetings((p) => (p || []).filter((x) => x.id !== id)); setTasks((ts) => ts.map((t) => (t.meetingId === id ? { ...t, meetingId: undefined } : t))); setOpenKey(null); }}
           onAction={(t) => setTasks((ts) => [t, ...ts])}
           onRfi={(r) => setRfis((p) => [r, ...p])}
@@ -243,9 +335,16 @@ function ProjectSelect({ projects, value, onChange, disabled }: { projects: { id
 
 // ------------------------------------------------------------------ new meeting
 
-function NewMeeting({ projects, onClose, onCreated }: { projects: { id: number; name: string }[]; onClose: () => void; onCreated: (m: Meeting) => void }) {
+function NewMeeting({ projects, log, seed, onClose, onCreated }: { projects: { id: number; name: string }[]; log?: 'call' | 'text'; seed?: Partial<Meeting>; onClose: () => void; onCreated: (m: Meeting) => void }) {
   const { toast } = useApp();
-  const [m, setM] = useState<Partial<Meeting>>({ title: '', type: 'Internal', date: akToday(), time: '', location: '', locationType: null, projectId: null, project: '' });
+  // Nov 20 (Edward): calls and texts go into Meetings -- logged after the fact, with a summary, then sorted like any meeting.
+  const now = new Date();
+  const seedProject = seed?.project ? projects.find((p) => p.name === seed.project) : null;
+  const [m, setM] = useState<Partial<Meeting>>(() => log ? {
+    title: seed?.title || (log === 'call' ? 'Call with ' : 'Text conversation with '), type: 'Client', date: akToday(),
+    time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`, location: '', locationType: log, status: 'occurred',
+    projectId: seedProject?.id ?? null, project: seedProject?.name || '', minutes: seed?.minutes || '',
+  } : { title: '', type: 'Internal', date: akToday(), time: '', location: '', locationType: null, projectId: null, project: '' });
   const [busy, setBusy] = useState(false);
   const create = () => {
     if (!String(m.title || '').trim()) { toast('⚠ Give the meeting a title'); return; }
@@ -257,7 +356,7 @@ function NewMeeting({ projects, onClose, onCreated }: { projects: { id: number; 
   return createPortal(
     <div className="mt-bg" onClick={onClose}>
       <aside className="mt-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="New meeting">
-        <div className="mt-head"><h2>New meeting</h2><button type="button" className="mt-x" onClick={onClose} aria-label="Close">×</button></div>
+        <div className="mt-head"><h2>{log === 'call' ? 'Log a call' : log === 'text' ? 'Log a text conversation' : 'New meeting'}</h2><button type="button" className="mt-x" onClick={onClose} aria-label="Close">×</button></div>
         <div className="mt-form">
           <label className="is-wide">Title<input autoFocus value={m.title} onChange={(e) => setM({ ...m, title: e.target.value })} placeholder="e.g. Weekly OAC meeting" onKeyDown={(e) => { if (e.key === 'Enter') create(); }} /></label>
           <label>Type<select value={m.type} onChange={(e) => setM({ ...m, type: e.target.value })}>{MEETING_TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
@@ -266,12 +365,13 @@ function NewMeeting({ projects, onClose, onCreated }: { projects: { id: number; 
           <label>Date<input type="date" value={m.date} onChange={(e) => setM({ ...m, date: e.target.value })} /></label>
           <label>Time<input type="time" value={m.time} onChange={(e) => setM({ ...m, time: e.target.value })} /></label>
           <div className="is-wide mt-field"><span>How it’s held <em>required</em></span><LocationTypePick value={m.locationType} onChange={(v) => setM({ ...m, locationType: v })} /></div>
+          {log && <label className="is-wide">{log === 'call' ? 'What was said' : 'The conversation'}<textarea rows={5} value={m.minutes || ''} onChange={(e) => setM({ ...m, minutes: e.target.value })} placeholder={log === 'call' ? 'A short summary — who, what was agreed, what needs doing' : 'Paste the messages or summarise them'} /></label>}
           <label className="is-wide">Where<input value={m.location} onChange={(e) => setM({ ...m, location: e.target.value })} placeholder={WHERE_PLACEHOLDER[m.locationType || ''] || 'Site, office, or a video link'} /></label>
         </div>
         <div className="mt-foot">
           <span>Add attendees, the agenda, notes and the recording once it’s created.</span>
           <button type="button" className="ak-btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="ak-btn is-dark" disabled={busy} onClick={create}>{busy ? 'Creating…' : 'Create meeting'}</button>
+          <button type="button" className="ak-btn is-dark" disabled={busy} onClick={create}>{busy ? 'Creating…' : log ? 'Log it' : 'Create meeting'}</button>
         </div>
       </aside>
     </div>,
@@ -345,9 +445,9 @@ type Ctx = {
   onAction: (t: Task) => void; onRfi: (r: any) => void; onCo: (c: any) => void;
 };
 
-function MeetingPanel({ item, projects, rfis, cos, canEdit, startReview, onClose, onSaved, onDeleted, onAction, onRfi, onCo }: {
+function MeetingPanel({ item, projects, rfis, cos, canEdit, startReview, onClose, onSaved, onDeleted, onArchived, onAction, onRfi, onCo }: {
   item: Item; projects: { id: number; name: string }[]; rfis: any[]; cos: any[]; canEdit: boolean; startReview?: boolean;
-  onClose: () => void; onSaved: (m: Meeting) => void; onDeleted: (id: string) => void; onAction: (t: Task) => void; onRfi: (r: any) => void; onCo: (c: any) => void;
+  onClose: () => void; onSaved: (m: Meeting) => void; onDeleted: (id: string) => void; onArchived: (on: boolean) => void; onAction: (t: Task) => void; onRfi: (r: any) => void; onCo: (c: any) => void;
 }) {
   const navigate = useNavigate();
   const { users, toast } = useApp();
@@ -476,6 +576,17 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, startReview, onClose
             <h3 className="mt-h">Agenda</h3>
             <textarea className="mt-text" disabled={!editable} rows={4} value={draft.agenda || ''} onChange={(e) => set({ agenda: e.target.value })} placeholder="What will be covered" />
             <h3 className="mt-h">Notes / minutes</h3>
+            {/* Nov 19 (Edward): notes that name another day than the meeting's -- one click puts the meeting on it. */}
+            {(() => {
+              const said = dateInNotes(draft.minutes) || dateInNotes(draft.transcript);
+              if (!editable || !said || said === draft.date) return null;
+              return (
+                <div role="status" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '8px 10px', borderRadius: 9, background: '#FBEFD5', color: '#7A4B00', fontSize: 12.5, marginBottom: 6 }}>
+                  The notes say this meeting was on <b>{akDay(said)}</b>, not {akDay(draft.date)}.
+                  <button type="button" className="ak-btn" onClick={() => set({ date: said })}>Use {akDay(said)}</button>
+                </div>
+              );
+            })()}
             <textarea className="mt-text is-tall" disabled={!editable} rows={6} value={draft.minutes || ''} onChange={(e) => set({ minutes: e.target.value })} placeholder="What was discussed and decided — for meetings without a recording, the notes taken" />
 
             <h3 className="mt-h">Recording & transcript</h3>
@@ -500,6 +611,7 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, startReview, onClose
         )}
 
         {saved && <div style={{ margin: '4px 0 10px' }}><ActionTrail sourceType={saved.sourceType} sourceId={saved.sourceId} sourceLabel={saved.sourceLabel} derived={saved.derivedRefs} /></div>}
+        {item.kind === 'meeting' && saved && <SortedBy meeting={saved} canEdit={canEdit} onChanged={applyServer} />}
         <Captured item={item} draft={draft} rfis={rfis} cos={cos} navigate={navigate} />
         {editable && <ActionForm ctx={ctx} />}
         {editable && saved && (
@@ -509,19 +621,63 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, startReview, onClose
           </div>
         )}
 
-        {item.kind === 'meeting' && (
+        {item.kind === 'meeting' ? (
           <div className="mt-foot">
             <button type="button" className="ak-btn" onClick={toCalendar}>Add to my Google Calendar</button>
             <span />
-            {editable && <button type="button" className="ak-btn mt-danger" onClick={remove}>Delete</button>}
+            {canEdit && <button type="button" className="ak-btn" title={item.archived ? 'Show it in Meetings again' : 'Hide it from Meetings — it can be brought back under Archived'} onClick={() => onArchived(!item.archived)}>{item.archived ? 'Bring back' : 'Archive'}</button>}
+            {canEdit && <button type="button" className="ak-btn mt-danger" onClick={remove}>Delete</button>}
           </div>
-        )}
+        ) : canEdit ? (
+          <div className="mt-foot">
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>Grouped from the Special Actions Log — archiving hides it here; the entries stay in the log.</span>
+            <span />
+            <button type="button" className="ak-btn" onClick={() => onArchived(!item.archived)}>{item.archived ? 'Bring back' : 'Archive'}</button>
+          </div>
+        ) : null}
       </aside>
       {reviewing && editable && (
-        <ReviewPanel item={item} draft={draft} set={set} auto={auto} ctx={ctx} rfis={rfis} cos={cos} onClose={() => setReviewing(false)} />
+        <ReviewPanel item={item} draft={draft} set={set} auto={auto} ctx={ctx} rfis={rfis} cos={cos} projects={projects} onClose={() => setReviewing(false)} />
       )}
     </div>,
     document.body,
+  );
+}
+
+/**
+ * Nov 20 ("the inability of others, such as Andrea, to sort meeting tasks if
+ * organisers fall ill"): who sorts this meeting's items. Anyone with Meetings
+ * rights can take it over or hand it on.
+ */
+function SortedBy({ meeting, canEdit, onChanged }: { meeting: Meeting; canEdit: boolean; onChanged: (m: Meeting) => void }) {
+  const { users, currentUser, toast } = useApp();
+  const [busy, setBusy] = useState(false);
+  const who = meeting.sortedBy || meeting.createdBy || 'the organiser';
+  const mine = (meeting.sortedById || (!meeting.sortedBy ? meeting.createdById : null)) === currentUser?.id;
+  const run = (p?: { userId: string | null; name?: string }) => {
+    setBusy(true);
+    api.meetings.sorter(meeting.id, p).then((m) => { onChanged(m); toast(p?.userId === null ? 'Back with the organiser' : `${p?.name || 'You'} now sort${p?.name ? 's' : ''} this meeting`); })
+      .catch((e: Error) => toast('⚠ ' + e.message)).finally(() => setBusy(false));
+  };
+  const staff = users.filter((u) => u.status !== 'suspended' && (u.tier || 'internal') === 'internal');
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', margin: '6px 0 12px', fontSize: 12.5 }}>
+      <span style={{ color: 'var(--muted)' }}>Sorted by</span>
+      <b style={{ color: 'var(--ink)' }}>{mine ? 'you' : who}</b>
+      {!meeting.sortedBy && <span style={{ color: 'var(--muted)', fontSize: 11.5 }}>(organiser)</span>}
+      {canEdit && !mine && <button type="button" className="ak-btn" disabled={busy} onClick={() => run()} title="You sort its notes, tasks and FOR RECORD items from now on">Take over</button>}
+      {canEdit && (
+        <select aria-label="Hand sorting to" value="" disabled={busy} onChange={(e) => {
+          const v = e.target.value; if (!v) return;
+          if (v === '__organiser') { run({ userId: null }); return; }
+          const u = staff.find((x) => x.id === v); if (u) run({ userId: u.id, name: u.name });
+        }} style={{ fontSize: 12 }}>
+          <option value="">Hand to…</option>
+          {meeting.sortedBy && <option value="__organiser">Back to the organiser</option>}
+          {staff.filter((u) => u.id !== meeting.sortedById).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+      )}
+    </div>
   );
 }
 
@@ -655,8 +811,8 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
  * out of it on the right -- select a passage and "Use selection" to start from
  * it. "Mark reviewed" when done. Nothing is sent to any outside service.
  */
-function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
-  item: Item; draft: Meeting; set: (p: Partial<Meeting>) => void; auto: Autosave; ctx: Ctx; rfis: any[]; cos: any[]; onClose: () => void;
+function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, projects, onClose }: {
+  item: Item; draft: Meeting; set: (p: Partial<Meeting>) => void; auto: Autosave; ctx: Ctx; rfis: any[]; cos: any[]; projects: { id: number; name: string }[]; onClose: () => void;
 }) {
   const navigate = useNavigate();
   // Notes brought in from Google open on the notes, where their suggested items are.
@@ -747,8 +903,9 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
           {st !== 'reviewed' && st !== 'complete' && <button type="button" className="ak-btn is-dark" onClick={() => { set({ status: 'reviewed' }); onClose(); }}>Mark reviewed</button>}
         </div>
         {importing && (
-          <MeetingNotesImport meeting={{ id: draft.id, title: draft.title, date: draft.date }} text={text} onClose={() => setImporting(false)}
-            onAdded={(made) => { made.forEach((t) => ctx.onAction(t)); api.meetings.get(draft.id).then(ctx.applyServer).catch(() => { }); }} />
+          <MeetingNotesImport meeting={{ id: draft.id, title: draft.title, date: draft.date, project: draft.project || '', projectId: draft.projectId ?? null }} text={text} onClose={() => setImporting(false)}
+            existing={item.actions} projects={projects}
+            onAdded={(made) => { made.filter((t) => !t.duplicate).forEach((t) => ctx.onAction(t)); if (!draft.project) { const p = made.find((t) => t.project)?.project; if (p) set({ project: p, projectId: projects.find((x) => x.name === p)?.id ?? null }); } api.meetings.get(draft.id).then(ctx.applyServer).catch(() => { }); }} />
         )}
       </aside>
     </div>

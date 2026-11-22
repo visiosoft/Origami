@@ -47,8 +47,8 @@ export function PrequalForm() {
       </div>
       {input('trades', 'Trades you do (e.g. tile, stone, framing)')}
       <label style={lbl}>References (jobs and contacts)<textarea rows={3} value={f.references || ''} onChange={(e) => setF({ ...f, references: e.target.value })} style={field} /></label>
-      <label style={{ display: 'flex', gap: 8, fontSize: 14 }}><input type="checkbox" checked={!!f.w9OnFile} onChange={(e) => setF({ ...f, w9OnFile: e.target.checked })} /> I’ve uploaded our W-9</label>
-      <label style={lbl}>Upload W-9, certificate of insurance, licence (PDF or photo)<input type="file" multiple disabled={busy} onChange={(e) => void upload(e.target.files)} /></label>
+      {/* Nov 17: the W-9 is asked for at contract signing, not at prequalification. */}
+      <label style={lbl}>Upload your certificate of insurance and licence (PDF or photo) — we’ll ask for your W-9 only when we sign a contract<input type="file" multiple disabled={busy} onChange={(e) => void upload(e.target.files)} /></label>
       {v.files.length > 0 && <div style={{ fontSize: 12.5, color: '#43514D' }}>Uploaded: {v.files.join(', ')}</div>}
       {err && <div role="alert" style={{ color: '#8E2E0A', fontSize: 13 }}>{err}</div>}
       {v.status !== 'approved' && <button type="button" disabled={busy} onClick={() => void submit()} style={{ padding: '12px 18px', borderRadius: 999, border: 0, background: '#1f3d33', color: '#fff', font: 'inherit', fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Sending…' : 'Send for review'}</button>}

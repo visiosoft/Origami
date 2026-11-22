@@ -90,6 +90,8 @@ export const fmtDate = (d?: string | null) => {
 export interface Project { id: number; name: string }
 
 export interface Assignment {
+  /** Nov 17: who they report to on site (user id). */
+  supervisorId?: string | null;
   id: string; employeeId: string; projectId: number; workArea?: string; tradeId?: string; designation?: string;
   assignmentType: 'regular' | 'temporary'; startDate: string; endDate?: string; status: string;
   endReason?: string; transferredFromId?: string; workforceRequestId?: string; requestLineId?: string;
@@ -109,7 +111,7 @@ export interface Contractor {
 }
 
 /** A licence classification a subcontractor company holds, e.g. C-10 Electrical. */
-export interface SubcontractorTrade { id: string; code: string; name: string; category: string; description?: string; active: boolean; order: number }
+export interface SubcontractorTrade { id: string; code: string; name: string; category: string; description?: string; active: boolean; order: number; /** Nov 19: CSI divisions this licence covers. */ csiDivisions?: string[] | null }
 export const SUBTRADE_CATEGORIES: [string, string][] = [
   ['general_engineering', 'General Engineering (A)'], ['general_building', 'General Building (B)'],
   ['specialty', 'Specialty (C)'], ['limited_specialty', 'Limited Specialty (D)'], ['other', 'Other'],

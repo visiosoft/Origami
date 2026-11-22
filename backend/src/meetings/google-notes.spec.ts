@@ -91,3 +91,31 @@ describe('meeting notes from Google (Nov 3 sync)', () => {
     await expect(svc.importDoc({}, { name: 'Edward' })).rejects.toThrow(/Pick a notes Doc/);
   });
 });
+
+describe('two people importing the same new notes at once (Nov 20)', () => {
+  it('makes one meeting, filed under the project its title names', async () => {
+    const rows: any[] = [];
+    const google = {
+      isConnected: async () => true,
+      exportDocText: async () => { await new Promise((r) => setTimeout(r, 5)); return { name: 'Countryside Weekly Sync - 2026/11/20 08:58 PST - Notes by Gemini', link: 'x', text: '### Summary\nAll good\n\n### Next steps\n- [Astrid] Send it' }; },
+    };
+    const meetingsService = { create: jest.fn(async (dto: any) => { const m = { id: 'M' + (rows.length + 1), ...dto }; rows.push(m); return m; }) };
+    const projects = { find: async () => [{ id: 16, name: 'Countryside' }, { id: 17, name: 'Hayes Valley' }] };
+    const svc = new GoogleNotesService({ find: async () => rows, save: async (m: any) => m, findOneBy: async () => null } as any, google as any, meetingsService as any, undefined, undefined, projects as any);
+    const [a, b] = await Promise.all([svc.importDoc({ docId: 'DOC1' }, { name: 'Astrid' }), svc.importDoc({ docId: 'DOC1' }, { name: 'Ehsan' })]);
+    expect(meetingsService.create).toHaveBeenCalledTimes(1);
+    expect(a.meeting.id).toBe(b.meeting.id);
+    expect(rows[0]).toMatchObject({ project: 'Countryside', projectId: 16 });
+  });
+});
+
+describe('the date the notes give (Nov 19)', () => {
+  const { dateInNotes } = require('./google-notes');
+  it('reads "Meeting Date: November 12, 2026", Gemini headers and plain dates', () => {
+    expect(dateInNotes('1311 Countryside Ct. – Action Items\n\nMeeting Date: November 12, 2026\n\n1. Project Schedule')).toBe('2026-11-12');
+    expect(dateInNotes('1311 Countryside Weekly Sync - 2026/11/12 13:58 PST - Transcript')).toBe('2026-11-12');
+    expect(dateInNotes('Notes from Thursday, Nov 12, 2026')).toBeNull();
+    expect(dateInNotes('Held on December 3, 2026 at the site')).toBe('2026-12-03');
+    expect(dateInNotes('no date here')).toBeNull();
+  });
+});

@@ -11,6 +11,7 @@ import { BrandingSettings } from './BrandingSettings';
 import { NotificationSettings } from './NotificationSettings';
 import { TwoStepSettings } from '../components/TwoStepSettings';
 import { PipelineSlaSettings } from './PipelineSlaSettings';
+import { UsageSettings } from './UsageSettings';
 import { SmsSettings } from './SmsSettings';
 import { SchedulingSettings } from './SchedulingSettings';
 import { MyCalendarSettings } from './MyCalendarSettings';
@@ -105,7 +106,8 @@ export function Settings() {
       ...(isAdmin ? [{ key: 'tags', tab: 'workspace' as SettingsTab, label: 'Tags', hint: 'The shared list of tags: rename, merge or delete', render: () => <TagSettings /> }] : []),
       ...(isAdmin ? [{ key: 'audit-log', tab: 'workspace' as SettingsTab, label: 'Audit log', hint: 'Who changed what, across the app', render: () => <AuditLogSettings /> }] : []),
       { key: 'google', tab: 'integrations', label: 'Google Workspace', hint: 'Email, Drive and sign-in', render: () => <GoogleSettings /> },
-      { key: 'sms', tab: 'integrations', label: 'SMS', hint: 'Text messages through Twilio', render: () => <SmsSettings /> },
+      { key: 'sms', tab: 'integrations', label: 'Text messages', hint: 'Sent through Quo (or Twilio)', render: () => <SmsSettings /> },
+      ...(isAdmin ? [{ key: 'usage', tab: 'integrations' as SettingsTab, label: 'Usage & credits', hint: 'Texts and AI used, credit left, and the ChatGPT key', render: () => <UsageSettings /> }] : []),
     ];
     const fromUrl = sections.find((x) => x.key === tabParam);
     const tab: SettingsTab = fromUrl?.tab || 'account';
