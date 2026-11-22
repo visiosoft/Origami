@@ -58,7 +58,7 @@ export function DrawingSetBanner({ state, fileId, reviewLayersShown, onOpenFile,
  */
 export function DrawingSetSection({ state, fileId, isLead, canFlag, layers, onChanged, onOpenFile }: {
   state: DrawingState | null; fileId: string; isLead: boolean; canFlag: boolean;
-  layers: { key: string; name: string; count: number }[];
+  layers: { key: string; name: string; count: number; state?: string | null }[];
   onChanged: () => void; onOpenFile?: (id: string) => void;
 }) {
   const { toast } = useApp();
@@ -108,7 +108,7 @@ export function DrawingSetSection({ state, fileId, isLead, canFlag, layers, onCh
           {!state.isApproved
             ? <button type="button" className="mk-btn" disabled={!!busy} onClick={() => run('approve', api.fileRoom.approveDrawing(fileId, true), 'Approved as the working set')}>Approve this revision</button>
             : <button type="button" className="mk-btn" disabled={!!busy} onClick={() => run('approve', api.fileRoom.approveDrawing(fileId, false), 'No longer the approved set')}>Un-approve</button>}
-          <button type="button" className="mk-btn" disabled={!!busy || !layers.length} onClick={() => setPublishing(publishing ? null : new Set(layers.filter((l) => isReviewLayer(l.name)).map((l) => l.key)))}>Publish layers…</button>
+          <button type="button" className="mk-btn" disabled={!!busy || !layers.length} onClick={() => setPublishing(publishing ? null : new Set(layers.filter((l) => l.state ? l.state === 'approved' || l.state === 'modified' : isReviewLayer(l.name)).map((l) => l.key)))}>Publish layers…</button>
         </div>
       )}
       {publishing && (
@@ -117,7 +117,7 @@ export function DrawingSetSection({ state, fileId, isLead, canFlag, layers, onCh
           {layers.map((l) => (
             <label key={l.key} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5 }}>
               <input type="checkbox" checked={publishing.has(l.key)} onChange={() => { const n = new Set(publishing); if (n.has(l.key)) n.delete(l.key); else n.add(l.key); setPublishing(n); }} />
-              {l.name} <span className="mk-muted">({l.count})</span>
+              {l.state ? `(${l.state === 'modified' ? 'Modified Approved' : l.state[0].toUpperCase() + l.state.slice(1)}) ` : ''}{l.name} <span className="mk-muted">({l.count})</span>
             </label>
           ))}
           <div style={{ display: 'flex', gap: 6 }}>

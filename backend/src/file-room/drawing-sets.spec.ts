@@ -83,7 +83,7 @@ describe('drawing sets', () => {
       update: async (w: any, p: any) => files.filter((f) => f.id === w.id).forEach((f) => Object.assign(f, p)),
     };
     const marksRepo = { find: async (o?: any) => marks.filter((m) => !o?.where?.fileId || (typeof o.where.fileId === 'string' ? m.fileId === o.where.fileId : true)), create: (r: any) => r, save: async (r: any) => { marks.push(r); return r; }, findOneBy: async () => null, delete: async () => undefined };
-    const layerRepo = { find: async (o?: any) => layers.filter((l) => l.fileId === o?.where?.fileId), findOneBy: async (w: any) => layers.find((l) => l.id === w.id) || null, create: (r: any) => r, save: async (r: any) => { layers.push(r); return r; }, delete: async () => undefined };
+    const layerRepo = { find: async (o?: any) => layers.filter((l) => l.fileId === o?.where?.fileId), findOneBy: async (w: any) => layers.find((l) => l.id === w.id) || null, create: (r: any) => r, save: async (r: any) => { const i = layers.findIndex((l) => l.id === r.id); if (i >= 0) layers[i] = r; else layers.push(r); return r; }, delete: async () => undefined };
     const uploaded: any[] = [];
     const fileRoom = {
       buildSetOf: async () => buildSet,
@@ -132,6 +132,30 @@ describe('drawing sets', () => {
     expect(layers.map((l) => [l.layerKey, l.audience])).toEqual([['L:i1', 'internal'], ['L:x1', 'internal']]);
     await expect(markups.setLayerAccess('F1', 'L:i1', { audience: 'everyone' }, pm)).rejects.toThrow(/Review layers/);
     await expect(markups.renameLayer('F1', { from: 'I1', to: 'Astrid' }, pm)).rejects.toThrow(/Review layers/);
+  });
+
+  it('a typed layer name starts Private; the owner routes it; only i-1 / i-2 hold, approve or reject; Modify copies it back to the owner (Nov 22)', async () => {
+    const { markups, files, layers, marks } = setup();
+    files.push({ id: 'F1', projectId: 16, folderPath: ['Architectural'], name: 'A1.pdf', groupId: 'G1', isLatest: true });
+    const box = { kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.3, 0.3]] } };
+    await markups.create('F1', { ...box, layer: 'C-10 Electrical – Move power by Losi' }, kai);
+    const key = 'L:c-10 electrical – move power by losi';
+    expect(layers[0]).toMatchObject({ layerKey: key, audience: 'internal', state: 'private' });
+    await expect(markups.setLayerState('F1', key, { state: 'approved' }, kai)).rejects.toThrow(/Only its owner/);
+    await expect(markups.setLayerState('F1', key, { state: 'routed' }, pm)).rejects.toThrow(/Only its owner/);
+    expect(await markups.setLayerState('F1', key, { state: 'routed' }, kai)).toMatchObject({ state: 'routed', audience: 'internal' });
+    expect(await markups.setLayerState('F1', key, { state: 'private' }, kai)).toMatchObject({ state: 'private' });
+    expect(await markups.setLayerState('F1', key, { state: 'rejected' }, ed)).toMatchObject({ state: 'rejected', audience: 'people', people: [{ type: 'user', id: 'U-K', name: 'Kai' }] });
+    await expect(markups.setLayerAccess('F1', key, { audience: 'everyone' }, kai)).rejects.toThrow(/Review layers/);
+    expect(await markups.setLayerState('F1', key, { state: 'approved', audience: 'everyone' }, ed)).toMatchObject({ state: 'approved', audience: 'everyone' });
+    expect((await markups.layerAccess('F1')).find((r: any) => r.layerKey === key)).toMatchObject({ state: 'approved', audience: 'everyone' });
+    await expect(markups.duplicateLayer('F1', key, pm)).rejects.toThrow(/admin or principal/);
+    const copy = await markups.duplicateLayer('F1', key, ed);
+    expect(copy).toMatchObject({ layer: 'C-10 Electrical – Move power by Losi (Modified)', markups: 1 });
+    expect(marks.filter((m) => m.layer === copy.layer)).toHaveLength(1);
+    expect(marks.find((m) => m.layer === 'C-10 Electrical – Move power by Losi')).toMatchObject({ authorId: 'U-K' }); // the original is untouched
+    expect(layers.find((l) => l.layerKey === copy.layerKey)).toMatchObject({ state: 'modified', copyOf: key, audience: 'people', people: [{ id: 'U-K' }] });
+    expect(files[0].drawingLog.map((e: any) => e.kind)).toEqual(['layer-routed', 'layer-private', 'layer-rejected', 'layer-approved', 'layer-modified']);
   });
 
   it('publishes chosen layers as the next revision after the decimal, approves one revision, and flags city approval', async () => {

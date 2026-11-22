@@ -2,6 +2,7 @@ import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from 'react-dom';
 import { api } from '../../api';
 import { DrawingSetBanner, DrawingSetSection, isReviewLayer, useDrawingState } from './DrawingSetPanel';
+import { LAYER_STATE_LABEL, isPublishedState, type LayerState } from './LayerAccess';
 import { useApp } from '../../AppContext';
 import { CsiSelect } from '../CsiSelect';
 import { LayerAccessEditor, layerBadge, type LayerAudience, type LayerPerson, type LayerRule } from './LayerAccess';
@@ -440,13 +441,27 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
 
   // ---------------------------------------------------------------- helpers
   const layers = useMemo(() => layersOf(marks, me), [marks, me]);
-  // Nov 20: drawing sets -- its revision, the approved set, the city flag, history.
-  const drawingSet = useDrawingState(file.id);
-  const reviewShown = layers.some((l) => l.named && isReviewLayer(l.name) && !hidden.has(l.key));
-  const approvedId = drawingSet.state?.approved?.id ?? null;
-  const setRev = (id: string) => drawingSet.state?.revisions.find((r) => r.id === id)?.rev || '';
   // Who sees each layer (Oct 30 sync): only the restricted ones come back.
   const [layerRules, setLayerRules] = useState<Record<string, LayerRule>>({});
+  // Nov 22 (Edward): a drawing opens with only approved layers on; the others are listed, turned off.
+  const rulesApplied = useRef('');
+  useEffect(() => {
+    if (rulesApplied.current === file.id || !Object.keys(layerRules).length) return;
+    rulesApplied.current = file.id;
+    const off = Object.values(layerRules).filter((r) => r.state && !isPublishedState(r.state)).map((r) => r.layerKey);
+    if (off.length) setHidden((h) => new Set([...h, ...off]));
+  }, [layerRules, file.id]);
+  // Nov 20: drawing sets -- its revision, the approved set, the city flag, history.
+  const drawingSet = useDrawingState(file.id);
+  // Nov 22: a layer that isn't approved yet (private, routed, hold, rejected) -- or an old I1/X1 one with no state.
+  const notApproved = (l: { key: string; named: boolean; name: string }) => {
+    const st = layerRules[l.key]?.state;
+    return st ? !isPublishedState(st) : l.named && isReviewLayer(l.name);
+  };
+  const reviewShown = layers.some((l) => notApproved(l) && !hidden.has(l.key));
+  const approvedId = drawingSet.state?.approved?.id ?? null;
+  const setRev = (id: string) => drawingSet.state?.revisions.find((r) => r.id === id)?.rev || '';
+
   const [accessFor, setAccessFor] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
@@ -457,9 +472,26 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const saveAccess = async (key: string, r: { audience: LayerAudience; people: LayerPerson[] }) => {
     try {
       const saved = await api.fileRoom.setLayerAccess(file.id, key, r);
-      setLayerRules((prev) => { const n = { ...prev }; if (saved.audience === 'everyone') delete n[key]; else n[key] = saved; return n; });
+      setLayerRules((prev) => { const n = { ...prev }; if (saved.audience === 'everyone' && !prev[key]?.state) delete n[key]; else n[key] = { ...prev[key], ...saved }; return n; });
       toast(saved.audience === 'everyone' ? 'Everyone can see this layer' : saved.audience === 'internal' ? 'Only our team sees this layer' : 'Only our team and the people you picked see this layer');
     } catch (e) { toast('⚠ ' + (e as Error).message); throw e; }
+  };
+  // Nov 22 (Edward p5-8): route, take back, hold, approve, reject, or modify (as a copy) a review layer.
+  const layerAction = async (key: string, act: string) => {
+    try {
+      if (act === 'modify') {
+        const r = await api.fileRoom.duplicateLayer(file.id, key);
+        setMarks(await api.fileRoom.markups(file.id));
+        setLayerRules(Object.fromEntries(((await api.fileRoom.layerAccess(file.id)) || []).map((x) => [x.layerKey, x])));
+        toast(`Copied to “${r.layer}” — Modified Approved, shared back to its owner`);
+      } else {
+        const [state, audience] = act.split(':') as [string, 'internal' | 'everyone' | undefined];
+        const saved = await api.fileRoom.layerState(file.id, key, state, audience);
+        setLayerRules((prev) => ({ ...prev, [key]: { ...prev[key], ...saved, state: saved.state as LayerState } }));
+        toast(`${LAYER_STATE_LABEL[saved.state as LayerState]}${state === 'approved' ? (saved.audience === 'everyone' ? ' — everyone on the project sees it' : ' — our team sees it') : ''}`);
+      }
+      drawingSet.reload();
+    } catch (e) { toast('⚠ ' + (e as Error).message); }
   };
   const namedLayers = layers.filter((l) => l.named).map((l) => l.name);
   const shownMarks = marks.filter((m) => !hidden.has(layerKey(m)));
@@ -480,13 +512,26 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const save = useCallback(async (kind: MarkupKind, data: MarkupData, page = pageNo) => {
     try {
       const forRfi = rfiDraft && layer === rfiDraft.layer ? { linkType: 'rfi', linkId: rfiDraft.rfiId } : {};
-      const m = await api.fileRoom.addMarkup(file.id, { kind, page, data, private: privateDraft, layer: layer || null, ...forRfi });
+      // Nov 22 (Edward): on a drawing set, someone other than i-1 / i-2 names their layer the first time they draw.
+      let useLayer = layer;
+      if (!useLayer && !rfiDraft && !isAdmin && drawingSet.state?.base && kind !== 'scale') {
+        const own = marks.find((m) => m.authorId === me && m.layer);
+        if (own?.layer) useLayer = own.layer;
+        else {
+          const typed = window.prompt('Name your layer — what it is and who it’s by, e.g. “C-10 Electrical – Move power by Losi”. It stays private (our team only) until you route it and it’s approved.', '');
+          if (typed === null) return null;
+          useLayer = typed.trim().slice(0, 60);
+        }
+        if (useLayer) setLayer(useLayer);
+      }
+      const m = await api.fileRoom.addMarkup(file.id, { kind, page, data, private: privateDraft, layer: useLayer || null, ...forRfi });
       setMarks((prev) => [...prev, m]);
       undo.current.push({ type: 'add', after: m });
       redo.current = [];
       return m;
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Markup not saved')); return null; }
-  }, [file.id, pageNo, privateDraft, layer, toast, rfiDraft]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.id, pageNo, privateDraft, layer, toast, rfiDraft, isAdmin, drawingSet.state?.base, marks, me]);
 
   const replace = (m: Markup) => setMarks((prev) => prev.map((x) => (x.id === m.id ? m : x)));
   const editMarkup = async (m: Markup, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer'>>, record = true) => {
@@ -1385,7 +1430,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         {coarse && <button type="button" className="mk-btn" onClick={() => setBs('more')} aria-label="More" title="Download, email, save a copy, compare, sheet names">⋯</button>}
       </header>
       <DrawingSetBanner state={drawingSet.state} fileId={file.id} reviewLayersShown={reviewShown} onOpenFile={onOpenFile ? (id) => onOpenFile(id) : undefined}
-        onHideReview={() => setHidden(new Set([...hidden, ...layers.filter((l) => l.named && isReviewLayer(l.name)).map((l) => l.key)]))} />
+        onHideReview={() => setHidden(new Set([...hidden, ...layers.filter(notApproved).map((l) => l.key)]))} />
 
       <div className="mk-body">
         <nav className="mk-tools" aria-label="Markup tools">
@@ -1561,8 +1606,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 <div className="mk-layer">
                   <label>
                     <input type="checkbox" checked={!hidden.has(l.key)} onChange={() => { const n = new Set(hidden); if (n.has(l.key)) n.delete(l.key); else n.add(l.key); setHidden(n); }} />
-                    <span>{l.named ? l.name : <>{l.name} <em>own layer</em></>}</span>
+                    <span>{layerRules[l.key]?.state && <b className={'mk-layer-state is-' + layerRules[l.key]!.state} title={layerRules[l.key]?.stateBy ? `${LAYER_STATE_LABEL[layerRules[l.key]!.state as LayerState]} · ${layerRules[l.key]!.stateBy}` : undefined}
+                      style={{ marginRight: 4, fontWeight: 700, color: isPublishedState(layerRules[l.key]!.state) ? '#2F6B3A' : layerRules[l.key]!.state === 'rejected' ? '#8E2E0A' : '#8A4B12', background: layerRules[l.key]!.state === 'modified' ? '#FFF3B0' : undefined }}>({LAYER_STATE_LABEL[layerRules[l.key]!.state as LayerState]})</b>}
+                      {l.named ? l.name : <>{l.name} <em>own layer</em></>}</span>
                   </label>
+                  {layerRules[l.key]?.state && <LayerStateMenu state={layerRules[l.key]!.state as LayerState} lead={isAdmin} owner={marks.some((m) => layerKey(m) === l.key && m.authorId === me)} onPick={(act) => void layerAction(l.key, act)} />}
                   {layerBadge(layerRules[l.key]) && <span className="mk-layer-badge" title="Who sees this layer">{layerBadge(layerRules[l.key])}</span>}
                   <small>{l.count}</small>
                   {canRename(l) && <button type="button" className="mk-layer-edit" onClick={() => void renameLayer(l)} aria-label={`Rename ${l.name}`} title={l.named ? 'Rename for everyone' : 'Name this layer'}>✎</button>}
@@ -1575,7 +1623,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             </section>
 
             <DrawingSetSection state={drawingSet.state} fileId={file.id} isLead={isAdmin} canFlag={isAdmin || can('planroom', 'manage') || can('allfiles', 'manage')}
-              layers={layers.map((l) => ({ key: l.key, name: l.name, count: l.count }))} onChanged={drawingSet.reload} onOpenFile={onOpenFile ? (id) => onOpenFile(id) : undefined} />
+              layers={layers.map((l) => ({ key: l.key, name: l.name, count: l.count, state: layerRules[l.key]?.state || null }))} onChanged={drawingSet.reload} onOpenFile={onOpenFile ? (id) => onOpenFile(id) : undefined} />
 
             {selected && (
               <section className="mk-selected">
@@ -1949,3 +1997,25 @@ function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number;
 const MarkupShape = memo(function MarkupShape({ m, w, h, scale, sheets, symbol }: { m: Markup; w: number; h: number; scale: number; sheets?: Record<string, string>; symbol?: MarkupSymbol }) {
   return shapeOf(m, { w, h }, scale, false, sheets, symbol);
 });
+
+/** Nov 22 (Edward p5-8): what can be done with a review layer, for its owner or for i-1 / i-2. */
+function LayerStateMenu({ state, lead, owner, onPick }: { state: LayerState; lead: boolean; owner: boolean; onPick: (act: string) => void }) {
+  const opts: [string, string][] = [];
+  if ((owner || lead) && ['private', 'hold', 'rejected'].includes(state)) opts.push(['routed', lead && !owner ? 'Route for approval (on their behalf)' : 'Request to publish (route)']);
+  if (owner && !lead && state === 'routed') opts.push(['private', 'Take back (private)']);
+  if (lead) {
+    if (state !== 'approved') opts.push(['approved:internal', 'Approve — our team sees it'], ['approved:everyone', 'Approve — everyone on the project']);
+    if (state !== 'hold') opts.push(['hold', 'Hold']);
+    if (state !== 'rejected') opts.push(['rejected', 'Reject (back to its owner)']);
+    if (state !== 'modified') opts.push(['modify', 'Modify as a copy (Modified Approved)']);
+    if (state === 'approved' || state === 'modified') opts.push(['private', 'Back to private']);
+  }
+  if (!opts.length) return null;
+  return (
+    <select aria-label="Layer state" value="" onChange={(e) => { if (e.target.value) onPick(e.target.value); }} title="Route, approve or reject this layer"
+      style={{ maxWidth: 26, padding: 0, border: 0, background: 'transparent', cursor: 'pointer', fontSize: 13 }}>
+      <option value="">⋯</option>
+      {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+    </select>
+  );
+}

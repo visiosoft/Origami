@@ -86,6 +86,19 @@ export class FileRoomController {
   }
 
   /** Who sees one layer: { audience: everyone | internal | people, people?: [{ type, id, name }] }. */
+  /** Nov 22: a review layer's state -- route, take back (owner); hold, approve, reject (i-1 / i-2). */
+  @Post('files/:id/layers/state')
+  async layerState(@Param('id') id: string, @Body() body: { layerKey?: string; state?: string; audience?: string }, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.setLayerState(id, String(body?.layerKey || ''), body || {}, claims);
+  }
+  /** Nov 22: "Modify" -- i-1 / i-2 copy someone's layer as Modified Approved, shared back to them. */
+  @Post('files/:id/layers/duplicate')
+  async layerDuplicate(@Param('id') id: string, @Body() body: { layerKey?: string }, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.duplicateLayer(id, String(body?.layerKey || ''), claims);
+  }
+
   @Put('files/:id/layer-access')
   async setLayerAccess(@Param('id') id: string, @Body() body: any, @Claims() claims: SessionClaims | null) {
     await this.seeFile(id, claims);

@@ -127,3 +127,25 @@ export function drawingHistory(input: {
   return out.filter((e) => { const k = `${e.kind}|${e.text}|${e.at.slice(0, 16)}`; if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((a, b) => b.at.localeCompare(a.at));
 }
+
+// ---------------------------------------------------------------- review layer states (Nov 22, Edward p5-8)
+export const LAYER_STATES = ['private', 'routed', 'hold', 'approved', 'rejected', 'modified'] as const;
+export type LayerState = typeof LAYER_STATES[number];
+export const LAYER_STATE_LABEL: Record<LayerState, string> = { private: 'Private', routed: 'Routed', hold: 'Hold', approved: 'Approved', rejected: 'Rejected', modified: 'Modified Approved' };
+
+/**
+ * Who may move a layer to a state. Its owner asks to publish (Routed) or takes
+ * it back (Private); i-1 / i-2 do everything, including routing on the owner's
+ * behalf. A Modified Approved layer is only ever made by copying ("Modify").
+ */
+export function mayMoveLayer(to: string, o: { lead: boolean; owner: boolean; from?: string | null }): boolean {
+  if (!(LAYER_STATES as readonly string[]).includes(to) || to === 'modified') return false;
+  if (o.lead) return true;
+  if (!o.owner) return false;
+  if (to === 'routed') return !o.from || ['private', 'hold', 'rejected'].includes(o.from);
+  if (to === 'private') return o.from === 'routed';
+  return false;
+}
+
+/** Published layers: approved, or i-1 / i-2's modified copies. */
+export const isPublishedState = (s?: string | null) => s === 'approved' || s === 'modified';
