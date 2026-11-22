@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { quoCallHref } from '../pages/People';
+import { quoCallHref } from '../components/ContactLinks';
 
 /** Nov 22: Call dials through Quo -- its app link on phones, tel: on computers. */
 describe('Call through Quo', () => {

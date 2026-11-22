@@ -25,13 +25,25 @@ export function MapLink({ address, children, style, pin = true, iconSize }: { ad
   );
 }
 
-/** A phone number you can tap to call (and long-press to text). */
+/**
+ * Nov 22: every call dials through Quo. On a phone or tablet Quo's own link
+ * opens the Quo app and dials; on a computer a tel: link opens Quo when its
+ * desktop app is the computer's calling app (Quo doesn't take its app link
+ * from a web page there).
+ */
+export function quoCallHref(phone: string, ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): string {
+  const digits = String(phone || '').replace(/[^\d+]/g, '');
+  const e164 = digits.startsWith('+') ? digits : digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : digits;
+  return /iPhone|iPad|iPod|Android/i.test(ua) ? `openphone://dial?number=${encodeURIComponent(e164)}&action=call` : `tel:${e164}`;
+}
+
+/** A phone number you can tap to call -- through Quo (Nov 22). */
 export function PhoneLink({ phone, style }: { phone?: string | null; style?: CSSProperties }) {
   const p = (phone || '').trim();
   if (!p || p === '—') return <>{p || '—'}</>;
   const dial = p.replace(/[^\d+]/g, '');
   if (dial.replace('+', '').length < 7) return <>{p}</>;
-  return <a href={`tel:${dial}`} onClick={(e) => e.stopPropagation()} style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px dotted currentColor', ...style }}>{p}</a>;
+  return <a href={quoCallHref(p)} title="Call through Quo" onClick={(e) => e.stopPropagation()} style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px dotted currentColor', ...style }}>{p}</a>;
 }
 
 /** An email address that opens a new message. */

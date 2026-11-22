@@ -1,17 +1,6 @@
 import { tradeLabel } from '../data/tradeCsi';
 import { ContactEmail } from '../components/ContactEmail';
 
-/**
- * Nov 22: Call dials through Quo. On a phone or tablet Quo's own link opens the
- * Quo app and dials; on a computer a tel: link opens Quo when its desktop app is
- * the computer's calling app (Quo doesn't take its app link from a web page there).
- */
-export function quoCallHref(phone: string, ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): string {
-  const digits = String(phone || '').replace(/[^\d+]/g, '');
-  const e164 = digits.startsWith('+') ? digits : digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : digits;
-  return /iPhone|iPad|iPod|Android/i.test(ua) ? `openphone://dial?number=${encodeURIComponent(e164)}&action=call` : `tel:${e164}`;
-}
-
 /** Text, Email and Call in a person's panel: one look (Nov 22). */
 const contactPill = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' } as const;
 import { TextClient } from '../components/TextClient';
@@ -25,7 +14,7 @@ import { getTheme, useTheme } from '../theme';
 import { toCsv } from '../data/csv';
 import { SubContractorSummary } from '../components/Contractors';
 import { LoginCard } from '../components/StaffAccessCards';
-import { EmailLink, PhoneLink } from '../components/ContactLinks';
+import { EmailLink, PhoneLink, quoCallHref } from '../components/ContactLinks';
 import { SaveBar, useAutosave } from '../autosave';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';

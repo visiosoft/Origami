@@ -20,7 +20,7 @@ export const RELEASES: Release[] = [
     date: '2026-11-22',
     title: 'Tidier task panel',
     items: [
-      { area: 'People', kind: 'improved', text: 'A person’s panel has Text, Email and Call together in one row, in the same style; their recent emails are listed just below. Call dials through Quo — on a phone it opens the Quo app; on a computer it uses Quo when the Quo desktop app is your calling app.', where: 'People → a person' },
+      { area: 'People', kind: 'improved', text: 'A person’s panel has Text, Email and Call together in one row, in the same style; their recent emails are listed just below. Every phone number and Call button in Origami dials through Quo — on a phone it opens the Quo app; on a computer it uses Quo when the Quo desktop app is your calling app.', where: 'People → a person' },
       { area: 'Tasks', kind: 'improved', text: 'The top of a task is one tidy row: ✓ Complete task and More ▾ on the left; a saved dot, Save & close and ✕ (close without saving) on the right. Duplicate, Convert to, Merge duplicates and Delete task are under More ▾.', where: 'Any task → More ▾' },
     ],
   },
