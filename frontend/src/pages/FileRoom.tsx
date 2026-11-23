@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ButtonBar } from '../components/ButtonBar';
 import { LazyThumb } from '../components/LazyThumb';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
@@ -666,36 +667,31 @@ export function FileRoom() {
               <option value="date:asc">Oldest first</option>
             </select>
             {pill('Latest files only', latestOnly, () => setLatestOnly((v) => !v))}
-            {canManage && !atRoot && pill('+ New Folder', false, () => setNewFolderOpen((v) => !v))}
-            {canManage && !atRoot && pill('Sent history', historyOpen, () => setHistoryOpen((v) => !v))}
-            {canManage && !atRoot && pill('Standard folders', false, async () => {
-              if (!projectId) return;
-              try {
-                const r = await api.fileRoom.applyTemplate(projectId);
-                toast(!r.template ? 'No standard folders set yet — add them under Settings → Integrations → Google Workspace' : r.created ? `Added ${r.created} standard folder${r.created === 1 ? '' : 's'}` : 'All standard folders are already here');
-                load();
-              } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not add the folders')); }
-            })}
-            {!atRoot && (
-              <div onClick={() => projectId && sync(projectId)}
-                   title="Pull in anything added to this project's Drive folder"
-                   style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: syncing ? 'progress' : 'pointer', background: 'var(--surface)', color: 'var(--body)', border: '1px solid rgba(var(--rgb-shade), 0.12)' }}>
-                {syncing ? 'Syncing…' : '⟳ Sync Drive'}
-              </div>
-            )}
             {!atRoot && (
               <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
                 {syncedLabel(data.projects.find((p) => p.id === projectId)?.syncedAt)}
               </span>
             )}
-            {canManage && !atRoot && (
-              <div onClick={() => void newSketch()} role="button" title="A blank sheet to draw on with the markup tools, kept in this project's Sketches folder"
-                   style={{ padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.16)', color: 'var(--ink)' }}>✎ Sketch</div>
-            )}
-            {canManage && (
-              <div onClick={() => setUploadOpen((v) => !v)}
-                   style={{ padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>+ Upload Files</div>
-            )}
+            {/* Nov 23 ("organize buttons"): Upload shown, the rest under More ▾. */}
+            <ButtonBar size="sm" items={[
+              { label: '+ New folder', hidden: !canManage || atRoot, onClick: () => setNewFolderOpen((v) => !v) },
+              { label: syncing ? 'Syncing Drive…' : '⟳ Sync Drive', hidden: atRoot, disabled: syncing, title: 'Pull in anything added to this project’s Drive folder', onClick: () => { if (projectId) void sync(projectId); } },
+              { label: '✎ New sketch', hidden: !canManage || atRoot, title: 'A blank sheet to draw on with the markup tools, kept in this project’s Sketches folder', onClick: () => void newSketch() },
+              { label: historyOpen ? 'Hide sent history' : 'Sent history', hidden: !canManage || atRoot, onClick: () => setHistoryOpen((v) => !v) },
+              {
+                label: 'Add standard folders', hidden: !canManage || atRoot, onClick: async () => {
+                  if (!projectId) return;
+                  try {
+                    const r = await api.fileRoom.applyTemplate(projectId);
+                    toast(!r.template ? 'No standard folders set yet — add them under Settings → Integrations → Google Workspace' : r.created ? `Added ${r.created} standard folder${r.created === 1 ? '' : 's'}` : 'All standard folders are already here');
+                    load();
+                  } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not add the folders')); }
+                },
+              },
+            ]} primary={canManage ? (
+              <button type="button" onClick={() => setUploadOpen((v) => !v)}
+                style={{ font: 'inherit', padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white', border: 0 }}>+ Upload Files</button>
+            ) : undefined} />
           </div>
 
           {newFolderOpen && !atRoot && (

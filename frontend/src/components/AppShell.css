@@ -635,6 +635,7 @@
 /* ---------- Button bar: main button + More ▾ (Nov 23) ---------- */
 .bb { display: inline-flex; gap: 8px; align-items: center; flex-wrap: nowrap; max-width: 100%; }
 .bb > * { flex-shrink: 0; }
+.bb.is-sm .ak-btn { height: 32px; padding: 0 13px; font-size: 11.5px; font-weight: 700; }
 .bb-menu {
   z-index: 1300; min-width: 230px; max-height: calc(100dvh - 100px); overflow-y: auto; max-width: calc(100vw - 24px);
   padding: 6px; border-radius: 12px; background: var(--surface); border: 1px solid rgba(var(--rgb-shade), .12);

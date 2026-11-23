@@ -1,4 +1,5 @@
 import { OpenedBadge } from '../components/OpenedBadge';
+import { ButtonBar } from '../components/ButtonBar';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
@@ -208,15 +209,20 @@ function ContractDrawer({ id, onClose, onChanged }: { id: string; onClose: () =>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}><Badge s={c.status} /><span style={{ fontSize: 12, color: 'var(--body)' }}>{c.status === 'signed' ? `Signed ${day(c.signedAt)}` : c.status === 'void' ? `Voided — ${c.voidReason}` : waitingOn(c)}</span></div>
       </div>
     }>
-      {/* Actions */}
+      {/* Actions -- Nov 23: the next step shown, the rest under More ▾. */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {isDraft && <button type="button" style={btn(true)} disabled={!!busy} onClick={() => void send()}>{busy === 'send' ? 'Sending…' : 'Send for signature'}</button>}
-        {isDraft && dirty && <button type="button" style={btn()} disabled={!!busy} onClick={() => void save()}>Save draft</button>}
-        {c.status === 'countersign' && <button type="button" style={btn(true)} onClick={() => setSigning(true)}>Sign for Origami</button>}
-        <button type="button" style={btn()} disabled={!!busy} onClick={() => void pdf(false)}>{c.status === 'signed' ? 'View signed PDF' : 'Preview PDF'}</button>
-        {c.status === 'signed' && <button type="button" style={btn()} disabled={!!busy} onClick={() => void pdf(true)}>Download</button>}
-        {c.status !== 'signed' && c.status !== 'void' && !isDraft && <button type="button" style={btn(false, true)} onClick={voidIt}>Void</button>}
-        {isDraft && <button type="button" style={btn(false, true)} onClick={del}>Delete draft</button>}
+        <ButtonBar
+          primary={isDraft ? <button type="button" style={btn(true)} disabled={!!busy} onClick={() => void send()}>{busy === 'send' ? 'Sending…' : 'Send for signature'}</button>
+            : c.status === 'countersign' ? <button type="button" style={btn(true)} onClick={() => setSigning(true)}>Sign for Origami</button>
+            : c.status === 'signed' ? <button type="button" style={btn(true)} disabled={!!busy} onClick={() => void pdf(false)}>View signed PDF</button>
+            : undefined}
+          items={[
+            { label: 'Save draft', disabled: !!busy, hidden: !(isDraft && dirty), onClick: () => void save() },
+            { label: 'Preview PDF', disabled: !!busy, hidden: c.status === 'signed', onClick: () => void pdf(false) },
+            { label: 'Download signed PDF', disabled: !!busy, hidden: c.status !== 'signed', onClick: () => void pdf(true) },
+            { label: 'Void…', danger: true, hidden: !(c.status !== 'signed' && c.status !== 'void' && !isDraft), onClick: voidIt },
+            { label: 'Delete draft', danger: true, hidden: !isDraft, onClick: del },
+          ]} />
       </div>
       {c.status === 'signed' && <div style={{ fontSize: 12.5, color: 'var(--success-deep)' }}>{c.signedFileId ? 'The signed PDF is in the project’s File Room, in Contracts.' : c.projectId ? 'The signed PDF couldn’t be filed (is Google connected?) — download it above.' : 'Download the signed PDF above.'}{c.type === 'co_owner' && c.changeOrderId ? ' The change order is marked approved by the owner.' : ''}</div>}
 

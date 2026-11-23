@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-23a',
+    date: '2026-11-23',
+    title: 'Tidier buttons, and a proper phone layout',
+    items: [
+      { area: 'Phones', kind: 'improved', text: 'Pages use the whole width of a phone: the icon strip is gone and ☰ at the top left opens the full menu. The page title shows in full; View as, Search and the theme switch are under ⋯ at the top right. Long page intros show two lines — tap to read the rest.' },
+      { area: 'Everywhere', kind: 'improved', text: 'Pages and panels show their main button, with everything else under More ▾: Meetings, Estimating, Plan & File Room, People, FOR RECORD, an RFI, a contract, a payroll run, a project’s Overview and an issued invoice.' },
+    ],
+  },
+  {
     id: '2026-11-22b',
     date: '2026-11-22',
     title: 'Drawing sets the way Edward drew them',

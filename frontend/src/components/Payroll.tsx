@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ButtonBar } from './ButtonBar';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { Employee } from './EmployeeDirectory';
@@ -230,17 +231,18 @@ function RunDetail({ runId, employees, currency, canManage, canFinance, onBack }
             {run.status === 'void' && <span style={{ fontSize: 12, color: DANGER }}>Voided by {run.voidedByName}: {run.voidReason}</span>}
           </div>
         </div>
-        {run.status === 'draft' && canManage && <>
-          <div onClick={busy ? undefined : () => { if (confirm('Delete this draft run?')) act(async () => { await api.payroll.removeRun(runId); onBack(); }, 'Draft deleted'); }} style={{ ...btn(false, busy), color: DANGER }}>Delete draft</div>
-          <div onClick={busy ? undefined : () => act(() => api.payroll.recalculate(runId), 'Recalculated')} style={btn(false, busy)}>Recalculate</div>
-        </>}
-        {run.status === 'draft' && canFinance && (
-          <div onClick={busy ? undefined : () => { if (confirm(`Finalize ${run.label}? Payslips lock, overtime is marked paid and advance/loan recoveries are booked. It can only be undone by voiding before anyone is paid.`)) act(() => api.payroll.finalize(runId), 'Finalized'); }} style={btn(true, busy)}>Finalize</div>
-        )}
-        {run.status === 'finalized' && canFinance && <>
-          {t.paid === 0 && <div onClick={busy ? undefined : () => { const reason = prompt('Why is this run being voided?'); if (reason) act(() => api.payroll.voidRun(runId, reason), 'Run voided'); }} style={{ ...btn(false, busy), color: DANGER }}>Void run</div>}
-          {t.paid < t.net && <div onClick={() => setPaying(true)} style={btn(true)}>Record payment…</div>}
-        </>}
+        {/* Nov 23: the next step shown, the rest under More ▾. */}
+        <ButtonBar
+          primary={run.status === 'draft' && canFinance
+            ? <div role="button" onClick={busy ? undefined : () => { if (confirm(`Finalize ${run.label}? Payslips lock, overtime is marked paid and advance/loan recoveries are booked. It can only be undone by voiding before anyone is paid.`)) act(() => api.payroll.finalize(runId), 'Finalized'); }} style={btn(true, busy)}>Finalize</div>
+            : run.status === 'finalized' && canFinance && t.paid < t.net
+              ? <div role="button" onClick={() => setPaying(true)} style={btn(true)}>Record payment…</div>
+              : undefined}
+          items={[
+            { label: 'Recalculate', disabled: busy, hidden: !(run.status === 'draft' && canManage), onClick: () => act(() => api.payroll.recalculate(runId), 'Recalculated') },
+            { label: 'Delete draft', danger: true, disabled: busy, hidden: !(run.status === 'draft' && canManage), onClick: () => { if (confirm('Delete this draft run?')) act(async () => { await api.payroll.removeRun(runId); onBack(); }, 'Draft deleted'); } },
+            { label: 'Void run…', danger: true, disabled: busy, hidden: !(run.status === 'finalized' && canFinance && t.paid === 0), onClick: () => { const reason = prompt('Why is this run being voided?'); if (reason) act(() => api.payroll.voidRun(runId, reason), 'Run voided'); } },
+          ]} />
       </div>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>

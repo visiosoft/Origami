@@ -1,4 +1,5 @@
 import { SiteCrews } from '../components/SiteCrews';
+import { ButtonBar } from '../components/ButtonBar';
 import { ClientApprovals } from '../components/ClientApprovals';
 import { LinkedMail } from '../components/LinkedMail';
 import { TeamBackfill } from '../components/TeamBackfill';
@@ -886,11 +887,15 @@ export function Projects() {
                 <ProjectAuditTrail key={'audit-' + sel.id} projectId={sel.id} />
                 <div style={{ padding: '20px 28px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {introLead && <TextClient entityType="project" entityId={String(sel.id)} phone={introLead.phone} clientName={introLead.leadName} projectTitle={sel.name} />}
-                  {canManage && <div onClick={() => openEdit(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'var(--forest)', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div>}
-                  <div onClick={() => setTab('phases')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)' }}>Open Phase Board</div>
-                  <div onClick={() => navigate(`/planroom?project=${sel.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'var(--surface)' }}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>Project files</div>
-                  {canManage && sel.programOff && <div onClick={() => setProgramOff(false)} title="This project doesn't use the Project Program workbook. Its answers were kept." style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px dashed rgba(var(--rgb-shade), 0.2)', color: 'var(--muted)', background: 'var(--surface)' }}>Project Program off · Turn on</div>}
-                  {canManage && <div onClick={() => deleteProject(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: 'var(--surface)', marginLeft: 'auto' }}>Delete</div>}
+                  {/* Nov 23: Edit shown, the rest under More ▾. */}
+                  <ButtonBar
+                    primary={canManage ? <div role="button" onClick={() => openEdit(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'var(--forest)', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div> : undefined}
+                    items={[
+                      { label: 'Open Phase Board', onClick: () => setTab('phases') },
+                      { label: 'Project files', onClick: () => navigate(`/planroom?project=${sel.id}`) },
+                      { label: 'Turn the Project Program on', hidden: !(canManage && sel.programOff), title: 'This project doesn’t use the Project Program workbook. Its answers were kept.', onClick: () => setProgramOff(false) },
+                      { label: 'Delete project', danger: true, hidden: !canManage, onClick: () => deleteProject(sel) },
+                    ]} />
                 </div>
               </div>
             ) : tab === 'crm' ? (

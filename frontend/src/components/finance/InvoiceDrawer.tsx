@@ -1,4 +1,5 @@
 import { PaidFromPicker } from './Funding';
+import { ButtonBar } from '../ButtonBar';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
@@ -411,10 +412,16 @@ function IssuedView({ inv, overview, onChanged, onFail, onOpen }: { inv: Invoice
         <InvoiceBadge s={inv.paymentStatus} />
         <span style={{ fontSize: 12.5, color: MUTED }}>Dated {fmtDate(inv.invoiceDate)}{!isCredit ? ` · due ${fmtDate(inv.dueDate)}` : ''}{inv.periodStart ? ` · period ${fmtDate(inv.periodStart)} – ${fmtDate(inv.periodEnd)}` : ''}</span>
         <div style={{ flex: 1 }} />
-        <div onClick={() => printInvoice(inv, overview)} style={btn()}>Print / PDF</div>
-        {live && !isCredit && r.issueInvoice && <div onClick={() => setStep('credit')} style={btn()}>Credit note</div>}
-        {live && !isCredit && r.issueInvoice && inv.outstanding > 0 && <div onClick={() => setStep('writeoff')} style={btn()}>Write off</div>}
-        {live && !isCredit && r.recordPayment && inv.outstanding > 0 && <div onClick={() => setPay({ date: todayISO(), amount: String(inv.outstanding), method: 'ach', bankRef: '', txnRef: '', notes: '' })} style={btn(true)}>Record payment received</div>}
+        {/* Nov 23: the next step shown, the rest under More ▾. */}
+        <ButtonBar
+          primary={live && !isCredit && r.recordPayment && inv.outstanding > 0
+            ? <div role="button" onClick={() => setPay({ date: todayISO(), amount: String(inv.outstanding), method: 'ach', bankRef: '', txnRef: '', notes: '' })} style={btn(true)}>Record payment received</div>
+            : undefined}
+          items={[
+            { label: 'Print / PDF', onClick: () => printInvoice(inv, overview) },
+            { label: 'Credit note…', hidden: !(live && !isCredit && r.issueInvoice), onClick: () => setStep('credit') },
+            { label: 'Write off…', danger: true, hidden: !(live && !isCredit && r.issueInvoice && inv.outstanding > 0), onClick: () => setStep('writeoff') },
+          ]} />
       </div>
       {inv.status === 'void' && (
         <div style={{ ...card, padding: '10px 14px', background: '#F7ECE6', fontSize: 12.5, color: DANGER }}>

@@ -1,4 +1,5 @@
 import { ClientApprovals } from '../components/ClientApprovals';
+import { ButtonBar } from '../components/ButtonBar';
 import { useEffect, useMemo, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
 import { createPortal } from 'react-dom';
@@ -91,13 +92,13 @@ export function Observations({ projectName }: { projectName?: string } = {}) {
     <AkPage
       lead="Observations from site, FYIs to share and decisions made — raised on their own or from a meeting, and kept on record. Link them to the tasks and change orders they drive."
       action={canAdd ? (
-        <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" className="ak-btn" onClick={() => setCreating('FYI')}>+ FYI</button>
-          <button type="button" className="ak-btn" onClick={() => setCreating('Decision')}>+ Decision</button>
-          <button type="button" className="ak-btn is-dark" onClick={() => setCreating('Observation')}>+ Observation</button>
-          <button type="button" className="ak-btn" title={signProject ? 'Send this project’s FYIs, decisions and observations to the client to sign' : 'Pick a project first'}
-            onClick={() => (signProject ? setSigning(true) : alert('Pick a project first — the client signs one project’s record at a time.'))}>Send for client signature…</button>
-        </span>
+        <ButtonBar
+          primary={<button type="button" className="ak-btn is-dark" onClick={() => setCreating('Observation')}>+ Observation</button>}
+          items={[
+            { label: '+ FYI', onClick: () => setCreating('FYI') },
+            { label: '+ Decision', onClick: () => setCreating('Decision') },
+            { label: 'Send for client signature…', title: signProject ? 'Send this project’s FYIs, decisions and observations to the client to sign' : 'Pick a project first', onClick: () => (signProject ? setSigning(true) : alert('Pick a project first — the client signs one project’s record at a time.')) },
+          ]} />
       ) : undefined}
     >
       <AkStats items={[
