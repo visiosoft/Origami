@@ -3066,6 +3066,14 @@ export class EstimateEntity extends FinanceStamped {
   @Column({ type: 'simple-json', nullable: true }) areas!: EstimateAreas | null;
   @Column({ type: 'simple-json', nullable: true }) columns!: EstimateColumn[] | null;
   @Column({ type: 'simple-json', nullable: true }) payments!: EstimatePayment[] | null;
+  /**
+   * Nov 23 (Edward p30, the roll-up): which building of the project this
+   * estimate prices (projects.structures key, e.g. Main house / ADU) and who
+   * pays for it (a funding source, e.g. the bank loan or owner cash). Kept on
+   * every revision of the number; null = the whole project / not set.
+   */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) structureKey!: string | null;
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) fundingSourceId!: string | null;
 }
 
 @Entity('estimate_scopes')

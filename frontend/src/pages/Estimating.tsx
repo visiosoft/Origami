@@ -16,7 +16,9 @@ import { JobSetup } from '../components/estimate/JobSetup';
 import { BidPackages } from '../components/estimate/BidPackages';
 import { money } from '../data/estimateCalc';
 
-interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number; valid?: boolean }
+interface Row { id: string; number: string; rev: number; title?: string | null; status: string; estimateDate?: string | null; sentAt?: string | null; updatedAt?: string | null; totalProject: number; valid?: boolean; structureKey?: string | null; fundingSourceId?: string | null }
+/** Nov 23 (Edward p30): what an estimate can be tagged with. */
+interface TagOptions { structures: { key: string; name: string }[]; funding: { id: string; name: string }[] }
 interface Project { id: number; name: string; status?: string; stage?: string | null }
 
 /** The start page groups projects by where they are (Nov 13): CRM, Design, Precon, Construction. */
@@ -93,6 +95,9 @@ export function Estimating() {
   // Nov 19 (Edward): which projects already have an estimate -- shown as a badge on the start page.
   const [estOf, setEstOf] = useState<Map<number, { count: number; last: string; status: string }>>(new Map());
   const [estFailed, setEstFailed] = useState(false);
+  const [tagOpts, setTagOpts] = useState<TagOptions>({ structures: [], funding: [] });
+  /** "ADU · Bank loan" for an estimate row. */
+  const tagLabel = (r: Pick<Row, 'structureKey' | 'fundingSourceId'>) => [tagOpts.structures.find((x) => x.key === r.structureKey)?.name, tagOpts.funding.find((x) => x.id === r.fundingSourceId)?.name].filter(Boolean).join(' · ');
   useEffect(() => {
     if (projectId) return;
     (api.finance.estimatesAll() as Promise<any>).then((r) => {
@@ -107,7 +112,7 @@ export function Estimating() {
   }, [projectId]);
   const load = useCallback(() => {
     if (!projectId) { setRows(null); return; }
-    api.finance.estimates(projectId).then((r: any) => { setRows(r?.rows || []); setRights(r?.rights || { view: false, edit: false }); }).catch((e: any) => { setRows([]); toast(e?.message || 'Could not load estimates.'); });
+    api.finance.estimates(projectId).then((r: any) => { setRows(r?.rows || []); setRights(r?.rights || { view: false, edit: false }); setTagOpts({ structures: r?.structures || [], funding: r?.funding || [] }); }).catch((e: any) => { setRows([]); toast(e?.message || 'Could not load estimates.'); });
   }, [projectId, toast]);
   useEffect(load, [load]);
   const loadTemplates = useCallback(() => { api.finance.estimateTemplates().then((r: any) => { setTemplates(r?.rows || []); setRights(r?.rights || { view: false, edit: false }); }).catch(() => setTemplates([])); }, []);
@@ -213,6 +218,29 @@ export function Estimating() {
             {siblings.map((s) => <option key={s.id} value={s.id}>Rev {s.rev} · {s.status === 'sent' ? 'shared' : s.status}</option>)}
           </select>
         )}
+        {current && (tagOpts.structures.length > 0 || tagOpts.funding.length > 0) && (() => {
+          // Nov 23 (Edward p30): the building this estimate prices and who pays -- for the roll-up and setting up the job.
+          const locked = !rights.edit || siblings.some((x) => x.status === 'accepted');
+          const setTag = (d: { structureKey?: string | null; fundingSourceId?: string | null }) => void act(() => api.finance.estimateTags(projectId, current.id, d), () => toast('Saved — every revision of ' + current.number + ' carries it'));
+          return (
+            <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              {tagOpts.structures.length > 0 && (
+                <select aria-label="Building" title={locked ? 'Fixed once accepted' : 'Which building this estimate prices'} className="eg-btn" disabled={locked || busy}
+                  value={current.structureKey || ''} onChange={(e) => setTag({ structureKey: e.target.value || null })}>
+                  <option value="">Building: whole project</option>
+                  {tagOpts.structures.map((x) => <option key={x.key} value={x.key}>Building: {x.name}</option>)}
+                </select>
+              )}
+              {tagOpts.funding.length > 0 && (
+                <select aria-label="Paid by" title={locked ? 'Fixed once accepted' : 'Who pays for this estimate'} className="eg-btn" disabled={locked || busy}
+                  value={current.fundingSourceId || ''} onChange={(e) => setTag({ fundingSourceId: e.target.value || null })}>
+                  <option value="">Paid by: not set</option>
+                  {tagOpts.funding.map((x) => <option key={x.id} value={x.id}>Paid by: {x.name}</option>)}
+                </select>
+              )}
+            </span>
+          );
+        })()}
         {current && (
           <span role="tablist" aria-label="Sheet or letter" style={{ display: 'inline-flex', gap: 4 }}>
             {(['sheet', 'letter'] as const).map((k) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`eg-btn${tab === k ? ' is-on' : ''}`} onClick={async () => { await grid.current?.flush(); setTab(k); setReload((n) => n + 1); }}>{k === 'sheet' ? 'Sheet' : 'Letter'}</button>)}
@@ -293,7 +321,7 @@ export function Estimating() {
                       onClick={() => void act(() => api.finance.estimateValid(projectId, r.id, !r.valid), () => setRows((x) => (x || []).map((y) => (y.id === r.id ? { ...y, valid: !r.valid } : y))))}
                       style={{ border: 0, background: 'none', fontSize: 18, cursor: rights.edit ? 'pointer' : 'default', color: r.valid ? '#C98A00' : 'var(--muted)' }}>{r.valid ? '★' : '☆'}</button>
                   </td>
-                  <td style={{ padding: '10px 14px' }}><b style={{ color: 'var(--ink)' }}>{r.number} · Rev {r.rev}</b> <span style={{ color: 'var(--muted)' }}>{r.title}</span></td>
+                  <td style={{ padding: '10px 14px' }}><b style={{ color: 'var(--ink)' }}>{r.number} · Rev {r.rev}</b> <span style={{ color: 'var(--muted)' }}>{r.title}</span>{tagLabel(r) && <span className="eg-tag" title="Building · Paid by">{tagLabel(r)}</span>}</td>
                   <td>{waitChip(r)}</td>
                   <td style={{ color: 'var(--muted)' }}>{r.estimateDate || ''}</td>
                   <td className="is-num" style={{ paddingRight: 14, fontWeight: 600, color: 'var(--ink)' }}>{money(Math.round(r.totalProject * 100))}</td>

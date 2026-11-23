@@ -214,3 +214,5 @@ tr.eg-scope td { background: var(--eg-head); border-top: 2px solid rgba(var(--rg
 .bp-st { font-size: 10.5px; font-weight: 600; color: var(--muted); text-transform: none; }
 .bp-low { color: rgb(var(--rgb-success-deep)); }
 .bp-copy { padding: 2px 8px; font-size: 11px; margin-top: 2px; }
+/* Nov 23 (Edward p30): an estimate's building · paid-by chip in the list. */
+.eg-tag { display: inline-block; margin-left: 8px; padding: 2px 9px; border-radius: 999px; background: var(--c-e7f0e8, #E7F0E8); color: var(--c-1e6b36, #1E6B36); font-size: 11px; font-weight: 700; vertical-align: 1px; white-space: nowrap; }

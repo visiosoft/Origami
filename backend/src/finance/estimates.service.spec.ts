@@ -299,3 +299,29 @@ describe('estimates', () => {
   });
 });
 
+
+describe('estimate tags (Nov 23, Edward p30)', () => {
+  it('tags every revision with the building and who pays; checks both belong to the project; fixed once accepted', async () => {
+    const { svc, s } = setup();
+    (svc as any).projects = { findOne: async (o: any) => ({ id: o.where.id, name: 'Countryside', structures: [{ key: 'main', name: 'Main house' }, { key: 'adu', name: 'ADU' }] }) };
+    (svc as any).db.getRepository = () => ({ findOne: async (o: any) => (o.where.id === 'fs-bank' ? { id: 'fs-bank', projectId: 7 } : o.where.id === 'fs-other' ? { id: 'fs-other', projectId: 8 } : null) });
+    const e = await svc.create(7, { title: 'ADU' }, actor);
+    await svc.markSent(7, e.estimate.id, actor).catch(() => undefined);
+    const rows = s.t(EstimateEntity); rows[0].status = 'sent';
+    const r2 = await svc.revise(7, e.estimate.id, actor);
+    expect(await svc.setTags(7, r2.estimate.id, { structureKey: 'adu', fundingSourceId: 'fs-bank' }, actor)).toMatchObject({ number: 'EST-001', structureKey: 'adu', fundingSourceId: 'fs-bank' });
+    expect(s.t(EstimateEntity).map((x) => [x.rev, x.structureKey, x.fundingSourceId])).toEqual([[1, 'adu', 'fs-bank'], [2, 'adu', 'fs-bank']]);
+    const listed = await svc.list(7, actor);
+    expect(listed.rows[0]).toMatchObject({ structureKey: 'adu', fundingSourceId: 'fs-bank' });
+    await expect(svc.setTags(7, r2.estimate.id, { structureKey: 'garage' }, actor)).rejects.toThrow(/building/);
+    await expect(svc.setTags(7, r2.estimate.id, { fundingSourceId: 'fs-other' }, actor)).rejects.toThrow(/funding source/);
+    // A revision keeps the tags; a new estimate copied from it starts without them.
+    rows.find((x) => x.rev === 2)!.status = 'sent';
+    const r3 = await svc.revise(7, r2.estimate.id, actor);
+    expect(r3.estimate).toMatchObject({ structureKey: 'adu', fundingSourceId: 'fs-bank' });
+    const copy = await svc.create(7, { fromId: r3.estimate.id }, actor);
+    expect(copy.estimate).toMatchObject({ structureKey: null, fundingSourceId: null });
+    s.t(EstimateEntity).find((x) => x.rev === 3)!.status = 'accepted';
+    await expect(svc.setTags(7, r3.estimate.id, { structureKey: 'main' }, actor)).rejects.toThrow(/accepted/);
+  });
+});

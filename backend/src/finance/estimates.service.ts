@@ -4,7 +4,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository, type EntityManager } from 'typeorm';
 import {
-  EstimateEntity, EstimateGrLineEntity, EstimateLineEntity, EstimateScopeEntity, ProjectEntity,
+  EstimateEntity, EstimateGrLineEntity, EstimateLineEntity, EstimateScopeEntity, FundingSourceEntity, ProjectEntity,
   type EstimateColumn, type EstimatePayment,
 } from '../database/entities';
 import { ManpowerAccess, type Actor } from '../manpower/manpower-access.service';
@@ -202,7 +202,7 @@ export class EstimatesService {
     const src = await this.source(fromId, canSee);
     const sheet = await this.sheetOf(src.id);
     const e = this.estimates.create({
-      ...this.settingsOf(src), id: newId('est'), projectId, number: await this.nextNumber(projectId), rev: 1, isTemplate: false, status: 'draft', revisionOf: null,
+      ...this.settingsOf(src), structureKey: null, fundingSourceId: null, id: newId('est'), projectId, number: await this.nextNumber(projectId), rev: 1, isTemplate: false, status: 'draft', revisionOf: null,
       title: title || (src.isTemplate ? `${projectName || 'Estimate'} — ${src.title || 'from template'}` : src.title), estimateDate: todayISO(), preparedById: actor.id || null,
       sentAt: null, frozenAt: null, acceptedAt: null, acceptedBy: null, createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
     });
@@ -235,7 +235,7 @@ export class EstimatesService {
     if (!title) throw new BadRequestException('Give the template a name.');
     const src = dto?.fromId ? await this.source(String(dto.fromId), canSee) : null;
     const t = this.estimates.create({
-      ...(src ? this.settingsOf(src) : { grPct: 17, profitPct: 12, contingencyPct: 5, glPct: null, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null, columns: [], payments: [], areas: null }),
+      ...(src ? { ...this.settingsOf(src), structureKey: null, fundingSourceId: null } : { grPct: 17, profitPct: 12, contingencyPct: 5, glPct: null, showGrDetail: true, showDiscount: false, showDesignCost: false, discount: null, designCost: null, columns: [], payments: [], areas: null }),
       id: newId('est'), projectId: 0, number: 'TPL', rev: 1, isTemplate: true, status: 'draft', title, revisionOf: null, estimateDate: null,
       sentAt: null, frozenAt: null, acceptedAt: null, acceptedBy: null, createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
     });
@@ -297,18 +297,24 @@ export class EstimatesService {
 
   async list(projectId: number, actor: Actor) {
     await this.need(actor, 'view');
-    await this.project(projectId);
+    const project = await this.project(projectId);
     const rows = await this.estimates.find({ where: { projectId, isTemplate: false }, order: { number: 'ASC', rev: 'DESC' } });
     const out = [];
     for (const e of rows) {
       const t = resultOf(e, await this.sheetOf(e.id)).totals;
-      out.push({ id: e.id, number: e.number, rev: e.rev, title: e.title, status: e.status, valid: !!e.valid, estimateDate: e.estimateDate, sentAt: e.sentAt, acceptedAt: e.acceptedAt, updatedAt: e.updatedAt, totalProject: fromCents(t.totalProject), totalBuild: fromCents(t.totalBuild),
+      out.push({ id: e.id, number: e.number, rev: e.rev, title: e.title, status: e.status, valid: !!e.valid, structureKey: e.structureKey || null, fundingSourceId: e.fundingSourceId || null, estimateDate: e.estimateDate, sentAt: e.sentAt, acceptedAt: e.acceptedAt, updatedAt: e.updatedAt, totalProject: fromCents(t.totalProject), totalBuild: fromCents(t.totalBuild),
         // Nov 17 (Financials -> Precon): the design / precon fee and the high end of the range.
         designCost: fromCents(t.designCost), high: fromCents(t.high) });
     }
     const rights = await this.rights(actor);
     if (!rights.money.total) for (const r of out) { (r as any).totalProject = null; (r as any).totalBuild = null; (r as any).designCost = null; (r as any).high = null; }
-    return { rights, rows: out };
+    // Nov 23 (Edward p30): what an estimate can be tagged with -- the project's buildings and funding sources.
+    let funding: { id: string; name: string }[] = [];
+    try {
+      const repo: any = this.db.getRepository(FundingSourceEntity);
+      funding = ((await repo.find({ where: { projectId }, order: { sortOrder: 'ASC' } })) || []).map((f: FundingSourceEntity) => ({ id: f.id, name: f.name }));
+    } catch { funding = []; }
+    return { rights, rows: out, structures: project.structures || [], funding };
   }
 
   /** Nov 19 (Edward): several estimates of this project side by side, trade by trade (low / high and the changes). */
@@ -347,6 +353,29 @@ export class EstimatesService {
     e.valid = !!valid;
     await this.estimates.save(e);
     return { id: e.id, valid: e.valid };
+  }
+
+  /**
+   * Nov 23 (Edward p30): tag an estimate with the building it prices and who
+   * pays for it. Applies to every revision of the number; fixed once accepted.
+   */
+  async setTags(projectId: number, id: string, dto: { structureKey?: string | null; fundingSourceId?: string | null }, actor: Actor) {
+    await this.need(actor, 'edit');
+    const e = await this.one(projectId, id);
+    if (e.isTemplate) throw new BadRequestException('Templates have no building or funding.');
+    const same = await this.estimates.find({ where: { projectId, number: e.number, isTemplate: false } });
+    if (same.some((x) => x.status === 'accepted')) throw new ConflictException(`${e.number} was accepted; its building and funding are fixed.`);
+    const p = await this.project(projectId);
+    const key = dto.structureKey === undefined ? e.structureKey : (dto.structureKey || null);
+    if (key && !(p.structures || []).some((x) => x.key === key)) throw new BadRequestException('That building isn’t one of this project’s.');
+    const fund = dto.fundingSourceId === undefined ? e.fundingSourceId : (dto.fundingSourceId || null);
+    if (fund) {
+      const src = await this.db.getRepository(FundingSourceEntity).findOne({ where: { id: fund } }).catch(() => null);
+      if (!src || src.projectId !== projectId) throw new BadRequestException('That funding source isn’t one of this project’s.');
+    }
+    for (const x of same) { x.structureKey = key; x.fundingSourceId = fund; x.updatedAt = now(); x.updatedBy = actor.name; }
+    await this.estimates.save(same);
+    return { number: e.number, structureKey: key, fundingSourceId: fund };
   }
 
   /**

@@ -1317,6 +1317,8 @@ export const api = {
     markEstimateAccepted: (projectId: number, id: string, signer: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/accepted`, { method: 'POST', body: JSON.stringify({ signer }) }),
     /** Nov 19: valid for Financials -> Precon (several can be), and an estimate's subcontracted lines by sub. */
     estimatesCompare: (projectId: number, ids: string[]) => request<any>(`/finance/projects/${projectId}/estimates-compare?ids=${ids.map(encodeURIComponent).join(',')}`),
+    /** Nov 23 (Edward p30): the building an estimate prices and who pays for it (all revisions of its number). */
+    estimateTags: (projectId: number, id: string, d: { structureKey?: string | null; fundingSourceId?: string | null }) => request<{ number: string; structureKey: string | null; fundingSourceId: string | null }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/tags`, { method: 'PUT', body: JSON.stringify(d) }),
     estimateValid: (projectId: number, id: string, valid: boolean) => request<{ id: string; valid: boolean }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/valid`, { method: 'PUT', body: JSON.stringify({ valid }) }),
     estimateSubLines: (projectId: number, id: string) => request<{ contractorId: string | null; sub: string; scopes: string[]; lines: number; cost: number | null }[]>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/sub-lines`),
     sendEstimate: (projectId: number, id: string, d: { to?: string; cc?: string; note?: string }) => request<{ sent: boolean; to: string }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
