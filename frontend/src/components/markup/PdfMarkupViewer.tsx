@@ -1,4 +1,5 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SymbolPalette } from './SymbolPalette';
 import { createPortal } from 'react-dom';
 import { api } from '../../api';
 import { DrawingSetBanner, DrawingSetSection, isReviewLayer, useDrawingState } from './DrawingSetPanel';
@@ -179,6 +180,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const [symbols, setSymbols] = useState<MarkupSymbol[]>([]);
   const symbolMap = useMemo(() => Object.fromEntries(symbols.map((x) => [x.id, x])), [symbols]);
   const [symbolId, setSymbolIdState] = useState<string>(() => { try { return localStorage.getItem('origami.markup.symbol') || ''; } catch { return ''; } });
+  /** Nov 23: the ◆ tool's picture palette. */
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const symbolToolRef = useRef<HTMLSpanElement>(null);
   const pickSymbol = (id: string) => { setSymbolIdState(id); try { localStorage.setItem('origami.markup.symbol', id); } catch { /* private window */ } };
   const canKeepSymbols = authUser?.roleKey === 'admin';
   /** Sheet numbers by page ("1": "A100"), read from the title blocks and correctable (Oct 31). */
@@ -567,6 +571,19 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       if (selectedId === m.id) setSelectedId(null);
       if (record) { undo.current.push({ type: 'remove', before: m }); redo.current = []; }
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not deleted')); }
+  };
+
+  /** Nov 23: a symbol picked from the palette goes in the middle of what's on screen, selected to drag or resize. */
+  const dropSymbol = async (id: string) => {
+    pickSymbol(id); setTool('symbol'); setDraft(null); setPaletteOpen(false);
+    const sym = symbols.find((x) => x.id === id);
+    const r = svg.current?.getBoundingClientRect(), v = scroller.current?.getBoundingClientRect();
+    if (!sym || !r || !v || !size || !r.width || !r.height) return;
+    const cx = Math.min(1, Math.max(0, ((Math.max(r.left, v.left) + Math.min(r.right, v.right)) / 2 - r.left) / r.width));
+    const cy = Math.min(1, Math.max(0, ((Math.max(r.top, v.top) + Math.min(r.bottom, v.bottom)) / 2 - r.top) / r.height));
+    const half = STAMP_DEFAULT / 2, halfH = (STAMP_DEFAULT * size.w) / size.h / 2;
+    const m = await save('symbol', { points: [[cx - half, cy - halfH], [cx + half, cy + halfH]], color, width: 1, symbolId: sym.id, label: sym.name });
+    if (m) { setSelectedId(m.id); toast(`${sym.name} added — drag it into place, or click the drawing to add more`); }
   };
 
   /** Add a symbol to the library (admins): shrunk to 256 px and kept as a PNG. */
@@ -1309,7 +1326,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   // ---------------------------------------------------------------- phones (Nov 4)
   // The tool each group last used: tapping the group again picks it straight away.
   const toolInfo = (k: string) => TOOLS.find((t) => t.key === k);
-  const pickTool = (k: string) => { setTool(k as Tool); setDraft(null); setLastInGroup((g) => ({ ...g, [groupOfTool(k)]: k })); setBs(null); };
+  const pickTool = (k: string) => { setTool(k as Tool); setDraft(null); setLastInGroup((g) => ({ ...g, [groupOfTool(k)]: k })); setBs(null); if (k === 'symbol') setPaletteOpen(true); };
   const groups = TOOL_GROUPS.filter((g) => canDraw || g.key === 'select' || g.key === 'pan');
   const phoneBar = (
     <>
@@ -1457,12 +1474,29 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
 
       <div className="mk-body">
         <nav className="mk-tools" aria-label="Markup tools">
+          {paletteOpen && canDraw && (
+            <SymbolPalette anchor={phone ? null : symbolToolRef.current} symbols={symbols} selectedId={symbolMap[symbolId] ? symbolId : ''} canKeep={canKeepSymbols}
+              onPick={(id) => void dropSymbol(id)} onAdd={(f) => void addSymbol(f)} onManage={() => { setPaletteOpen(false); setAsk({ kind: 'symbols' }); }}
+              onClose={() => setPaletteOpen(false)} />
+          )}
           {phone ? phoneBar : <>
           {TOOLS.filter((t) => canDraw || t.group === 'nav').map((t, i, arr) => (
             <span key={t.key} style={{ display: 'contents' }}>
               {i > 0 && arr[i - 1].group !== t.group && <i className="mk-sep" />}
-              <button type="button" className={'mk-tool' + (tool === t.key ? ' is-on' : '')} title={t.label} aria-label={t.label} aria-pressed={tool === t.key}
-                onClick={() => { setTool(t.key); setDraft(null); }}>{t.icon}</button>
+              {t.key === 'symbol' ? (
+                // Nov 23: ◆ plus ▾ -- the symbols as pictures; picking one puts it on the drawing.
+                <span ref={symbolToolRef} className="mk-tool-split">
+                  <button type="button" className={'mk-tool' + (tool === t.key ? ' is-on' : '')} title={symbolMap[symbolId] ? `Symbol: ${symbolMap[symbolId].name} — click the drawing to drop it` : t.label} aria-label={t.label} aria-pressed={tool === t.key}
+                    onClick={() => { setTool(t.key); setDraft(null); if (tool !== 'symbol') setPaletteOpen(true); }}>
+                    {tool === 'symbol' && symbolMap[symbolId] ? <img className="mk-tool-symbol" src={symbolMap[symbolId].image} alt="" /> : t.icon}
+                  </button>
+                  <button type="button" className={'mk-tool-caret' + (paletteOpen ? ' is-open' : '')} aria-label="Choose a symbol" aria-haspopup="dialog" aria-expanded={paletteOpen}
+                    title="Choose a symbol" onClick={() => setPaletteOpen((v) => !v)}>▾</button>
+                </span>
+              ) : (
+                <button type="button" className={'mk-tool' + (tool === t.key ? ' is-on' : '')} title={t.label} aria-label={t.label} aria-pressed={tool === t.key}
+                  onClick={() => { setTool(t.key); setDraft(null); }}>{t.icon}</button>
+              )}
             </span>
           ))}
           </>}
@@ -1480,18 +1514,6 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             <i className="mk-sep" />
             <button type="button" className="mk-tool" title="Undo (Ctrl+Z)" aria-label="Undo" onClick={() => void step(true)}>↶</button>
             <button type="button" className="mk-tool" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" onClick={() => void step(false)}>↷</button>
-          </>}
-          {canDraw && tool === 'symbol' && <>
-            <i className="mk-sep" />
-            <select aria-label="Symbol" title={symbolMap[symbolId]?.name || 'Which symbol'} value={symbolMap[symbolId] ? symbolId : (symbols[0]?.id || '')} onChange={(e) => pickSymbol(e.target.value)}>
-              {!symbols.length && <option value="">None yet</option>}
-              {symbols.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-            </select>
-            {(symbolMap[symbolId] || symbols[0]) && <img className="mk-symbol-preview" src={(symbolMap[symbolId] || symbols[0]).image} alt="" title={(symbolMap[symbolId] || symbols[0]).name} />}
-            {canKeepSymbols && <>
-              <label className="mk-tool mk-symbol-add" title="Add a symbol (PNG, JPG or SVG)" aria-label="Add a symbol">＋<input type="file" accept="image/png,image/jpeg,image/svg+xml" hidden onChange={(e) => { void addSymbol(e.target.files?.[0]); e.target.value = ''; }} /></label>
-              {symbols.length > 0 && <button type="button" className="mk-tool" title="Rename or delete symbols" aria-label="Manage symbols" onClick={() => setAsk({ kind: 'symbols' })}>⚙</button>}
-            </>}
           </>}
           {canDraw && tool === 'stamp' && <>
             <i className="mk-sep" />

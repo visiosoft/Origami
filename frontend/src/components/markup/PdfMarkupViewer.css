@@ -298,3 +298,29 @@
 .mk-spin.is-light { border-color: rgba(255, 255, 255, 0.9); border-right-color: transparent; }
 @keyframes mk-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mk-spin { animation-duration: 2s; } }
+
+/* Nov 23: ◆ ▾ and the symbol palette (pictures; picking one puts it on the drawing). */
+.mk-tool-split { display: inline-flex; flex-direction: column; align-items: center; gap: 0; }
+.mk-tools > .mk-tool-split, .mk-tools span > .mk-tool-split { flex-shrink: 0; }
+.mk-tool-caret { width: 36px; height: 14px; margin-top: -2px; border: 0; border-radius: 0 0 7px 7px; background: transparent; color: var(--muted); font-size: 10px; line-height: 1; cursor: pointer; padding: 0; }
+.mk-tool-caret:hover, .mk-tool-caret.is-open { background: var(--panel); color: var(--ink); }
+.mk-tool-symbol { width: 24px; height: 24px; object-fit: contain; background: #fff; border-radius: 4px; }
+.mk-palette { position: fixed; z-index: 1400; width: min(360px, calc(100vw - 24px)); max-height: min(460px, calc(100dvh - 24px)); display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 48px rgba(var(--rgb-ink), 0.22); overflow: hidden; }
+.mk-palette-head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 8px 14px; border-bottom: 1px solid var(--border); }
+.mk-palette-head b { font-size: 13.5px; color: var(--ink); }
+.mk-palette-head input { flex: 1; min-width: 0; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font: inherit; font-size: 12.5px; }
+.mk-palette-x { width: 28px; height: 28px; border: 0; border-radius: 999px; background: transparent; font-size: 18px; color: var(--muted); cursor: pointer; }
+.mk-palette-x:hover { background: var(--panel); color: var(--ink); }
+.mk-palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; padding: 10px; overflow-y: auto; }
+.mk-palette-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px 6px; border: 1px solid transparent; border-radius: 10px; background: transparent; cursor: pointer; font: inherit; color: var(--ink); }
+.mk-palette-item img { width: 40px; height: 40px; object-fit: contain; background: #fff; border-radius: 6px; }
+.mk-palette-item span { font-size: 10.5px; line-height: 1.2; text-align: center; color: var(--body); }
+.mk-palette-item:hover { background: var(--panel); }
+.mk-palette-item.is-on { border-color: var(--ink); background: var(--panel); }
+.mk-palette-empty { padding: 18px 14px; font-size: 12.5px; color: var(--muted); }
+.mk-palette-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--muted); }
+.mk-palette-foot > span:first-child { flex: 1 1 160px; }
+.mk-palette-admin { display: inline-flex; gap: 6px; }
+.mk-palette-btn { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font: inherit; font-size: 11.5px; font-weight: 700; color: var(--ink); cursor: pointer; }
+.mk-palette-btn:hover { background: var(--panel); }

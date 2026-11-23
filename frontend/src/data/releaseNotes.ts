@@ -20,6 +20,7 @@ export const RELEASES: Release[] = [
     date: '2026-11-23',
     title: 'Access grid: one kind of control, scrollbar on top',
     items: [
+      { area: 'Drawings', kind: 'improved', text: 'Symbols are now pictures: press ▾ under the ◆ tool (or pick Symbol on a phone) to see them all, find one by name, and pick it — it goes straight onto the drawing, in the middle of what you’re looking at, ready to drag into place. Click the drawing to add more of the same. Admins add and manage symbols from the same box.', where: 'A drawing → ◆ ▾' },
       { area: 'User access', kind: 'improved', text: 'Finance actions (Prepare invoices, Approve invoices…) use the same coloured dropdown as the rows above — Yes or No, or ↳ to follow Project Finance — instead of on/off switches.', where: 'Admin → User Access & Roles' },
       { area: 'User access', kind: 'improved', text: 'The roles grid has a sideways scrollbar at the top as well as the bottom, so you can move across without scrolling to the end of the list.', where: 'Admin → User Access & Roles' },
       { area: 'Everywhere', kind: 'improved', text: 'More panels show their next step with the rest under More ▾: a lead, a change order, a draft invoice and the daily report footer.' },
