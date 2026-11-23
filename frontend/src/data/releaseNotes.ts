@@ -23,6 +23,7 @@ export const RELEASES: Release[] = [
       { area: 'User access', kind: 'improved', text: 'Finance actions (Prepare invoices, Approve invoices…) use the same coloured dropdown as the rows above — Yes or No, or ↳ to follow Project Finance — instead of on/off switches.', where: 'Admin → User Access & Roles' },
       { area: 'User access', kind: 'improved', text: 'The roles grid has a sideways scrollbar at the top as well as the bottom, so you can move across without scrolling to the end of the list.', where: 'Admin → User Access & Roles' },
       { area: 'Everywhere', kind: 'improved', text: 'More panels show their next step with the rest under More ▾: a lead, a change order, a draft invoice and the daily report footer.' },
+      { area: 'Drawings', kind: 'improved', text: 'The save state sits right next to “Save marked-up copy”: a spinner and “Saving…” while a markup saves, “✓ Saved” when it’s done, “⚠ Not saved” if it failed. The button itself shows a spinner and “Saving copy…” while the copy is made.', where: 'A drawing → top bar' },
     ],
   },
   {

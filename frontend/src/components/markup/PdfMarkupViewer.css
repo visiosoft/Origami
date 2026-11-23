@@ -288,3 +288,13 @@
 .mk-pickbar-do { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .mk-list li.is-picked { background: rgba(37, 99, 235, 0.08); }
 .mk-list li > input[type="checkbox"] { margin: 2px 2px 0 0; flex-shrink: 0; pointer-events: none; }
+
+/* Nov 23: the save state sits next to "Save marked-up copy" -- spinner while saving, red if a save failed. */
+.mk-saved { display: inline-flex; align-items: center; gap: 6px; }
+.mk-saved.is-saving { color: var(--muted, #6b6b66); }
+.mk-saved.is-failed { color: #8E2E0A; }
+.mk-spin { display: inline-block; width: 12px; height: 12px; border-radius: 999px; border: 2px solid currentColor; border-right-color: transparent; animation: mk-spin 0.7s linear infinite; vertical-align: -2px; margin-right: 6px; flex-shrink: 0; }
+.mk-saved .mk-spin { margin-right: 0; }
+.mk-spin.is-light { border-color: rgba(255, 255, 255, 0.9); border-right-color: transparent; }
+@keyframes mk-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .mk-spin { animation-duration: 2s; } }

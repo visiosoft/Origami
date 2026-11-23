@@ -147,6 +147,15 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const [selectedId, setSelectedId] = useState<string | null>(focusMarkupId || null);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Nov 23: markups being saved right now, and whether the last save failed -- shown next to "Save marked-up copy". */
+  const [savingMarks, setSavingMarks] = useState(0);
+  const [markSaveFailed, setMarkSaveFailed] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const tracked = <T,>(p: Promise<T>): Promise<T> => {
+    setSavingMarks((n) => n + 1);
+    return p.then((v) => { setMarkSaveFailed(false); return v; }, (e) => { setMarkSaveFailed(true); throw e; })
+      .finally(() => setSavingMarks((n) => Math.max(0, n - 1)));
+  };
   const [stampIcon, setStampIcon] = useState<string>(() => { try { return localStorage.getItem('origami.markup.stamp') || 'check'; } catch { return 'check'; } });
   const pickStamp = (k: string) => { setStampIcon(k); try { localStorage.setItem('origami.markup.stamp', k); } catch { /* private window */ } };
   const [textSize, setTextSize] = useState<number>(() => { try { return Number(localStorage.getItem('origami.markup.textSize')) || 12; } catch { return 12; } });
@@ -533,7 +542,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         }
         if (useLayer) setLayer(useLayer);
       }
-      const m = await api.fileRoom.addMarkup(file.id, { kind, page, data, private: privateDraft, layer: useLayer || null, ...forRfi });
+      const m = await tracked(api.fileRoom.addMarkup(file.id, { kind, page, data, private: privateDraft, layer: useLayer || null, ...forRfi }));
       setMarks((prev) => [...prev, m]);
       undo.current.push({ type: 'add', after: m });
       redo.current = [];
@@ -545,7 +554,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const replace = (m: Markup) => setMarks((prev) => prev.map((x) => (x.id === m.id ? m : x)));
   const editMarkup = async (m: Markup, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer'>>, record = true) => {
     try {
-      const saved = await api.fileRoom.editMarkup(m.id, patch);
+      const saved = await tracked(api.fileRoom.editMarkup(m.id, patch));
       replace(saved);
       if (record) { undo.current.push({ type: 'edit', before: m, after: saved }); redo.current = []; }
       return saved;
@@ -553,7 +562,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   };
   const removeMarkup = async (m: Markup, record = true) => {
     try {
-      await api.fileRoom.removeMarkup(m.id);
+      await tracked(api.fileRoom.removeMarkup(m.id));
       setMarks((prev) => prev.filter((x) => x.id !== m.id));
       if (selectedId === m.id) setSelectedId(null);
       if (record) { undo.current.push({ type: 'remove', before: m }); redo.current = []; }
@@ -1099,13 +1108,13 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     finally { setBusy(false); }
   };
   const saveCopy = async () => {
-    setBusy(true);
+    setBusy(true); setCopying(true);
     try {
       const f = await api.fileRoom.saveMarkedUpCopy(file.id, hidden.size ? visibleLayers : undefined);
       toast(`Saved “${f.name}” beside the drawing. The drawing itself is unchanged and your markups stay editable — delete the copy any time to go back.`);
       onSavedCopy?.();
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not saved')); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setCopying(false); }
   };
 
   // Email the markups (Nov 3 sync): a marked-up copy is saved beside the drawing and its link emailed.
@@ -1392,7 +1401,6 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             {layer === rfiDraft.layer ? `✎ ${rfiDraft.number} draft · our team only` : `${rfiDraft.number}: switch to its layer to add callouts`}
           </span>
         )}
-        {canDraw && marks.length > 0 && <span className="mk-saved" title="Each markup is saved as soon as it’s drawn">✓ Saved</span>}
         <div className="mk-pages">
           {!phone && <button type="button" className="mk-btn" disabled={pageNo <= 1} onClick={() => setPageNo(pageNo - 1)} aria-label="Previous page">‹</button>}
           {(Object.keys(sheets).length > 0 || pages > 1) && pages > 0 ? (
@@ -1434,7 +1442,13 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         <span className="mk-spacer" />
         {!coarse && <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={download} title="The PDF with the layers you’re showing drawn in">Download marked-up PDF</button>}
         {canEmail && !coarse && <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={() => setEmailing({ to: '', note: '' })} title="Saves a marked-up copy and emails a link to it">Email</button>}
-        {canDraw && !coarse && <button type="button" className="mk-btn is-text is-dark" disabled={busy || !marks.length} onClick={saveCopy} title="Saves a separate PDF with the markups drawn in, beside the drawing. The original drawing is never changed, and the markups stay editable here.">Save marked-up copy</button>}
+        {canDraw && (savingMarks > 0 || markSaveFailed || marks.length > 0) && (
+          <span className={'mk-saved' + (savingMarks ? ' is-saving' : markSaveFailed ? ' is-failed' : '')} role="status" aria-live="polite"
+            title={markSaveFailed && !savingMarks ? 'The last change didn’t save — try it again' : 'Each markup is saved as soon as it’s drawn'}>
+            {savingMarks ? <><i className="mk-spin" aria-hidden />Saving…</> : markSaveFailed ? '⚠ Not saved' : '✓ Saved'}
+          </span>
+        )}
+        {canDraw && !coarse && <button type="button" className="mk-btn is-text is-dark" disabled={busy || !marks.length} aria-busy={copying} onClick={saveCopy} title="Saves a separate PDF with the markups drawn in, beside the drawing. The original drawing is never changed, and the markups stay editable here.">{copying ? <><i className="mk-spin is-light" aria-hidden />Saving copy…</> : 'Save marked-up copy'}</button>}
         <button type="button" className="mk-btn" onClick={() => setPanel(!panel)} aria-label="Markup list" aria-pressed={panel}>☰</button>
         {coarse && <button type="button" className="mk-btn" onClick={() => setBs('more')} aria-label="More" title="Download, email, save a copy, compare, sheet names">⋯</button>}
       </header>
