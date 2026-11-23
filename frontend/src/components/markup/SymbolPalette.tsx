@@ -72,7 +72,7 @@ export function SymbolPalette({ anchor, symbols, selectedId, canKeep, onPick, on
         <div className="mk-palette-grid" role="listbox" aria-label="Pick a symbol">
           {shown.map((s) => (
             <button key={s.id} type="button" role="option" aria-selected={s.id === selectedId} className={'mk-palette-item' + (s.id === selectedId ? ' is-on' : '')}
-              title={`${s.name} — puts it on the drawing`} onClick={() => onPick(s.id)}>
+              title={`${s.name} — then click the drawing where it goes`} onClick={() => onPick(s.id)}>
               <img src={s.image} alt="" />
               <span>{s.name}</span>
             </button>
@@ -80,7 +80,7 @@ export function SymbolPalette({ anchor, symbols, selectedId, canKeep, onPick, on
         </div>
       )}
       <div className="mk-palette-foot">
-        <span>Pick one to put it on the drawing; then click the drawing to add more.</span>
+        <span>Pick one, then click the drawing where it goes — each click adds one.</span>
         {canKeep && (
           <span className="mk-palette-admin">
             <label className="mk-palette-btn" title="Add a symbol (PNG, JPG or SVG)">＋ Add<input type="file" accept="image/png,image/jpeg,image/svg+xml" hidden onChange={(e) => { onAdd(e.target.files?.[0]); e.target.value = ''; }} /></label>

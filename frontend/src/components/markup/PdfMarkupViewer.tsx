@@ -573,18 +573,27 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not deleted')); }
   };
 
-  /** Nov 23: a symbol picked from the palette goes in the middle of what's on screen, selected to drag or resize. */
-  const dropSymbol = async (id: string) => {
+  /** Nov 23: picking a symbol only chooses it -- each click on the drawing drops one there (a preview follows the pointer). */
+  const chooseSymbol = (id: string) => {
     pickSymbol(id); setTool('symbol'); setDraft(null); setPaletteOpen(false);
     const sym = symbols.find((x) => x.id === id);
-    const r = svg.current?.getBoundingClientRect(), v = scroller.current?.getBoundingClientRect();
-    if (!sym || !r || !v || !size || !r.width || !r.height) return;
-    const cx = Math.min(1, Math.max(0, ((Math.max(r.left, v.left) + Math.min(r.right, v.right)) / 2 - r.left) / r.width));
-    const cy = Math.min(1, Math.max(0, ((Math.max(r.top, v.top) + Math.min(r.bottom, v.bottom)) / 2 - r.top) / r.height));
-    const half = STAMP_DEFAULT / 2, halfH = (STAMP_DEFAULT * size.w) / size.h / 2;
-    const m = await save('symbol', { points: [[cx - half, cy - halfH], [cx + half, cy + halfH]], color, width: 1, symbolId: sym.id, label: sym.name });
-    if (m) { setSelectedId(m.id); toast(`${sym.name} added — drag it into place, or click the drawing to add more`); }
+    if (sym) toast(`${sym.name} chosen — click the drawing where it goes`);
   };
+  /** The faded symbol under the pointer while the Symbol tool is on (set directly, no re-render). */
+  const symbolGhost = useRef<SVGImageElement>(null);
+  const moveGhost = (e: { clientX: number; clientY: number; pointerType?: string } | null) => {
+    const g = symbolGhost.current; if (!g) return;
+    const sym = symbolMap[symbolId] || symbols[0];
+    const r = svg.current?.getBoundingClientRect();
+    if (!e || coarse || e.pointerType === 'touch' || tool !== 'symbol' || !sym || !size || !r || !r.width) { g.style.display = 'none'; return; }
+    const x = ((e.clientX - r.left) / r.width) * size.w, y = ((e.clientY - r.top) / r.height) * size.h;
+    const side = STAMP_DEFAULT * size.w;
+    if (g.getAttribute('href') !== sym.image) g.setAttribute('href', sym.image);
+    g.setAttribute('x', String(x - side / 2)); g.setAttribute('y', String(y - side / 2));
+    g.setAttribute('width', String(side)); g.setAttribute('height', String(side));
+    g.style.display = '';
+  };
+  useEffect(() => { if (tool !== 'symbol' && symbolGhost.current) symbolGhost.current.style.display = 'none'; }, [tool]);
 
   /** Add a symbol to the library (admins): shrunk to 256 px and kept as a PNG. */
   const addSymbol = async (f?: File) => {
@@ -878,6 +887,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   };
 
   const onMove = (e: React.PointerEvent) => {
+    moveGhost(e);
     if (longPress.current && Math.hypot(e.clientX - longPress.current.x, e.clientY - longPress.current.y) > 10) { cancelLongPress(); }
     if (tapAsk.current && Math.hypot(e.clientX - tapAsk.current.x, e.clientY - tapAsk.current.y) > 10) tapAsk.current = null;
     if (e.pointerType === 'touch' && touches.current.has(e.pointerId)) {
@@ -1476,7 +1486,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         <nav className="mk-tools" aria-label="Markup tools">
           {paletteOpen && canDraw && (
             <SymbolPalette anchor={phone ? null : symbolToolRef.current} symbols={symbols} selectedId={symbolMap[symbolId] ? symbolId : ''} canKeep={canKeepSymbols}
-              onPick={(id) => void dropSymbol(id)} onAdd={(f) => void addSymbol(f)} onManage={() => { setPaletteOpen(false); setAsk({ kind: 'symbols' }); }}
+              onPick={chooseSymbol} onAdd={(f) => void addSymbol(f)} onManage={() => { setPaletteOpen(false); setAsk({ kind: 'symbols' }); }}
               onClose={() => setPaletteOpen(false)} />
           )}
           {phone ? phoneBar : <>
@@ -1615,10 +1625,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             )}
             {size && (
               <svg ref={svg} viewBox={`0 0 ${size.w} ${size.h}`} style={{ cursor, touchAction: 'none' }} aria-label="Markup layer"
-                onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onDragStart={(e) => e.preventDefault()}
+                onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={() => moveGhost(null)} onDragStart={(e) => e.preventDefault()}
                 onDoubleClick={(e) => { if (MULTI_POINT.includes(tool as MarkupKind)) { finishMulti(); return; } if (tool === 'select') { const m = hit(at(e)); if (m?.kind === 'link') follow(m); } }}>
                 {onPage.map((m) => <g key={m.id} data-markup={m.id} opacity={m.private ? 0.75 : 1}><MarkupShape m={m} w={size.w} h={size.h} scale={SCALE_KINDS.has(m.kind) ? scale : 1} sheets={sheets} symbol={m.kind === 'symbol' ? symbolMap[m.data.symbolId || ''] : undefined} /></g>)}
                 {search?.hits[search.at]?.page === pageNo && (() => { const b = search.hits[search.at].box; return <rect className="mk-hit" x={b.x0 * size.w - 2} y={b.y0 * size.h - 2} width={(b.x1 - b.x0) * size.w + 4} height={(b.y1 - b.y0) * size.h + 4} />; })()}
+                <image ref={symbolGhost} className="mk-symbol-ghost" style={{ display: 'none' }} opacity={0.55} pointerEvents="none" preserveAspectRatio="xMidYMid meet" aria-hidden />
                 <g ref={selG}>
                   {selBox && <rect x={selBox.x0 * size.w - 4} y={selBox.y0 * size.h - 4} width={(selBox.x1 - selBox.x0) * size.w + 8} height={(selBox.y1 - selBox.y0) * size.h + 8} fill="none" stroke="#2563EB" strokeWidth={1} strokeDasharray="4 3" />}
                   {resizeHandle && <rect className="mk-resize" x={selBox.x1 * size.w - (coarse ? 9 : 4) / scale} y={((selBox.y0 + selBox.y1) / 2) * size.h - (coarse ? 20 : 10) / scale} width={(coarse ? 18 : 8) / scale} height={(coarse ? 40 : 20) / scale} rx={(coarse ? 5 : 2) / scale}><title>Drag to make the text box wider or narrower</title></rect>}
