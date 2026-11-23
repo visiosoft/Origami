@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ButtonBar } from '../components/ButtonBar';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -196,13 +197,14 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
   return (
     <AkPage
       lead="Plan meetings, keep their notes, recordings and transcripts, then review them: pull out the tasks, RFIs and change orders, and the observations, FYIs and decisions to keep FOR RECORD."
-      action={canEdit ? <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" className="ak-btn" onClick={() => setCalOpen(true)} title="Meetings on the company calendar and everyone’s own Google Calendar come in by themselves">Google Calendar</button>
-        <button type="button" className="ak-btn" onClick={() => setGoogleOpen(true)} title="Bring in the “Notes by Gemini” from a Google Meet">Import notes from Google</button>
-        <button type="button" className="ak-btn" onClick={() => setOpenKey('new:call')} title="A phone or in-person call that already happened: note it, then turn it into tasks like any meeting">Log a call</button>
-        <button type="button" className="ak-btn" onClick={() => setOpenKey('new:text')} title="A text conversation that already happened: note it, then turn it into tasks like any meeting">Log a text conversation</button>
-        <button type="button" className="ak-btn is-dark" onClick={() => setOpenKey('new')}>+ Meeting</button>
-      </span> : undefined}
+      action={canEdit ? <ButtonBar
+        primary={<button type="button" className="ak-btn is-dark" onClick={() => setOpenKey('new')}>+ Meeting</button>}
+        items={[
+          { label: 'Log a call', onClick: () => setOpenKey('new:call'), title: 'A phone or in-person call that already happened: note it, then turn it into tasks like any meeting' },
+          { label: 'Log a text conversation', onClick: () => setOpenKey('new:text'), title: 'A text conversation that already happened: note it, then turn it into tasks like any meeting' },
+          { label: 'Import notes from Google', onClick: () => setGoogleOpen(true), title: 'Bring in the “Notes by Gemini” from a Google Meet' },
+          { label: 'Google Calendar', onClick: () => setCalOpen(true), title: 'Meetings on the company calendar and everyone’s own Google Calendar come in by themselves' },
+        ]} /> : undefined}
     >
       <AkStats items={[
         { key: 'next', label: 'Next meeting', value: upcoming[0] ? akDay(upcoming[0].date) : '—', sub: upcoming[0] ? [upcoming[0].title, timeLabel(upcoming[0].time)].filter(Boolean).join(' · ') : 'nothing scheduled', tone: upcoming[0] ? 'yellow' : undefined, onClick: upcoming[0] ? () => setOpenKey(upcoming[0].key) : undefined },

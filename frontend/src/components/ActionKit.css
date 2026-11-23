@@ -82,3 +82,10 @@
   .ak-row { gap: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .ak-stat, .ak-row { animation: none; } }
+/* Phones (Nov 23): the page intro stays to two lines (tap to read it all) and the buttons sit under it on the right. */
+@media (max-width: 700px) {
+  .ak-top { gap: 10px; }
+  .ak-top p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; cursor: pointer; }
+  .ak-top p.is-open { display: block; }
+  .ak-top > :not(p) { margin-left: auto; }
+}

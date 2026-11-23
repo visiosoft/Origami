@@ -82,6 +82,9 @@ export function AppShell() {
   const [navQuery, setNavQuery] = useState('');
   // Phones and tablets show an icon strip; ☰ opens the full menu over the page (Nov 17).
   const [navExpanded, setNavExpanded] = useState(false);
+  /** Phones: the ⋯ tray under the top bar (View as, Search, Theme). */
+  const [toolsOpen, setToolsOpen] = useState(false);
+  useEffect(() => { setToolsOpen(false); }, [location.pathname]);
   useEffect(() => { setNavExpanded(false); }, [location.pathname]);
   useEffect(() => {
     if (!navExpanded) return;
@@ -202,7 +205,10 @@ export function AppShell() {
       </aside>
 
       <div className="main-column">
-        <header className="topbar">
+        <header className={`topbar${toolsOpen ? ' tools-open' : ''}`}>
+          <button type="button" className="topbar-menu" onClick={() => setNavExpanded(true)} aria-label="Open the menu" title="Menu">
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+          </button>
           <div className="topbar-left">
             {slug !== 'dashboard' && (
               <div className="topbar-back" onClick={() => navigate(-1)} title="Back">
@@ -216,14 +222,16 @@ export function AppShell() {
             )}
           </div>
 
-          {authUser?.roleKey === 'admin' && !authUser?.viewedBy && <ViewAsPicker />}
-
           <AutosaveIndicator />
 
-          <GlobalSearch pages={searchPages} />
-
-          <ThemeToggle />
+          {/* Phones: View as, Search and Theme sit behind ⋯ so the page title has room. */}
+          <div className="topbar-tools">
+            {authUser?.roleKey === 'admin' && !authUser?.viewedBy && <ViewAsPicker />}
+            <GlobalSearch pages={searchPages} />
+            <ThemeToggle />
+          </div>
           <Notifications />
+          <button type="button" className="topbar-more" onClick={() => setToolsOpen((v) => !v)} aria-expanded={toolsOpen} aria-label={toolsOpen ? 'Hide search, theme and view as' : 'Search, theme and view as'} title="More">⋯</button>
         </header>
 
         <ServerStatusBanner />
