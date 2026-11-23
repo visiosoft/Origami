@@ -1,4 +1,5 @@
 import { SendRfiLog } from './SendRfiLog';
+import { ButtonBar } from '../ButtonBar';
 import { createPortal } from 'react-dom';
 import { RfiCallouts } from './RfiCallouts';
 import { CsiSelect } from '../CsiSelect';
@@ -410,27 +411,23 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           <div style={{ marginTop: 6 }}><OriginatorLine by={rec.createdBy} at={rec.createdAt} number={rec.number} /></div>
           <div style={{ marginTop: 8 }}><ActionTrail sourceType={rec.sourceType || (rec.sourceTaskId ? rec.sourceTaskType || 'board' : null)} sourceId={rec.sourceId || rec.sourceTaskId} sourceLabel={rec.sourceLabel || 'a task'} derived={rec.derivedRefs} /></div>
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-            {canManage && rec.status === 'draft' && <>
-              <button type="button" disabled={busy} onClick={() => setPanel('send')} style={btn(true)}>Send by email</button>
-              <button type="button" disabled={busy} onClick={() => act(() => api.rfis.markSent(rec.id), 'Marked as sent')} style={btn()}>Mark as sent</button>
-            </>}
-            {canManage && rec.status === 'open' && <>
-              <button type="button" disabled={busy} onClick={() => { setAnswerForm({ answer: draft.answer || '', answeredBy: draft.answeredBy || rec.to?.name || '', dateAnswered: todayIso() }); setPanel('answer'); }} style={btn(true)}>Record answer</button>
-              <button type="button" disabled={busy} onClick={() => setPanel('send')} style={btn()}>Re-send</button>
-            </>}
-            {canManage && rec.status === 'answered' && <>
-              <button type="button" disabled={busy} onClick={() => setPanel('close')} style={btn(true)}>Close RFI</button>
-              {draft.costImpact === 'yes' && !rec.changeOrderId && <button type="button" disabled={busy} onClick={createChangeOrder} style={btn()}>Create change order</button>}
-            </>}
-            {canManage && (rec.status === 'closed' || rec.status === 'void') && <button type="button" disabled={busy} onClick={() => act(() => api.rfis.reopen(rec.id), 'Reopened')} style={btn()}>Reopen</button>}
-            <a href={api.rfis.pdfUrl(rec.id)} target="_blank" rel="noopener noreferrer" style={{ ...btn(), textDecoration: 'none' }}>PDF</a>
-            {canManage && rec.status !== 'void' && rec.status !== 'closed' && (
-              rec.status === 'draft' && !rec.dateSent
-                ? <button type="button" disabled={busy} onClick={() => { if (confirm(`Delete draft ${rec.number}?`)) api.rfis.remove(rec.id).then(() => { onDeleted(rec.id); toast('Draft deleted'); }).catch((e: Error) => toast('⚠ ' + e.message)); }} style={{ ...btn(false, true), marginLeft: 'auto' }}>Delete draft</button>
-                : <button type="button" disabled={busy} onClick={() => setPanel('void')} style={{ ...btn(false, true), marginLeft: 'auto' }}>Void</button>
-            )}
+          {/* Actions -- Nov 23: the next step shown, the rest under More ▾. */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' }}>
+            <ButtonBar
+              primary={canManage && rec.status === 'draft' ? <button type="button" disabled={busy} onClick={() => setPanel('send')} style={btn(true)}>Send by email</button>
+                : canManage && rec.status === 'open' ? <button type="button" disabled={busy} onClick={() => { setAnswerForm({ answer: draft.answer || '', answeredBy: draft.answeredBy || rec.to?.name || '', dateAnswered: todayIso() }); setPanel('answer'); }} style={btn(true)}>Record answer</button>
+                : canManage && rec.status === 'answered' ? <button type="button" disabled={busy} onClick={() => setPanel('close')} style={btn(true)}>Close RFI</button>
+                : undefined}
+              items={[
+                { label: 'Mark as sent', disabled: busy, hidden: !(canManage && rec.status === 'draft'), onClick: () => act(() => api.rfis.markSent(rec.id), 'Marked as sent') },
+                { label: 'Re-send', disabled: busy, hidden: !(canManage && rec.status === 'open'), onClick: () => setPanel('send') },
+                { label: 'Create change order', disabled: busy, hidden: !(canManage && rec.status === 'answered' && draft.costImpact === 'yes' && !rec.changeOrderId), onClick: () => { void createChangeOrder(); } },
+                { label: 'Reopen', disabled: busy, hidden: !(canManage && (rec.status === 'closed' || rec.status === 'void')), onClick: () => act(() => api.rfis.reopen(rec.id), 'Reopened') },
+                { label: 'PDF', onClick: () => { window.open(api.rfis.pdfUrl(rec.id), '_blank', 'noopener,noreferrer'); } },
+                rec.status === 'draft' && !rec.dateSent
+                  ? { label: 'Delete draft', danger: true, disabled: busy, hidden: !canManage, onClick: () => { if (confirm(`Delete draft ${rec.number}?`)) api.rfis.remove(rec.id).then(() => { onDeleted(rec.id); toast('Draft deleted'); }).catch((e: Error) => toast('⚠ ' + e.message)); } }
+                  : { label: 'Void…', danger: true, disabled: busy, hidden: !(canManage && rec.status !== 'void' && rec.status !== 'closed'), onClick: () => setPanel('void') },
+              ]} />
           </div>
 
           {panel === 'send' && (

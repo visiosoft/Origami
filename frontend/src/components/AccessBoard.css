@@ -197,3 +197,6 @@
 .ab-type:disabled label { cursor: not-allowed; opacity: 0.6; }
 .ab-type:disabled label.is-on { opacity: 1; }
 @media (max-width: 520px) { .ab-type { grid-template-columns: 1fr; } }
+/* Nov 23: the sideways scrollbar above the grid (TopScrollbar), lined up with the grid. */
+.ab-roles .top-scrollbar { margin: 6px -22px 0; }
+.ab-roles .top-scrollbar + .ab-matrix-wrap { margin-top: 0; }

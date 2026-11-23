@@ -1,4 +1,5 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SymbolPalette } from './SymbolPalette';
 import { createPortal } from 'react-dom';
 import { api } from '../../api';
 import { DrawingSetBanner, DrawingSetSection, isReviewLayer, useDrawingState } from './DrawingSetPanel';
@@ -147,6 +148,15 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const [selectedId, setSelectedId] = useState<string | null>(focusMarkupId || null);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Nov 23: markups being saved right now, and whether the last save failed -- shown next to "Save marked-up copy". */
+  const [savingMarks, setSavingMarks] = useState(0);
+  const [markSaveFailed, setMarkSaveFailed] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const tracked = <T,>(p: Promise<T>): Promise<T> => {
+    setSavingMarks((n) => n + 1);
+    return p.then((v) => { setMarkSaveFailed(false); return v; }, (e) => { setMarkSaveFailed(true); throw e; })
+      .finally(() => setSavingMarks((n) => Math.max(0, n - 1)));
+  };
   const [stampIcon, setStampIcon] = useState<string>(() => { try { return localStorage.getItem('origami.markup.stamp') || 'check'; } catch { return 'check'; } });
   const pickStamp = (k: string) => { setStampIcon(k); try { localStorage.setItem('origami.markup.stamp', k); } catch { /* private window */ } };
   const [textSize, setTextSize] = useState<number>(() => { try { return Number(localStorage.getItem('origami.markup.textSize')) || 12; } catch { return 12; } });
@@ -170,6 +180,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const [symbols, setSymbols] = useState<MarkupSymbol[]>([]);
   const symbolMap = useMemo(() => Object.fromEntries(symbols.map((x) => [x.id, x])), [symbols]);
   const [symbolId, setSymbolIdState] = useState<string>(() => { try { return localStorage.getItem('origami.markup.symbol') || ''; } catch { return ''; } });
+  /** Nov 23: the ◆ tool's picture palette. */
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const symbolToolRef = useRef<HTMLSpanElement>(null);
   const pickSymbol = (id: string) => { setSymbolIdState(id); try { localStorage.setItem('origami.markup.symbol', id); } catch { /* private window */ } };
   const canKeepSymbols = authUser?.roleKey === 'admin';
   /** Sheet numbers by page ("1": "A100"), read from the title blocks and correctable (Oct 31). */
@@ -533,7 +546,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         }
         if (useLayer) setLayer(useLayer);
       }
-      const m = await api.fileRoom.addMarkup(file.id, { kind, page, data, private: privateDraft, layer: useLayer || null, ...forRfi });
+      const m = await tracked(api.fileRoom.addMarkup(file.id, { kind, page, data, private: privateDraft, layer: useLayer || null, ...forRfi }));
       setMarks((prev) => [...prev, m]);
       undo.current.push({ type: 'add', after: m });
       redo.current = [];
@@ -545,7 +558,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const replace = (m: Markup) => setMarks((prev) => prev.map((x) => (x.id === m.id ? m : x)));
   const editMarkup = async (m: Markup, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer'>>, record = true) => {
     try {
-      const saved = await api.fileRoom.editMarkup(m.id, patch);
+      const saved = await tracked(api.fileRoom.editMarkup(m.id, patch));
       replace(saved);
       if (record) { undo.current.push({ type: 'edit', before: m, after: saved }); redo.current = []; }
       return saved;
@@ -553,12 +566,34 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   };
   const removeMarkup = async (m: Markup, record = true) => {
     try {
-      await api.fileRoom.removeMarkup(m.id);
+      await tracked(api.fileRoom.removeMarkup(m.id));
       setMarks((prev) => prev.filter((x) => x.id !== m.id));
       if (selectedId === m.id) setSelectedId(null);
       if (record) { undo.current.push({ type: 'remove', before: m }); redo.current = []; }
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not deleted')); }
   };
+
+  /** Nov 23: picking a symbol only chooses it -- each click on the drawing drops one there (a preview follows the pointer). */
+  const chooseSymbol = (id: string) => {
+    pickSymbol(id); setTool('symbol'); setDraft(null); setPaletteOpen(false);
+    const sym = symbols.find((x) => x.id === id);
+    if (sym) toast(`${sym.name} chosen — click the drawing where it goes`);
+  };
+  /** The faded symbol under the pointer while the Symbol tool is on (set directly, no re-render). */
+  const symbolGhost = useRef<SVGImageElement>(null);
+  const moveGhost = (e: { clientX: number; clientY: number; pointerType?: string } | null) => {
+    const g = symbolGhost.current; if (!g) return;
+    const sym = symbolMap[symbolId] || symbols[0];
+    const r = svg.current?.getBoundingClientRect();
+    if (!e || coarse || e.pointerType === 'touch' || tool !== 'symbol' || !sym || !size || !r || !r.width) { g.style.display = 'none'; return; }
+    const x = ((e.clientX - r.left) / r.width) * size.w, y = ((e.clientY - r.top) / r.height) * size.h;
+    const side = STAMP_DEFAULT * size.w;
+    if (g.getAttribute('href') !== sym.image) g.setAttribute('href', sym.image);
+    g.setAttribute('x', String(x - side / 2)); g.setAttribute('y', String(y - side / 2));
+    g.setAttribute('width', String(side)); g.setAttribute('height', String(side));
+    g.style.display = '';
+  };
+  useEffect(() => { if (tool !== 'symbol' && symbolGhost.current) symbolGhost.current.style.display = 'none'; }, [tool]);
 
   /** Add a symbol to the library (admins): shrunk to 256 px and kept as a PNG. */
   const addSymbol = async (f?: File) => {
@@ -852,6 +887,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   };
 
   const onMove = (e: React.PointerEvent) => {
+    moveGhost(e);
     if (longPress.current && Math.hypot(e.clientX - longPress.current.x, e.clientY - longPress.current.y) > 10) { cancelLongPress(); }
     if (tapAsk.current && Math.hypot(e.clientX - tapAsk.current.x, e.clientY - tapAsk.current.y) > 10) tapAsk.current = null;
     if (e.pointerType === 'touch' && touches.current.has(e.pointerId)) {
@@ -1099,13 +1135,13 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     finally { setBusy(false); }
   };
   const saveCopy = async () => {
-    setBusy(true);
+    setBusy(true); setCopying(true);
     try {
       const f = await api.fileRoom.saveMarkedUpCopy(file.id, hidden.size ? visibleLayers : undefined);
       toast(`Saved “${f.name}” beside the drawing. The drawing itself is unchanged and your markups stay editable — delete the copy any time to go back.`);
       onSavedCopy?.();
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not saved')); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setCopying(false); }
   };
 
   // Email the markups (Nov 3 sync): a marked-up copy is saved beside the drawing and its link emailed.
@@ -1300,7 +1336,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   // ---------------------------------------------------------------- phones (Nov 4)
   // The tool each group last used: tapping the group again picks it straight away.
   const toolInfo = (k: string) => TOOLS.find((t) => t.key === k);
-  const pickTool = (k: string) => { setTool(k as Tool); setDraft(null); setLastInGroup((g) => ({ ...g, [groupOfTool(k)]: k })); setBs(null); };
+  const pickTool = (k: string) => { setTool(k as Tool); setDraft(null); setLastInGroup((g) => ({ ...g, [groupOfTool(k)]: k })); setBs(null); if (k === 'symbol') setPaletteOpen(true); };
   const groups = TOOL_GROUPS.filter((g) => canDraw || g.key === 'select' || g.key === 'pan');
   const phoneBar = (
     <>
@@ -1392,7 +1428,6 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             {layer === rfiDraft.layer ? `✎ ${rfiDraft.number} draft · our team only` : `${rfiDraft.number}: switch to its layer to add callouts`}
           </span>
         )}
-        {canDraw && marks.length > 0 && <span className="mk-saved" title="Each markup is saved as soon as it’s drawn">✓ Saved</span>}
         <div className="mk-pages">
           {!phone && <button type="button" className="mk-btn" disabled={pageNo <= 1} onClick={() => setPageNo(pageNo - 1)} aria-label="Previous page">‹</button>}
           {(Object.keys(sheets).length > 0 || pages > 1) && pages > 0 ? (
@@ -1434,7 +1469,13 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         <span className="mk-spacer" />
         {!coarse && <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={download} title="The PDF with the layers you’re showing drawn in">Download marked-up PDF</button>}
         {canEmail && !coarse && <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={() => setEmailing({ to: '', note: '' })} title="Saves a marked-up copy and emails a link to it">Email</button>}
-        {canDraw && !coarse && <button type="button" className="mk-btn is-text is-dark" disabled={busy || !marks.length} onClick={saveCopy} title="Saves a separate PDF with the markups drawn in, beside the drawing. The original drawing is never changed, and the markups stay editable here.">Save marked-up copy</button>}
+        {canDraw && (savingMarks > 0 || markSaveFailed || marks.length > 0) && (
+          <span className={'mk-saved' + (savingMarks ? ' is-saving' : markSaveFailed ? ' is-failed' : '')} role="status" aria-live="polite"
+            title={markSaveFailed && !savingMarks ? 'The last change didn’t save — try it again' : 'Each markup is saved as soon as it’s drawn'}>
+            {savingMarks ? <><i className="mk-spin" aria-hidden />Saving…</> : markSaveFailed ? '⚠ Not saved' : '✓ Saved'}
+          </span>
+        )}
+        {canDraw && !coarse && <button type="button" className="mk-btn is-text is-dark" disabled={busy || !marks.length} aria-busy={copying} onClick={saveCopy} title="Saves a separate PDF with the markups drawn in, beside the drawing. The original drawing is never changed, and the markups stay editable here.">{copying ? <><i className="mk-spin is-light" aria-hidden />Saving copy…</> : 'Save marked-up copy'}</button>}
         <button type="button" className="mk-btn" onClick={() => setPanel(!panel)} aria-label="Markup list" aria-pressed={panel}>☰</button>
         {coarse && <button type="button" className="mk-btn" onClick={() => setBs('more')} aria-label="More" title="Download, email, save a copy, compare, sheet names">⋯</button>}
       </header>
@@ -1443,12 +1484,29 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
 
       <div className="mk-body">
         <nav className="mk-tools" aria-label="Markup tools">
+          {paletteOpen && canDraw && (
+            <SymbolPalette anchor={phone ? null : symbolToolRef.current} symbols={symbols} selectedId={symbolMap[symbolId] ? symbolId : ''} canKeep={canKeepSymbols}
+              onPick={chooseSymbol} onAdd={(f) => void addSymbol(f)} onManage={() => { setPaletteOpen(false); setAsk({ kind: 'symbols' }); }}
+              onClose={() => setPaletteOpen(false)} />
+          )}
           {phone ? phoneBar : <>
           {TOOLS.filter((t) => canDraw || t.group === 'nav').map((t, i, arr) => (
             <span key={t.key} style={{ display: 'contents' }}>
               {i > 0 && arr[i - 1].group !== t.group && <i className="mk-sep" />}
-              <button type="button" className={'mk-tool' + (tool === t.key ? ' is-on' : '')} title={t.label} aria-label={t.label} aria-pressed={tool === t.key}
-                onClick={() => { setTool(t.key); setDraft(null); }}>{t.icon}</button>
+              {t.key === 'symbol' ? (
+                // Nov 23: ◆ plus ▾ -- the symbols as pictures; picking one puts it on the drawing.
+                <span ref={symbolToolRef} className="mk-tool-split">
+                  <button type="button" className={'mk-tool' + (tool === t.key ? ' is-on' : '')} title={symbolMap[symbolId] ? `Symbol: ${symbolMap[symbolId].name} — click the drawing to drop it` : t.label} aria-label={t.label} aria-pressed={tool === t.key}
+                    onClick={() => { setTool(t.key); setDraft(null); if (tool !== 'symbol') setPaletteOpen(true); }}>
+                    {tool === 'symbol' && symbolMap[symbolId] ? <img className="mk-tool-symbol" src={symbolMap[symbolId].image} alt="" /> : t.icon}
+                  </button>
+                  <button type="button" className={'mk-tool-caret' + (paletteOpen ? ' is-open' : '')} aria-label="Choose a symbol" aria-haspopup="dialog" aria-expanded={paletteOpen}
+                    title="Choose a symbol" onClick={() => setPaletteOpen((v) => !v)}>▾</button>
+                </span>
+              ) : (
+                <button type="button" className={'mk-tool' + (tool === t.key ? ' is-on' : '')} title={t.label} aria-label={t.label} aria-pressed={tool === t.key}
+                  onClick={() => { setTool(t.key); setDraft(null); }}>{t.icon}</button>
+              )}
             </span>
           ))}
           </>}
@@ -1466,18 +1524,6 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             <i className="mk-sep" />
             <button type="button" className="mk-tool" title="Undo (Ctrl+Z)" aria-label="Undo" onClick={() => void step(true)}>↶</button>
             <button type="button" className="mk-tool" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" onClick={() => void step(false)}>↷</button>
-          </>}
-          {canDraw && tool === 'symbol' && <>
-            <i className="mk-sep" />
-            <select aria-label="Symbol" title={symbolMap[symbolId]?.name || 'Which symbol'} value={symbolMap[symbolId] ? symbolId : (symbols[0]?.id || '')} onChange={(e) => pickSymbol(e.target.value)}>
-              {!symbols.length && <option value="">None yet</option>}
-              {symbols.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-            </select>
-            {(symbolMap[symbolId] || symbols[0]) && <img className="mk-symbol-preview" src={(symbolMap[symbolId] || symbols[0]).image} alt="" title={(symbolMap[symbolId] || symbols[0]).name} />}
-            {canKeepSymbols && <>
-              <label className="mk-tool mk-symbol-add" title="Add a symbol (PNG, JPG or SVG)" aria-label="Add a symbol">＋<input type="file" accept="image/png,image/jpeg,image/svg+xml" hidden onChange={(e) => { void addSymbol(e.target.files?.[0]); e.target.value = ''; }} /></label>
-              {symbols.length > 0 && <button type="button" className="mk-tool" title="Rename or delete symbols" aria-label="Manage symbols" onClick={() => setAsk({ kind: 'symbols' })}>⚙</button>}
-            </>}
           </>}
           {canDraw && tool === 'stamp' && <>
             <i className="mk-sep" />
@@ -1579,10 +1625,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             )}
             {size && (
               <svg ref={svg} viewBox={`0 0 ${size.w} ${size.h}`} style={{ cursor, touchAction: 'none' }} aria-label="Markup layer"
-                onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onDragStart={(e) => e.preventDefault()}
+                onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={() => moveGhost(null)} onDragStart={(e) => e.preventDefault()}
                 onDoubleClick={(e) => { if (MULTI_POINT.includes(tool as MarkupKind)) { finishMulti(); return; } if (tool === 'select') { const m = hit(at(e)); if (m?.kind === 'link') follow(m); } }}>
                 {onPage.map((m) => <g key={m.id} data-markup={m.id} opacity={m.private ? 0.75 : 1}><MarkupShape m={m} w={size.w} h={size.h} scale={SCALE_KINDS.has(m.kind) ? scale : 1} sheets={sheets} symbol={m.kind === 'symbol' ? symbolMap[m.data.symbolId || ''] : undefined} /></g>)}
                 {search?.hits[search.at]?.page === pageNo && (() => { const b = search.hits[search.at].box; return <rect className="mk-hit" x={b.x0 * size.w - 2} y={b.y0 * size.h - 2} width={(b.x1 - b.x0) * size.w + 4} height={(b.y1 - b.y0) * size.h + 4} />; })()}
+                <image ref={symbolGhost} className="mk-symbol-ghost" style={{ display: 'none' }} opacity={0.55} pointerEvents="none" preserveAspectRatio="xMidYMid meet" aria-hidden />
                 <g ref={selG}>
                   {selBox && <rect x={selBox.x0 * size.w - 4} y={selBox.y0 * size.h - 4} width={(selBox.x1 - selBox.x0) * size.w + 8} height={(selBox.y1 - selBox.y0) * size.h + 8} fill="none" stroke="#2563EB" strokeWidth={1} strokeDasharray="4 3" />}
                   {resizeHandle && <rect className="mk-resize" x={selBox.x1 * size.w - (coarse ? 9 : 4) / scale} y={((selBox.y0 + selBox.y1) / 2) * size.h - (coarse ? 20 : 10) / scale} width={(coarse ? 18 : 8) / scale} height={(coarse ? 40 : 20) / scale} rx={(coarse ? 5 : 2) / scale}><title>Drag to make the text box wider or narrower</title></rect>}

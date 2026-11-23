@@ -16,6 +16,27 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-23b',
+    date: '2026-11-23',
+    title: 'Access grid: one kind of control, scrollbar on top',
+    items: [
+      { area: 'Drawings', kind: 'improved', text: 'Symbols are now pictures: press ▾ under the ◆ tool (or pick Symbol on a phone) to see them all and find one by name. Picking one only chooses it — a faded copy follows your pointer, and each click on the drawing puts one exactly there (drag to size it). Admins add and manage symbols from the same box.', where: 'A drawing → ◆ ▾' },
+      { area: 'User access', kind: 'improved', text: 'Finance actions (Prepare invoices, Approve invoices…) use the same coloured dropdown as the rows above — Yes or No, or ↳ to follow Project Finance — instead of on/off switches.', where: 'Admin → User Access & Roles' },
+      { area: 'User access', kind: 'improved', text: 'The roles grid has a sideways scrollbar at the top as well as the bottom, so you can move across without scrolling to the end of the list.', where: 'Admin → User Access & Roles' },
+      { area: 'Everywhere', kind: 'improved', text: 'More panels show their next step with the rest under More ▾: a lead, a change order, a draft invoice and the daily report footer.' },
+      { area: 'Drawings', kind: 'improved', text: 'The save state sits right next to “Save marked-up copy”: a spinner and “Saving…” while a markup saves, “✓ Saved” when it’s done, “⚠ Not saved” if it failed. The button itself shows a spinner and “Saving copy…” while the copy is made.', where: 'A drawing → top bar' },
+    ],
+  },
+  {
+    id: '2026-11-23a',
+    date: '2026-11-23',
+    title: 'Tidier buttons, and a proper phone layout',
+    items: [
+      { area: 'Phones', kind: 'improved', text: 'Pages use the whole width of a phone: the icon strip is gone and ☰ at the top left opens the full menu. The page title shows in full; View as, Search and the theme switch are under ⋯ at the top right. Long page intros show two lines — tap to read the rest.' },
+      { area: 'Everywhere', kind: 'improved', text: 'Pages and panels show their main button, with everything else under More ▾: Meetings, Estimating, Plan & File Room, People, FOR RECORD, an RFI, a contract, a payroll run, a project’s Overview and an issued invoice.' },
+    ],
+  },
+  {
     id: '2026-11-22b',
     date: '2026-11-22',
     title: 'Drawing sets the way Edward drew them',

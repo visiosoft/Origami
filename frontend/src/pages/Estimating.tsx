@@ -1,7 +1,8 @@
 import { CompareEstimates } from '../components/estimate/CompareEstimates';
 import { estimateWaiting } from '../data/estimateWaiting';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ButtonBar } from '../components/ButtonBar';
 import { createPortal } from 'react-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -47,6 +48,7 @@ const waitChip = (r: { status: string; sentAt?: string | null }) => {
 export function Estimating() {
   const { toast } = useApp();
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const projectId = Number(params.get('project')) || null;
   const estimateId = params.get('estimate');
   const templateId = params.get('template');
@@ -211,39 +213,45 @@ export function Estimating() {
             {siblings.map((s) => <option key={s.id} value={s.id}>Rev {s.rev} · {s.status === 'sent' ? 'shared' : s.status}</option>)}
           </select>
         )}
-        {current && siblings.length > 1 && <button type="button" className="eg-btn" onClick={() => setComparing(true)}>Compare…</button>}
         {current && (
           <span role="tablist" aria-label="Sheet or letter" style={{ display: 'inline-flex', gap: 4 }}>
             {(['sheet', 'letter'] as const).map((k) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`eg-btn${tab === k ? ' is-on' : ''}`} onClick={async () => { await grid.current?.flush(); setTab(k); setReload((n) => n + 1); }}>{k === 'sheet' ? 'Sheet' : 'Letter'}</button>)}
           </span>
         )}
-        {/* Nov 19 (Edward): bidding is run from GC & Sub Prequalify & RFP; this section is estimating only. */}
-        {current && <a className="eg-btn" href={`/sub_prequal?tab=rfp&project=${projectId}&estimate=${encodeURIComponent(current.id)}`} title="Send scopes to subs for pricing — in GC & Sub Prequalify & RFP">Bid packages in RFP →</a>}
-        {current && <button type="button" className="eg-btn" onClick={() => void openFile('pdf')} title="The client’s copy, as the project’s book type shows it">PDF</button>}
-        {current && <button type="button" className="eg-btn" onClick={() => void openFile('xlsx')} title="The whole estimate as a spreadsheet (what your role may see)">Excel</button>}
-        {current && rights.edit && open?.status === 'sent' && !siblings.some((s) => s.status === 'accepted') && (
-          <button type="button" className="eg-btn" disabled={busy} title="The client accepted it on paper or by email" onClick={() => { const signer = window.prompt(`Who accepted ${current.number} Rev ${current.rev} for the client?`)?.trim(); if (signer) void act(() => api.finance.markEstimateAccepted(projectId, current.id, signer), () => { setReload((n) => n + 1); setSettingUp(true); }); }}>Mark accepted…</button>
-        )}
-        {current && rights.edit && open?.status === 'accepted' && (
-          <button type="button" className="eg-btn is-primary" onClick={() => setSettingUp(true)}>Set up the job</button>
-        )}
-        {current && rights.edit && (open?.status === 'draft' || open?.status === 'sent') && !siblings.some((s) => s.status === 'accepted') && (
-          <button type="button" className="eg-btn is-primary" disabled={busy} onClick={() => setSending(true)} title="Put it in the owner’s portal to review and accept, and let them know">{open?.status === 'sent' ? 'Share again…' : 'Share with owner…'}</button>
-        )}
-        {current && rights.edit && open && open.status !== 'draft' && open.status !== 'accepted' && !siblings.some((s) => s.status === 'draft') && !siblings.some((s) => s.status === 'accepted') && (
-          current.rev < Math.max(...siblings.map((s) => s.rev))
-            ? <button type="button" className="eg-btn" disabled={busy} title="Copy this revision as a new draft to keep working from it" onClick={() => window.confirm(`Copy ${current.number} Rev ${current.rev} as a new draft (Rev ${Math.max(...siblings.map((s) => s.rev)) + 1})? The later revisions stay as they are.`) && act(() => api.finance.reviseEstimate(projectId, current.id), (r) => go({ estimate: r.estimate.id }))}>Restore as new draft</button>
-            : <button type="button" className="eg-btn" disabled={busy} onClick={() => act(() => api.finance.reviseEstimate(projectId, current.id), (r) => go({ estimate: r.estimate.id }))}>New revision</button>
-        )}
-        {current && rights.edit && (
-          <button type="button" className="eg-btn" disabled={busy} onClick={() => {
-            const title = window.prompt('Save this estimate as a template. Template name:', current.title || '')?.trim();
-            if (title) void act(async () => { await grid.current?.flush(); return api.finance.createEstimateTemplate({ title, fromId: current.id }); }, () => toast(`Saved as the template “${title}”. Start any project’s estimate from it.`));
-          }}>Save as template</button>
-        )}
-        {current && rights.edit && open?.status === 'draft' && (
-          <button type="button" className="eg-btn is-danger" disabled={busy} onClick={() => window.confirm(`Delete the draft ${current.number} Rev ${current.rev}?`) && act(() => api.finance.deleteEstimate(projectId, current.id), () => go({ estimate: null }))}>Delete draft</button>
-        )}
+        {current && (() => {
+          // Nov 23 ("organize buttons"): the one next step shown, the rest under More ▾.
+          const accepted = siblings.some((s) => s.status === 'accepted');
+          const maxRev = Math.max(...siblings.map((s) => s.rev));
+          const canRevise = rights.edit && !!open && open.status !== 'draft' && open.status !== 'accepted' && !siblings.some((s) => s.status === 'draft') && !accepted;
+          const primary = rights.edit && open?.status === 'accepted'
+            ? <button type="button" className="eg-btn is-primary" onClick={() => setSettingUp(true)}>Set up the job</button>
+            : rights.edit && (open?.status === 'draft' || open?.status === 'sent') && !accepted
+              ? <button type="button" className="eg-btn is-primary" disabled={busy} onClick={() => setSending(true)} title="Put it in the owner’s portal to review and accept, and let them know">{open?.status === 'sent' ? 'Share again…' : 'Share with owner…'}</button>
+              : null;
+          return (
+            <ButtonBar primary={primary} items={[
+              { label: 'PDF', onClick: () => void openFile('pdf'), title: 'The client’s copy, as the project’s book type shows it' },
+              { label: 'Excel', onClick: () => void openFile('xlsx'), title: 'The whole estimate as a spreadsheet (what your role may see)' },
+              { label: 'Compare revisions…', onClick: () => setComparing(true), hidden: siblings.length < 2 },
+              { label: 'Bid packages in RFP →', onClick: () => navigate(`/sub_prequal?tab=rfp&project=${projectId}&estimate=${encodeURIComponent(current.id)}`), title: 'Send scopes to subs for pricing — in GC & Sub Prequalify & RFP' },
+              {
+                label: 'Mark accepted…', disabled: busy, title: 'The client accepted it on paper or by email', hidden: !(rights.edit && open?.status === 'sent' && !accepted),
+                onClick: () => { const signer = window.prompt(`Who accepted ${current.number} Rev ${current.rev} for the client?`)?.trim(); if (signer) void act(() => api.finance.markEstimateAccepted(projectId, current.id, signer), () => { setReload((n) => n + 1); setSettingUp(true); }); },
+              },
+              current.rev < maxRev
+                ? { label: 'Restore as new draft', disabled: busy, hidden: !canRevise, title: 'Copy this revision as a new draft to keep working from it', onClick: () => { if (window.confirm(`Copy ${current.number} Rev ${current.rev} as a new draft (Rev ${maxRev + 1})? The later revisions stay as they are.`)) void act(() => api.finance.reviseEstimate(projectId, current.id), (r) => go({ estimate: r.estimate.id })); } }
+                : { label: 'New revision', disabled: busy, hidden: !canRevise, onClick: () => void act(() => api.finance.reviseEstimate(projectId, current.id), (r) => go({ estimate: r.estimate.id })) },
+              {
+                label: 'Save as template…', disabled: busy, hidden: !rights.edit,
+                onClick: () => {
+                  const title = window.prompt('Save this estimate as a template. Template name:', current.title || '')?.trim();
+                  if (title) void act(async () => { await grid.current?.flush(); return api.finance.createEstimateTemplate({ title, fromId: current.id }); }, () => toast(`Saved as the template “${title}”. Start any project’s estimate from it.`));
+                },
+              },
+              { label: 'Delete draft', danger: true, disabled: busy, hidden: !(rights.edit && open?.status === 'draft'), onClick: () => { if (window.confirm(`Delete the draft ${current.number} Rev ${current.rev}?`)) void act(() => api.finance.deleteEstimate(projectId, current.id), () => go({ estimate: null })); } },
+            ]} />
+          );
+        })()}
         {!estimateId && rights.edit && (
           <button type="button" className="eg-btn is-primary" disabled={busy} onClick={() => setStarting(true)}>+ New estimate</button>
         )}

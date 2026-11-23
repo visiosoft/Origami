@@ -1,4 +1,5 @@
 import { tradeLabel } from '../data/tradeCsi';
+import { ButtonBar } from '../components/ButtonBar';
 import { ContactEmail } from '../components/ContactEmail';
 
 /** Text, Email and Call in a person's panel: one look (Nov 22). */
@@ -558,13 +559,18 @@ export function People() {
             <div key={v[0]} onClick={() => setView(v[0])} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', background: view === v[0] ? 'var(--seg-on)' : 'transparent', color: view === v[0] ? 'var(--ink)' : 'var(--body)' }}>{v[1]}</div>
           ))}
         </div>
-        {canManage && <button type="button" className="pp-btn is-ghost" onClick={() => navigate('/mass-texts')}>Mass text</button>}
-        {canManage && <button type="button" className="pp-btn is-ghost" onClick={() => setImporting(true)}>Import</button>}
         {canManage && (
+          <ButtonBar
+            items={[
+              { label: 'Mass text', onClick: () => navigate('/mass-texts') },
+              { label: 'Import contacts', onClick: () => setImporting(true) },
+            ]}
+            primary={(
           <button type="button" className="pp-btn is-dark" onClick={openNew}>
-            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" strokeWidth={2.2} strokeLinecap="round" style={{ stroke: 'currentColor' }}><path d="M12 5v14M5 12h14" /></svg>
-            Add member
-          </button>
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" strokeWidth={2.2} strokeLinecap="round" style={{ stroke: 'currentColor' }}><path d="M12 5v14M5 12h14" /></svg>
+                Add member
+              </button>
+                )} />
         )}
       </div>
       {statsStrip}
@@ -659,13 +665,19 @@ export function People() {
       {/* Count + New */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>Showing {shown.length} of {all.length} records{pf === 'All projects' ? '' : ' on ' + pf}</div>
-        {canManage && <div role="button" onClick={() => navigate('/mass-texts')} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--surface)' }}>Mass text</div>}
-        {canManage && <div onClick={() => setImporting(true)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--surface)' }}>Import contacts</div>}
+        <span style={{ marginLeft: 'auto' }} />
         {importing && <PeopleImport onClose={() => setImporting(false)} onDone={() => reload()} />}
         {canManage && (
+          <ButtonBar
+            items={[
+              { label: 'Mass text', onClick: () => navigate('/mass-texts') },
+              { label: 'Import contacts', onClick: () => setImporting(true) },
+            ]}
+            primary={(
           <div onClick={openNew} style={{ marginLeft: canManage ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(var(--rgb-forest), 0.22)' }}>
-            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New person or company
-          </div>
+                <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New person or company
+              </div>
+                )} />
         )}
       </div>
 

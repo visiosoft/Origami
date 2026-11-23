@@ -10,7 +10,7 @@ import './ActionKit.css';
 export function AkPage({ lead, action, children }: { lead: ReactNode; action?: ReactNode; children: ReactNode }) {
   return (
     <div className="ak">
-      <div className="ak-top"><p>{lead}</p>{action}</div>
+      <div className="ak-top"><p onClick={(e) => e.currentTarget.classList.toggle('is-open')}>{lead}</p>{action}</div>
       {children}
     </div>
   );
