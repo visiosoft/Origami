@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ButtonBar } from '../components/ButtonBar';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -393,9 +394,13 @@ function Viewer({ photo, cats, canManage, onPrev, onNext, onClose, onChanged, on
           <div style={{ fontSize: 13, color: 'var(--body)', lineHeight: 1.6 }}>{[photo.area, photo.caption].filter(Boolean).join(' — ') || 'No caption'}</div>
         )}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {canManage && <button type="button" className="ak-btn is-dark" disabled={!dirty || busy} onClick={save}>{busy ? 'Saving…' : 'Save'}</button>}
-          <a className="ak-btn" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }} href={api.progressPhotos.url(photo.id, { download: true })}>Download</a>
-          {canManage && <button type="button" className="ak-btn" style={{ color: '#8E2E0A' }} onClick={remove}>Delete</button>}
+          {/* Nov 23: Save shown, Download and Delete under More ▾. */}
+          <ButtonBar
+            primary={canManage ? <button type="button" className="ak-btn is-dark" disabled={!dirty || busy} onClick={save}>{busy ? 'Saving…' : 'Save'}</button> : undefined}
+            items={[
+              { label: 'Download', onClick: () => { window.location.assign(api.progressPhotos.url(photo.id, { download: true })); } },
+              { label: 'Delete photo', danger: true, hidden: !canManage, onClick: () => { void remove(); } },
+            ]} />
         </div>
       </div>
     </div>,

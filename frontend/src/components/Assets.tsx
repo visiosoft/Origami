@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ButtonBar } from './ButtonBar';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { Employee } from './EmployeeDirectory';
@@ -159,15 +160,19 @@ function AssetDrawer({ asset, employees, canManage, currency, onOpenEmployee, on
 
   return (
     <Drawer title={`${asset.assetTag} · ${asset.name}`} subtitle={[catLabel(asset.category), asset.serialNumber && `S/N ${asset.serialNumber}`].filter(Boolean).join(' · ')} width={540} onClose={onClose}
-      footer={canManage && !mode ? <>
-        <div onClick={() => setMode('edit')} style={btn()}>Edit details</div>
-        {asset.status === 'available' && <div onClick={() => setStatus('in_repair', 'Sent for repair')} style={btn()}>Send to repair</div>}
-        {asset.status === 'available' && <div onClick={() => { if (confirm('Retire this asset? It leaves active stock.')) setStatus('retired', 'Retired'); }} style={btn()}>Retire</div>}
-        {(asset.status === 'in_repair' || asset.status === 'retired') && <div onClick={() => setStatus('available', 'Back in stock')} style={btn()}>Back in stock</div>}
-        {asset.status === 'issued' && <div onClick={() => setMode('lost')} style={{ ...btn(), color: DANGER }}>Report lost</div>}
-        {asset.status === 'issued' && <div onClick={() => setMode('return')} style={btn(true)}>Record return</div>}
-        {asset.status === 'available' && <div onClick={() => setMode('issue')} style={btn(true)}>Issue to employee</div>}
-      </> : undefined}>
+      footer={canManage && !mode ? (
+        // Nov 23: the next step shown, the rest under More ▾.
+        <ButtonBar
+          primary={asset.status === 'issued' ? <div role="button" onClick={() => setMode('return')} style={btn(true)}>Record return</div>
+            : asset.status === 'available' ? <div role="button" onClick={() => setMode('issue')} style={btn(true)}>Issue to employee</div> : undefined}
+          items={[
+            { label: 'Edit details', onClick: () => setMode('edit') },
+            { label: 'Send to repair', hidden: asset.status !== 'available', onClick: () => setStatus('in_repair', 'Sent for repair') },
+            { label: 'Back in stock', hidden: !(asset.status === 'in_repair' || asset.status === 'retired'), onClick: () => setStatus('available', 'Back in stock') },
+            { label: 'Retire', danger: true, hidden: asset.status !== 'available', onClick: () => { if (confirm('Retire this asset? It leaves active stock.')) setStatus('retired', 'Retired'); } },
+            { label: 'Report lost', danger: true, hidden: asset.status !== 'issued', onClick: () => setMode('lost') },
+          ]} />
+      ) : undefined}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
         <Badge tone={s.tone}>{s.label}</Badge>
         {overdue(asset.currentIssue) && <Badge tone="red">Return overdue</Badge>}

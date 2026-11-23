@@ -1,4 +1,5 @@
 import { tradeLabel } from '../data/tradeCsi';
+import { ButtonBar } from './ButtonBar';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -263,21 +264,22 @@ function RequestDetail(props: Ctx & {
       subtitle={`Needed by ${fmtDate(r.requiredDate)}${r.durationDays ? ` for ${r.durationDays} days` : ''} · requested by ${r.requestedByName || 'Unknown'}`}
       onClose={onClose}
       footer={canManage ? <>
-        {['draft', 'rejected'].includes(r.status) && <>
-          <div onClick={remove} style={{ ...btn(), color: DANGER }}>Delete</div>
-          <div onClick={onEdit} style={btn()}>Edit</div>
-          <div onClick={busy ? undefined : () => act(() => api.workforceRequests.submit(r.id), 'Submitted for approval')} style={btn(true, busy)}>Submit</div>
-        </>}
+        {/* Nov 23: Approve / Reject stay side by side; the rest under More ▾. */}
         {r.status === 'submitted' && !mine && <>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" style={{ ...input, width: 200 }} />
           <div onClick={busy ? undefined : () => act(() => api.workforceRequests.reject(r.id, note), 'Rejected')} style={{ ...btn(false, busy), color: DANGER }}>Reject</div>
           <div onClick={busy ? undefined : () => act(() => api.workforceRequests.approve(r.id, note), 'Approved')} style={btn(true, busy)}>Approve</div>
         </>}
         {r.status === 'submitted' && mine && <span style={{ fontSize: 12, color: MUTED, alignSelf: 'center' }}>You raised this request — someone else approves it.</span>}
-        {['submitted', 'approved'].includes(r.status) && (
-          <div onClick={busy ? undefined : () => { if (confirm('Cancel this request? Workers already allocated stay deployed.')) act(() => api.workforceRequests.cancel(r.id), 'Cancelled'); }} style={btn(false, busy)}>Cancel request</div>
-        )}
-        {r.status === 'approved' && <div onClick={busy ? undefined : () => act(() => api.workforceRequests.fulfill(r.id), 'Marked fulfilled')} style={btn(true, busy)}>Mark fulfilled</div>}
+        <ButtonBar
+          primary={['draft', 'rejected'].includes(r.status) ? <div role="button" onClick={busy ? undefined : () => act(() => api.workforceRequests.submit(r.id), 'Submitted for approval')} style={btn(true, busy)}>Submit</div>
+            : r.status === 'approved' ? <div role="button" onClick={busy ? undefined : () => act(() => api.workforceRequests.fulfill(r.id), 'Marked fulfilled')} style={btn(true, busy)}>Mark fulfilled</div>
+            : undefined}
+          items={[
+            { label: 'Edit', hidden: !['draft', 'rejected'].includes(r.status), onClick: onEdit },
+            { label: 'Cancel request', danger: true, disabled: busy, hidden: !['submitted', 'approved'].includes(r.status), onClick: () => { if (confirm('Cancel this request? Workers already allocated stay deployed.')) act(() => api.workforceRequests.cancel(r.id), 'Cancelled'); } },
+            { label: 'Delete', danger: true, hidden: !['draft', 'rejected'].includes(r.status), onClick: remove },
+          ]} />
       </> : undefined}
     >
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>

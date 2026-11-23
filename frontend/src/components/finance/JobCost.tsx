@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ButtonBar } from '../ButtonBar';
 import { RELEASE_KINDS, api, type PortalRetention, type ReleaseKind, type SubInvoice } from '../../api';
 import { useApp } from '../../AppContext';
 import { Attachments } from '../Attachments';
@@ -383,13 +384,19 @@ function CommitmentDrawer({ c, v, projectId, pick, onClose, onChanged }: {
         {step === 'void' && <ReasonBox title="Void commitment" tone="danger" confirm="Void" onCancel={() => setStep(null)} onSubmit={(x) => act('void', x.reason)} fields={[{ key: 'reason', label: 'Why', type: 'textarea', required: true }]} />}
         {step === 'close' && <ReasonBox title="Close commitment" confirm="Close" onCancel={() => setStep(null)} onSubmit={(x) => act('close', x.reason)} fields={[{ key: 'reason', label: 'Note', initial: 'Complete — final pay app received' }]} />}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid ' + LINE, paddingTop: 12 }}>
-          {c?.status === 'draft' && v.rights.manageCosts && <div onClick={() => window.confirm(`Delete ${c.number}?`) && act('delete')} style={{ ...btn(), color: DANGER }}>Delete draft</div>}
-          {c && ['draft', 'approved'].includes(c.status) && v.rights.approveCosts && <div onClick={() => setStep('void')} style={{ ...btn(), color: DANGER }}>Void</div>}
+          {/* Nov 23: Save and the next step shown; the rest under More ▾. */}
           <div style={{ flex: 1 }} />
-          {editable && <div onClick={() => save()} style={btn(!c, !dirty && !!c)}>{c ? (c.status === 'approved' ? 'Save revision' : 'Save') : 'Create'}</div>}
-          {c?.status === 'draft' && v.rights.approveCosts && <div onClick={() => act('approve')} style={btn(true)}>Approve</div>}
-          {c?.status === 'approved' && v.rights.approveCosts && <div onClick={() => setStep('close')} style={btn()}>Close</div>}
-          {c?.status === 'closed' && v.rights.approveCosts && <div onClick={() => act('reopen')} style={btn()}>Reopen</div>}
+          <ButtonBar
+            primary={<>
+              {editable && <div role="button" onClick={() => save()} style={btn(!c, !dirty && !!c)}>{c ? (c.status === 'approved' ? 'Save revision' : 'Save') : 'Create'}</div>}
+              {c?.status === 'draft' && v.rights.approveCosts && <div role="button" onClick={() => act('approve')} style={btn(true)}>Approve</div>}
+            </>}
+            items={[
+              { label: 'Close commitment…', hidden: !(c?.status === 'approved' && v.rights.approveCosts), onClick: () => setStep('close') },
+              { label: 'Reopen', hidden: !(c?.status === 'closed' && v.rights.approveCosts), onClick: () => act('reopen') },
+              { label: 'Void…', danger: true, hidden: !(c && ['draft', 'approved'].includes(c.status) && v.rights.approveCosts), onClick: () => setStep('void') },
+              { label: 'Delete draft', danger: true, hidden: !(c?.status === 'draft' && v.rights.manageCosts), onClick: () => { if (c && window.confirm(`Delete ${c.number}?`)) act('delete'); } },
+            ]} />
         </div>
         {c && billedHere.length > 0 && <div>
           <Label text="Their bills against it" />
@@ -509,12 +516,18 @@ function CostDrawer({ e, v, projectId, pick, onClose, onChanged }: {
         {step === 'void' && <ReasonBox title="Void cost" tone="danger" confirm="Void" onCancel={() => setStep(null)} onSubmit={(x) => act('void', { reason: x.reason })} fields={[{ key: 'reason', label: 'Why', type: 'textarea', required: true }]} />}
         {step === 'pay' && <ReasonBox title="Mark paid" confirm="Mark paid" onCancel={() => setStep(null)} onSubmit={(x) => act('pay', { paidDate: x.paidDate, paymentRef: x.paymentRef })} fields={[{ key: 'paidDate', label: 'Paid on', type: 'date', initial: todayISO(), required: true }, { key: 'paymentRef', label: 'Check / ACH reference' }]} />}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid ' + LINE, paddingTop: 12 }}>
-          {e?.status === 'recorded' && v.rights.manageCosts && <div onClick={() => window.confirm('Delete this cost?') && act('delete')} style={{ ...btn(), color: DANGER }}>Delete</div>}
-          {e && e.status !== 'void' && v.rights.approveCosts && <div onClick={() => setStep('void')} style={{ ...btn(), color: DANGER }}>Void</div>}
+          {/* Nov 23: Save and the next step shown; Void and Delete under More ▾. */}
           <div style={{ flex: 1 }} />
-          {editable && <div onClick={() => save()} style={btn(!e)}>{e ? 'Save' : 'Record cost'}</div>}
-          {e?.status === 'recorded' && v.rights.approveCosts && <div onClick={() => act('approve')} style={btn(true)}>Approve</div>}
-          {e?.status === 'approved' && v.rights.approveCosts && <div onClick={() => setStep('pay')} style={btn(true)}>Mark paid</div>}
+          <ButtonBar
+            primary={<>
+              {editable && <div role="button" onClick={() => save()} style={btn(!e)}>{e ? 'Save' : 'Record cost'}</div>}
+              {e?.status === 'recorded' && v.rights.approveCosts && <div role="button" onClick={() => act('approve')} style={btn(true)}>Approve</div>}
+              {e?.status === 'approved' && v.rights.approveCosts && <div role="button" onClick={() => setStep('pay')} style={btn(true)}>Mark paid</div>}
+            </>}
+            items={[
+              { label: 'Void…', danger: true, hidden: !(e && e.status !== 'void' && v.rights.approveCosts), onClick: () => setStep('void') },
+              { label: 'Delete', danger: true, hidden: !(e?.status === 'recorded' && v.rights.manageCosts), onClick: () => { if (window.confirm('Delete this cost?')) act('delete'); } },
+            ]} />
         </div>
         {e && <Attachments scope="finance-costs" taskId={e.id} attachments={e.attachments || []} canManage={v.rights.manageCosts} storageReady={storageReady}
           onUpload={async (files) => { await api.finance.costUpload(e.id, files); onChanged(await api.finance.costs(projectId) as CostsView); }}

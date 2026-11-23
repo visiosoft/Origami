@@ -625,10 +625,14 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, startReview, onClose
 
         {item.kind === 'meeting' ? (
           <div className="mt-foot">
-            <button type="button" className="ak-btn" onClick={toCalendar}>Add to my Google Calendar</button>
+            {/* Nov 23: the calendar button shown, Archive and Delete under More ▾. */}
             <span />
-            {canEdit && <button type="button" className="ak-btn" title={item.archived ? 'Show it in Meetings again' : 'Hide it from Meetings — it can be brought back under Archived'} onClick={() => onArchived(!item.archived)}>{item.archived ? 'Bring back' : 'Archive'}</button>}
-            {canEdit && <button type="button" className="ak-btn mt-danger" onClick={remove}>Delete</button>}
+            <ButtonBar
+              primary={<button type="button" className="ak-btn" onClick={toCalendar}>Add to my Google Calendar</button>}
+              items={[
+                { label: item.archived ? 'Bring back' : 'Archive', hidden: !canEdit, title: item.archived ? 'Show it in Meetings again' : 'Hide it from Meetings — it can be brought back under Archived', onClick: () => onArchived(!item.archived) },
+                { label: 'Delete meeting', danger: true, hidden: !canEdit, onClick: () => { void remove(); } },
+              ]} />
           </div>
         ) : canEdit ? (
           <div className="mt-foot">

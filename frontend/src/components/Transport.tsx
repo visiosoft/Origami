@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ButtonBar } from './ButtonBar';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { Employee } from './EmployeeDirectory';
@@ -136,12 +137,16 @@ function RouteDrawer({ route, employees, projects, canManage, onOpenEmployee, on
 
   return (
     <Drawer title={route.name} subtitle={[route.vehicle, projects.find((p) => p.id === route.projectId)?.name].filter(Boolean).join(' · ')} width={540} onClose={onClose}
-      footer={canManage ? <>
-        {!route.riders.length && <div onClick={remove} style={{ ...btn(), color: DANGER }}>Delete</div>}
-        <div onClick={() => run(() => api.transport.update(route.id, { status: route.status === 'active' ? 'suspended' : 'active' }), route.status === 'active' ? 'Suspended' : 'Reactivated')} style={btn()}>{route.status === 'active' ? 'Suspend' : 'Reactivate'}</div>
-        <div onClick={onEdit} style={btn()}>Edit route</div>
-        {route.status === 'active' && <div onClick={() => setAdding(true)} style={btn(true)}>+ Add rider</div>}
-      </> : undefined}>
+      footer={canManage ? (
+        // Nov 23: + Add rider shown, the rest under More ▾.
+        <ButtonBar
+          primary={route.status === 'active' ? <div role="button" onClick={() => setAdding(true)} style={btn(true)}>+ Add rider</div> : undefined}
+          items={[
+            { label: 'Edit route', onClick: onEdit },
+            { label: route.status === 'active' ? 'Suspend' : 'Reactivate', onClick: () => run(() => api.transport.update(route.id, { status: route.status === 'active' ? 'suspended' : 'active' }), route.status === 'active' ? 'Suspended' : 'Reactivated') },
+            { label: 'Delete route', danger: true, hidden: route.riders.length > 0, onClick: remove },
+          ]} />
+      ) : undefined}>
       <div style={{ fontSize: 12.5, color: INK, lineHeight: 1.7, marginBottom: 14 }}>
         {route.driverEmployeeId && <div>Driver: <b>{empName(route.driverEmployeeId)}</b></div>}
         {(route.departureTime || route.returnTime) && <div>Leaves {route.departureTime || '—'}, returns {route.returnTime || '—'}</div>}
