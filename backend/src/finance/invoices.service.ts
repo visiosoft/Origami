@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import {
-  FinanceSequenceEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ReimbursableEntity,
+  FinanceSequenceEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectPhaseEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ReimbursableEntity,
   RetentionReleaseEntity,
 } from '../database/entities';
 import type { Actor } from '../manpower/manpower-access.service';
@@ -175,6 +175,15 @@ export class InvoicesService {
       ...reimbs.map((r) => ({ kind: 'reimbursable', reimbursableId: r.id })),
     ];
     const built = this.buildLines(inv, lineDtos, sov, refs);
+    // Nov 23 (Edward p30): every billed milestone paid by the same source -> the invoice's "Paid from" is that source.
+    try {
+      const phaseIds = [...new Set(lineDtos.map((l: any) => l.phaseId).filter(Boolean))] as string[];
+      if (phaseIds.length) {
+        const phases = await this.invoices.manager.getRepository(ProjectPhaseEntity).find({ where: { id: In(phaseIds) } as any });
+        const sources = new Set(phases.map((p) => p.fundingSourceId || ''));
+        if (sources.size === 1 && [...sources][0]) (inv as any).fundingSourceId = [...sources][0];
+      }
+    } catch { /* leave it unassigned */ }
     await this.invoices.manager.transaction(async (m) => {
       await m.getRepository(ProjectInvoiceEntity).save(inv);
       if (built.length) await m.getRepository(ProjectInvoiceLineEntity).save(built, { chunk: 40 });

@@ -464,7 +464,7 @@ export class FinancialsService {
   // ------------------------------------------------------------------ structure
 
   /** A billing milestone added from the Financial tab: an ordinary project phase, so the project keeps one structure. */
-  async addMilestone(projectId: number, dto: { name: string; contractValue?: number | null }, actor: Actor) {
+  async addMilestone(projectId: number, dto: { name: string; contractValue?: number | null; fundingSourceId?: string | null }, actor: Actor) {
     await this.need(actor, 'manage');
     await this.project(projectId);
     const name = String(dto.name || '').trim();
@@ -472,7 +472,7 @@ export class FinancialsService {
     const existing = await this.phases.find({ where: { projectId } });
     const key = 'fin-' + Date.now().toString(36);
     const phase = await this.phases.save(this.phases.create({
-      id: `PH-${projectId}-${key}`, projectId, key, name, color: '#7E9B93', order: existing.reduce((m, p) => Math.max(m, p.order), -1) + 1,
+      id: `PH-${projectId}-${key}`, projectId, key, name, color: '#7E9B93', order: existing.reduce((m, p) => Math.max(m, p.order), -1) + 1, fundingSourceId: dto.fundingSourceId || null,
     }));
     await this.log(null, { projectId, entityType: 'phase', entityId: phase.id, action: 'milestone_added', changes: { name: { from: null, to: name } } }, actor);
     if (dto.contractValue != null && dto.contractValue !== ('' as any)) return this.updateItem('phase', phase.id, { contractValue: dto.contractValue }, actor);

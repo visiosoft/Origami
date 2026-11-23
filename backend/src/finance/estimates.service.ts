@@ -713,6 +713,13 @@ export class EstimatesService {
     });
     return { estimateId: draft.id, rev: draft.rev, changed };
   }
+  /** Nov 23 (Edward p30): how many other estimate numbers of the project already set the contract value, and the project's buildings. */
+  async setupContext(projectId: number, number: string) {
+    const all = await this.estimates.find({ where: { projectId, isTemplate: false } });
+    const others = new Set(all.filter((x) => x.number !== number && (x.setupRefs as any)?.contract).map((x) => x.number));
+    const p = await this.projects.findOne({ where: { id: projectId } });
+    return { otherSetups: others.size, structures: p?.structures || [] };
+  }
   async revisionsOf(projectId: number, number: string) { return this.estimates.find({ where: { projectId, number, isTemplate: false } }); }
   async saveEntity(e: EstimateEntity) { return this.estimates.save(e); }
 

@@ -988,6 +988,8 @@ export class ProjectPhaseEntity {
   @Column() key!: string;
   @Column() name!: string;
   @Column() color!: string;
+  /** Nov 23 (Edward p30): who pays for this billing milestone (a funding source) -- its invoices take it as "Paid from". */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) fundingSourceId!: string | null;
   @Column('int') order!: number;
   @Column({ nullable: true }) startDate!: string;
   @Column({ nullable: true }) endDate!: string;
@@ -2704,6 +2706,8 @@ export class CommitmentEntity extends FinanceStamped {
   @Column() number!: string;
   /** subcontract | purchase_order | service */
   @Column({ default: 'subcontract' }) type!: string;
+  /** Nov 23 (Edward p30): the building it's for (projects.structures key) when the job was set up per building. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) structureKey!: string | null;
   @Column({ nullable: true }) contractorId!: string;
   @Column() vendorName!: string;
   @Column() title!: string;

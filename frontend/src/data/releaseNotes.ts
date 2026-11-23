@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-23c',
+    date: '2026-11-23',
+    title: 'Estimate roll-up: main house + ADU, bank + owner money',
+    items: [
+      { area: 'Estimating', kind: 'new', text: 'Tag each estimate with the building it prices (Main house, ADU…) and who pays for it (bank loan, owner cash…). The tag covers every revision and is fixed once the estimate is accepted.', where: 'Estimating → open an estimate → Building / Paid by' },
+      { area: 'Estimating', kind: 'new', text: 'Roll-up tab: the project’s estimates added together trade by trade, with GR, profit, contingency and the project total, plus subtotals by building and by who pays. Fold any estimate’s column, show low–high, and print.', where: 'Estimating → a project → Roll-up' },
+      { area: 'Estimating', kind: 'improved', text: '“Set up the job” works across estimates: the first one sets the contract value and later ones add to it. Each building gets its own subcontracts; estimates for the same building split only by who pays share one subcontract per sub. Milestones carry who pays, and invoices billed from them fill in “Paid from”.', where: 'An accepted estimate → Set up the job' },
+    ],
+  },
+  {
     id: '2026-11-23b',
     date: '2026-11-23',
     title: 'Access grid: one kind of control, scrollbar on top',

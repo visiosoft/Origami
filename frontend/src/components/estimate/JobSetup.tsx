@@ -46,11 +46,14 @@ export function JobSetup({ projectId, estimateId, label, onClose }: { projectId:
           <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 10 }}>Here is what will be made. Untick anything you’ll do by hand. Subcontracts are drafts — approve them in Job cost when they’re agreed.</div>
           {section('contract', 'Contract value', plan.contract.locked
             ? <span>Locked by issued invoices — changes go through change orders.</span>
-            : <span>{plan.contract.current != null && plan.contract.current !== plan.contract.proposed ? <>Now {usd(plan.contract.current)} → </> : null}<b>{usd(plan.contract.proposed)}</b> (the accepted total)</span>, plan.contract.locked)}
+            : plan.contract.mode === 'add'
+              // Nov 23 (Edward p30): a second estimate (the ADU, the owner-funded part) adds to the contract.
+              ? <span>Was {usd(plan.contract.current)} + this estimate {usd(plan.contract.adds)} → <b>{usd(plan.contract.proposed)}</b> <span style={{ color: 'var(--muted)' }}>({plan.contract.otherSetups} other estimate{plan.contract.otherSetups === 1 ? '' : 's'} already set up)</span></span>
+              : <span>{plan.contract.current != null && plan.contract.current !== plan.contract.proposed ? <>Now {usd(plan.contract.current)} → </> : null}<b>{usd(plan.contract.proposed)}</b> (the accepted total)</span>, plan.contract.locked)}
           {section('budget', `Cost budget — ${plan.budget.length} line${plan.budget.length === 1 ? '' : 's'} by CSI code`,
             <table className="eg-gr"><tbody>{plan.budget.map((b: any) => <tr key={b.csiCodeId || 'none'}><td>{b.label}</td><td className="is-num">{usd(b.amount)}</td></tr>)}</tbody></table>)}
           {section('subcontracts', `Draft subcontracts — ${plan.subcontracts.length}`, plan.subcontracts.length
-            ? <table className="eg-gr"><tbody>{plan.subcontracts.map((s: any) => <tr key={s.key}><td><b>{s.vendorName || 'Sub'}</b> <span style={{ color: 'var(--muted)' }}>{s.title} · {s.lines.length} line{s.lines.length === 1 ? '' : 's'}</span></td><td className="is-num">{usd(s.total)}</td></tr>)}</tbody></table>
+            ? <table className="eg-gr"><tbody>{plan.subcontracts.map((s: any) => <tr key={s.key}><td><b>{s.vendorName || 'Sub'}</b> <span style={{ color: 'var(--muted)' }}>{s.title}{plan.building ? ` – ${plan.building}` : ''} · {s.lines.length} line{s.lines.length === 1 ? '' : 's'}</span>{s.note && <div style={{ fontSize: 11.5, fontWeight: 600, color: s.joins ? 'var(--c-1e6b36, #1E6B36)' : 'var(--muted)' }}>{s.joins ? `Adds to ${s.joins} (same sub, same building)` : s.note === 'new subcontract' ? 'New subcontract' : s.note}</div>}</td><td className="is-num">{usd(s.total)}</td></tr>)}</tbody></table>
             : <span style={{ color: 'var(--muted)' }}>No “Subcontract used” lines with a sub named.</span>)}
           {section('milestones', `Billing — ${plan.milestones.length} milestone${plan.milestones.length === 1 ? '' : 's'}`,
             <table className="eg-gr"><tbody>{plan.milestones.map((m: any, i: number) => <tr key={i}><td>{m.name}</td><td className="is-num">{usd(m.amount)}</td></tr>)}</tbody></table>)}

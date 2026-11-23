@@ -67,3 +67,32 @@ export function setupPlan(input: {
 
   return { contract: r.totals.totalProject, budget: [...budget.values()], subcontracts: [...subs.values()], milestones };
 }
+
+/**
+ * Nov 23 (Edward p30): set-up across several estimates of one project.
+ * The first estimate set up sets the contract value; each later one adds its
+ * total to it (Main house + ADU, or the bank part + the owner part).
+ */
+export function contractAfter(current: number, otherSetups: number, add: number) {
+  return otherSetups > 0 ? { mode: 'add' as const, value: current + add } : { mode: 'set' as const, value: add };
+}
+
+/** A draft subcontract an earlier "Set up the job" made. */
+export interface SetupDraft { id: string; number: string; status: string; contractorId: string | null; vendorName: string; structureKey: string | null; scope: string | null }
+
+/**
+ * Which earlier draft each sub's lines join. Same sub (by contractor, else
+ * by name) and same building -> one subcontract (Scenario 2: split only by
+ * who pays). A different building -> its own subcontract (Scenario 1). Only
+ * drafts made by a set-up ("From EST-…") are joined; approved ones never.
+ */
+export function matchSubcontracts(subs: SetupPlan['subcontracts'], drafts: SetupDraft[], structureKey: string | null) {
+  return subs.map((s) => {
+    const sameSub = (d: SetupDraft) => (s.contractorId ? d.contractorId === s.contractorId : !d.contractorId && (d.vendorName || '').trim().toLowerCase() === s.key);
+    const madeBySetup = (d: SetupDraft) => /^From EST-/.test(d.scope || '');
+    const candidates = drafts.filter((d) => sameSub(d) && madeBySetup(d) && (d.structureKey || null) === (structureKey || null));
+    const draft = candidates.find((d) => d.status === 'draft') || null;
+    const approved = !draft && candidates.find((d) => d.status !== 'draft' && d.status !== 'void');
+    return { key: s.key, joins: draft, note: draft ? `adds to ${draft.number}` : approved ? `${approved.number} is already ${approved.status} — a new subcontract` : 'new subcontract' };
+  });
+}

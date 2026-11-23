@@ -240,6 +240,15 @@ export class CostsService {
     });
   }
 
+  /** Nov 23 (Edward p30): the project's subcontracts, for "Set up the job" to add a later estimate's lines to the right one. */
+  async setupDrafts(projectId: number) {
+    const rows = await this.commitments.find({ where: { projectId, type: 'subcontract' } });
+    return rows.map((c) => ({ id: c.id, version: (c as any).version, number: c.number, status: c.status, contractorId: c.contractorId || null, vendorName: c.vendorName, structureKey: c.structureKey || null, scope: c.scope || null }));
+  }
+  async commitmentLinesOf(id: string) {
+    return (await this.commitmentLines.find({ where: { commitmentId: id } })).sort((a, b) => a.lineOrder - b.lineOrder).map((l) => ({ id: l.id, description: l.description, csiCodeId: l.csiCodeId, phaseId: l.phaseId, taskId: l.taskId, amount: l.amount }));
+  }
+
   async saveCommitment(projectId: number, dto: any, actor: Actor) {
     const rights = await this.fin.need(actor, 'manageCosts');
     await this.fin.project(projectId);
@@ -259,7 +268,7 @@ export class CostsService {
       c = this.commitments.create({ id: newId('CM'), projectId, number: `${prefix}-${String(n).padStart(3, '0')}`, type, status: 'draft', attachments: [], createdAt: now(), createdBy: actor.name });
     }
     c.type = type;
-    for (const k of ['title', 'vendorName', 'contractorId', 'scope', 'notes'] as const) if (dto[k] !== undefined) (c as any)[k] = String(dto[k] ?? '').trim() || null;
+    for (const k of ['title', 'vendorName', 'contractorId', 'scope', 'notes', 'structureKey'] as const) if (dto[k] !== undefined) (c as any)[k] = String(dto[k] ?? '').trim() || null;
     if (dto.dateIssued !== undefined) { if (dto.dateIssued && !ISO.test(dto.dateIssued)) throw new BadRequestException('The issue date must be a date.'); c.dateIssued = dto.dateIssued || (null as any); }
     if (c.contractorId && !c.vendorName) c.vendorName = (await this.contractors.findOneBy({ id: c.contractorId }))?.companyName as any;
     if (!c.title) throw new BadRequestException('Give it a title.');
