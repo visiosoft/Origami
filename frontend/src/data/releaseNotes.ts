@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-23b',
+    date: '2026-11-23',
+    title: 'Access grid: one kind of control, scrollbar on top',
+    items: [
+      { area: 'User access', kind: 'improved', text: 'Finance actions (Prepare invoices, Approve invoices…) use the same coloured dropdown as the rows above — Yes or No, or ↳ to follow Project Finance — instead of on/off switches.', where: 'Admin → User Access & Roles' },
+      { area: 'User access', kind: 'improved', text: 'The roles grid has a sideways scrollbar at the top as well as the bottom, so you can move across without scrolling to the end of the list.', where: 'Admin → User Access & Roles' },
+      { area: 'Everywhere', kind: 'improved', text: 'More panels show their next step with the rest under More ▾: a lead, a change order, a draft invoice and the daily report footer.' },
+    ],
+  },
+  {
     id: '2026-11-23a',
     date: '2026-11-23',
     title: 'Tidier buttons, and a proper phone layout',

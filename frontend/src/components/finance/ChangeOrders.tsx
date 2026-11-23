@@ -1,4 +1,5 @@
 import { PaidFromPicker } from './Funding';
+import { ButtonBar } from '../ButtonBar';
 import { OpenedBadge, type Opened } from '../OpenedBadge';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api';
@@ -406,25 +407,33 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
           fields={[{ key: 'signer', label: 'Signed / approved by', required: true }, { key: 'date', label: 'Date', type: 'date', initial: todayISO(), required: true }, { key: 'reference', label: 'Reference', placeholder: 'Signed CO, email of 9/20…' }, { key: 'comment', label: 'Note', type: 'textarea' }]} />}
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid ' + LINE, paddingTop: 14 }}>
-          {editable && !co.submittedAt && <div onClick={remove} style={{ ...btn(), color: DANGER }}>Delete draft</div>}
-          {rights.editChangeOrders && ['draft', 'internal_review', 'submitted'].includes(co.status) && <div onClick={() => setStep('cancel')} style={{ ...btn(), color: DANGER }}>Cancel CO</div>}
-          <div style={{ flex: 1 }} />
+          {/* Nov 23 ("organize buttons"): the status's next step shown, the rest under More ▾. */}
           {editable && <SaveBar auto={auto} onDone={onClose} />}
-          {editable && <div onClick={busy ? undefined : () => act('submit')} style={btn(!rights.approveChangeOrders, busy)}>Submit for internal review</div>}
-          {co.status === 'draft' && rights.approveChangeOrders && <div onClick={() => setStep('client')} style={btn(true)} title="The client has already signed it">Record signed approval</div>}
-          {co.status === 'internal_review' && rights.approveChangeOrders && <>
-            <div onClick={() => setStep('return')} style={btn()}>Return</div>
-            <div onClick={() => setStep('reject')} style={{ ...btn(), color: DANGER }}>Reject</div>
-            <div onClick={busy ? undefined : async () => { if (await act('approve_internal')) openEmail(co.projectId); }} style={btn(true, busy)} title="Moves it to Under client review, then lets you email it with the PDF">Approve &amp; send to client</div>
-          </>}
           {emailedCount > 0 && <OpenedBadge opened={opened} />}
-          {co.status === 'submitted' && rights.approveChangeOrders && <>
-            <div onClick={() => openEmail(co.projectId)} style={btn()} title="The change order as a PDF, with signature blocks">{(co.approvals || []).some((a) => a.decision === 'sent_to_client') ? 'Email again' : 'Email to client'}</div>
-            <div onClick={() => setStep('return')} style={btn()}>Return</div>
-            <div onClick={() => setStep('reject')} style={{ ...btn(), color: DANGER }}>Client rejected</div>
-            <div onClick={() => setStep('client')} style={btn(true)}>Record client approval</div>
-          </>}
-          {co.status === 'rejected' && rights.editChangeOrders && <div onClick={() => act('reopen')} style={btn()}>Reopen as draft</div>}
+          <div style={{ flex: 1 }} />
+          {(() => {
+            const approver = rights.approveChangeOrders;
+            const reviewing = co.status === 'internal_review' && approver;
+            const withClient = co.status === 'submitted' && approver;
+            const reopen = co.status === 'rejected' && rights.editChangeOrders;
+            const primary = reviewing
+              ? <div role="button" onClick={busy ? undefined : async () => { if (await act('approve_internal')) openEmail(co.projectId); }} style={btn(true, busy)} title="Moves it to Under client review, then lets you email it with the PDF">Approve &amp; send to client</div>
+              : withClient ? <div role="button" onClick={() => setStep('client')} style={btn(true)}>Record client approval</div>
+              : reopen ? <div role="button" onClick={() => act('reopen')} style={btn()}>Reopen as draft</div>
+              : editable ? <div role="button" onClick={busy ? undefined : () => act('submit')} style={btn(true, busy)}>Submit for internal review</div>
+              : undefined;
+            return (
+              <ButtonBar primary={primary} items={[
+                { label: 'Submit for internal review', disabled: busy, hidden: !(editable && (reviewing || withClient || reopen)), onClick: () => act('submit') },
+                { label: 'Record signed approval', title: 'The client has already signed it', hidden: !(co.status === 'draft' && approver), onClick: () => setStep('client') },
+                { label: (co.approvals || []).some((x) => x.decision === 'sent_to_client') ? 'Email again' : 'Email to client', title: 'The change order as a PDF, with signature blocks', hidden: !withClient, onClick: () => openEmail(co.projectId) },
+                { label: 'Return', hidden: !(reviewing || withClient), onClick: () => setStep('return') },
+                { label: withClient ? 'Client rejected' : 'Reject', danger: true, hidden: !(reviewing || withClient), onClick: () => setStep('reject') },
+                { label: 'Delete draft', danger: true, hidden: !(editable && !co.submittedAt), onClick: remove },
+                { label: 'Cancel change order', danger: true, hidden: !(rights.editChangeOrders && ['draft', 'internal_review', 'submitted'].includes(co.status)), onClick: () => setStep('cancel') },
+              ]} />
+            );
+          })()}
         </div>
 
         <ActionTrail sourceType={co.sourceType} sourceId={co.sourceId} sourceLabel={co.sourceLabel} derived={co.derivedRefs} />

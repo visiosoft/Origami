@@ -1,4 +1,5 @@
 import { ContactEmail } from '../components/ContactEmail';
+import { ButtonBar } from '../components/ButtonBar';
 import { LinkedMail } from '../components/LinkedMail';
 import { stageLabel } from '../data/projects';
 import { createContext, useContext, useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -2416,12 +2417,6 @@ export function Pipeline() {
               ) : (
                 <div onClick={() => { const next = nextStageFor(selected); if (next) applyOverride(selected.id, { stage: next.key, stageIdx: next.idx, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>{nextStageFor(selected) ? 'Move to ' + nextStageFor(selected)!.name : '✓ Complete'}</div>
               )}
-              {prevStageFor(selected) && selected.stage !== 'referred_monitoring' && (
-                <div onClick={() => moveBack(selected, prevStageFor(selected))} title="Move this lead back a stage"
-                  style={{ flex: '1 1 100%', padding: 8, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--body)' }}>
-                  ← Back to {prevStageFor(selected)!.name}
-                </div>
-              )}
               {selected.stageIdx >= stageIndex('client_approval') && !selectedStage.isHold && !selectedStage.isClosed && !selected.convertedProjectId && (
                 <div onClick={() => setConverting(selected)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--success)', color: 'white' }}>
                   → Convert to Project
@@ -2438,13 +2433,16 @@ export function Pipeline() {
               </div>
               <div style={{ flex: '1 1 100%' }}><ContactEmail email={leadDetails[selected.id]?.email || (selected as any).email} name={leadDetails[selected.id]?.goByName || selected.client} /></div>
               <div style={{ flex: '1 1 100%' }}><LinkedMail entityType="lead" entityId={selected.id} /></div>
-              <div onClick={() => openEdit(selected)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: 'var(--success)' }}>Edit Lead</div>
-              <div onClick={() => deleteLead(selected.id)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: '#8E2E0A' }}>Delete</div>
-              {(selectedStage.isHold || selectedStage.isClosed) && (
-                <div onClick={() => archiveDeal(selected, !selected.archived)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: '#2F6F68', background: '#F4F8F7' }}>
-                  {selected.archived ? 'Restore from archive' : 'Archive'}
-                </div>
-              )}
+              {/* Nov 23 ("organize buttons"): Edit shown, the rest under More ▾. */}
+              <div style={{ flex: '1 1 100%', display: 'flex', justifyContent: 'flex-end' }}>
+                <ButtonBar
+                  primary={<button type="button" className="ak-btn" onClick={() => openEdit(selected)}>Edit lead</button>}
+                  items={[
+                    { label: `← Back to ${prevStageFor(selected)?.name || ''}`, title: 'Move this lead back a stage', hidden: !(prevStageFor(selected) && selected.stage !== 'referred_monitoring'), onClick: () => moveBack(selected, prevStageFor(selected)) },
+                    { label: selected.archived ? 'Restore from archive' : 'Archive', hidden: !(selectedStage.isHold || selectedStage.isClosed), onClick: () => archiveDeal(selected, !selected.archived) },
+                    { label: 'Delete lead', danger: true, onClick: () => deleteLead(selected.id) },
+                  ]} />
+              </div>
             </div>
           )}
         </div>

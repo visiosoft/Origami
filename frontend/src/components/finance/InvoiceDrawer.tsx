@@ -327,15 +327,24 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
       {step === 'return' && <ReasonBox title="Return to the preparer" confirm="Return" onCancel={() => setStep(null)} onSubmit={(v) => returnIt(v.comment)} fields={[{ key: 'comment', label: 'What needs changing', type: 'textarea', required: true }]} />}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid ' + LINE, paddingTop: 14, flexWrap: 'wrap' }}>
-        {canEdit && <div onClick={remove} style={{ ...btn(), color: DANGER, marginRight: 'auto' }}>Delete draft</div>}
-        <div onClick={() => printInvoice({ ...inv, ...h, retentionPct: invRet, taxPct: invTax } as any, overview, true)} style={btn()}>Preview</div>
-        {canEdit && <div onClick={busy ? undefined : save} style={btn(false, busy || !dirty)}>Save draft</div>}
-        {approver && inv.approvalRequestedAt && <div onClick={() => setStep('return')} style={btn()}>Return</div>}
-        {approver && inv.approvalRequestedAt && !inv.approvedAt && !r.issueInvoice && <div onClick={busy ? undefined : approve} style={btn(true, busy)}>Approve</div>}
-        {approver && inv.approvalRequestedAt && !inv.approvedAt && r.issueInvoice && <div onClick={busy ? undefined : approve} style={btn(false, busy)}>Approve only</div>}
-        {r.issueInvoice
-          ? (!inv.approvalRequestedAt || inv.approvedAt || approver) && <div onClick={busy ? undefined : issue} style={btn(true, busy)}>{inv.approvalRequestedAt && !inv.approvedAt ? 'Approve & issue' : `Issue ${docName(inv).toLowerCase()}`}</div>
-          : canEdit && !inv.approvalRequestedAt && <div onClick={() => setStep('request')} style={btn(true)}>Send for approval</div>}
+        {/* Nov 23 ("organize buttons"): the next step shown, the rest under More ▾. */}
+        {(() => {
+          const req = !!inv.approvalRequestedAt; const approved = !!inv.approvedAt;
+          const primary = r.issueInvoice
+            ? ((!req || approved || approver) ? <div role="button" onClick={busy ? undefined : issue} style={btn(true, busy)}>{req && !approved ? 'Approve & issue' : `Issue ${docName(inv).toLowerCase()}`}</div> : undefined)
+            : approver && req && !approved ? <div role="button" onClick={busy ? undefined : approve} style={btn(true, busy)}>Approve</div>
+            : canEdit && !req ? <div role="button" onClick={() => setStep('request')} style={btn(true)}>Send for approval</div>
+            : undefined;
+          return (
+            <ButtonBar primary={primary} items={[
+              { label: 'Preview', onClick: () => printInvoice({ ...inv, ...h, retentionPct: invRet, taxPct: invTax } as any, overview, true) },
+              { label: 'Save draft', disabled: busy || !dirty, hidden: !canEdit, onClick: () => { void save(); } },
+              { label: 'Approve only', disabled: busy, hidden: !(approver && req && !approved && r.issueInvoice), onClick: () => { void approve(); } },
+              { label: 'Return to the preparer', hidden: !(approver && req), onClick: () => setStep('return') },
+              { label: 'Delete draft', danger: true, hidden: !canEdit, onClick: () => { void remove(); } },
+            ]} />
+          );
+        })()}
       </div>
       <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.6 }}>
         Drafts don't reserve work: when issued, every line is checked again against what has been invoiced by then, and the number is assigned.

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { TopScrollbar } from './TopScrollbar';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import {
@@ -45,6 +46,7 @@ const TIER_HINT: Record<Tier, string> = {
 };
 
 export function AccessBoard({ readOnly }: { readOnly: boolean }) {
+  const matrixWrap = useRef<HTMLDivElement>(null);
   const { users, roles, refreshAccess, toast } = useApp();
 
   // ---- people ----
@@ -300,7 +302,8 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
             <span className="ab-legend"><span className="ab-switch is-0"><i /></span>Off<span className="ab-switch is-1"><i /></span>View<span className="ab-switch is-2"><i /></span>Manage</span>
           </div>
 
-          <div className="ab-matrix-wrap">
+          <TopScrollbar target={matrixWrap} />
+          <div className="ab-matrix-wrap" ref={matrixWrap}>
             <table className="ab-matrix">
               <thead>
                 <tr>
@@ -383,9 +386,16 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
                         const on = own ? !!own.manage : !!p.fin_project?.manage;
                         return (
                           <td key={r.key}>
-                            <button type="button" className={'ab-toggle' + (on ? ' is-on' : '') + (own ? '' : ' is-inherited')} disabled={readOnly}
-                              title={`${r.name} · ${name}: ${on ? 'allowed' : 'not allowed'}${own ? '' : ' (follows Project Finance “manage”)'}`}
-                              onClick={() => edit(r, key, { view: !on || !!own?.view, manage: !on })}><i /></button>
+                            {/* Nov 23: the same coloured dropdown as the rows above (no separate switches). */}
+                            <span className={'ab-lv ' + (on ? 'is-modify' : 'is-block') + (own ? '' : ' is-inherited')}
+                              title={`${r.name} · ${name}: ${on ? 'allowed' : 'not allowed'}${own ? '' : ' (follows Project Finance “manage”)'}`}>
+                              <select aria-label={`${r.name}, ${name}`} disabled={readOnly} value={own ? (own.manage ? 'yes' : 'no') : ''}
+                                onChange={(e) => { const v = e.target.value; edit(r, key, v === '' ? null : { view: v === 'yes' || !!own?.view, manage: v === 'yes' }); }}>
+                                <option value="">↳ {p.fin_project?.manage ? 'Yes' : 'No'}</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                              </select>
+                            </span>
                           </td>
                         );
                       })}

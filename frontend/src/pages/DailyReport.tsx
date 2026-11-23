@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ButtonBar } from '../components/ButtonBar';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { MapLink } from '../components/ContactLinks';
@@ -594,8 +595,11 @@ export function DailyReport() {
                   <div style={{ flex: '1 1 160px', minWidth: 0, fontSize: 12, color: auto.state === 'error' ? '#8E2E0A' : auto.dirty ? 'var(--c-8a6d12)' : MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {auto.state === 'saving' ? 'Saving…' : auto.state === 'error' ? `Couldn’t save — ${auto.error}` : auto.dirty ? 'Unsaved · saves itself in a moment' : 'Draft saved'}
                   </div>
-                  <button type="button" onClick={saveDraft} style={pill(false)}>{auto.state === 'error' ? 'Retry save' : 'Save draft'}</button>
-                  <button type="button" onClick={() => { setTplName(''); setTplOpen(true); }} style={pill(false)}>Save as template</button>
+                  {/* Nov 23: Submit shown; saving and the template under More ▾ (the draft saves itself). */}
+                  <ButtonBar items={[
+                    { label: auto.state === 'error' ? 'Retry save' : 'Save draft now', onClick: () => { void saveDraft(); } },
+                    { label: 'Save as template…', onClick: () => { setTplName(''); setTplOpen(true); } },
+                  ]} />
                   <button type="button" onClick={busy ? undefined : submit} style={{ padding: '10px 22px', borderRadius: 999, border: 'none', background: ACCENT, color: '#fff', fontSize: 13.5, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap', opacity: busy ? 0.6 : 1 }}>
                     {busy === 'submit' ? 'Submitting…' : 'Submit'}
                   </button>
