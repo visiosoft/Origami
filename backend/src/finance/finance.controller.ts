@@ -98,6 +98,7 @@ export class FinanceController {
   // --- estimates (the prime contract built like the team's sheet)
   @Get('projects/:id/estimates') async estimateList(@Param('id') id: string, @Headers('authorization') a?: string) { return this.estimates.list(Number(id), await this.actor(a)); }
   @Post('projects/:id/estimates') async estimateNew(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.create(Number(id), dto || {}, await this.actor(a), await this.canSee(a)); }
+  @Get('projects/:id/estimates-rollup') async estimatesRollup(@Param('id') id: string, @Query('ids') ids: string, @Headers('authorization') a?: string) { return this.estimates.rollup(Number(id), String(ids || '').split(','), await this.actor(a)); }
   @Get('projects/:id/estimates-compare') async estimatesCompare(@Param('id') id: string, @Query('ids') ids: string, @Headers('authorization') a?: string) { return this.estimates.compareAcross(Number(id), String(ids || '').split(',').filter(Boolean), await this.actor(a)); }
   /** Nov 19: valid for Financials -> Precon, and its subcontracted lines by sub. */
   @Put('projects/:id/estimates/:eid/tags') async estimateTags(@Param('id') id: string, @Param('eid') eid: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.estimates.setTags(Number(id), eid, dto || {}, await this.actor(a)); }

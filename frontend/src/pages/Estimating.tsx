@@ -1,4 +1,5 @@
 import { CompareEstimates } from '../components/estimate/CompareEstimates';
+import { EstimateRollup } from '../components/estimate/EstimateRollup';
 import { estimateWaiting } from '../data/estimateWaiting';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -69,7 +70,8 @@ export function Estimating() {
   const [tab, setTab] = useState<'sheet' | 'letter'>('sheet');
   const [sending, setSending] = useState(false);
   // Nov 19 (Edward): compare the project's estimates side by side.
-  const [comparingAll, setComparingAll] = useState(false);
+  /** The project's estimate list, comparison, or roll-up (Nov 23, Edward p30). */
+  const [listTab, setListTab] = useState<'list' | 'compare' | 'rollup'>('list');
   const [settingUp, setSettingUp] = useState(false);
   const [bidding, setBidding] = useState(false);
   const [mail, setMail] = useState({ to: '', cc: '', note: '' });
@@ -208,6 +210,14 @@ export function Estimating() {
 
   const current = rows?.find((r) => r.id === estimateId) || null;
   const siblings = current ? (rows || []).filter((r) => r.number === current.number) : [];
+  const listTabs = (
+    <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+      {([['list', 'Estimates'], ['compare', 'Compare estimates'], ['rollup', 'Roll-up']] as const).map(([k, l]) => (
+        <button key={k} type="button" role="tab" aria-selected={listTab === k} className={'eg-btn' + (listTab === k ? ' is-on' : '')} onClick={() => setListTab(k)}
+          title={k === 'rollup' ? 'Add estimates together — e.g. main house + ADU, or bank + owner financed' : undefined}>{l}</button>
+      ))}
+    </div>
+  );
   return (
     <div style={{ padding: '16px 20px 24px', display: 'grid', gap: 12, minWidth: 0 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
@@ -291,24 +301,16 @@ export function Estimating() {
         <EstimateGrid key={`${estimateId}-${reload}`} projectId={projectId} estimateId={estimateId} onChanged={setOpen} controlRef={grid} />
       ) : rows === null ? (
         <div style={{ color: 'var(--muted)' }}>Loading…</div>
-      ) : comparingAll && rows.length > 1 ? (
+      ) : listTab !== 'list' && rows.length > 1 ? (
         <>
-          <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-            <button type="button" role="tab" aria-selected={false} className="eg-btn" onClick={() => setComparingAll(false)}>Estimates</button>
-            <button type="button" role="tab" aria-selected className="eg-btn is-on">Compare estimates</button>
-          </div>
-          <CompareEstimates projectId={projectId} rows={rows} />
+          {listTabs}
+          {listTab === 'compare' ? <CompareEstimates projectId={projectId} rows={rows} /> : <EstimateRollup projectId={projectId} rows={rows} />}
         </>
       ) : !rows.length ? (
         <div className="eg-card" style={{ color: 'var(--muted)', fontSize: 13.5 }}>No estimates for this project yet.{rights.edit ? ' Start one with “+ New estimate”.' : ''}</div>
       ) : (
         <>
-        {rows.length > 1 && (
-          <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-            <button type="button" role="tab" aria-selected className="eg-btn is-on">Estimates</button>
-            <button type="button" role="tab" aria-selected={false} className="eg-btn" onClick={() => setComparingAll(true)}>Compare estimates</button>
-          </div>
-        )}
+        {rows.length > 1 && listTabs}
         <div className="eg-card" style={{ padding: 0, overflowX: 'auto' }}>
           <table className="eg-gr" style={{ minWidth: 560 }}>
             <thead><tr><th style={{ width: 34 }} title="Valid for Financials → Precon" /><th style={{ padding: '10px 14px' }}>Estimate</th><th>Status</th><th>Date</th><th style={{ textAlign: 'right', paddingRight: 14 }}>Total project cost</th></tr></thead>

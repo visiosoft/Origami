@@ -1316,6 +1316,7 @@ export const api = {
     runEstimateSetup: (projectId: number, id: string, steps: string[]) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/setup`, { method: 'POST', body: JSON.stringify({ steps }) }),
     markEstimateAccepted: (projectId: number, id: string, signer: string) => request<any>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/accepted`, { method: 'POST', body: JSON.stringify({ signer }) }),
     /** Nov 19: valid for Financials -> Precon (several can be), and an estimate's subcontracted lines by sub. */
+    estimatesRollup: (projectId: number, ids: string[]) => request<any>(`/finance/projects/${projectId}/estimates-rollup?ids=${ids.map(encodeURIComponent).join(',')}`),
     estimatesCompare: (projectId: number, ids: string[]) => request<any>(`/finance/projects/${projectId}/estimates-compare?ids=${ids.map(encodeURIComponent).join(',')}`),
     /** Nov 23 (Edward p30): the building an estimate prices and who pays for it (all revisions of its number). */
     estimateTags: (projectId: number, id: string, d: { structureKey?: string | null; fundingSourceId?: string | null }) => request<{ number: string; structureKey: string | null; fundingSourceId: string | null }>(`/finance/projects/${projectId}/estimates/${encodeURIComponent(id)}/tags`, { method: 'PUT', body: JSON.stringify(d) }),

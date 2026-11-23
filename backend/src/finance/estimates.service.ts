@@ -1,5 +1,6 @@
 import { CsiCodeEntity } from '../database/entities';
 import { compareEstimates, redactAcross, type CmpEstimate } from './estimate-compare';
+import { redactRollup, rollupEstimates, type RollEstimate } from './estimate-rollup';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository, type EntityManager } from 'typeorm';
@@ -343,6 +344,46 @@ export class EstimatesService {
       rows: c.rows.map((row) => ({ ...row, cells: row.cells.map((x) => (x ? { low: money(x.low), high: money(x.high) } : null)), changes: row.changes.map((x) => (x ? { low: money(x.low), high: money(x.high) } : null)) })),
       totals: c.totals.map((x) => (x ? { low: money(x.low), high: money(x.high) } : null)),
       totalChanges: c.totalChanges.map((x) => (x ? { low: money(x.low), high: money(x.high) } : null)),
+    };
+  }
+
+  /**
+   * Nov 23 (Edward p30, "the roll up"): these estimates of the project added
+   * together trade by trade, with subtotals by building and by who pays.
+   */
+  async rollup(projectId: number, ids: string[], actor: Actor) {
+    await this.need(actor, 'view');
+    const project = await this.project(projectId);
+    const pick = [...new Set(ids.filter(Boolean))].slice(0, 12);
+    if (!pick.length) throw new BadRequestException('Pick the estimates to roll up.');
+    const csi = new Map((await this.db.getRepository(CsiCodeEntity).find().catch(() => [] as CsiCodeEntity[])).map((c) => [c.id, `${c.code} — ${c.division}`]));
+    let funds = new Map<string, string>();
+    try { funds = new Map(((await (this.db.getRepository(FundingSourceEntity) as any).find({ where: { projectId } })) || []).map((f: FundingSourceEntity) => [f.id, f.name])); } catch { funds = new Map(); }
+    const list: RollEstimate[] = [];
+    for (const id of pick) {
+      const e = await this.one(projectId, id);
+      const sheet = await this.sheetOf(id);
+      const r = resultOf(e, sheet);
+      const out = new Map(r.scopes.map((x) => [x.id, x]));
+      const t = r.totals as any;
+      list.push({
+        id: e.id, label: `${e.number} Rev ${e.rev}${e.title ? ` · ${e.title}` : ''}`, date: e.estimateDate || e.updatedAt?.slice(0, 10) || null,
+        structureKey: e.structureKey || null, structureName: (project.structures || []).find((x) => x.key === e.structureKey)?.name || null,
+        fundingSourceId: e.fundingSourceId || null, fundingName: e.fundingSourceId ? funds.get(e.fundingSourceId) || null : null,
+        scopes: sheet.scopes.map((x) => ({ csiCodeId: x.csiCodeId, csiLabel: x.csiCodeId ? csi.get(x.csiCodeId) || null : null, title: x.title || '', low: out.get(x.id)?.total || 0, high: out.get(x.id)?.high || out.get(x.id)?.total || 0 })),
+        totalLow: t.totalProject, totalHigh: t.high || t.totalProject,
+        totals: { subtotal: t.subtotal || 0, grTotal: t.grTotal || 0, gl: t.gl || 0, profit: t.profit || 0, contingency: t.contingency || 0, discount: t.discount || 0, designCost: t.designCost || 0, totalProject: t.totalProject || 0, high: t.high || t.totalProject || 0 },
+      });
+    }
+    const r = redactRollup(rollupEstimates(list), (await this.money(actor)).price);
+    const m = (v: number | null | undefined) => (v == null ? null : fromCents(v));
+    const pair = (x: { low: number; high: number } | null) => (x ? { low: m(x.low), high: m(x.high) } : null);
+    return {
+      ...r,
+      rows: r.rows.map((x) => ({ ...x, cells: x.cells.map(pair), total: pair(x.total) })),
+      lines: r.lines.map((x) => ({ ...x, cells: x.cells.map(m), total: m(x.total) })),
+      totals: r.totals.map(pair), total: pair(r.total),
+      byBuilding: r.byBuilding.map((g) => ({ ...g, total: pair(g.total) })), byFunding: r.byFunding.map((g) => ({ ...g, total: pair(g.total) })),
     };
   }
 
