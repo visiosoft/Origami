@@ -130,4 +130,25 @@ describe('RFI drawings on the document (Nov 19)', () => {
     const list = Array.from({ length: 11 }, (_, i) => ({ fileId: 'F1', name: 'Floor Plan.pdf', page: 1, markupId: 'MK-' + i })).concat([{ fileId: 'F1', name: 'Floor Plan.pdf', page: 3, markupId: 'MK-x' }]);
     expect(drawingLines(list)).toEqual(['Floor Plan.pdf, p. 1 (11 markups)', 'Floor Plan.pdf, p. 3 (1 markup)']);
   });
+
+  it('Nov 27: notes & updates in line (with attached photos), a short label, and send by notification', async () => {
+    const { service, rfis, sent } = setup();
+    const r = await service.create({ projectId: 23, subject: 'Relocate the toilet drain in the primary bath', question: 'Can the drain move 6"?' }, astrid);
+    rfis.rows[0].attachments = [{ id: 'att-1', name: 'drain.jpg', mimeType: 'image/jpeg' }];
+    const a = await service.addNote(r.id, { text: 'Measured on site: 4" clearance.', attachmentIds: ['att-1', 'nope'] }, astrid);
+    expect(a.notes).toHaveLength(1);
+    expect(a.notes[0]).toMatchObject({ by: 'Astrid Rivas', text: 'Measured on site: 4" clearance.', attachmentIds: ['att-1'] });
+    await expect(service.addNote(r.id, { text: '  ' }, astrid)).rejects.toThrow(/Write the note/);
+    expect(a.label).toBe('RFI-001 · Relocate the toilet…');
+    const b = await service.update(r.id, { shortLabel: 'Toilet change' } as any, astrid);
+    expect(b.label).toBe('RFI-001 · Toilet change');
+    // Send by notification: only to someone with a login; no email goes out.
+    await service.update(r.id, { to: { name: 'Edward', email: 'edward@outside.test' } } as any, astrid);
+    await expect(service.send(r.id, { by: 'notify' }, astrid)).rejects.toThrow(/no Odin login/);
+    await service.update(r.id, { to: { name: 'George Finau', email: 'george@origami.test' } } as any, astrid);
+    const c = await service.send(r.id, { by: 'notify' }, astrid);
+    expect(c.status).toBe('open');
+    expect(c.history.at(-1)?.action).toBe('shared with George Finau in Odin (notification)');
+    expect(sent).toHaveLength(0);
+  });
 });

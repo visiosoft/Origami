@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { RFI_LABEL_MAX, rfiLabel } from './rfi-label';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -29,7 +30,7 @@ export function addWorkingDays(from: string, n: number) {
 }
 
 /** Text fields a person edits directly; everything else moves through the actions below. */
-const EDITABLE = ['subject', 'question', 'suggestion', 'discipline', 'specSection', 'drawingRef', 'csiCodeId', 'priority', 'dateDue',
+const EDITABLE = ['shortLabel', 'subject', 'question', 'suggestion', 'discipline', 'specSection', 'drawingRef', 'csiCodeId', 'priority', 'dateDue',
   'costImpact', 'costAmount', 'scheduleImpact', 'scheduleDays', 'answer', 'answeredBy', 'dateAnswered'] as const;
 
 const cleanText = (v: unknown, max = 20000) => String(v ?? '').replace(/\r\n/g, '\n').trim().slice(0, max);
@@ -189,7 +190,7 @@ export class RfisService {
   // ------------------------------------------------------------------ reading
 
   private shape(r: RfiEntity) {
-    return { ...r, attachments: normalizeAttachments(r.attachments), history: r.history || [], ballInCourt: ballInCourt(r) };
+    return { ...r, attachments: normalizeAttachments(r.attachments), history: r.history || [], notes: r.notes || [], label: rfiLabel(r), ballInCourt: ballInCourt(r) };
   }
 
   async list(actor: Actor, projectId?: number) {
@@ -270,7 +271,8 @@ export class RfisService {
     for (const k of EDITABLE) {
       if (!(k in (dto || {}))) continue;
       const v = dto[k];
-      if (k === 'subject') { const s = cleanText(v, 300); if (!s) throw new BadRequestException('The subject can’t be empty.'); r.subject = s; }
+      if (k === 'shortLabel') r.shortLabel = cleanText(v, RFI_LABEL_MAX).replace(/\s+/g, ' ') || null;
+      else if (k === 'subject') { const s = cleanText(v, 300); if (!s) throw new BadRequestException('The subject can’t be empty.'); r.subject = s; }
       else if (k === 'discipline') r.discipline = RFI_DISCIPLINES.includes(v) ? v : '';
       else if (k === 'priority') r.priority = cleanPriority(v);
       else if (k === 'csiCodeId') r.csiCodeId = cleanText(v, 40) || null;
@@ -321,10 +323,24 @@ export class RfisService {
    * answer comes back to them) with the PDF attached. A draft becomes open
    * and gets a due date if it had none; an open one is simply re-sent.
    */
-  async send(id: string, dto: { note?: string }, actor: Actor) {
+  async send(id: string, dto: { note?: string; by?: 'email' | 'notify' }, actor: Actor) {
     await this.need(actor, 'manage');
     const r = await this.load(id);
     if (r.status !== 'draft' && r.status !== 'open') throw new BadRequestException(`${r.number} is ${r.status} — only a draft or an open RFI can be sent.`);
+    // Nov 27 (Weekly Sync): "send by" email or by notification -- shared in Odin for someone with a login.
+    if (dto?.by === 'notify') {
+      const who = await this.userByEmail(r.to?.email);
+      if (!who) throw new BadRequestException(`${r.to?.name || 'The recipient'} has no Odin login — send it by email instead.`);
+      const whoName = r.to?.name || 'them';
+      if (!r.question?.trim()) throw new BadRequestException('Write the question first.');
+      const firstShare = r.status === 'draft';
+      if (firstShare) { r.dateSent = today(); if (!r.dateDue) r.dateDue = addWorkingDays(r.dateSent, 7); r.status = 'open'; }
+      this.event(r, actor, `${firstShare ? 'shared' : 're-shared'} with ${whoName} in Odin (notification)`, cleanText(dto?.note, 500) || undefined);
+      r.updatedAt = now(); r.updatedBy = actor.name;
+      await this.repo.save(r);
+      await this.tellAssigned(r, [who], actor, 'An RFI was shared with you');
+      return this.get(id, actor);
+    }
     if (!r.to?.email) throw new BadRequestException('Add who it goes to, with an email address.');
     if (!r.question?.trim()) throw new BadRequestException('Write the question first.');
     if (!(await this.google.isConnected())) throw new BadRequestException('No Google account is connected for sending mail (Settings → Integrations).');
@@ -355,6 +371,24 @@ export class RfisService {
     await this.repo.save(r);
     // Nov 17: sent to someone with a login here -- it's on them now.
     await this.tellAssigned(r, [await this.userByEmail(r.to?.email)], actor, 'An RFI was sent to you');
+    return this.get(id, actor);
+  }
+
+  /**
+   * Nov 27 (Weekly Sync): a note or update on the RFI -- text and/or photos,
+   * files and sketches already attached to it -- kept in line, like a task's
+   * activity, instead of one long description.
+   */
+  async addNote(id: string, dto: { text?: string; attachmentIds?: string[] }, actor: Actor) {
+    await this.need(actor, 'view');
+    const r = await this.load(id);
+    const text = cleanText(dto?.text, 4000) || '';
+    const have = new Set(normalizeAttachments(r.attachments).map((a) => a.id));
+    const attachmentIds = [...new Set((Array.isArray(dto?.attachmentIds) ? dto.attachmentIds : []).map(String))].filter((x) => have.has(x)).slice(0, 20);
+    if (!text && !attachmentIds.length) throw new BadRequestException('Write the note, or add a photo or file.');
+    r.notes = [...(r.notes || []), { id: 'rn-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: now(), by: actor.name, byId: (actor as any).id || null, text, ...(attachmentIds.length ? { attachmentIds } : {}) }];
+    r.updatedAt = now(); r.updatedBy = actor.name;
+    await this.repo.save(r);
     return this.get(id, actor);
   }
 

@@ -2883,6 +2883,8 @@ export interface RfiDrawingRef { fileId: string; name: string; markupId?: string
 /** Someone an RFI goes to or is copied to -- a People contact, a staff member, or just a name and email. */
 export interface RfiContact { name: string; email?: string; company?: string; personId?: number }
 export interface RfiEvent { at: string; by: string; action: string; note?: string }
+/** Nov 27 (Weekly Sync): a note or update on an RFI, with photos / files / sketches -- in line, like a task's activity. */
+export interface RfiNote { id: string; at: string; by: string; byId?: string | null; text: string; attachmentIds?: string[] }
 
 /**
  * A Request for Information: a question to the architect / engineer / owner
@@ -2940,6 +2942,10 @@ export class RfiEntity {
   @Column({ nullable: true }) sourceTaskType!: string;
   @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[] | null;
   @Column({ type: 'simple-json', nullable: true }) history!: RfiEvent[] | null;
+  /** Nov 27: notes & updates, in line with their photos. */
+  @Column({ type: 'simple-json', nullable: true }) notes!: RfiNote[] | null;
+  /** Nov 27: the short label (≤ 25 characters) shown with the number -- "RFI-012 · Toilet change". */
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) shortLabel!: string | null;
   @Column({ ...TEXT, nullable: true }) voidReason!: string;
   @Column() createdAt!: string;
   @Column({ nullable: true }) createdBy!: string;

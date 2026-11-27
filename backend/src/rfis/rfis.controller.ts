@@ -85,8 +85,14 @@ export class RfisController {
     return this.rfis.remove(id, await this.actor(a));
   }
 
+  /** Nov 27: a note or update, with photos already attached to the RFI. */
+  @Post(':id/notes')
+  async addNote(@Param('id') id: string, @Body() dto: { text?: string; attachmentIds?: string[] }, @Headers('authorization') a?: string) {
+    return this.rfis.addNote(id, dto || {}, await this.actor(a));
+  }
+
   @Post(':id/send')
-  async send(@Param('id') id: string, @Body() dto: { note?: string }, @Headers('authorization') a?: string) {
+  async send(@Param('id') id: string, @Body() dto: { note?: string; by?: 'email' | 'notify' }, @Headers('authorization') a?: string) {
     return this.rfis.send(id, dto || {}, await this.actor(a));
   }
 
