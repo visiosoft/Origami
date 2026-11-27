@@ -43,7 +43,8 @@ export const WORKSPACE_SCOPES = [
 ];
 
 /** Scopes for a person connecting their OWN Gmail (Nov 13): read, send and draft their mail -- nothing else. */
-export const MY_MAIL_SCOPES = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.compose'];
+// Nov 27 (Weekly Sync): + gmail.modify, so a message opened in Odin is marked read in Gmail too.
+export const MY_MAIL_SCOPES = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.compose', 'https://www.googleapis.com/auth/gmail.modify'];
 
 /** Scopes for "Sign in with Google" — identity only. */
 export const LOGIN_SCOPES = ['openid', 'email', 'profile'];

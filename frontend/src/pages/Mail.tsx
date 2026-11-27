@@ -45,6 +45,15 @@ export function Mail() {
   const [list, setList] = useState<ListPage | null>(cache.lists.get('INBOX||') || null);
   // Checking Gmail for new mail behind what's already shown; Refresh asks again.
   const [checking, setChecking] = useState(false);
+  /** Nov 27: the Gmail connection predates the "mark read" permission. */
+  const [needsReconnect, setNeedsReconnect] = useState(false);
+  /** Read / unread, here and in Gmail: every cached list shows the change at once. */
+  const setRead = (id: string, read: boolean) => {
+    const patch = (l: ListPage | null) => (l ? { ...l, threads: l.threads.map((t) => (t.id === id ? { ...t, unread: !read } : t)) } : l);
+    for (const [k, v] of cache.lists) cache.lists.set(k, patch(v)!);
+    setList((cur) => patch(cur));
+    api.mail.markRead(id, read).then((r) => { if (r?.reconnect) { setNeedsReconnect(true); setList((cur) => (cur ? { ...cur, threads: cur.threads.map((t) => (t.id === id ? { ...t, unread: read } : t)) } : cur)); } }).catch(() => undefined);
+  };
   const [tick, setTick] = useState(0);
   const [pages, setPages] = useState<string[]>(['']);
   const [open, setOpen] = useState<MailThread | null>(null);
@@ -132,6 +141,7 @@ export function Mail() {
 
   const openThread = async (id: string) => {
     setOpen(cache.threads.get(id) || null); setCompose(null); setLinkTo(false);
+    if (list?.threads.find((t) => t.id === id)?.unread) setRead(id, true);
     try { const t = await api.mail.thread(id); cache.threads.set(id, t); setOpen((cur) => (cur && cur.id !== id ? cur : t)); } catch (e) { toast('⚠ ' + (e as Error).message); }
   };
   const reply = () => {
@@ -176,6 +186,11 @@ export function Mail() {
         <button type="button" style={btn()} onClick={() => setManaging((v) => !v)}>Templates</button>
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>{st.email} · <button type="button" onClick={() => { if (confirm('Disconnect your Gmail?')) void api.google.myMail.disconnect().then(() => setSt({ connected: false, email: '' })); }} style={{ border: 0, background: 'none', color: 'var(--muted)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit', padding: 0 }}>disconnect</button></span>
       </div>
+      {needsReconnect && (
+        <div role="status" style={{ padding: '9px 12px', borderRadius: 10, background: 'var(--amber-light)', color: 'var(--c-8a6d12)', fontSize: 12.5 }}>
+          To mark messages read here and in Gmail, <a href={api.google.myMail.connectUrl()} style={{ fontWeight: 700, color: 'inherit' }}>reconnect Gmail</a> once — Odin now asks for permission to change read / unread.
+        </div>
+      )}
       {managing && <TemplateManager templates={templates} onChanged={() => void api.mail.templates().then(setTemplates)} />}
       <div style={{ display: 'flex', gap: 6 }}>
         {([['INBOX', 'Inbox'], ['SENT', 'Sent'], ['DRAFT', 'Drafts']] as const).map(([k, l]) => <button key={k} type="button" style={btn(folder === k)} onClick={() => { setFolder(k); setPages(['']); setOpen(null); }}>{l}</button>)}
@@ -210,6 +225,7 @@ export function Mail() {
                 <b style={{ flex: 1, fontSize: 16, color: 'var(--ink)' }}>{open.subject}</b>
                 <button type="button" style={btn()} onClick={reply}>Reply</button>
                 <button type="button" style={btn()} onClick={() => setLinkTo((v) => !v)}>Link to…</button>
+                <button type="button" style={btn()} title="Show it as unread again (in Gmail too)" onClick={() => { setRead(open.id, false); setOpen(null); }}>Mark unread</button>
               </div>
               {open.links.length > 0 && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{open.links.map((l) => (
                 <span key={l.id} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 999, background: 'var(--mist)', color: 'var(--forest)', display: 'inline-flex', gap: 6 }}>

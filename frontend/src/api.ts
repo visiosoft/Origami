@@ -1559,6 +1559,8 @@ export const api = {
     saveTemplate: (id: string | null, d: { name: string; subject?: string; html: string; shared?: boolean }) => request<MailTemplate>(id ? `/mail/templates/${encodeURIComponent(id)}` : '/mail/templates', { method: 'POST', body: JSON.stringify(d) }),
     removeTemplate: (id: string) => request(`/mail/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     thread: (id: string) => request<MailThread>(`/mail/threads/${encodeURIComponent(id)}`, { cache: 'no-store' } as any),
+    /** Nov 27: read / unread, in Gmail too; `reconnect` when the connection lacks the permission. */
+    markRead: (id: string, read = true) => request<{ ok: boolean; read: boolean; reconnect?: boolean }>(`/mail/threads/${encodeURIComponent(id)}/read`, { method: 'POST', body: JSON.stringify({ read }) }),
     attachment: async (mid: string, aid: string, name: string) => new Blob([await requestBytes(`/mail/messages/${encodeURIComponent(mid)}/attachments/${encodeURIComponent(aid)}?name=${encodeURIComponent(name)}`)]),
     send: (d: { to: string; cc?: string; subject: string; html: string; threadId?: string; inReplyTo?: string; track?: boolean }, files: File[] = []) => {
       const f = filesForm(files);

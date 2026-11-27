@@ -22,6 +22,10 @@ export class MailController {
   @Get('threads/:id')
   thread(@Claims() c: SessionClaims, @Param('id') id: string) { return this.mail.thread(c.sub, id); }
 
+  /** Nov 27: mark a thread read (or unread: {read: false}) -- in Gmail too. */
+  @Post('threads/:id/read')
+  markRead(@Claims() c: SessionClaims, @Param('id') id: string, @Body() dto: { read?: boolean }) { return this.mail.markRead(c.sub, id, dto?.read !== false); }
+
   @Get('messages/:mid/attachments/:aid')
   async attachment(@Claims() c: SessionClaims, @Param('mid') mid: string, @Param('aid') aid: string, @Query('name') name: string, @Res() res: Response) {
     const buf = await this.mail.attachment(c.sub, mid, aid);

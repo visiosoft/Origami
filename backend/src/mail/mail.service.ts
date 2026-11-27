@@ -187,6 +187,25 @@ export class MailService {
     return { id, subject: messages[0]?.subject || '(no subject)', messages, links: links.map((l) => ({ id: l.id, entityType: l.entityType, entityId: l.entityId, label: l.label, auto: l.auto })) };
   }
 
+  /**
+   * Nov 27 (Weekly Sync): opening a thread marks it read -- in Gmail too
+   * (or unread again). Connections made before Gmail's "modify" permission
+   * was asked for can't change labels: they're told to reconnect.
+   */
+  async markRead(userId: string, id: string, read = true) {
+    try {
+      await this.gmail(userId, `/threads/${encodeURIComponent(id)}/modify`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(read ? { removeLabelIds: ['UNREAD'] } : { addLabelIds: ['UNREAD'] }),
+      });
+      this.cacheOf(this.metaCache, userId).delete(id);
+      return { ok: true, read };
+    } catch (e) {
+      if (/insufficient|scope|permission/i.test((e as Error).message)) return { ok: false, read: !read, reconnect: true };
+      throw e;
+    }
+  }
+
   async attachment(userId: string, messageId: string, attachmentId: string) {
     const a = await this.gmail(userId, `/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`);
     return Buffer.from(String(a.data || '').replace(/-/g, '+').replace(/_/g, '/'), 'base64');
