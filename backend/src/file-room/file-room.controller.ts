@@ -375,7 +375,7 @@ export class FileRoomController {
     await this.assertManage(claims ?? null);
     // Nov 19 (Edward): who a file is for is decided by i-1 and i-2 (administrators and principals) only.
     if (!leadsMarkups(claims?.roleKey)) throw new ForbiddenException('Only administrators and principals can change who a file is for.');
-    return this.service.setAccess(Array.isArray(dto?.ids) ? dto.ids : [], String(dto?.access || ''));
+    return this.service.setAccess(Array.isArray(dto?.ids) ? dto.ids : [], Array.isArray(dto?.access) ? dto.access : String(dto?.access || ''));
   }
 
   /** Nov 17: untagged files in each build set (which clients would stop seeing) -- preview, then apply (admin). */

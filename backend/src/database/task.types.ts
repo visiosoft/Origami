@@ -241,3 +241,18 @@ export const NOT_ACCESS_TAG_LEAD = 'Only an admin or principal changes who a tas
 
 /** Internal or Financial: for our own team only. */
 export const internalOnly = (tags: unknown) => Array.isArray(tags) && tags.some((t) => t === 'internal' || t === 'financial');
+
+/**
+ * Nov 27 (Weekly Sync, "tick = who sees it"): Internal, Client and External
+ * can be ticked in any combination. Our own team sees everything; a client
+ * sees a task ticked Client, a consultant / sub one ticked External.
+ * Financial stays with our team. Untagged tasks keep the old rule (seen by
+ * whoever it's assigned to); tagged for nobody outside (Internal only, or
+ * only the other audience) -> hidden.
+ */
+export function hiddenFrom(tags: unknown, tier: string | null | undefined): boolean {
+  const t = Array.isArray(tags) ? tags.map(String) : [];
+  if (t.includes('financial')) return true;
+  if (t.includes(tier === 'client' ? 'client' : 'external')) return false;
+  return t.includes('internal') || t.includes('client') || t.includes('external');
+}

@@ -1,4 +1,4 @@
-import { ACTION_TAGS, toggleTag } from '../data/actionTags';
+import { ACTION_TAGS, audienceOf, toggleTag } from '../data/actionTags';
 import { useApp } from '../AppContext';
 
 /** Nov 20 (Edward): who a task is for -- only i-1 / i-2 change these. */
@@ -17,12 +17,13 @@ export function TagPicker({ tags, onChange, disabled, compact, leadOnlyAccess }:
           const off = disabled || (locked && ACCESS.includes(k));
           return (
             <button key={k} type="button" aria-pressed={on} disabled={off} onClick={() => onChange(toggleTag(tags, k))}
-              title={locked && ACCESS.includes(k) ? 'Only an admin or principal changes who a task is for' : k === 'financial' ? 'Financial items come in Internal too' : k === 'internal' ? 'Internal items are never shown to clients or consultants' : undefined}
+              title={locked && ACCESS.includes(k) ? 'Only an admin or principal changes who a task is for' : k === 'financial' ? 'Financial items come in Internal too' : k === 'internal' ? 'Our own team' : k === 'client' ? 'Also the client' : k === 'external' ? 'Also third parties (subs, consultants)' : undefined}
               style={{ padding: '3px 9px', borderRadius: 999, border: '1px solid ' + (on ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.14)'), background: on ? 'var(--forest)' : 'var(--surface)', color: on ? '#fff' : 'var(--muted)', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, cursor: off ? 'default' : 'pointer', opacity: off && !disabled ? 0.75 : 1 }}>{l}{locked && ACCESS.includes(k) ? ' 🔒' : ''}</button>
           );
         })}
       </div>
-      {!compact && tags.some((t) => t === 'internal' || t === 'financial') && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>Not shown to clients or consultants.</div>}
+      {/* Nov 27: tick = who sees it, in any combination. */}
+      {!compact && tags.some((t) => ACCESS.includes(t)) && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>Seen by: {audienceOf(tags)}</div>}
     </div>
   );
 }

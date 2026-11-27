@@ -46,6 +46,20 @@ export const FILE_ACCESS: { key: FileAccess; label: string; icon: string; bg: st
 ];
 export const fileAccessInfo = (a?: string | null) => FILE_ACCESS.find((x) => x.key === a) || FILE_ACCESS[0];
 
+/**
+ * Nov 27 (Weekly Sync, "tick = who sees it"): a file's audience is any
+ * combination of Internal, Client and External ("+ic" = Internal + Client).
+ * Older single words keep their meaning: Client = team + client, External =
+ * everyone. Mirrors backend file-room/folder-access.ts.
+ */
+export function fileAudience(v?: string | null): FileAccess[] {
+  const s = String(v ?? '').trim().toLowerCase();
+  if (s.startsWith('+')) { const out = FILE_ACCESS.map((x) => x.key).filter((k) => s.slice(1).includes(k[0])); return out.length ? out : ['internal']; }
+  if (s === 'external') return ['internal', 'client', 'external'];
+  if (s === 'client') return ['internal', 'client'];
+  return ['internal'];
+}
+
 export interface FileRoomFolder {
   id: string;
   projectId: number;

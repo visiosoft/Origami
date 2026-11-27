@@ -16,6 +16,20 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-27a',
+    date: '2026-11-27',
+    title: 'Nov 27 sync: safer deletes, moving tasks, who-sees-it, mail read',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'No quick delete: the ✕ on subtask rows is gone. Open a task to delete it, and say why — the reason goes into the project’s audit trail.', where: 'A task → More ▾ → Delete task' },
+      { area: 'Tasks', kind: 'new', text: 'Admins and principals can move a task made on the wrong project to the right one; its subtasks go with it.', where: 'A task → Project' },
+      { area: 'Tasks & files', kind: 'improved', text: 'Internal, Client and External can be ticked together. Tick = who sees it: our team always; Client lets the client see it, External lets subs and consultants see it. Files work the same way.', where: 'A task → Standard tags · a file → Who sees it' },
+      { area: 'People', kind: 'fixed', text: 'The address book grouped by project only lists projects you’re on.', where: 'People → Address book' },
+      { area: 'Daily reports', kind: 'improved', text: 'An opened report shows what was filled in — delays, subs, inspections, visitors, deliveries, equipment, notes — beside the hours, so it’s approved with everything in view.', where: 'Daily Reports → a report' },
+      { area: 'User access', kind: 'fixed', text: 'A new role uses access levels from the start (Block until it’s set up). A role still on switches has “Use levels”.', where: 'Admin → User Access & Roles' },
+      { area: 'My Mail', kind: 'improved', text: 'Opening a message marks it read, in Gmail too; Mark unread puts it back. Reconnect Gmail once when asked.', where: 'My Mail' },
+    ],
+  },
+  {
     id: '2026-11-23c',
     date: '2026-11-23',
     title: 'Estimate roll-up: main house + ADU, bank + owner money',

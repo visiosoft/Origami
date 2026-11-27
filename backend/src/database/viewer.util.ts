@@ -1,5 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { internalOnly } from './task.types';
+import { hiddenFrom } from './task.types';
 import type { SessionClaims } from '../auth/crypto.util';
 
 /**
@@ -45,7 +45,7 @@ export function scopeTasks<T extends Record<string, any>>(tasks: T[], claims: Se
   if (!claims) throw new UnauthorizedException('Sign in to view tasks.');
   if (!isRestrictedViewer(claims)) return tasks;
   // Internal or Financial items stay with our own team even when assigned out.
-  const ok = (t: T) => !internalOnly(t.tags);
+  const ok = (t: T) => !hiddenFrom(t.tags, claims.tier);
   const mine = tasks.filter((t) => assignedTo(t, claims) && ok(t));
   // Nov 17 (subtask visibility): someone on a parent task sees its subtasks; someone on only a subtask
   // sees its parent's title, so "Subtask of ..." makes sense -- nothing else of it.

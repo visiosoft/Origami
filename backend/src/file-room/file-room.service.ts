@@ -1,4 +1,5 @@
 import { DEFAULT_FOLDER_TEMPLATE, FILE_ROOM_ROOT } from './layout';
+import { encodeAudience } from './folder-access';
 import { pageArgs, pageOf } from '../common/paging';
 import { TrackingService, type OpenSummary } from '../tracking/tracking.service';
 import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
@@ -235,9 +236,10 @@ export class FileRoomService {
     return set.includes(top) ? 'client' : 'internal';
   }
 
-  /** Nov 17: tag files Internal / Client / External (staff). */
-  async setAccess(ids: string[], access: string) {
-    if (!['internal', 'client', 'external'].includes(access)) throw new BadRequestException('Pick Internal, Client or External.');
+  /** Nov 17: tag files Internal / Client / External (staff). Nov 27: any combination of them. */
+  async setAccess(ids: string[], given: string | string[]) {
+    let access: string;
+    try { access = encodeAudience(given); } catch (e) { throw new BadRequestException((e as Error).message); }
     const list = [...new Set((ids || []).map(String))].slice(0, 500);
     if (!list.length) throw new BadRequestException('Pick at least one file.');
     const rows = await this.files.findBy(list.map((id) => ({ id })));

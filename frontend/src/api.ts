@@ -1063,7 +1063,8 @@ export const api = {
     setBaseUploaders: (ids: string[]) => request<string[]>('/file-room/drawing-sets/uploaders', { method: 'PUT', body: JSON.stringify({ ids }) }),
     numberDrawings: (apply: boolean) => request<{ count: number; rows?: { id: string; name: string; rev: string }[]; applied?: boolean }>(`/file-room/drawing-sets/number${apply ? '?apply=1' : ''}`, { method: 'POST' }),
     /** Nov 17: tag files Internal / Client / External. */
-    setAccess: (ids: string[], access: 'internal' | 'client' | 'external') => request<{ updated: number; access: string }>('/file-room/files/access', { method: 'PUT', body: JSON.stringify({ ids, access }) }),
+    /** Nov 27: any combination of internal / client / external. */
+    setAccess: (ids: string[], access: ('internal' | 'client' | 'external')[]) => request<{ updated: number; access: string }>('/file-room/files/access', { method: 'PUT', body: JSON.stringify({ ids, access }) }),
     /** Nov 17 (admin): untagged build-set files clients would stop seeing -- preview, then apply (tags them Client). */
     buildSetPlan: () => request<{ applied: boolean; untagged: number; toClient: number; projects: { projectId: number; project: string; files: number }[] }>('/file-room/access/build-set-plan', { cache: 'no-store' } as any),
     applyBuildSetPlan: () => request<{ applied: boolean; untagged: number; toClient: number; projects: { projectId: number; project: string; files: number }[] }>('/file-room/access/build-set-plan/apply', { method: 'POST', body: JSON.stringify({ confirm: true }) }),

@@ -533,8 +533,8 @@ export function FileRoom() {
       </span>
     );
   };
-  const tagFiles = (ids: string[], access: 'internal' | 'client' | 'external') => api.fileRoom.setAccess(ids, access)
-    .then((r) => { toast(`${r.updated} file${r.updated === 1 ? '' : 's'} tagged ${access[0].toUpperCase() + access.slice(1)}`); load(); })
+  const tagFiles = (ids: string[], access: ('internal' | 'client' | 'external')[]) => api.fileRoom.setAccess(ids, access)
+    .then((r) => { toast(`${r.updated} file${r.updated === 1 ? '' : 's'}: seen by ${access.map((a) => ({ internal: 'our team', client: 'the client', external: 'third parties' } as const)[a]).join(' + ')}`); load(); })
     .catch((e: Error) => toast('⚠ ' + (e.message || 'Could not change the tag')));
 
   const gridView = (

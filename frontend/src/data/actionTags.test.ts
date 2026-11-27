@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toggleTag } from './actionTags';
+import { audienceOf, toggleTag } from './actionTags';
 
 describe('access tags', () => {
   it('Financial brings Internal with it; each can be toggled off; order is fixed', () => {
@@ -8,9 +8,13 @@ describe('access tags', () => {
     expect(toggleTag(['design'], 'client')).toEqual(['client', 'design']);
     expect(toggleTag(['client', 'design'], 'design')).toEqual(['client']);
   });
-  it('tagging an Internal item Client or External shares it, unless it is Financial', () => {
-    expect(toggleTag(['internal', 'construction'], 'client')).toEqual(['client', 'construction']);
-    expect(toggleTag(['internal'], 'external')).toEqual(['external']);
+  it('Nov 27: Internal, Client and External go together in any combination', () => {
+    expect(toggleTag(['internal', 'construction'], 'client')).toEqual(['internal', 'client', 'construction']);
+    expect(toggleTag(['internal', 'client'], 'external')).toEqual(['internal', 'client', 'external']);
     expect(toggleTag(['internal', 'financial'], 'client')).toEqual(['internal', 'client', 'financial']);
+    expect(audienceOf(['internal'])).toBe('Our team only');
+    expect(audienceOf(['internal', 'client'])).toBe('Our team + client');
+    expect(audienceOf(['client', 'external'])).toBe('Our team + client + third parties');
+    expect(audienceOf(['internal', 'client', 'financial'])).toBe('Our team only (financial)');
   });
 });

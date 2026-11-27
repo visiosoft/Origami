@@ -10,12 +10,22 @@ export const ACTION_TAGS: [string, string][] = [
 ];
 export const tagLabel = (k: string) => ACTION_TAGS.find(([x]) => x === k)?.[1] || k;
 
-/** Toggle one tag; switching Financial on brings Internal with it, switching Client or External on drops Internal. */
+/**
+ * Toggle one tag. Nov 27 (Weekly Sync, "tick = who sees it"): Internal,
+ * Client and External go together in any combination -- a task starts
+ * Internal and Client / External are added as it's shared. Financial still
+ * brings Internal with it.
+ */
 export function toggleTag(tags: string[], key: string): string[] {
   const on = tags.includes(key);
   const next = on ? tags.filter((t) => t !== key) : [...tags, key];
   if (!on && key === 'financial' && !next.includes('internal')) next.push('internal');
-  // Tagging it Client / External shares it (Oct 30 sync: Internal until someone tags it Client) -- unless it's Financial.
-  if (!on && (key === 'client' || key === 'external') && !next.includes('financial')) return ACTION_TAGS.map(([k]) => k).filter((k) => k !== 'internal' && next.includes(k));
   return ACTION_TAGS.map(([k]) => k).filter((k) => next.includes(k));
+}
+
+/** Who sees it, in words (Nov 27): "Our team + client". */
+export function audienceOf(tags: string[]): string {
+  if (tags.includes('financial')) return 'Our team only (financial)';
+  const parts = ['Our team', tags.includes('client') && 'client', tags.includes('external') && 'third parties'].filter(Boolean);
+  return parts.length === 1 && tags.some((t) => t === 'internal') ? 'Our team only' : parts.join(' + ');
 }

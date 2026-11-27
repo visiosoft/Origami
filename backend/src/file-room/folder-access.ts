@@ -14,14 +14,37 @@ export type FileAccess = (typeof FILE_ACCESS)[number];
 export const fileAccessOf = (v: unknown): FileAccess => (v === 'client' || v === 'external' ? v : 'internal');
 
 /**
- * May this viewer see a file with this tag? Staff see everything; clients see
- * Client and External files; consultants, trades and guests only External.
+ * Nov 27 (Weekly Sync, "tick = who sees it"): a file's audience is any
+ * combination of Internal, Client and External. Stored in the same short
+ * column as "+" and the first letters ("+ic" = Internal + Client); the
+ * older single words keep their meaning -- Client = our team and the client,
+ * External = everyone on the project, Internal / empty = our team.
+ */
+export function fileAudience(v: unknown): FileAccess[] {
+  const s = String(v ?? '').trim().toLowerCase();
+  if (s.startsWith('+')) {
+    const out = FILE_ACCESS.filter((a) => s.slice(1).includes(a[0]));
+    return out.length ? out : ['internal'];
+  }
+  if (s === 'external') return ['internal', 'client', 'external'];
+  if (s === 'client') return ['internal', 'client'];
+  return ['internal'];
+}
+export function encodeAudience(list: unknown): string {
+  const raw = (Array.isArray(list) ? list : [list]).map((x) => String(x || '').trim().toLowerCase());
+  const picked = FILE_ACCESS.filter((a) => raw.includes(a));
+  if (!picked.length) throw new Error('Pick who sees it: Internal, Client and/or External.');
+  return '+' + picked.map((a) => a[0]).join('');
+}
+
+/**
+ * May this viewer see a file with this tag? Staff see everything; a client
+ * sees it when it's ticked Client; consultants, trades and guests when it's
+ * ticked External.
  */
 export function fileAccessOk(v: { staff: boolean; manager?: boolean; tier?: string }, access: unknown): boolean {
   if (v.staff || v.manager) return true;
-  const a = fileAccessOf(access);
-  if (a === 'external') return true;
-  return a === 'client' && v.tier === 'client';
+  return fileAudience(access).includes(v.tier === 'client' ? 'client' : 'external');
 }
 
 /** Is `path` the folder `rule.path` or inside it? */

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
-import { FILE_ACCESS, fileAccessInfo, type FileAccess } from '../data/fileRoom';
+import { FILE_ACCESS, fileAccessInfo, fileAudience, type FileAccess } from '../data/fileRoom';
 
 /**
  * Nov 17 sync: every file says who it is for -- Internal (our team), Client,
@@ -8,27 +8,49 @@ import { FILE_ACCESS, fileAccessInfo, type FileAccess } from '../data/fileRoom';
  * its tag doesn't include; this is how it shows and how staff change it.
  */
 export function FileAccessChip({ access }: { access?: string | null }) {
-  const a = fileAccessInfo(access);
+  // Nov 27: one small chip per audience ticked (Internal · Client · External).
+  const who = fileAudience(access);
   return (
-    <span className={'file-access is-' + a.key} title={`${a.label}: ${a.hint}`}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: a.bg, color: a.c, whiteSpace: 'nowrap' }}>
-      <span aria-hidden>{a.icon}</span>{a.label}
+    <span style={{ display: 'inline-flex', gap: 3, flexWrap: 'wrap' }} title={`Seen by: ${who.map((k) => fileAccessInfo(k).hint).join('; ')}`}>
+      {who.map((k) => { const a = fileAccessInfo(k); return (
+        <span key={k} className={'file-access is-' + a.key}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: a.bg, color: a.c, whiteSpace: 'nowrap' }}>
+          <span aria-hidden>{a.icon}</span>{a.label}
+        </span>
+      ); })}
     </span>
   );
 }
 
-/** Three buttons: pick who the file(s) are for. */
-export function FileAccessPicker({ value, onPick, busy }: { value?: string | null; onPick: (a: FileAccess) => void; busy?: boolean }) {
-  const cur = value === undefined ? undefined : fileAccessInfo(value).key;
+/**
+ * Tick who the file(s) are for -- any combination (Nov 27). One file: each
+ * tick saves at once. Several files (no value): tick, then Apply.
+ */
+export function FileAccessPicker({ value, onPick, busy }: { value?: string | null; onPick: (a: FileAccess[]) => void; busy?: boolean }) {
+  const single = value !== undefined;
+  const [picked, setPicked] = useState<FileAccess[]>(() => (single ? fileAudience(value) : ['internal']));
+  useEffect(() => { if (single) setPicked(fileAudience(value)); }, [value, single]);
+  const toggle = (k: FileAccess) => {
+    const next = picked.includes(k) ? picked.filter((x) => x !== k) : FILE_ACCESS.map((x) => x.key).filter((x) => x === k || picked.includes(x));
+    if (!next.length) return; // someone must see it
+    setPicked(next);
+    if (single) onPick(next);
+  };
   return (
-    <div role="radiogroup" aria-label="Who it’s for" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      {FILE_ACCESS.map((a) => (
-        <button key={a.key} type="button" role="radio" aria-checked={cur === a.key} disabled={busy} onClick={() => onPick(a.key)} title={a.hint}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: busy ? 'default' : 'pointer',
-            border: '1px solid ' + (cur === a.key ? a.c : 'rgba(var(--rgb-shade), .14)'), background: cur === a.key ? a.bg : 'var(--surface)', color: cur === a.key ? a.c : 'var(--body)' }}>
-          <span aria-hidden>{a.icon}</span>{a.label}
-        </button>
-      ))}
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div role="group" aria-label="Who sees it" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {FILE_ACCESS.map((a) => {
+          const on = picked.includes(a.key);
+          return (
+            <button key={a.key} type="button" role="checkbox" aria-checked={on} disabled={busy} onClick={() => toggle(a.key)} title={a.hint}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: busy ? 'default' : 'pointer',
+                border: '1px solid ' + (on ? a.c : 'rgba(var(--rgb-shade), .14)'), background: on ? a.bg : 'var(--surface)', color: on ? a.c : 'var(--body)' }}>
+              <span aria-hidden>{on ? '☑' : '☐'}</span><span aria-hidden>{a.icon}</span>{a.label}
+            </button>
+          );
+        })}
+      </div>
+      {!single && <button type="button" disabled={busy} onClick={() => onPick(picked)} style={{ padding: '6px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Apply</button>}
     </div>
   );
 }

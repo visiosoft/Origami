@@ -12,7 +12,7 @@ import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../goo
 import { scopeTasks, isRestrictedViewer, assignedTo, onMyProjects } from '../database/viewer.util';
 import { Roles } from '../auth/guards/roles.decorator';
 import { queryLog, type Scope } from './task-query';
-import { internalOnly } from '../database/task.types';
+import { hiddenFrom } from '../database/task.types';
 import { Perm } from '../auth/guards/perm.guard';
 import type { SessionClaims } from '../auth/crypto.util';
 import { Claims } from '../auth/guards/claims.decorator';
@@ -113,7 +113,7 @@ export class TasksController {
   async activity(@Param('id') id: string, @Query() q: Record<string, string>, @Headers('authorization') auth?: string) {
     const claims = await this.auth.verify(auth);
     const { task, page } = await this.tasksService.activityPage(id, q);
-    if (claims && isRestrictedViewer(claims) && (!assignedTo(task as any, claims) || internalOnly((task as any).tags))) throw new NotFoundException(`Task ${id} not found`);
+    if (claims && isRestrictedViewer(claims) && (!assignedTo(task as any, claims) || hiddenFrom((task as any).tags, claims.tier))) throw new NotFoundException(`Task ${id} not found`);
     return page;
   }
 
@@ -122,7 +122,7 @@ export class TasksController {
     const claims = await this.auth.verify(auth);
     const task = await this.tasksService.findOne(id);
     // A restricted viewer must not reach someone else's task by guessing an id.
-    if (claims && isRestrictedViewer(claims) && (!assignedTo(task, claims) || internalOnly((task as any).tags))) {
+    if (claims && isRestrictedViewer(claims) && (!assignedTo(task, claims) || hiddenFrom((task as any).tags, claims.tier))) {
       throw new NotFoundException(`Task ${id} not found`);
     }
     if (claims && !(await this.scoped([task as any], claims)).length) throw new NotFoundException(`Task ${id} not found`);
