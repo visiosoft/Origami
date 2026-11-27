@@ -1,4 +1,6 @@
 import { PanelResizeHandle, usePanelWidth } from './PanelResize';
+import { RepeatPicker } from './RepeatPicker';
+import { repeatLabel } from '../data/taskRepeat';
 import { askDeleteReason } from '../data/deleteReason';
 import { TaskCloseBar } from './TaskCloseBar';
 import { UnfilledRole } from './UnfilledRole';
@@ -73,7 +75,7 @@ function PriorityPill({ p }: { p?: Priority }) {
  */
 /** The fields the task panel edits; they autosave together. */
 /** `sectionId` isn't here: the server sets the column from the status (Nov 10). */
-const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'description', 'checklist', 'labels', 'tags', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy', 'epicId'];
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'description', 'checklist', 'labels', 'tags', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy', 'epicId', 'repeat'];
 
 /** "Q3 PRD draft" -> "QP": the card's tile. */
 const initialsOf = (title: string) => {
@@ -561,6 +563,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               {String(t.attachments?.length || 0).padStart(2, '0')} Files
             </span>
             {t.dueDate && <span className="tb-sep" aria-hidden />}
+            {t.repeat && <span className="tb-repeat" title={repeatLabel(t.repeat, t.dueDate)} aria-label={repeatLabel(t.repeat, t.dueDate)}>↻</span>}
             {t.dueDate && <span className={'tb-due' + (overdue ? ' is-late' : t.dueDate === todayIso && !t.completed ? ' is-today' : '')}>{t.completed ? new Date(t.dueDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : dueText(t.dueDate)}</span>}
             {counts.filter(([k]) => k !== 'clip').map(([k, v, title]) => (
               <span key={k} className="tb-count" title={title}>
@@ -1263,6 +1266,11 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                   style={{ ...inputStyle, width: '100%' }} />
                 {autoPD.current[selected.id] === 'due' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the priority — change it if you need to</div>}
               </Field>
+              {!selected.parentId && (
+                <Field label="Repeat">
+                  <RepeatPicker value={d.repeat} due={d.dueDate} disabled={!canManage} inputStyle={inputStyle} onChange={(rep) => set({ repeat: rep })} />
+                </Field>
+              )}
             </div>
 
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>

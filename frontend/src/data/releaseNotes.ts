@@ -20,6 +20,7 @@ export const RELEASES: Release[] = [
     date: '2026-11-27',
     title: 'Nov 27 sync: safer deletes, moving tasks, who-sees-it, mail read',
     items: [
+      { area: 'Tasks', kind: 'new', text: 'Repeating tasks: set Repeat next to the due date — every day, weekdays, weekly on chosen days, or monthly, optionally until a date. It stays one task (↻ on the card): marking it done moves the due date to the next time, and the daily reminder reminds you each time. A missed day moves on to today rather than sitting overdue.', where: 'A task → Repeat' },
       { area: 'Tasks', kind: 'improved', text: 'No quick delete: the ✕ on subtask rows is gone. Open a task to delete it, and say why — the reason goes into the project’s audit trail.', where: 'A task → More ▾ → Delete task' },
       { area: 'Tasks', kind: 'new', text: 'Admins and principals can move a task made on the wrong project to the right one; its subtasks go with it.', where: 'A task → Project' },
       { area: 'Tasks & files', kind: 'improved', text: 'Internal, Client and External can be ticked together. Tick = who sees it: our team always; Client lets the client see it, External lets subs and consultants see it. Files work the same way.', where: 'A task → Standard tags · a file → Who sees it' },

@@ -1,4 +1,4 @@
-import { MaxLength, IsString, IsOptional, IsNumber, IsBoolean, IsArray } from 'class-validator';
+import { MaxLength, IsString, IsOptional, IsNumber, IsBoolean, IsArray, IsObject } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import type { ChecklistItem, Collaborator, TaskAttachment, TaskComment } from '../../database/task.types';
 
@@ -46,6 +46,8 @@ export class CreateProjectTaskDto {
   @IsString() @IsOptional() endDate?: string;
   @IsNumber() @IsOptional() durationDays?: number;
   @IsArray() @IsOptional() dependsOn?: string[];
+  /** Nov 27: repeats like a calendar invite ({ every: 'day' | 'weekdays' | 'week' | 'month', days?, until? }); null = doesn't. */
+  @IsOptional() @IsObject() repeat?: Record<string, unknown> | null;
 }
 
 /**

@@ -266,6 +266,8 @@ export class TrackedLinkEntity {
 @Index('IX_tasks_meetingId', ['meetingId'])
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** Nov 27: repeats like a calendar invite -- one entry, its due date moving on each time it's done. */
+  @Column({ type: 'simple-json', nullable: true }) repeat!: import('./task-repeat').RepeatRule | null;
   /** Nov 19 (Edward): a FOR RECORD entry the client approved and signed -- "codified" -- and in which bundle (AP-001). */
   @Column({ type: 'nvarchar', length: 40, nullable: true }) codifiedIn!: string | null;
   @Column({ type: 'nvarchar', length: 40, nullable: true }) codifiedAt!: string | null;
@@ -946,6 +948,8 @@ export class ProjectTaskEntity {
   @Column({ nullable: true }) endDate!: string;        // ISO; '' when open-ended
   @Column({ type: 'int', nullable: true }) durationDays!: number;
   @Column({ type: 'simple-json', nullable: true }) dependsOn!: string[]; // task ids
+  /** Nov 27: repeats like a calendar invite -- one task, its due date moving on each time it's done. */
+  @Column({ type: 'simple-json', nullable: true }) repeat!: import('./task-repeat').RepeatRule | null;
   // --- Task buckets (To Do / Assigned / In progress / On hold / Complete / Confirmed) ---
   /** Who created it -- the originator, who confirms it once complete. */
   @Column({ nullable: true }) createdById!: string;

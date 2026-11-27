@@ -139,3 +139,5 @@
 .tb-subtasks-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .tb-subtasks-who { flex-shrink: 0; font-size: 11px; color: var(--muted); }
 .tb-subtasks-more { color: var(--forest) !important; font-weight: 700; }
+/* Nov 27: a repeating task. */
+.tb-repeat { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 999px; background: var(--c-e7f0e8, #E7F0E8); color: var(--c-1e6b36, #1E6B36); font-size: 11px; font-weight: 800; flex-shrink: 0; }

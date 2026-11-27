@@ -5,6 +5,8 @@ import type { Attachment, TaskComment, ActivityEvent, ChecklistItem } from './pr
 import type { ActionTrailFields } from '../api';
 
 export interface Task extends ActionTrailFields {
+  /** Nov 27: repeats like a calendar invite. */
+  repeat?: import('./taskRepeat').RepeatRule | null;
   id: string;
   /** Nov 19: approved and signed by the client in this bundle (AP-001) -- codified. */
   codifiedIn?: string | null;

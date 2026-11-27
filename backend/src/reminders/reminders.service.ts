@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import { catchUp, cleanRepeat } from '../database/task-repeat';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectTaskEntity, TaskEntity, UserEntity, ProjectEntity, ProjectPhaseEntity, RfiEntity } from '../database/entities';
@@ -108,6 +109,8 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
    * a lock, so a second App Service instance cannot double-send.
    */
   async tick() {
+    // Nov 27: repeating tasks first, whether or not reminder emails are on.
+    await this.rollRepeats().catch((err) => this.log.error('Repeating tasks failed: ' + (err as Error).message));
     try {
       if ((await this.settings.get('reminders.enabled')) !== 'true') return;
 
@@ -129,6 +132,34 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     } catch (err) {
       this.log.error('Reminder tick failed: ' + (err as Error).message);
     }
+  }
+
+  /**
+   * Nov 27 (Weekly Sync): a repeating task that wasn't done on its day moves
+   * on to today (or its next day) instead of sitting overdue -- so the daily
+   * reminder says "today" for it. Once a day, its own lock.
+   */
+  async rollRepeats(todayGiven?: string) {
+    const today = todayGiven || this.localParts(await this.timezone()).date;
+    if (!todayGiven) {
+      if ((await this.settings.get('repeats.lastRunDate')) === today) return { moved: 0 };
+      await this.settings.set('repeats.lastRunDate', today);
+    }
+    const logStatuses = parseLogStatuses(await this.settings.get(LOG_STATUSES_KEY).catch(() => null));
+    let moved = 0;
+    const board = (await this.projectTasks.find()).filter((t) => t.repeat && t.dueDate && t.dueDate < today && !t.completed && t.status !== 'Done' && !t.archivedAt);
+    for (const t of board) {
+      const rule = cleanRepeat(t.repeat); if (!rule) continue;
+      const next = catchUp(t.dueDate, today, rule, rule.anchor || t.dueDate);
+      if (next && next !== t.dueDate) { t.dueDate = next; await this.projectTasks.save(t); moved++; }
+    }
+    const log = (await this.tasks.find()).filter((t) => t.repeat && t.dueDate && t.dueDate < today && !isClosedStatus(logStatuses, t.status) && !t.archivedAt);
+    for (const t of log) {
+      const rule = cleanRepeat(t.repeat); if (!rule) continue;
+      const next = catchUp(t.dueDate, today, rule, rule.anchor || t.dueDate);
+      if (next && next !== t.dueDate) { t.dueDate = next; await this.tasks.save(t); moved++; }
+    }
+    return { moved };
   }
 
   private async timezone() {

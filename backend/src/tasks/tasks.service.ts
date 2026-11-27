@@ -1,4 +1,5 @@
 import { stageRoleKey } from './stage-role';
+import { cleanRepeat, nextRepeat, repeatLabel } from '../database/task-repeat';
 import { localToday } from '../common/local-date';
 import { isPhoto, photoPlace } from '../file-room/layout';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional, ForbiddenException } from '@nestjs/common';
@@ -543,7 +544,23 @@ export class TasksService implements OnApplicationBootstrap {
     }
 
     if (closingNow) { const at = new Date().toISOString(); patch.archivedAt = at; patch.closedAt = at; }
-    const events = [...diffEvents(task, patch, actor), ...dueEvents, ...collabEvents, ...noteEvents, ...(closingNow ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
+    // Nov 27: a repeating task, done -> due again on its next day, still open (no copies).
+    const repeatRule = cleanRepeat('repeat' in patch ? patch.repeat : task.repeat);
+    if ('repeat' in patch) patch.repeat = repeatRule ? { ...repeatRule, anchor: repeatRule.anchor || patch.dueDate || task.dueDate || null } : null;
+    const repeatEvents: ActivityEvent[] = [];
+    let rolled = false;
+    if (repeatRule && (finished || closingNow)) {
+      const due = task.dueDate || new Date().toISOString().slice(0, 10);
+      const next = nextRepeat(due, repeatRule, repeatRule.anchor || due);
+      if (next) {
+        rolled = true;
+        patch.status = !task.status || isClosedStatus(statuses, task.status) ? 'In Progress' : task.status;
+        patch.dateClosed = ''; patch.archivedAt = task.archivedAt ?? null; patch.closedAt = task.closedAt ?? null;
+        patch.dueDate = next;
+        repeatEvents.push(event('status', actor, { text: `done for ${due} — it repeats (${repeatLabel(repeatRule, repeatRule.anchor || due)}), next due ${next}` }));
+      }
+    }
+    const events = [...diffEvents(task, patch, actor), ...dueEvents, ...collabEvents, ...noteEvents, ...repeatEvents, ...(closingNow && !rolled ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
     const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
       ? String(patch.assignedToId)
       : null;

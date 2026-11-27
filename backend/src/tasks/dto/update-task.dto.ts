@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MaxLength, IsObject } from 'class-validator';
 import type { Collaborator } from '../../database/task.types';
 
 /**
@@ -9,6 +9,8 @@ import type { Collaborator } from '../../database/task.types';
  * never reach the database.
  */
 export class UpdateTaskDto {
+  /** Nov 27: repeats like a calendar invite ({ every: 'day' | 'weekdays' | 'week' | 'month', days?, until? }); null = doesn't. */
+  @IsOptional() @IsObject() repeat?: Record<string, unknown> | null;
   @IsString() @IsOptional() tab?: string;
   @IsString() @IsOptional() meetingType?: string;
   @IsString() @IsOptional() meetingDate?: string;

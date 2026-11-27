@@ -8,6 +8,7 @@ import { ListCache } from '../database/list-cache';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { TagsService } from '../tags/tags.service';
 import { ACCESS_TAG_LEADS, accessTagsChanged, cleanTags, NOT_ACCESS_TAG_LEAD } from '../database/task.types';
+import { cleanRepeat, nextRepeat, repeatLabel } from '../database/task-repeat';
 import { mentionedIds } from '../tasks/mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing, dueChangeReasonMissing, dueChangeNote, NEEDS_DUE_REASON } from '../tasks/task-rules';
 import { ChecklistTemplateEntity, LeadEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
@@ -508,7 +509,24 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     }
 
     if (closing) { const at = new Date().toISOString(); patch.archivedAt = at; patch.closedAt = at; patch.completed = true; }
-    const events = [...diffEvents(task, patch, actor), ...dueEvents, ...collabEvents, ...noteEvents, ...(closing ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
+    // Nov 27: a repeating task, done -> due again on its next day, still open (no copies).
+    const repeatRule = cleanRepeat('repeat' in patch ? patch.repeat : task.repeat);
+    if ('repeat' in patch) patch.repeat = repeatRule ? { ...repeatRule, anchor: repeatRule.anchor || patch.dueDate || task.dueDate || null } : null;
+    const repeatEvents: ActivityEvent[] = [];
+    let rolled = false;
+    if (repeatRule && !task.parentId && (finished || closing)) {
+      const due = task.dueDate || new Date().toISOString().slice(0, 10);
+      const next = nextRepeat(due, repeatRule, repeatRule.anchor || due);
+      if (next) {
+        rolled = true;
+        patch.status = !task.status || isDoneStatus(task.status) ? 'In progress' : task.status;
+        patch.sectionId = task.sectionId;
+        patch.completed = false; patch.archivedAt = task.archivedAt ?? null; patch.closedAt = task.closedAt ?? null;
+        patch.dueDate = next;
+        repeatEvents.push(event('status', actor, { text: `done for ${due} — it repeats (${repeatLabel(repeatRule, repeatRule.anchor || due)}), next due ${next}` }));
+      }
+    }
+    const events = [...diffEvents(task, patch, actor), ...dueEvents, ...collabEvents, ...noteEvents, ...repeatEvents, ...(closing && !rolled ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
     const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
       ? String(patch.assigneeId)
       : null;

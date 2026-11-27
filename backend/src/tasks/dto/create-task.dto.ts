@@ -1,8 +1,10 @@
-import { MaxLength, IsString, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import { MaxLength, IsString, IsOptional, IsArray, IsBoolean, IsObject } from 'class-validator';
 import type { Collaborator } from '../../database/task.types';
 
 // Matches the Request-Log task record (frontend data/tasks.ts Task).
 export class CreateTaskDto {
+  /** Nov 27: repeats like a calendar invite ({ every: 'day' | 'weekdays' | 'week' | 'month', days?, until? }); null = doesn't. */
+  @IsOptional() @IsObject() repeat?: Record<string, unknown> | null;
   @IsString() @IsOptional() id?: string;
   @IsString() @IsOptional() tab?: string; // internal | owner | subcontractor
   @IsString() @IsOptional() meetingType?: string;

@@ -134,6 +134,8 @@ export interface ProjectTask extends ActionTrailFields {
   endDate?: string;
   durationDays?: number | null;
   dependsOn?: string[];
+  /** Nov 27: repeats like a calendar invite. */
+  repeat?: import('./taskRepeat').RepeatRule | null;
   /** The originator -- who confirms it once it's complete. */
   createdById?: string;
   createdByName?: string;
