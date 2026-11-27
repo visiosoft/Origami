@@ -65,3 +65,14 @@ export function renamedPeople<T extends PersonProjects & { projectPhases?: Recor
   }
   return out;
 }
+
+/**
+ * Nov 27 (Weekly Sync: George saw projects he isn't on in the address book
+ * grouped by project): a person as someone limited to these projects sees
+ * them -- only the projects they share with the viewer are listed.
+ */
+export function trimToProjects<T extends PersonProjects>(person: T, allowed: Set<number>, projects: ProjectRef[]): T {
+  const ids = personProjectIds(person, projects).filter((id) => allowed.has(id));
+  const names = new Map(projects.map((p) => [p.id, p.name]));
+  return { ...person, projectIds: ids, projects: ids.map((id) => names.get(id)).filter((n): n is string => !!n) };
+}

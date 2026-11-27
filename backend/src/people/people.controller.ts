@@ -16,7 +16,7 @@ import { Perm, ManageWrites } from '../auth/guards/perm.guard';
 import { ProjectAccessService } from '../auth/project-access.service';
 import { PersonScope } from './person-scope.interceptor';
 
-import { personProjectIds } from './person-projects';
+import { personProjectIds, trimToProjects } from './person-projects';
 
 const INTERNAL_KINDS = /^(staff|executive|super|foreman|labou?r|internal)$/i;
 
@@ -48,7 +48,9 @@ export class PeopleController {
     // only when they're on one of the caller's projects (Nov 3 sync: George saw the whole address book). By project id (Nov 13).
     const onMine = (p: any) => ids !== 'all' && personProjectIds(p, projects).some((id) => ids.has(id));
     const staffView = this.access.isStaff(claims ?? null);
-    return all.filter((p: any) => p.userId === claims?.sub || onMine(p) || (staffView && INTERNAL_KINDS.test(String(p.kind || ''))));
+    const seen = all.filter((p: any) => p.userId === claims?.sub || onMine(p) || (staffView && INTERNAL_KINDS.test(String(p.kind || ''))));
+    // Nov 27: and each person's projects are only the ones the caller is on (no headings for projects they can't open).
+    return ids === 'all' ? seen : seen.map((p: any) => trimToProjects(p, ids, projects));
   }
 
   /**
