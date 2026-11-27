@@ -655,7 +655,9 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     await this.repo.delete({ sectionId });
   }
 
-  async remove(id: string) {
+  async remove(id: string, reason?: string | null) {
+    // Nov 27 (Weekly Sync): no deleting without saying why (it goes into the audit trail).
+    if (!String(reason || '').trim()) throw new BadRequestException('Say why this task is being deleted.');
     // Also remove subtasks of this task, and any files they own.
     const task = await this.repo.findOneBy({ id });
     if (task) {

@@ -259,11 +259,6 @@ export function Projects() {
       loadBoard(sel.id);
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the subtask')); }
   };
-  const deleteTask = async (id: string) => {
-    if (!sel) return;
-    try { await api.projectTasks.remove(id); loadBoard(sel.id); }
-    catch (e: any) { toast('⚠ ' + (e.message || 'Could not delete')); }
-  };
 
   /**
    * Opening a phase card.
@@ -1504,7 +1499,6 @@ export function Projects() {
                             <input type="checkbox" checked={!!st.completed} disabled={!canManage} onChange={() => saveTask(st.id, { completed: !st.completed })} />
                             <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
                             {canManage && <span onClick={() => setEditingPtSub(st.id)} title="Edit the subtask" aria-label="Edit subtask" style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Edit</span>}
-                            {canManage && <span onClick={() => deleteTask(st.id)} title="Delete the subtask" style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
                           </div>
                         ))}
                         {canManage && (

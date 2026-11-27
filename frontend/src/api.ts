@@ -662,7 +662,8 @@ export const api = {
     },
     create: (data: unknown) => request('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    remove: (id: string) => request(`/tasks/${id}`, { method: 'DELETE' }),
+    /** Nov 27: deleting needs the reason (kept in the audit trail). */
+    remove: (id: string, reason: string) => request(`/tasks/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
     uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/tasks/${id}/attachments`, filesForm(files)),
     addLink: (id: string, name: string, url: string) => request(`/tasks/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
@@ -876,7 +877,8 @@ export const api = {
     get: (id: string) => request<import('./data/projectTasks').ProjectTask>(`/project-tasks/${encodeURIComponent(id)}`),
     create: (data: unknown) => request('/project-tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    remove: (id: string) => request(`/project-tasks/${id}`, { method: 'DELETE' }),
+    /** Nov 27: deleting needs the reason (kept in the audit trail). */
+    remove: (id: string, reason: string) => request(`/project-tasks/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
     reorder: (sectionId: string, ids: string[]) => request('/project-tasks/reorder', { method: 'PUT', body: JSON.stringify({ sectionId, ids }) }),
     uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/project-tasks/${id}/attachments`, filesForm(files)),
     addLink: (id: string, name: string, url: string) => request(`/project-tasks/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),

@@ -25,7 +25,10 @@ export class AuditInterceptor implements NestInterceptor {
       void (async () => {
         const id = what.entityId ?? (result && typeof result === 'object' && !Array.isArray(result) && (result.id ?? result.key) != null ? String(result.id ?? result.key) : null);
         const after = tracked && id && req.method !== 'DELETE' ? await this.audit.load(what.segment, id) : null;
-        const changes = tracked && (before || after) ? diffFields(before, after) : bodyChanges(req.body);
+        let changes = tracked && (before || after) ? diffFields(before, after) : bodyChanges(req.body);
+        // Nov 27: a deletion says why -- first in the record.
+        const why = req.method === 'DELETE' ? String((req.body as any)?.reason || (req.query as any)?.reason || '').trim() : '';
+        if (why) changes = [{ field: 'reason', from: null, to: why.slice(0, 500) }, ...changes.filter((c) => c.field !== 'reason')];
         // An autosave that changed nothing isn't an event.
         if (tracked && (before || after) && req.method !== 'DELETE' && req.method !== 'POST' && !changes.length) return;
         const row = after || before;

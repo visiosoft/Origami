@@ -129,10 +129,6 @@ export function PhaseTaskPanel({
       onReload?.();
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the subtask')); }
   };
-  const removeTask = async (id: string) => {
-    try { await api.projectTasks.remove(id); onReload?.(); }
-    catch (e: any) { toast('⚠ ' + (e.message || 'Could not delete')); }
-  };
 
   const label = (text: string, hint?: string) => (
     <div style={{ marginBottom: 5 }}>
@@ -266,7 +262,6 @@ export function PhaseTaskPanel({
                 />
                 <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
                 {canManage && <span onClick={() => setEditingSub(st.id)} title="Edit the subtask" aria-label="Edit subtask" style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Edit</span>}
-                {canManage && <span onClick={() => removeTask(st.id)} title="Delete the subtask" style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
               </div>
             ))}
             {canManage && (

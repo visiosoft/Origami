@@ -135,10 +135,11 @@ export class ProjectTasksController {
     return this.service.flushNotices(id);
   }
 
+  /** Nov 27 (Weekly Sync): only from an opened task, with the reason -- kept in the audit trail. */
   @Tiers('internal')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Param('id') id: string, @Body() body?: { reason?: string }, @Query('reason') q?: string) {
+    return this.service.remove(id, body?.reason ?? q);
   }
 
   // ------------------------------------------------------------- attachments

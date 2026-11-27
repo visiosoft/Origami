@@ -146,9 +146,10 @@ export class TasksController {
     return this.tasksService.flushNotices(id);
   }
 
+  /** Nov 27 (Weekly Sync): only from an opened task, with the reason -- kept in the audit trail. */
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.tasksService.remove(id);
+  remove(@Param('id') id: string, @Body() body?: { reason?: string }, @Query('reason') q?: string) {
+    return this.tasksService.remove(id, body?.reason ?? q);
   }
 
   // ------------------------------------------------------------ FOR RECORD links

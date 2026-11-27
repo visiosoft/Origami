@@ -1,4 +1,5 @@
 import { PanelResizeHandle, usePanelWidth } from './PanelResize';
+import { askDeleteReason } from '../data/deleteReason';
 import { TaskCloseBar } from './TaskCloseBar';
 import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
@@ -126,10 +127,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
     catch (e) { toast('⚠ ' + ((e as Error).message || 'Failed to remove')); }
   };
   const deleteTask = () => {
-    if (!confirm('Delete this task?')) return;
+    const reason = askDeleteReason(t.subject || '');
+    if (!reason) return;
     onClose();
     onDeleted?.(t.id);
-    api.tasks.remove(t.id).catch(() => toast('⚠ Failed to delete'));
+    api.tasks.remove(t.id, reason).then(() => toast('Deleted — the reason is in the audit trail')).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to delete')));
   };
   const lt = getLeadTime(t);
 

@@ -1,4 +1,5 @@
 import { PanelResizeHandle, usePanelWidth } from './PanelResize';
+import { askDeleteReason } from '../data/deleteReason';
 import { TaskCloseBar } from './TaskCloseBar';
 import { UnfilledRole } from './UnfilledRole';
 import { CloseButton } from './CloseButton';
@@ -330,10 +331,14 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
       if (res) setTasks((prev) => [...prev, inBucket(res as ProjectTask)]);
     }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to add task')));
   };
+  /** Nov 27: only from inside the task, with the reason (no quick delete). */
   const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id && t.parentId !== id));
+    const t = tasks.find((x) => x.id === id);
+    const reason = askDeleteReason(t?.title || '', tasks.filter((x) => x.parentId === id).length);
+    if (!reason) return;
+    setTasks((prev) => prev.filter((x) => x.id !== id && x.parentId !== id));
     if (selectedId === id) setSelectedId(null);
-    api.projectTasks.remove(id).catch(() => toast('⚠ Failed to delete'));
+    api.projectTasks.remove(id, reason).then(() => toast('Task deleted — the reason is in the audit trail')).catch((e: Error) => { toast('⚠ ' + (e.message || 'Failed to delete')); load(); });
   };
   /** "Close task": complete and into the archive at once (Reopen from Archived). */
   const closeTask = (id: string) => {
@@ -1272,7 +1277,6 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                     {s.assignee && <Avatar user={users.find((u) => u.id === s.assigneeId)} name={s.assignee} size={20} title={s.assignee} />}
                     <span onClick={() => setSelectedId(s.id)} title="Open the subtask in full" aria-label="Open subtask" style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Open</span>
                     {canManage && <span onClick={() => setEditingSub(s.id)} title="Edit the subtask" aria-label="Edit subtask" style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Edit</span>}
-                    {canManage && <span onClick={() => deleteTask(s.id)} title="Delete the subtask" style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
                   </div>
                 ))}
               </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { askDeleteReason } from '../data/deleteReason';
 import { isLogClosed, useLogStatuses } from '../data/logStatuses';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -76,9 +77,10 @@ export function DealTasksPanel({
   };
 
   const remove = (t: Task) => {
-    if (!confirm('Remove this task?')) return;
+    const reason = askDeleteReason(t.subject || '');
+    if (!reason) return;
     setTasks((prev) => prev.filter((x) => x.id !== t.id));
-    api.tasks.remove(t.id).catch(() => load());
+    api.tasks.remove(t.id, reason).catch(() => load());
   };
 
   const toggleNotes = (id: string) => setOpenNotes((prev) => ({ ...prev, [id]: !prev[id] }));

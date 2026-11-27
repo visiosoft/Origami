@@ -629,7 +629,8 @@ export class TasksService implements OnApplicationBootstrap {
     for (const t of held.filter((x) => overdue(x.pendingNotices))) await this.flushNotices(t.id);
   }
 
-  async remove(id: string) {
+  async remove(id: string, reason?: string | null) {
+    if (!String(reason || '').trim()) throw new BadRequestException('Say why this task is being deleted.');
     const task = await this.repo.findOneBy({ id });
     if (task) {
       await this.attachments.discardAll(normalizeAttachments(task.attachments));
