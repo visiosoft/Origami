@@ -200,3 +200,4 @@
 /* Nov 23: the sideways scrollbar above the grid (TopScrollbar), lined up with the grid. */
 .ab-roles .top-scrollbar { margin: 6px -22px 0; }
 .ab-roles .top-scrollbar + .ab-matrix-wrap { margin-top: 0; }
+.ab-uselevels { display: block; margin: 2px auto 0; border: 0; background: none; font: inherit; font-size: 10.5px; font-weight: 700; color: var(--forest); text-decoration: underline; cursor: pointer; }

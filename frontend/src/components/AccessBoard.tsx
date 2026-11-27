@@ -45,6 +45,14 @@ const TIER_HINT: Record<Tier, string> = {
   consultant: 'Subcontractors, consultants and vendors',
 };
 
+/** A switch role's permissions as access levels (Nov 27). */
+export function toLevels(p: Record<string, { view?: boolean; manage?: boolean } | undefined>) {
+  const out: Record<string, ReturnType<typeof permFor>> = {};
+  for (const [k, v] of Object.entries(p)) if (v) out[k] = permFor(v.manage ? 'modify' : v.view ? 'view' : 'block');
+  if (!out[OVERALL_KEY]) out[OVERALL_KEY] = permFor('block', 'assigned');
+  return out;
+}
+
 export function AccessBoard({ readOnly }: { readOnly: boolean }) {
   const matrixWrap = useRef<HTMLDivElement>(null);
   const { users, roles, refreshAccess, toast } = useApp();
@@ -145,7 +153,8 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
     const name = roleModal.name.trim(); if (!name) { toast('⚠ Give the role a name'); return; }
     const req = roleModal.key
       ? (() => { const r = roles.find((x) => x.key === roleModal.key)!; return api.roles.update(r.key, { ...r, name, description: roleModal.description, tier: roleModal.tier }); })()
-      : api.roles.create({ name, description: roleModal.description, tier: roleModal.tier, permissions: {} });
+      // Nov 27 (Weekly Sync): a new role uses access levels from the start -- Block until it's set up, assigned projects.
+      : api.roles.create({ name, description: roleModal.description, tier: roleModal.tier, permissions: { [OVERALL_KEY]: permFor('block', 'assigned') } });
     // Show the role where it now lives.
     req.then(() => { toast(roleModal.key ? 'Role updated' : 'Role created'); setTier(roleModal.tier); setRoleModal(null); refreshAccess(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed')));
   };
@@ -316,6 +325,11 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
                         <span>{r.name}</span>
                         <small>{users.filter((u) => u.roleKey === r.key).length} people</small>
                       </button>
+                      {/* Nov 27: a role still on off / view / manage switches moves to the levels the access sheet uses. */}
+                      {!readOnly && r.key !== 'admin' && !usesLevels(permsOf(r)) && (
+                        <button type="button" className="ab-uselevels" title="Turn this role’s switches into access levels (manage → Modify, view → View only, off → Block)"
+                          onClick={() => setDrafts((d) => ({ ...d, [r.key]: toLevels(permsOf(r)) }))}>Use levels</button>
+                      )}
                     </th>
                   ))}
                 </tr>

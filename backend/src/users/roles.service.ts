@@ -1,4 +1,5 @@
 import { ROLE_MERGE } from './role-merge';
+import { OVERALL_KEY, perm } from './access-levels';
 import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -114,7 +115,9 @@ export class RolesService implements OnApplicationBootstrap {
 
   create(dto: any) {
     const key = dto.key || 'role_' + Date.now();
-    const role = { order: 999, isSystem: false, description: '', permissions: {}, ...dto, key };
+    // Nov 27 (Weekly Sync): a new role uses access levels from the start (Block, assigned projects) -- not the old switches.
+    const given = dto?.permissions && Object.keys(dto.permissions).length ? dto.permissions : null;
+    const role = { order: 999, isSystem: false, description: '', ...dto, permissions: given || { [OVERALL_KEY]: perm('block', 'assigned') }, key };
     return this.repo.save(this.repo.create(role as Partial<RoleEntity>));
   }
 
