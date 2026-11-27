@@ -253,3 +253,33 @@ export function carriedCount(baseline: Sections | null | undefined, current: Sec
   walk(baseline, current);
   return n;
 }
+
+/**
+ * Nov 27 (Weekly Sync): the whole report beside its hours where it's
+ * approved -- what was filled in, section by section, as short lines.
+ * Empty sections are left out.
+ */
+export function reportSummary(s: Partial<Sections> | null | undefined): { heading: string; lines: string[] }[] {
+  if (!s) return [];
+  const out: { heading: string; lines: string[] }[] = [];
+  const add = (heading: string, lines: (string | false | null | undefined)[]) => { const l = lines.filter((x): x is string => !!x && !!x.trim()); if (l.length) out.push({ heading, lines: l }); };
+  const delays = (ops: Partial<Record<OpsKey, Delay>> | undefined, force?: Delay) => [
+    ...OPS_DELAYS.filter(([k]) => ops?.[k]?.on).map(([k, label]) => `${label}${ops![k]!.details ? ` — ${ops![k]!.details}` : ''}${ops![k]!.date ? ` (get well ${ops![k]!.date})` : ''}`),
+    force?.on ? `Force majeure${force.details ? ` — ${force.details}` : ''}` : '',
+  ];
+  const a = s.activity;
+  if (a) {
+    if (a.worked === 'no') add('Work activity', ['No work today', a.stop?.details && `Stop: ${a.stop.details}${a.stop.by ? ` (by ${a.stop.by})` : ''}`, a.holiday?.start && `Holiday ${a.holiday.start}${a.holiday.end ? ` – ${a.holiday.end}` : ''}`, ...delays(a.ops, a.force)]);
+    else add('Delays', a.delays === 'yes' ? delays(a.dOps, a.dForce) : []);
+  }
+  add('Subcontractors', (s.subs?.rows || []).map((r) => [r.name, r.headcount ? `${r.headcount} on site` : '', r.work, r.from || r.to ? `${r.from || '?'}–${r.to || '?'}` : ''].filter(Boolean).join(' · ')));
+  add('Inspections', [
+    ...(s.inspectors?.rows || []).map((r) => [r.authority, r.what, r.outcome && (OUTCOMES.find(([k]) => k === r.outcome)?.[1] || r.outcome)].filter(Boolean).join(' · ')),
+    ...(s.inspectors?.requests || []).map((r) => `Requested: ${[r.authority, r.areas, r.date && `on ${r.date}${r.time ? ` ${r.time}` : ''}`].filter(Boolean).join(' · ')}`),
+  ]);
+  add('Visitors', (s.visitors?.rows || []).map((r) => [r.type, r.name, r.details].filter(Boolean).join(' · ')));
+  add('Deliveries', [...(s.deliveries?.rows || []).map((r) => [r.supplier, r.items, r.qty ? `×${r.qty}` : '', r.condition && r.condition !== 'good' ? (DELIVERY_CONDITIONS.find(([k]) => k === r.condition)?.[1] || r.condition) : '', r.notes].filter(Boolean).join(' · ')), ...(s.deliveries?.files || []).map((f) => `Transmittal: ${f.name}`)]);
+  add('Equipment', [...(s.equipment?.rows || []).map((r) => [r.equipment, r.ownership, r.hoursUsed ? `${r.hoursUsed} h used` : '', r.hoursIdle ? `${r.hoursIdle} h idle` : '', r.notes].filter(Boolean).join(' · ')), ...(s.equipment?.files || []).map((f) => `Form: ${f.name}`)]);
+  add('Notes', (s.notes || []).map((n) => n.text || ''));
+  return out;
+}

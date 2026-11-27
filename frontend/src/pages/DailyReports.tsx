@@ -5,6 +5,7 @@ import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akToday } from '../compo
 import { WeeklyReport } from '../components/dailyReport/WeeklyReport';
 import { Skeleton } from '../components/Skeleton';
 import { weekStartISO } from '../data/localDate';
+import { reportSummary, type Sections } from '../data/dailyReport';
 
 interface LogRow {
   id: string; projectId: number; date: string; supervisorName?: string; notes?: string; status: string;
@@ -139,6 +140,11 @@ export function DailyReports() {
                     </table>
                   )}
                   {l.notes && <div className="ak-notes"><b>Site notes</b><br />{l.notes}</div>}
+                  {/* Nov 27 (Weekly Sync): the whole report with the hours, not hours only. */}
+                  {reportSummary(l.sections as Partial<Sections> | null).map((g) => (
+                    <div key={g.heading} className="ak-notes"><b>{g.heading}</b>{g.lines.map((x, k) => <div key={k}>{x}</div>)}</div>
+                  ))}
+                  <div className="ak-notes"><a href={`/daily-log?project=${l.projectId}&date=${l.date}&report=${encodeURIComponent(l.id)}`} style={{ fontWeight: 700, color: 'var(--forest)' }}>Open the full report (photos, signature) →</a></div>
                   {l.status === 'rejected' && l.rejectionNote && <div className="ak-notes" style={{ color: '#9A4318' }}><b>Sent back:</b> {l.rejectionNote}</div>}
                   {l.status === 'approved' && l.approvedByName && <div className="ak-notes">Approved by {l.approvedByName} — its hours count in payroll and the project’s labour cost.</div>}
                   {canApprove && l.status === 'submitted' && (
