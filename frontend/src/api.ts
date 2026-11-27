@@ -877,6 +877,8 @@ export const api = {
     get: (id: string) => request<import('./data/projectTasks').ProjectTask>(`/project-tasks/${encodeURIComponent(id)}`),
     create: (data: unknown) => request('/project-tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    /** Nov 27: admins and principals move a task (with its subtasks) to another project; null = General. */
+    move: (id: string, projectId: number | null) => request<any>(`/project-tasks/${encodeURIComponent(id)}/move`, { method: 'POST', body: JSON.stringify({ projectId }) }),
     /** Nov 27: deleting needs the reason (kept in the audit trail). */
     remove: (id: string, reason: string) => request(`/project-tasks/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
     reorder: (sectionId: string, ids: string[]) => request('/project-tasks/reorder', { method: 'PUT', body: JSON.stringify({ sectionId, ids }) }),

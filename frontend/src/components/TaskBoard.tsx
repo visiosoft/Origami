@@ -1220,6 +1220,27 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                   </Field>
                 </div>
               )}
+              {/* Nov 27 (Weekly Sync): a task made on the wrong project moves to the right one -- admins and principals. */}
+              {!selected.parentId && !leadId && (
+                <Field label="Project">
+                  {['admin', 'principal'].includes(authUser?.roleKey || '') && !restricted ? (
+                    <select aria-label="Move to project" value={selected.projectId ?? ''} style={{ ...inputStyle, width: '100%' }}
+                      onChange={(e) => {
+                        const to = e.target.value === '' ? null : Number(e.target.value);
+                        const toName = to == null ? 'General Tasks' : projectNames[to] || `Project ${to}`;
+                        const subs = tasks.filter((x) => x.parentId === selected.id).length;
+                        if (!window.confirm(`Move “${selected.title}” to ${toName}${subs ? ` with its ${subs} subtask${subs === 1 ? '' : 's'}` : ''}?`)) { e.target.value = String(selected.projectId ?? ''); return; }
+                        api.projectTasks.move(selected.id, to).then((res: any) => {
+                          toast(`Moved to ${toName}`);
+                          if (!all && (to ?? null) !== (projectId ?? null)) { setSelectedId(null); load(); } else replaceTask(res);
+                        }).catch((err: Error) => toast('⚠ ' + (err.message || 'Could not move it')));
+                      }}>
+                      <option value="">General Tasks</option>
+                      {Object.entries(projectNames).sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                    </select>
+                  ) : <div style={{ fontSize: 13, color: 'var(--ink)', padding: '6px 0' }}>{selected.projectId != null ? projectNames[selected.projectId] || `Project ${selected.projectId}` : 'General Tasks'}</div>}
+                </Field>
+              )}
               {!selected.parentId && projectId !== 'all' && (epics.length > 0 || d.epicId) && (
                 <Field label="Epic"><EpicSelect epics={epics} value={d.epicId} disabled={!canManage} onChange={(v) => set({ epicId: v })} /></Field>
               )}

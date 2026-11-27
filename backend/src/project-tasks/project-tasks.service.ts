@@ -689,6 +689,46 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     return task.projectId == null ? 'General Tasks' : `Project ${task.projectId}`;
   }
 
+  /**
+   * Nov 27 (Weekly Sync): a task made on the wrong project moves to the right
+   * one (admins and principals only). Its subtasks go with it; it lands in the
+   * column of the same name (else the one for its status, else the first);
+   * its phase and epic belonged to the old project, so they're cleared.
+   */
+  async move(id: string, projectId: number | null, actor: { id?: string; name: string; roleKey?: string }) {
+    if (!actor.roleKey || !ACCESS_TAG_LEADS.includes(actor.roleKey)) throw new ForbiddenException('Only admins and principals move tasks between projects.');
+    const task = await this.load(id);
+    if (task.parentId) throw new BadRequestException('Move the main task -- its subtasks go with it.');
+    const to = projectId == null ? null : Number(projectId);
+    if (to !== null) {
+      const p = await this.projects?.findOne({ where: { id: to } as any });
+      if (this.projects && !p) throw new NotFoundException('That project doesn’t exist.');
+    }
+    if ((task.projectId ?? null) === to) return this.hydrate(task);
+    const names = async (pid: number | null) => (pid == null ? 'General' : (await this.projects?.findOne({ where: { id: pid } as any }))?.name || `Project ${pid}`);
+    const fromName = await names(task.projectId ?? null), toName = await names(to);
+    const oldSections = await this.sections.forProject(task.projectId ?? null);
+    const newSections = await this.sections.forProject(to);
+    const target = (sectionId?: string | null, status?: string | null) => {
+      const name = oldSections.find((x) => x.id === sectionId)?.name?.trim().toLowerCase();
+      return newSections.find((x) => name && x.name.trim().toLowerCase() === name)
+        || newSections.find((x) => status && bucketStatus(x.name) === status)
+        || newSections[0];
+    };
+    const subs = await this.repo.find({ where: { parentId: id } });
+    const now = new Date().toISOString();
+    for (const t of [task, ...subs]) {
+      t.projectId = to;
+      t.sectionId = target(t.sectionId, t.status)?.id || (null as any);
+      t.phaseId = null as any;
+      t.epicId = null;
+      t.updatedAt = now;
+    }
+    task.activity = [...normalizeList<ActivityEvent>(task.activity), event('field', actor as any, { field: 'project', from: fromName, to: toName, text: `moved this task from ${fromName} to ${toName}${subs.length ? ` with its ${subs.length} subtask${subs.length === 1 ? '' : 's'}` : ''}` })];
+    await this.repo.save([task, ...subs]);
+    return this.hydrate(task);
+  }
+
   async addAttachments(id: string, files: any[], actor: UploadActor) {
     const task = await this.load(id);
     const added = await this.uploadSorted(files, this.scopeFor(task), actor, task.projectId);

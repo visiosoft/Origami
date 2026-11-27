@@ -240,7 +240,8 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             </div>
             <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Project</div>
-              {canManage ? (
+              {/* Nov 27: anyone who manages it can set a project; only admins and principals move it once it has one. */}
+              {canManage && (!t.project || ['admin', 'principal'].includes(currentUser?.roleKey || '')) ? (
                 <select value={t.project || ''} onChange={(e) => set({ project: e.target.value })} aria-label="Project" style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 13, fontWeight: 600, color: 'var(--forest)', fontFamily: 'inherit', padding: 0 }}>
                   <option value="">General (no project)</option>
                   {t.project && !targets.projects.some((p) => p.name === t.project) && <option value={t.project}>{t.project}</option>}

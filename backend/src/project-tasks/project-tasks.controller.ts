@@ -128,6 +128,13 @@ export class ProjectTasksController {
     return this.service.update(id, dto, { ...(await this.auth.actor(auth)), roleKey: claims?.roleKey } as any);
   }
 
+  /** Nov 27: move a task (and its subtasks) to another project -- admins and principals. */
+  @Post(':id/move')
+  async move(@Param('id') id: string, @Body() dto: { projectId?: number | null }, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
+    await this.mayTouch(id, claims ?? null);
+    return this.service.move(id, dto?.projectId ?? null, { ...(await this.auth.actor(auth)), roleKey: claims?.roleKey } as any);
+  }
+
   /** Save pressed in the task editor: send the emails held on the task and its subtasks. */
   @Post(':id/notify')
   async notify(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
