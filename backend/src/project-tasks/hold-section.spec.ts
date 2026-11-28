@@ -1,4 +1,5 @@
 import { ProjectTasksService } from './project-tasks.service';
+import { todayISO } from '../tasks/task-rules';
 
 const SECTIONS = [
   { id: 'S-todo', name: 'To Do' }, { id: 'S-prog', name: 'In Progress' }, { id: 'S-rev', name: 'In Review' }, { id: 'S-hold', name: 'On Hold' }, { id: 'S-done', name: 'Done' },
@@ -83,7 +84,7 @@ describe('task bucket rules', () => {
   });
 
   it('a start date that has arrived moves an assigned task to In Progress; a future one waits', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO(); // the business-local day, as the code uses -- not UTC
     const svc = setup({ id: 'T1', projectId: 23, sectionId: 'S-todo', status: 'Assigned', assigneeId: 'U-2', assignee: 'Astrid' });
     expect((await svc.update('T1', { startDate: '2999-01-01' }, { id: 'U-1', name: 'Edward' })).status).toBe('Assigned');
     const t = await svc.update('T1', { startDate: today }, { id: 'U-1', name: 'Edward' });
@@ -105,7 +106,7 @@ describe('task bucket rules', () => {
   });
 
   it('a start date reached later starts the task on the next check', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO(); // the business-local day, as the code uses -- not UTC
     const row = { id: 'T1', projectId: 23, sectionId: 'S-todo', status: 'Assigned', assigneeId: 'U-2', assignee: 'Astrid', startDate: today };
     const svc = setup(row);
     (svc as any).repo.find = jest.fn(async () => [row]);
