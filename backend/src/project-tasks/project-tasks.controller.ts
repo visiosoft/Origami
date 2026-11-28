@@ -40,7 +40,15 @@ export class ProjectTasksController {
   private async mayTouch(id: string, claims: SessionClaims | null) {
     const task = await this.service.get(id);
     // Staff: any task on a project they may see (all of them, unless their access is "Assigned projects").
-    if (this.access.isStaff(claims)) { if (task.projectId) await this.access.assert(claims, task.projectId); return; }
+    if (this.access.isStaff(claims)) {
+      if (!task.projectId) return;
+      try { await this.access.assert(claims, task.projectId); return; } catch (e) {
+        // Nov 27: a task given to you (or its parent) opens even on a project you aren't on.
+        const parent = task.parentId ? await this.service.get(task.parentId).catch(() => null) : null;
+        if (this.access.mine(claims, task as any) || (parent && this.access.mine(claims, parent as any))) return;
+        throw e;
+      }
+    }
     await this.access.assert(claims, task.projectId);
     if (!claims || !assignedTo(task as any, claims)) throw new ForbiddenException('That task isn’t assigned to you.');
     // Internal / Financial stay with our own team (Oct 30 sync: board tasks have tags too).
@@ -63,20 +71,29 @@ export class ProjectTasksController {
   async findAll(@Query('projectId') projectId?: string, @Query('slim') slim?: string, @Headers('authorization') auth?: string) {
     const claims = await this.auth.verify(auth);
     const pid = this.parseProjectId(projectId);
-    if (pid) await this.access.assert(claims, pid);
+    // Staff see their own tasks on a project they aren't on (Nov 27); outside accounts stay to their projects.
+    if (pid && !this.access.isStaff(claims)) await this.access.assert(claims, pid);
     // ?slim=1: without each task's comments and history (the board loads those when a task is opened).
     const rows = await this.service.findAll(pid, { slim: slim === '1' });
-    return scopeTasks(await this.access.filter(claims, rows, (t: any) => t.projectId), claims);
+    return scopeTasks(await this.access.filterOrMine(claims, rows as any[], (t: any) => t.projectId), claims);
   }
 
   @Get('board')
   async board(@Query('projectId') projectId?: string, @Query('slim') slim?: string, @Headers('authorization') auth?: string) {
     const pid = this.parseProjectId(projectId) ?? null;
     const claims = await this.auth.verify(auth);
-    if (pid) await this.access.assert(claims, pid);
-    else if (!this.access.isStaff(claims)) return { sections: [], tasks: [] }; // the General Tasks board is internal
+    let onlyMine = false;
+    if (pid) {
+      try { await this.access.assert(claims, pid); } catch (e) {
+        // Nov 27: a project you aren't on shows just your tasks on it (staff only).
+        if (!this.access.isStaff(claims)) throw e;
+        onlyMine = true;
+      }
+    } else if (!this.access.isStaff(claims)) return { sections: [], tasks: [] }; // the General Tasks board is internal
     const { sections, tasks } = await this.service.board(pid, { slim: slim === '1' });
-    return { sections, tasks: scopeTasks(tasks, claims) };
+    if (!onlyMine) return { sections, tasks: scopeTasks(tasks, claims) };
+    const mineIds = new Set(tasks.filter((t: any) => this.access.mine(claims, t)).map((t: any) => t.id));
+    return { sections, onlyMine: true, tasks: scopeTasks(tasks.filter((t: any) => mineIds.has(t.id) || (t.parentId && mineIds.has(t.parentId))), claims) };
   }
 
   /** One page of a task's comments and history, newest first (?page=&size=, 20 a page). */

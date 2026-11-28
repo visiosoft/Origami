@@ -891,8 +891,11 @@ export class ProjectSectionEntity {
 @Index('IX_project_tasks_section', ['sectionId'])
 @Index('IX_project_tasks_parent', ['parentId'])
 @Index('IX_project_tasks_assignee', ['assigneeId'])
+@Index('IX_project_tasks_meetingId', ['meetingId'])
 export class ProjectTaskEntity {
   @PrimaryColumn() id!: string;
+  /** Nov 27 (Weekly Sync): the meeting it was raised in -- meeting tasks go on the board. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) meetingId!: string | null;
   /** How many comments it has, so lists can show the count without loading them. */
   @Column({ type: 'int', nullable: true }) commentCount!: number | null;
   /** Closed with "Close task": complete and archived at once. */

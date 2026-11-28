@@ -1,6 +1,6 @@
 import { GoogleNotesService } from './google-notes.service';
 import { BadRequestException, Body, Controller, Delete, Get, Headers, NotFoundException, Param, Post, Put, Optional, Query } from '@nestjs/common';
-import { Tiers } from '../auth/guards/roles.decorator';
+import { Roles, Tiers } from '../auth/guards/roles.decorator';
 import { AuthService } from '../auth/auth.service';
 import { MeetingsService } from './meetings.service';
 import { MeetingActionDto, MeetingDto } from './dto';
@@ -33,6 +33,20 @@ export class MeetingsController {
   }
 
   @Get() async list(@Claims() claims: SessionClaims | null, @Query('archived') archived?: string) { return this.mine(await this.service.list(archived === '1'), claims); }
+
+  /** Nov 27: board tasks raised in meetings (yours, or on your projects). */
+  @Get('board-actions') async boardActions(@Claims() claims: SessionClaims | null) {
+    return this.access.filterOrMine(claims, await this.service.boardActions(), (t) => t.projectId);
+  }
+
+  /** Nov 27 (preview, then Apply): open meeting Tasks still in the Request Log, moved to their boards. Admin only. */
+  @Roles('admin')
+  @Get('move-to-board/plan') async moveToBoardPlan() { return this.service.moveToBoardPlan(false); }
+  @Roles('admin')
+  @Post('move-to-board/apply') async moveToBoardApply(@Body() body: { confirm?: boolean }, @Headers('authorization') a?: string) {
+    if (body?.confirm !== true) throw new BadRequestException('Confirm to move them.');
+    return this.service.moveToBoardPlan(true, await this.auth.actor(a));
+  }
 
   /** Nov 19: the grouped "From Special Actions Log" meetings someone hid. The entries themselves stay in the log. */
   @Get('hidden-groups') async hiddenGroups() { return this.readHidden(); }

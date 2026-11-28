@@ -150,7 +150,7 @@ describe('meetings from the company calendar', () => {
       const shared = ev({ id: 'E1', iCalUID: 'u1' });
       const { svc, created } = make([shared], { 'U-A': [{ ...shared }, ev({ id: 'P1', iCalUID: 'p1', summary: 'Design review' })], 'U-K': new Error('Calendar connection needs reconnecting') });
       const st = await svc.status();
-      expect(st).toMatchObject({ scope: 'company', people: [{ name: 'Astrid Rivas' }, { name: 'Kai' }], notConnected: 1 });
+      expect(st).toMatchObject({ scope: 'everyone', people: [{ name: 'Astrid Rivas' }, { name: 'Kai' }], notConnected: 1 });
       const pv = await svc.preview();
       expect(pv.create.map((c) => c.title)).toEqual(['OAC — Countryside', 'Design review']);
       expect(pv.sources.map((s) => [s.name, s.ok])).toEqual([['Company calendar', true], ['Astrid Rivas', true], ['Kai', false]]);
@@ -161,7 +161,8 @@ describe('meetings from the company calendar', () => {
 
     it('an earlier company-only sync keeps reading the company calendar hourly until someone applies with everyone', async () => {
       const { svc, store, created } = make([ev({ id: 'E1' })], { 'U-A': [ev({ id: 'P1', iCalUID: 'p1', summary: 'Design review' })] });
-      store['meetings.calendarSync'] = JSON.stringify({ on: true, applied: true });
+      // Nov 27 (Weekly Sync): everyone's calendars are read hourly by default; 'company' only when set so.
+      store['meetings.calendarSync'] = JSON.stringify({ on: true, applied: true, scope: 'company' });
       await svc.tick();
       expect(created.map((c) => c.title)).toEqual(['OAC — Countryside']);
     });

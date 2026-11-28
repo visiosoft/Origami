@@ -1,3 +1,4 @@
+import { assignedTo } from '../database/viewer.util';
 import { sharesEmail } from '../common/emails';
 import { personProjectIds } from '../people/person-projects';
 import { ForbiddenException, Global, Injectable, Module, Optional, UnauthorizedException } from '@nestjs/common';
@@ -187,6 +188,24 @@ export class ProjectAccessService {
     const allowed = await this.allowedIds(claims);
     if (allowed === 'all') return rows;
     return rows.filter((r) => { const id = projectIdOf(r); return id != null && allowed.has(Number(id)); });
+  }
+
+  /**
+   * Nov 27 (Weekly Sync): like filter, but a board task given to the caller
+   * (or shared with or raised by them) stays even on a project they aren't
+   * on -- the same rule as the Request Log's onMyProjects.
+   */
+  async filterOrMine<T extends { assigneeId?: string; assignee?: string; collaborators?: { id: string }[] | null; createdById?: string | null }>(
+    claims: SessionClaims | null, rows: T[], projectIdOf: (row: T) => number | null | undefined,
+  ) {
+    const allowed = await this.allowedIds(claims);
+    if (allowed === 'all') return rows;
+    return rows.filter((r) => { const id = projectIdOf(r); return (id != null && allowed.has(Number(id))) || this.mine(claims, r); });
+  }
+
+  /** Whether a task is the caller's own: assigned, shared with them, or raised by them. */
+  mine(claims: SessionClaims | null, t: { assigneeId?: string; assignee?: string; collaborators?: { id: string }[] | null; createdById?: string | null }) {
+    return !!claims?.sub && (assignedTo(t as any, claims) || t.createdById === claims.sub);
   }
 }
 

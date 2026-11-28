@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { MeetingEntity, ProjectEntity, UserEntity } from '../database/entities';
+import { MeetingEntity, PersonEntity, ProjectEntity, UserEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
 import { CalendarService } from '../google/calendar.service';
@@ -21,13 +21,13 @@ export interface SyncState {
   on: boolean;
   /** The first sync was previewed and applied by a person (Nov 19: data steps are preview, then Apply). */
   applied: boolean;
-  /** Nov 20: 'everyone' once a person applied a sync with everyone's own calendars; until then the hourly run reads the company calendar only. */
+  /** Nov 20: which calendars the hourly run reads. Nov 27 (Weekly Sync): everyone's connected calendars by default. */
   scope?: Scope;
   last?: { at: string; events: number; created: number; moved: number; cancelled: number; notes: number; error?: string | null; sources?: SourceResult[] } | null;
 }
 
 export type Scope = 'company' | 'everyone';
-export interface SourceResult { name: string; email: string; company: boolean; ok: boolean; events: number; error?: string }
+export interface SourceResult { name: string; email: string; company: boolean; ok: boolean; events: number; error?: string; userId?: string }
 
 type Actor = { name: string; id?: string };
 
@@ -53,6 +53,7 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
     @Optional() private readonly calendar?: CalendarService,
     @Optional() private readonly meetingsService?: MeetingsService,
     @Optional() private readonly notes?: GoogleNotesService,
+    @Optional() @InjectRepository(PersonEntity) private readonly people?: Repository<PersonEntity>,
   ) {}
 
   onApplicationBootstrap() {
@@ -62,7 +63,7 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
 
   async state(): Promise<SyncState> {
-    try { const v = JSON.parse((await this.settings.get(STATE)) || '{}'); return { on: v.on !== false, applied: !!v.applied, scope: v.scope === 'everyone' ? 'everyone' : 'company', last: v.last || null }; } catch { return { on: true, applied: false, scope: 'company', last: null }; }
+    try { const v = JSON.parse((await this.settings.get(STATE)) || '{}'); return { on: v.on !== false, applied: !!v.applied, scope: v.scope === 'company' ? 'company' : 'everyone', last: v.last || null }; } catch { return { on: true, applied: false, scope: 'everyone', last: null }; }
   }
   private async saveState(s: SyncState) { await this.settings.set(STATE, JSON.stringify(s)); }
 
@@ -71,7 +72,14 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
     const email = String(g?.connectedEmail || '');
     const staff = (await this.users.find()).filter((u) => u.status !== 'suspended' && (u.tier || 'internal') === 'internal');
     const people = staff.filter((u) => u.calendarRefreshToken).map((u) => ({ name: u.name, email: String(u.calendarEmail || u.email || '') }));
-    return { ...(await this.state()), connected: !!g?.connected, connectedEmail: email, people, notConnected: staff.length - people.length, window: { pastDays: PAST_DAYS, aheadDays: AHEAD_DAYS } };
+    const state = await this.state();
+    // Nov 27: each staff member's calendar -- connected or not, and what the last run read from it.
+    const bySource = new Map((state.last?.sources || []).filter((r) => !r.company).map((r) => [r.userId || r.email.toLowerCase(), r]));
+    const calendars = staff.map((u) => {
+      const r = bySource.get(u.id) || bySource.get(String(u.calendarEmail || u.email || '').toLowerCase());
+      return { id: u.id, name: u.name, email: String(u.calendarEmail || u.email || ''), connected: !!u.calendarRefreshToken, lastAt: r ? state.last?.at || null : null, events: r?.events ?? null, ok: r ? r.ok : null, error: r?.error || null };
+    }).sort((a, b) => Number(b.connected) - Number(a.connected) || a.name.localeCompare(b.name));
+    return { ...state, connected: !!g?.connected, connectedEmail: email, people, calendars, notConnected: staff.length - people.length, window: { pastDays: PAST_DAYS, aheadDays: AHEAD_DAYS } };
   }
 
   async setOn(on: boolean) {
@@ -96,8 +104,8 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
         const email = String(u.calendarEmail || u.email || '').toLowerCase();
         try {
           const events = (await this.calendar!.eventsAs(u.id, u.calendarRefreshToken, from, to)) as CalEvent[];
-          sources.push({ email, personal: true, events }); results.push({ name: u.name, email, company: false, ok: true, events: events.length });
-        } catch (e) { results.push({ name: u.name, email, company: false, ok: false, events: 0, error: (e as Error).message }); }
+          sources.push({ email, personal: true, events }); results.push({ name: u.name, email, company: false, ok: true, events: events.length, userId: u.id });
+        } catch (e) { results.push({ name: u.name, email, company: false, ok: false, events: 0, error: (e as Error).message, userId: u.id }); }
       }
     }
     if (!results.length) throw new BadRequestException('No calendar to read: connect the company Google account (Settings → Google) or your own calendar (Settings → My Calendar).');
@@ -120,7 +128,11 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
     const plan = planSync(
       events,
       meetings.map((m) => ({ id: m.id, calendarEventId: m.calendarEventId, date: m.date, time: m.time, status: m.status, archivedAt: m.archivedAt, title: m.title })),
-      users.filter((u) => u.status !== 'suspended').map((u) => ({ id: u.id, name: u.name, emails: [...new Set([...emailsOf(u), ...(u.calendarEmail ? [String(u.calendarEmail).toLowerCase()] : [])])] })),
+      [
+        ...users.filter((u) => u.status !== 'suspended').map((u) => ({ id: u.id, name: u.name, emails: [...new Set([...emailsOf(u), ...(u.calendarEmail ? [String(u.calendarEmail).toLowerCase()] : [])])] })),
+        // Nov 27: People records name the outside attendees (consultants, clients) too.
+        ...((await this.people?.find({ select: { id: true, name: true, email: true } as any }).catch(() => [])) || []).map((p) => ({ name: p.name, emails: emailsOf(p as any) })).filter((p) => p.emails.length),
+      ],
       projects.filter((p: any) => !p.archivedAt).map((p) => ({ id: p.id, name: p.name })),
       new Set(skips), domain,
     );
@@ -181,7 +193,7 @@ export class CalendarSyncService implements OnApplicationBootstrap, OnModuleDest
   async tick() {
     const s = await this.state().catch(() => null);
     if (!s?.on || !s.applied) return null;
-    return this.apply(undefined, s.scope || 'company').catch((e) => { this.log.warn(`Calendar sync: ${(e as Error).message}`); return null; });
+    return this.apply(undefined, s.scope || 'everyone').catch((e) => { this.log.warn(`Calendar sync: ${(e as Error).message}`); return null; });
   }
 
   /** A deleted meeting's event is never brought back. */

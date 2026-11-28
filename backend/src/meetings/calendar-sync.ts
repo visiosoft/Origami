@@ -32,7 +32,8 @@ export interface CalEvent {
 }
 
 export interface SyncMeeting { id: string; calendarEventId?: string | null; date: string; time?: string | null; status?: string | null; archivedAt?: string | null; title: string }
-export interface SyncUser { id: string; name: string; emails: string[] }
+/** A person to name attendees by. Nov 27: contacts from People (no id) name outside attendees too. */
+export interface SyncUser { id?: string; name: string; emails: string[] }
 export interface SyncProject { id: number; name: string }
 
 /** Date and HH:mm of an instant in the company's time zone. */
@@ -125,10 +126,10 @@ export function meetingFromEvent(e: CalEvent, users: SyncUser[], projects: SyncP
   const attendees = people(e).map((a) => {
     const email = String(a.email).toLowerCase();
     const u = byEmail.get(email);
-    return u ? { id: u.id, name: u.name, email } : { name: a.displayName || email, email };
+    return u?.id ? { id: u.id, name: u.name, email } : u ? { name: u.name, email } : { name: a.displayName || email, email };
   });
   const org = String(e.organizer?.email || '').toLowerCase();
-  const outside = !!org && !!companyDomain && !org.endsWith('@' + companyDomain) && !byEmail.has(org);
+  const outside = !!org && !!companyDomain && !org.endsWith('@' + companyDomain) && !byEmail.get(org)?.id;
   const project = projectFor(e.summary || '', projects);
   const link = e.hangoutLink || (/^https?:\/\//i.test(e.location || '') ? e.location : '');
   return {

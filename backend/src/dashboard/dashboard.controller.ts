@@ -38,7 +38,7 @@ export class DashboardController {
     const [boardAll, logAll, statuses] = await Promise.all([
       this.boardTasks.findAll(undefined, { slim: true }), this.logTasks.findAll(undefined, undefined, { slim: true }), this.logTasks.statuses(),
     ]);
-    const board = scopeTasks(await this.access.filter(claims, boardAll, (t: any) => t.projectId), claims);
+    const board = scopeTasks(await this.access.filterOrMine(claims, boardAll as any[], (t: any) => t.projectId), claims);
     const log = onMyProjects(scopeTasks(logAll, claims), await this.access.allowedNames(claims), claims!);
     const ids = [...new Set(board.map((t: any) => t.projectId).filter((x: any) => x != null))] as number[];
     const names = new Map((ids.length ? await this.projects.find({ where: { id: In(ids) }, select: { id: true, name: true } }) : []).map((p) => [p.id, p.name]));
@@ -62,7 +62,7 @@ export class DashboardController {
     const [boardAll, logAll, statuses] = await Promise.all([
       this.boardTasks.findAll(undefined, { slim: true }), this.logTasks.findAll(undefined, undefined, { slim: true }), this.logTasks.statuses(),
     ]);
-    const board = scopeTasks(await this.access.filter(claims, boardAll, (t: any) => t.projectId), claims);
+    const board = scopeTasks(await this.access.filterOrMine(claims, boardAll as any[], (t: any) => t.projectId), claims);
     // Request Log entries too keep to the caller's projects (Nov 17: View as showed other projects' items).
     const log = onMyProjects(scopeTasks(logAll, claims), await this.access.allowedNames(claims), claims!);
     const ids = [...new Set(board.map((t: any) => t.projectId).filter((x: any) => x != null))] as number[];
@@ -86,7 +86,7 @@ export class DashboardController {
     const [boardAll, logAll, statuses] = await Promise.all([
       this.boardTasks.findAll(undefined, { slim: true }), this.logTasks.findAll(undefined, undefined, { slim: true }), this.logTasks.statuses(),
     ]);
-    const board = scopeTasks(await this.access.filter(claims, boardAll, (t: any) => t.projectId), claims);
+    const board = scopeTasks(await this.access.filterOrMine(claims, boardAll as any[], (t: any) => t.projectId), claims);
     // Request Log entries too keep to the caller's projects (Nov 17: View as showed other projects' items).
     const log = onMyProjects(scopeTasks(logAll, claims), await this.access.allowedNames(claims), claims!);
     const ids = [...new Set(board.map((t: any) => t.projectId).filter((x: any) => x != null))] as number[];

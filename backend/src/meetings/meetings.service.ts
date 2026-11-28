@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { ChangeOrderEntity, MeetingEntity, RfiEntity, TaskEntity } from '../database/entities';
+import { ChangeOrderEntity, MeetingEntity, ProjectEntity, ProjectTaskEntity, RfiEntity, TaskEntity } from '../database/entities';
+import { ProjectTasksService } from '../project-tasks/project-tasks.service';
+import { SectionsService } from '../project-tasks/sections.service';
+import { bucketStatus, event } from '../database/task.types';
 import { TasksService } from '../tasks/tasks.service';
 import { backfillSerials, nextSerial, serialYear } from '../database/serials';
 import type { MeetingActionDto, MeetingDto } from './dto';
@@ -38,6 +41,11 @@ export class MeetingsService implements OnApplicationBootstrap {
     private readonly tasks: TasksService,
     @Optional() @InjectRepository(RfiEntity) private readonly rfis?: Repository<RfiEntity>,
     @Optional() @InjectRepository(ChangeOrderEntity) private readonly cos?: Repository<ChangeOrderEntity>,
+    // Nov 27 (Weekly Sync): meeting tasks go on the project's board.
+    @Optional() private readonly board?: ProjectTasksService,
+    @Optional() private readonly sections?: SectionsService,
+    @Optional() @InjectRepository(ProjectTaskEntity) private readonly boardRepo?: Repository<ProjectTaskEntity>,
+    @Optional() @InjectRepository(ProjectEntity) private readonly projectsRepo?: Repository<ProjectEntity>,
   ) {}
 
   async onApplicationBootstrap() {
@@ -171,31 +179,129 @@ export class MeetingsService implements OnApplicationBootstrap {
   async remove(id: string) {
     const m = await this.load(id);
     await this.tasksRepo.update({ meetingId: id }, { meetingId: null as any });
+    if (this.boardRepo) await this.boardRepo.update({ meetingId: id } as any, { meetingId: null } as any);
     await this.repo.remove(m);
     return { ok: true, calendarEventId: m.calendarEventId || null };
   }
 
   async addAction(id: string, dto: MeetingActionDto, actor: Actor) {
     let m = await this.load(id);
-    // Nov 20: several people importing the same notes don't make the same task twice.
+    // Nov 20: several people importing the same notes don't make the same task twice (log or board).
     const subject = dto.subject.trim();
     const same = (await this.tasksRepo.find({ where: { meetingId: m.id } })).find((x) => x.meetingId === m.id && sameSubject(x.subject, subject));
     if (same) return { ...same, duplicate: true };
+    const sameOnBoard = this.boardRepo ? (await this.boardRepo.find({ where: { meetingId: m.id } })).find((x) => sameSubject(x.title, subject)) : null;
+    if (sameOnBoard) return { ...sameOnBoard, subject: sameOnBoard.title, board: true, duplicate: true };
+    // Nov 27: each item can go to its own project (or General); otherwise the meeting's.
+    const own = Object.prototype.hasOwnProperty.call(dto, 'projectId') || Object.prototype.hasOwnProperty.call(dto, 'project');
     // A meeting with no project takes the one picked for its items, so they don't land under "General".
     if (!m.project && (dto.project || '').trim()) {
       Object.assign(m, { project: dto.project!.trim(), projectId: dto.projectId ?? m.projectId ?? null });
       m = await this.repo.save(m);
     }
+    const sourceLabel = [m.title, [m.date?.replace(/-/g, '/'), m.time].filter(Boolean).join(' ')].filter(Boolean).join(' - ');
+    if (dto.topicType === 'Task' && this.board) {
+      const project = own ? await this.projectFor(dto.projectId ?? null, dto.project || '') : await this.projectFor((m as any).projectId ?? null, m.project || '');
+      const t = await this.board.create({
+        projectId: project?.id ?? null, sectionId: await this.notStarted(project?.id ?? null),
+        title: subject, description: dto.description || '',
+        assignee: dto.assignedTo, assigneeId: dto.assignedToId, dueDate: dto.dueDate || undefined, priority: dto.priority || undefined, tags: dto.tags,
+        collaborators: Array.isArray(dto.collaborators) ? dto.collaborators.filter((c) => c && c.id && c.name) : undefined,
+        meetingId: m.id, sourceType: 'meeting', sourceId: m.id, sourceLabel,
+      }, actor as any);
+      await this.settle([m]);
+      return { ...t, subject: t.title, board: true, projectName: project?.name || 'General' };
+    }
+    const itemProject = own ? (await this.projectFor(dto.projectId ?? null, dto.project || ''))?.name ?? (dto.project || '').trim() : m.project || '';
     const t = await this.tasks.create({
       collaborators: Array.isArray(dto.collaborators) ? dto.collaborators.filter((c) => c && c.id && c.name) : undefined,
       topicType: dto.topicType, subject, description: dto.description || '',
       assignedTo: dto.assignedTo, assignedToId: dto.assignedToId, dueDate: dto.dueDate || undefined, priority: dto.priority || undefined, tags: dto.tags,
-      project: m.project || '', meetingType: m.type || 'Internal', meetingDate: m.date, meetingId: m.id, tab: 'internal',
+      project: itemProject, meetingType: m.type || 'Internal', meetingDate: m.date, meetingId: m.id, tab: 'internal',
       // Where it came from, e.g. "HOM Cafe Weekly Sync - 2026/10/24 12:45" (Oct 26 review notes).
-      sourceType: 'meeting', sourceId: m.id, sourceLabel: [m.title, [m.date?.replace(/-/g, '/'), m.time].filter(Boolean).join(' ')].filter(Boolean).join(' - '),
+      sourceType: 'meeting', sourceId: m.id, sourceLabel,
     }, actor as any);
     await this.settle([m]); // a new open task takes a complete meeting back to reviewed
     return t;
+  }
+
+  /** A project by id, else by name; null = General. */
+  private async projectFor(id: number | null | undefined, name: string): Promise<ProjectEntity | null> {
+    if (!this.projectsRepo) return null;
+    if (id != null && Number.isFinite(Number(id))) { const p = await this.projectsRepo.findOneBy({ id: Number(id) }); if (p) return p; }
+    const n = String(name || '').trim().toLowerCase();
+    if (!n) return null;
+    return (await this.projectsRepo.find({ select: { id: true, name: true } as any })).find((p) => String(p.name || '').trim().toLowerCase() === n) || null;
+  }
+
+  /** The board's "Not started" column (as conversions use). */
+  private async notStarted(projectId: number | null) {
+    if (!this.sections) return undefined;
+    const secs = await this.sections.forProject(projectId);
+    return (secs.find((x) => bucketStatus(x.name) === 'Not started') || secs[0])?.id;
+  }
+
+  /**
+   * Nov 27 (Weekly Sync, preview then Apply): the open Tasks raised in meetings
+   * that still sit in the Request Log, and the board each would go to. Apply
+   * makes each a board task (history, comments, files, people and dates come
+   * along), notes "Moved to the board → T-…" on the log entry and closes it.
+   * Nothing is deleted; one already moved is skipped.
+   */
+  async moveToBoardPlan(apply = false, actor: Actor = { name: 'Odin' } as Actor) {
+    const closedNames = (await this.tasks.statuses()).filter((s) => s.closed).map((s) => s.name);
+    const rows = (await this.tasksRepo.find({ where: { topicType: 'Task' } as any }))
+      .filter((t) => t.meetingId && !t.archivedAt && !t.closedAt && !closedNames.includes(t.status))
+      .filter((t) => !(t.derivedRefs || []).some((r: any) => r?.kind === 'board'));
+    const plan: { id: string; serial: string | null; subject: string; status: string; assignee: string | null; dueDate: string | null; meetingId: string; projectId: number | null; projectName: string }[] = [];
+    for (const t of rows) {
+      const p = await this.projectFor(null, t.project || '');
+      plan.push({ id: t.id, serial: t.serial || null, subject: t.subject || '(no subject)', status: t.status, assignee: t.assignedTo || null, dueDate: t.dueDate || null, meetingId: t.meetingId, projectId: p?.id ?? null, projectName: p?.name || 'General' });
+    }
+    if (!apply) return { applied: false, count: plan.length, rows: plan };
+    if (!this.board || !this.boardRepo) throw new BadRequestException('The task board is not available here.');
+    const closedName = closedNames[0] || 'Closed';
+    const done: { id: string; boardId: string; serial: string }[] = [];
+    for (const row of plan) {
+      const t = rows.find((x) => x.id === row.id)!;
+      const made = await this.board.create({
+        projectId: row.projectId, sectionId: await this.notStarted(row.projectId),
+        title: (t.subject || '(no subject)').slice(0, 300), description: t.description || '',
+        assignee: t.assignedTo, assigneeId: t.assignedToId, dueDate: t.dueDate || undefined, startDate: t.startDate || undefined, priority: t.priority || undefined, tags: t.tags || undefined,
+        collaborators: t.collaborators || undefined, labels: t.labels || undefined, checklist: t.checklist || undefined,
+        meetingId: t.meetingId, sourceType: 'meeting', sourceId: t.meetingId, sourceLabel: t.sourceLabel || `Request Log ${t.serial || t.id}`,
+        deferNotify: true, // the people on it already know about it
+      }, actor as any);
+      // Its history, comments and files come along as they were.
+      const b = await this.boardRepo.findOneBy({ id: made.id });
+      if (b) {
+        b.comments = [...(t.comments || [])];
+        b.commentCount = (t.comments || []).length;
+        b.attachments = [...(t.attachments || [])];
+        b.activity = [...(t.activity || []), ...(b.activity || []), event('link', actor as any, { text: `moved here from the Request Log (${t.serial || t.id})` })] as any;
+        b.pendingNotices = null;
+        await this.boardRepo.save(b);
+      }
+      const at = new Date().toISOString();
+      t.derivedRefs = [...(t.derivedRefs || []), { kind: 'board', id: made.id, label: made.serial || made.id, how: 'converted', projectName: row.projectName, at, by: actor.name }];
+      t.activity = [...(t.activity || []), event('link', actor as any, { text: `Moved to the board → ${made.serial || made.id}` })] as any;
+      t.status = closedName; t.closedAt = at; t.dateClosed = at.slice(0, 10); t.updatedAt = at;
+      await this.tasksRepo.save(t);
+      done.push({ id: t.id, boardId: made.id, serial: made.serial || made.id });
+    }
+    const meetings = await this.repo.findBy({ id: In([...new Set(plan.map((r) => r.meetingId))]) });
+    await this.settle(meetings);
+    return { applied: true, count: done.length, moved: done };
+  }
+
+  /** Nov 27: the board tasks raised in meetings, for the meetings' action lists. */
+  async boardActions(meetingIds?: string[]) {
+    if (!this.boardRepo) return [];
+    const rows = await this.boardRepo.find({ where: meetingIds?.length ? { meetingId: In(meetingIds) } : { sourceType: 'meeting' } as any });
+    return rows.filter((t) => t.meetingId && !t.parentId).map((t) => ({
+      id: t.id, serial: t.serial, title: t.title, status: t.status, completed: !!t.completed, assignee: t.assignee, assigneeId: t.assigneeId,
+      dueDate: t.dueDate, projectId: t.projectId ?? null, meetingId: t.meetingId, archivedAt: t.archivedAt || null, collaborators: t.collaborators || [], createdById: t.createdById,
+    }));
   }
 
   /**
@@ -209,19 +315,23 @@ export class MeetingsService implements OnApplicationBootstrap {
     const ids = rows.map((m) => m.id);
     const rfiIds = [...new Set(rows.flatMap((m) => m.rfiIds || []))];
     const coIds = [...new Set(rows.flatMap((m) => m.changeOrderIds || []))];
-    const [tasks, rfis, cos, statuses] = await Promise.all([
+    const [tasks, rfis, cos, statuses, boardTasks] = await Promise.all([
       this.tasksRepo.find({ where: { meetingId: In(ids) }, select: { id: true, meetingId: true, status: true, topicType: true } }),
       this.rfis && rfiIds.length ? this.rfis.find({ where: { id: In(rfiIds) }, select: { id: true, status: true } }) : Promise.resolve([] as RfiEntity[]),
       this.cos && coIds.length ? this.cos.find({ where: { id: In(coIds) }, select: { id: true, status: true } }) : Promise.resolve([] as ChangeOrderEntity[]),
       this.tasks.statuses(),
+      this.boardRepo ? this.boardRepo.find({ where: { meetingId: In(ids) } as any, select: { id: true, meetingId: true, status: true, completed: true, archivedAt: true, closedAt: true } as any }) : Promise.resolve([] as ProjectTaskEntity[]),
     ]);
     const closed = statuses.filter((s) => s.closed).map((s) => s.name);
+    const closedName = closed[0] || 'Closed';
     const rfiStatus = new Map(rfis.map((r) => [r.id, r.status]));
     const coStatus = new Map(cos.map((c) => [c.id, c.status]));
     const changed: MeetingEntity[] = [];
     for (const m of rows) {
       const actions: CapturedAction[] = [
         ...tasks.filter((t) => t.meetingId === m.id && !FOR_RECORD_TOPICS.includes(t.topicType)).map((t) => ({ kind: 'task' as const, status: t.status })),
+        // Nov 27: its board tasks count too -- done, closed or archived ones as closed.
+        ...boardTasks.filter((t) => t.meetingId === m.id).map((t) => ({ kind: 'task' as const, status: t.completed || t.archivedAt || t.closedAt ? closedName : 'Open' })),
         // An RFI or change order since deleted no longer counts.
         ...(m.rfiIds || []).filter((r) => rfiStatus.has(r)).map((r) => ({ kind: 'rfi' as const, status: rfiStatus.get(r) })),
         ...(m.changeOrderIds || []).filter((c) => coStatus.has(c)).map((c) => ({ kind: 'changeOrder' as const, status: coStatus.get(c) })),
