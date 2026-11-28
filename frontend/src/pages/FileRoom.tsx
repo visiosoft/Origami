@@ -20,6 +20,9 @@ import { MARKUP_LEADS } from '../data/markup';
 import { BuildSetTagBanner, FileAccessChip, FileAccessPicker } from '../components/FileAccessTag';
 import { DrawingSetsAdmin } from '../components/DrawingSetsAdmin';
 import { Skeleton } from '../components/Skeleton';
+import { AkSeg } from '../components/ActionKit';
+import { DRAWING_TAB_LABEL, savedTab, saveTab, tabOptions, type DrawingTab } from '../data/drawingTabs';
+import { DrawingAuditDialog } from '../components/DrawingAuditDialog';
 import { FolderAccessDialog, type FolderRule } from '../components/FolderAccessDialog';
 
 const BG = 'var(--font-display)';
@@ -209,17 +212,30 @@ export function FileRoom() {
   const [filesSize, setFilesSize] = useState(50);
   const [pageData, setPageData] = useState<{ total: number; page: number; size: number; pages: number } | null>(null);
   const [visibleFiles, setVisibleFiles] = useState<FileRoomFile[]>([]);
+  // Nov 27 (Weekly Sync): drawing-set tabs -- Approved / Under review / Not city-approved / Other.
+  const [drawTab, setDrawTabState] = useState<DrawingTab | 'all'>(savedTab);
+  const setDrawTab = (v: DrawingTab | 'all') => { setDrawTabState(v); saveTab(v); };
+  const [tabInfo, setTabInfo] = useState<{ tabs?: DrawingTab[]; tabCounts?: Partial<Record<DrawingTab, number>>; tab?: string | null } | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const tabChoices = useMemo(() => tabOptions(tabInfo?.tabs, tabInfo?.tabCounts, canManage), [tabInfo, canManage]);
+  // A tab that isn't offered here (or "All" for someone who doesn't manage the File Room) falls back to the first one -- the approved set.
+  useEffect(() => {
+    if (tabChoices.length && !tabChoices.some((o) => o[0] === drawTab)) setDrawTab(tabChoices[0][0]);
+    // A folder without drawings: show everything (the saved choice is kept for the next drawings folder).
+    if (tabInfo && !tabChoices.length && drawTab !== 'all') setDrawTabState('all');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabChoices]);
   const [searchQ, setSearchQ] = useState('');
   useEffect(() => { const t = window.setTimeout(() => setSearchQ(search.trim()), 300); return () => window.clearTimeout(t); }, [search]);
-  const filesKey = [pathKey(path), searchQ, latestOnly, sortDir, sortBy, filesSize].join('|');
+  const filesKey = [pathKey(path), searchQ, latestOnly, sortDir, sortBy, filesSize, drawTab].join('|');
   const lastFilesKey = useRef(filesKey);
   useEffect(() => {
     const changed = lastFilesKey.current !== filesKey;
     lastFilesKey.current = filesKey;
     if (changed && filesPg !== 1) { setFilesPg(1); return; }
     let live = true;
-    api.fileRoom.filesPage({ projectId: atRoot ? undefined : (projectId as number), path: atRoot ? undefined : folder, q: searchQ, latest: latestOnly, dir: sortDir, sort: sortBy, page: filesPg, size: filesSize })
-      .then((r) => { if (!live) return; setVisibleFiles(r.rows); setPageData(r); remember(r.rows); })
+    api.fileRoom.filesPage({ projectId: atRoot ? undefined : (projectId as number), path: atRoot ? undefined : folder, q: searchQ, latest: latestOnly, dir: sortDir, sort: sortBy, page: filesPg, size: filesSize, tab: drawTab })
+      .then((r) => { if (!live) return; setVisibleFiles(r.rows); setPageData(r); setTabInfo(r); remember(r.rows); })
       .catch(() => { if (live) { setVisibleFiles([]); setPageData(null); } });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -529,6 +545,7 @@ export function FileRoom() {
         {/* Nov 20 drawing sets: the revision, the approved set, and "not city-approved". */}
         {f.revMajor != null && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'var(--c-efede8)', color: 'var(--ink)' }}>{revLabel(f.revMajor, f.revMinor)}</span>}
         {f.approvedAt && <span title="The approved working set" style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: '#DCEBDD', color: '#2F6B3A' }}>✓ Approved</span>}
+        {f.drawingTab === 'review' && <span title="A newer revision, or not approved yet — not for construction" style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: '#FBEFD5', color: '#7A4B00' }}>Under review</span>}
         {f.notCityApproved && <span title={f.cityNote || 'For early work only'} style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: '#FBEFD5', color: '#7A4B00' }}>⚠ Not city-approved</span>}
       </span>
     );
@@ -648,6 +665,18 @@ export function FileRoom() {
         {tree}
 
         <div style={{ flex: 1, minWidth: 0, width: isNarrow ? '100%' : 'auto' }}>
+          {(() => {
+            const opts = tabChoices;
+            if (!opts.length) return null;
+            const value = drawTab;
+            return (
+              <div className="fr-drawtabs" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, overflowX: 'auto', maxWidth: '100%' }}>
+                <AkSeg<DrawingTab | 'all'> options={opts} value={value} onChange={setDrawTab} />
+                <button type="button" className="ak-btn" style={{ height: 30, whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => setAuditOpen(true)}
+                  title={`Who put in, approved, flagged, shared and opened the drawings${value !== 'all' ? ` in “${DRAWING_TAB_LABEL[value as DrawingTab]}”` : ''}`}>Audit trail</button>
+              </div>
+            );
+          })()}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             {breadcrumb}
             <div style={{ flex: 1 }} />
@@ -1006,6 +1035,7 @@ export function FileRoom() {
           </div>
         </div>
       )}
+      {auditOpen && <DrawingAuditDialog files={visibleFiles} title={drawTab === 'all' ? 'Drawings' : DRAWING_TAB_LABEL[drawTab]} onClose={() => setAuditOpen(false)} />}
       {markingUp && (() => {
         const f = known[markingUp.id];
         if (!f) return null;

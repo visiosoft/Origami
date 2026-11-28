@@ -20,6 +20,8 @@ export const RELEASES: Release[] = [
     date: '2026-11-27',
     title: 'Nov 27 sync: safer deletes, moving tasks, who-sees-it, mail read',
     items: [
+      { area: 'Files', kind: 'new', text: 'Drawing-set tabs in the Plan & File Room: Approved — work from this, Under review, Not city-approved (in use), and Other files, each with a count. People who don’t manage the File Room start on the approved set, and newer revisions of an approved drawing stay out of their way. An Audit trail button lists who put in, approved, flagged, emailed and opened the drawings.', where: 'Plan & File Room → a drawings folder' },
+      { area: 'Files', kind: 'improved', text: 'The drawing viewer says which set you are on — “Approved set — work from this”, “Under review — not for construction” or “Not city-approved”. Opening an approved or not-city-approved drawing is recorded (once a day per person) for the audit trail.', where: 'Open a drawing' },
       { area: 'RFIs', kind: 'improved', text: 'The RFI panel is wider and never scrolls sideways. One row at the top holds the next step, More ▾ (Duplicate, Convert, Mark as sent, PDF, Void…), the saved state, Save & close and ✕.', where: 'An RFI' },
       { area: 'RFIs', kind: 'new', text: 'Notes & updates on an RFI, with photos and files in line — like a task’s activity — instead of one long description. Each RFI can also have a short label of up to 25 characters, shown as “RFI-012 · Toilet change”.', where: 'An RFI → Notes & updates' },
       { area: 'RFIs', kind: 'new', text: 'Send by email or by notification in Odin, for a recipient who has a login.', where: 'An RFI → Send' },

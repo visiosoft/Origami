@@ -1057,6 +1057,7 @@ export const api = {
     drawingLog: (id: string) => request<import('./components/markup/DrawingSetPanel').LogRevision[]>(`/file-room/files/${encodeURIComponent(id)}/log`, { cache: 'no-store' } as any),
     setDrawingDate: (id: string, date: string | null) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/drawing-date`, { method: 'PUT', body: JSON.stringify({ date }) }),
     setPendingSets: (id: string, ids: string[]) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/pending-sets`, { method: 'PUT', body: JSON.stringify({ ids }) }),
+    drawingOpened: (id: string) => request<{ logged: boolean; tab?: string }>(`/file-room/files/${encodeURIComponent(id)}/opened`, { method: 'POST' }),
     drawingHistory: (id: string) => request<import('./components/markup/DrawingSetPanel').DrawingEvent[]>(`/file-room/files/${encodeURIComponent(id)}/history`, { cache: 'no-store' } as any),
     publishLayers: (id: string, layers: string[]) => request<{ id: string; rev: string; markups: number }>(`/file-room/files/${encodeURIComponent(id)}/publish`, { method: 'POST', body: JSON.stringify({ layers }) }),
     approveDrawing: (id: string, on: boolean) => request<unknown>(`/file-room/files/${encodeURIComponent(id)}/approve`, { method: 'POST', body: JSON.stringify({ on }) }),
@@ -1082,7 +1083,7 @@ export const api = {
       counts: Record<string, Record<string, number>>; totals: { total: number; recent: number; bytes: number };
     }>('/file-room/tree'),
     /** One page of files: a folder's (projectId + path) or every file's; q, latest, dir. */
-    filesPage: (o: { projectId?: number; path?: string[]; q?: string; latest?: boolean; dir?: string; sort?: 'name' | 'date'; page?: number; size?: number }) => {
+    filesPage: (o: { projectId?: number; path?: string[]; q?: string; latest?: boolean; dir?: string; sort?: 'name' | 'date'; page?: number; size?: number; tab?: string }) => {
       const params = new URLSearchParams();
       if (o.projectId) params.set('projectId', String(o.projectId));
       if (o.path) params.set('path', o.path.join('>'));
@@ -1090,9 +1091,10 @@ export const api = {
       if (o.latest) params.set('latest', '1');
       if (o.dir) params.set('dir', o.dir);
       if (o.sort === 'date') params.set('sort', 'date');
+      if (o.tab && o.tab !== 'all') params.set('tab', o.tab);
       params.set('page', String(o.page || 1));
       params.set('size', String(o.size || 50));
-      return request<{ rows: import('./data/fileRoom').FileRoomFile[]; total: number; page: number; size: number; pages: number }>(`/file-room/files/page?${params}`);
+      return request<{ rows: import('./data/fileRoom').FileRoomFile[]; total: number; page: number; size: number; pages: number; tab?: string | null; tabs?: import('./data/drawingTabs').DrawingTab[]; tabCounts?: Partial<Record<import('./data/drawingTabs').DrawingTab, number>> }>(`/file-room/files/page?${params}`);
     },
     /** One file and all its revisions (fresh: it's the file being looked at). */
     meta: (id: string) => request<{ file: import('./data/fileRoom').FileRoomFile; versions: import('./data/fileRoom').FileRoomFile[] }>(`/file-room/files/${encodeURIComponent(id)}/meta`, { cache: 'no-store' }),

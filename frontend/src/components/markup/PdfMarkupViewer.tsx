@@ -16,6 +16,7 @@ import { FOR_RECORD_TOPICS } from '../../data/tasks';
 import { withDrawingCache } from '../../data/drawingCache';
 import { SheetPicker } from './SheetPicker';
 import { LiveLayer, type LiveApi } from './LiveLayer';
+import { DRAWING_TAB_CHIP, type DrawingTab } from '../../data/drawingTabs';
 
 type Tool = 'select' | 'pan' | Exclude<MarkupKind, never>;
 type PdfDoc = { numPages: number; getPage: (n: number) => Promise<any> };
@@ -103,7 +104,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   /** Nov 17: drawing for an RFI -- new markups go on its draft layer (our team only) and are linked to it. */
   rfiDraft?: { rfiId: string; number: string; layer: string } | null;
   /** size + updatedAt (when given) let the drawing be kept in the browser and opened instantly next time (Nov 10). */
-  file: { id: string; name: string; isLatest?: boolean; folderPath?: string[]; size?: number | null; updatedAt?: string | null };
+  file: { id: string; name: string; isLatest?: boolean; folderPath?: string[]; size?: number | null; updatedAt?: string | null; drawingTab?: DrawingTab };
   projectId?: number | null;
   projectName?: string | null;
   focusMarkupId?: string | null;
@@ -200,6 +201,15 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const phoneNow = () => coarse && (window.innerWidth <= 760 || window.innerHeight <= 500);
   const [phone, setPhone] = useState(phoneNow);
   const [landscape, setLandscape] = useState(() => coarse && window.innerHeight <= 500 && window.innerWidth > window.innerHeight);
+  // Nov 27 (Weekly Sync): which set this drawing is in, and the open logged for the audit trail (Approved / Not city-approved only, once a day).
+  const [setTab, setSetTab] = useState<DrawingTab | undefined>(file.drawingTab);
+  useEffect(() => {
+    setSetTab(file.drawingTab);
+    let live = true;
+    api.fileRoom.drawingOpened(file.id).then((r) => { if (live && r?.tab) setSetTab(r.tab as DrawingTab); }).catch(() => { });
+    return () => { live = false; };
+  }, [file.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const on = () => {
       setPhone(phoneNow());
@@ -1422,6 +1432,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       <header className="mk-top">
         <button type="button" className="mk-btn is-text mk-close" onClick={close} aria-label="Close drawing" title="Close the drawing (your markups are already saved)">✕<span> Close drawing</span></button>
         <div className="mk-title" title={file.name}>{file.name}{file.isLatest === false && <span className="mk-old">older revision — these markups belong to it</span>}</div>
+        {setTab && DRAWING_TAB_CHIP[setTab] && (
+          <span className="mk-settab" role="status" title={DRAWING_TAB_CHIP[setTab]!.text} style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: DRAWING_TAB_CHIP[setTab]!.bg, color: DRAWING_TAB_CHIP[setTab]!.c, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '42vw' }}>
+            {phone ? DRAWING_TAB_CHIP[setTab]!.short : DRAWING_TAB_CHIP[setTab]!.text}
+          </span>
+        )}
         {rfiDraft && (
           <span className="mk-rfi-draft" role="status" title="Markups on this layer are seen by our team only, until the RFI is answered and they’re published to the set"
             style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: layer === rfiDraft.layer ? '#FBEBDD' : 'var(--c-efede8)', color: layer === rfiDraft.layer ? '#8A4B12' : 'var(--muted)' }}>

@@ -2,6 +2,9 @@
 
 export interface FileRoomFile {
   id: string;
+  /** Nov 27: the drawing-set tab, from the server. */
+  drawingTab?: import('./drawingTabs').DrawingTab;
+  pendingSetIds?: string[] | null;
   projectId: number;
   folderPath: string[];
   name: string;
