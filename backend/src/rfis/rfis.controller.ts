@@ -108,6 +108,13 @@ export class RfisController {
     return this.rfiMarkups.callouts(id);
   }
 
+  @Post(':id/callouts/:markupId/label')
+  async calloutLabel(@Param('id') id: string, @Param('markupId') markupId: string, @Body() dto: { label?: string }, @Headers('authorization') a?: string) {
+    const actor = await this.actor(a);
+    if (!(await this.rfis.rights(actor)).manage) throw new ForbiddenException("Your role doesn't allow changing RFIs.");
+    return this.rfiMarkups.setLabel(id, markupId, String(dto?.label || ''));
+  }
+
   @Post(':id/draft-layer')
   async draftLayer(@Param('id') id: string, @Body() dto: { fileId?: string }, @Headers('authorization') a?: string) {
     const actor = await this.actor(a);

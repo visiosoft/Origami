@@ -22,6 +22,8 @@ import { Attachments } from '../Attachments';
 import type { Attachment } from '../../data/projectTasks';
 import type { ActionTrailFields } from '../../api';
 import { Skeleton } from '../Skeleton';
+import { RfiNotes, type RfiNote } from './RfiNotes';
+import { rfiLabelOf, shortNameOf } from '../../data/rfiLabel';
 
 // ------------------------------------------------------------------ types & looks
 
@@ -36,6 +38,7 @@ export interface Rfi extends ActionTrailFields {
   changeOrderId?: string; changeOrderNumber?: string; sourceTaskId?: string; sourceTaskType?: string; attachments?: Attachment[];
   history?: { at: string; by: string; action: string; note?: string }[]; voidReason?: string; ballInCourt?: string;
   createdAt?: string; createdBy?: string;
+  notes?: RfiNote[]; shortLabel?: string | null; label?: string;
 }
 
 const BG = 'var(--font-display)';
@@ -49,7 +52,7 @@ export const RFI_STATUS: Record<Rfi['status'], { label: string; bg: string; c: s
   void: { label: 'Void', bg: '#F2DFD4', c: '#8E2E0A' },
 };
 const DISCIPLINES = ['Architectural', 'Structural', 'Civil', 'Mechanical', 'Electrical', 'Plumbing', 'Fire Protection', 'Landscape', 'Interior', 'Owner / Client', 'Other'];
-const FIELDS = ['subject', 'question', 'suggestion', 'discipline', 'specSection', 'drawingRef', 'csiCodeId', 'drawings', 'to', 'cc', 'ownerId', 'dateDue', 'priority',
+const FIELDS = ['subject', 'shortLabel', 'question', 'suggestion', 'discipline', 'specSection', 'drawingRef', 'csiCodeId', 'drawings', 'to', 'cc', 'ownerId', 'dateDue', 'priority',
   'costImpact', 'costAmount', 'scheduleImpact', 'scheduleDays', 'answer', 'answeredBy', 'dateAnswered'] as const;
 
 const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: INK, outline: 'none' };
@@ -315,6 +318,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
   const [session, setSession] = useState(0);
   const [panel, setPanel] = useState<Panel>(null);
   const [note, setNote] = useState('');
+  const [sendBy, setSendBy] = useState<'email' | 'notify'>('email');
   const [busy, setBusy] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
   const [people, setPeople] = useState<{ id: number; name: string; company?: string; email?: string; role?: string; kind?: string }[]>([]);
@@ -390,57 +394,74 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
   // Portalled (Nov 17): inside the animated page a transformed ancestor clipped the fixed panel to the list.
   return createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 820, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
-        {editable && (
-          <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-            <SaveBar auto={auto} blocked={!draft.subject?.trim() ? 'Give it a subject to save' : undefined} onDone={onClose} />
-          </div>
-        )}
-
-        {/* Header */}
-        <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-            <span style={{ fontFamily: BG, fontSize: 15, fontWeight: 800, color: 'var(--forest)' }}>{rec.number}</span>
-            <StatusPill r={rec} />
-            <span style={{ fontSize: 12, color: MUTED }}>{rec.projectName}</span>
-            <span style={{ marginLeft: 'auto' }}><CloseButton onClick={onClose} /></span>
-          </div>
-          {ro ? <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: INK }}>{rec.subject}</div>
-            : <input value={draft.subject || ''} onChange={(e) => set({ subject: e.target.value })} style={{ ...input, fontFamily: BG, fontSize: 18, fontWeight: 700, border: '1px solid transparent', padding: '4px 6px', marginLeft: -6 }} />}
-          {rec.status === 'void' && rec.voidReason && <div style={{ fontSize: 12.5, color: '#8E2E0A', marginTop: 6 }}>Voided: {rec.voidReason}</div>}
-          <div style={{ marginTop: 6 }}><OriginatorLine by={rec.createdBy} at={rec.createdAt} number={rec.number} /></div>
-          <div style={{ marginTop: 8 }}><ActionTrail sourceType={rec.sourceType || (rec.sourceTaskId ? rec.sourceTaskType || 'board' : null)} sourceId={rec.sourceId || rec.sourceTaskId} sourceLabel={rec.sourceLabel || 'a task'} derived={rec.derivedRefs} /></div>
-
-          {/* Actions -- Nov 23: the next step shown, the rest under More ▾. */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' }}>
-            <ButtonBar
-              primary={canManage && rec.status === 'draft' ? <button type="button" disabled={busy} onClick={() => setPanel('send')} style={btn(true)}>Send by email</button>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 900, maxWidth: '96vw', height: '100%', overflowY: 'auto', overflowX: 'hidden', overflowWrap: 'anywhere', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
+        {/* Nov 27 (Weekly Sync): one row like a task's -- the next step, More ▾ (duplicate, convert and the rest), saved, Save & close, ✕. */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 3, background: 'var(--surface)', padding: '10px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {(() => {
+            const primary = canManage && rec.status === 'draft' ? <button type="button" disabled={busy} onClick={() => setPanel('send')} style={btn(true)}>Send by email</button>
                 : canManage && rec.status === 'open' ? <button type="button" disabled={busy} onClick={() => { setAnswerForm({ answer: draft.answer || '', answeredBy: draft.answeredBy || rec.to?.name || '', dateAnswered: todayIso() }); setPanel('answer'); }} style={btn(true)}>Record answer</button>
                 : canManage && rec.status === 'answered' ? <button type="button" disabled={busy} onClick={() => setPanel('close')} style={btn(true)}>Close RFI</button>
-                : undefined}
-              items={[
-                { label: 'Mark as sent', disabled: busy, hidden: !(canManage && rec.status === 'draft'), onClick: () => act(() => api.rfis.markSent(rec.id), 'Marked as sent') },
+                : undefined;
+            const items = [{ label: 'Mark as sent', disabled: busy, hidden: !(canManage && rec.status === 'draft'), onClick: () => act(() => api.rfis.markSent(rec.id), 'Marked as sent') },
                 { label: 'Re-send', disabled: busy, hidden: !(canManage && rec.status === 'open'), onClick: () => setPanel('send') },
                 { label: 'Create change order', disabled: busy, hidden: !(canManage && rec.status === 'answered' && draft.costImpact === 'yes' && !rec.changeOrderId), onClick: () => { void createChangeOrder(); } },
                 { label: 'Reopen', disabled: busy, hidden: !(canManage && (rec.status === 'closed' || rec.status === 'void')), onClick: () => act(() => api.rfis.reopen(rec.id), 'Reopened') },
                 { label: 'PDF', onClick: () => { window.open(api.rfis.pdfUrl(rec.id), '_blank', 'noopener,noreferrer'); } },
                 rec.status === 'draft' && !rec.dateSent
                   ? { label: 'Delete draft', danger: true, disabled: busy, hidden: !canManage, onClick: () => { if (confirm(`Delete draft ${rec.number}?`)) api.rfis.remove(rec.id).then(() => { onDeleted(rec.id); toast('Draft deleted'); }).catch((e: Error) => toast('⚠ ' + e.message)); } }
-                  : { label: 'Void…', danger: true, disabled: busy, hidden: !(canManage && rec.status !== 'void' && rec.status !== 'closed'), onClick: () => setPanel('void') },
-              ]} />
+                  : { label: 'Void…', danger: true, disabled: busy, hidden: !(canManage && rec.status !== 'void' && rec.status !== 'closed'), onClick: () => setPanel('void') },].filter((x: any) => x && !x.hidden) as { label: string; danger?: boolean; onClick: () => void }[];
+            return <>
+              {primary}
+              {canManage
+                ? <ActionMenu kind="rfi" id={rec.id} projectId={rec.projectId} onMade={reloadTrail} parts="menu" extraItems={items.map((x) => ({ label: x.label, danger: x.danger, onClick: x.onClick }))} />
+                : <ButtonBar items={items} />}
+            </>;
+          })()}
+          <span style={{ flex: 1 }} />
+          {editable && <SaveBar auto={auto} blocked={!draft.subject?.trim() ? 'Give it a subject to save' : undefined} onDone={onClose} />}
+          <CloseButton onClick={onClose} />
+        </div>
+
+        {/* Header */}
+        <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+            <span style={{ fontFamily: BG, fontSize: 15, fontWeight: 800, color: 'var(--forest)' }}>{rfiLabelOf(draft)}</span>
+            <StatusPill r={rec} />
+            <span style={{ fontSize: 12, color: MUTED }}>{rec.projectName}</span>
           </div>
+          {ro ? <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: INK }}>{rec.subject}</div>
+            : <input value={draft.subject || ''} onChange={(e) => set({ subject: e.target.value })} style={{ ...input, fontFamily: BG, fontSize: 18, fontWeight: 700, border: '1px solid transparent', padding: '4px 6px', marginLeft: -6 }} />}
+          {!ro && (
+            <label style={{ display: 'flex', gap: '4px 8px', alignItems: 'center', flexWrap: 'wrap', fontSize: 11.5, color: MUTED, marginTop: 6 }}>
+              <span style={{ whiteSpace: 'nowrap' }}>Short label</span>
+              <input aria-label="Short label" maxLength={25} value={draft.shortLabel || ''} placeholder={shortNameOf(draft.subject)} onChange={(e) => set({ shortLabel: e.target.value })}
+                style={{ ...input, width: 'auto', flex: '1 1 180px', maxWidth: 260, padding: '4px 8px', fontSize: 12.5 }} />
+              <span style={{ flex: '1 1 220px', overflowWrap: 'normal' }}>{(draft.shortLabel || '').length}/25 — shows with the number, e.g. “{rfiLabelOf(draft)}”</span>
+            </label>
+          )}
+          {rec.status === 'void' && rec.voidReason && <div style={{ fontSize: 12.5, color: '#8E2E0A', marginTop: 6 }}>Voided: {rec.voidReason}</div>}
+          <div style={{ marginTop: 6 }}><OriginatorLine by={rec.createdBy} at={rec.createdAt} number={rec.number} /></div>
+          <div style={{ marginTop: 8 }}><ActionTrail sourceType={rec.sourceType || (rec.sourceTaskId ? rec.sourceTaskType || 'board' : null)} sourceId={rec.sourceId || rec.sourceTaskId} sourceLabel={rec.sourceLabel || 'a task'} derived={rec.derivedRefs} /></div>
+
 
           {panel === 'send' && (
             <div style={{ marginTop: 12, padding: 14, background: 'var(--panel)', borderRadius: 'var(--r-12)' }}>
               <div style={{ fontSize: 12.5, color: 'var(--body)', marginBottom: 8, lineHeight: 1.5 }}>
-                {draft.to?.email
+                {draft.to?.email && sendBy === 'notify'
+                  ? <>Notifies <b>{draft.to.name}</b> in Odin (bell and their inbox in the app) — no email. They need an Odin login; if they have none, send it by email.</>
+                  : draft.to?.email
                   ? <>Emails <b>{draft.to.name}</b> ({draft.to.email}){(draft.cc || []).length ? `, copying ${(draft.cc || []).map((c) => c.name).join(', ')}` : ''} and you, with the RFI attached as a PDF. Replies come back to {draft.ownerName || 'the owner'}.
                     {!rec.dateDue && !draft.dateDue ? ' The answer is due in 7 working days unless you set a date below.' : ''}</>
                   : <b style={{ color: '#8E2E0A' }}>Pick who it goes to (with an email address) under Routing first.</b>}
               </div>
+              <div role="radiogroup" aria-label="Send by" style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 12.5, marginBottom: 8, flexWrap: 'wrap' }}>
+                <b style={{ fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Send by</b>
+                <label><input type="radio" name="rfi-send-by" checked={sendBy === 'email'} onChange={() => setSendBy('email')} /> Email</label>
+                <label><input type="radio" name="rfi-send-by" checked={sendBy === 'notify'} onChange={() => setSendBy('notify')} /> Notification in Odin</label>
+              </div>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="A short note above the question (optional)" style={{ ...input, resize: 'vertical' }} />
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button type="button" disabled={busy || !draft.to?.email} onClick={() => act(() => api.rfis.send(rec.id, note), `${rec.number} sent to ${draft.to?.name}`)} style={btn(true)}>{busy ? 'Sending…' : 'Send'}</button>
+                <button type="button" disabled={busy || !draft.to?.email} onClick={() => act(() => api.rfis.send(rec.id, note, sendBy), sendBy === 'notify' ? `${rec.number} shared with ${draft.to?.name} in Odin` : `${rec.number} sent to ${draft.to?.name}`)} style={btn(true)}>{busy ? 'Sending…' : 'Send'}</button>
                 <button type="button" onClick={() => setPanel(null)} style={btn()}>Cancel</button>
               </div>
             </div>
@@ -478,6 +499,13 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           <div style={{ ...lbl, marginTop: 12 }}>Proposed solution <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500 }}>— optional, speeds up the answer</span></div>
           <textarea readOnly={ro} value={draft.suggestion || ''} onChange={(e) => set({ suggestion: e.target.value })} rows={3} style={{ ...input, resize: 'vertical', lineHeight: 1.55 }} />
         </>)}
+
+        {/* Nov 27 (Weekly Sync): updates with their photos, in line, instead of one long description. */}
+        {rec.id && section('Notes & updates', <RfiNotes rfiId={rec.id} notes={rec.notes || []} attachments={rec.attachments || []} toast={toast}
+          onSaved={(r: Partial<Rfi>) => {
+            const keep = { ...(r.notes ? { notes: r.notes } : {}), ...(r.attachments ? { attachments: r.attachments } : {}), ...(r.history ? { history: r.history } : {}) };
+            setRec((c) => ({ ...c, ...keep })); setDraft((d) => ({ ...d, ...keep }));
+          }} />)}
 
         {/* Nov 17: the drawings and numbered callouts up top, so the reviewer knows where to look. */}
         {rec.id && section('Drawings & callouts', <RfiCallouts rfi={{ id: rec.id, number: rec.number, status: rec.status }} drawings={draft.drawings || []} canManage={canManage} />)}
@@ -602,7 +630,6 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           />
         ))}
 
-        {canManage && section('Duplicate or convert', <ActionMenu kind="rfi" id={rec.id} projectId={rec.projectId} onMade={reloadTrail} />)}
 
         {section('History', (
           <div style={{ display: 'grid', gap: 7 }}>

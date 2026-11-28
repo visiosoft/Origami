@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import { RFI_LABEL_MAX, rfiLabel } from './rfi-label';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ProjectEntity, RfiEntity, UserEntity, type RfiContact, type RfiDrawingRef, type RfiEvent } from '../database/entities';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { GoogleService } from '../google/google.service';
@@ -14,7 +14,9 @@ import { emailShell, loadEmailBrand } from '../email/shell';
 import { RFI_DISCIPLINES, rfiDocumentHtml, rfiEmailBody } from './rfi.document';
 import { logCounts, rfiLogHtml } from './rfi-log';
 import { FileRoomFileEntity, PdfMarkupEntity, PersonEntity } from '../database/entities';
-import { appendDrawings, type DrawingSheet } from './rfi-drawings';
+import { appendReport, type ReportItem, type ReportPhoto } from './rfi-drawings';
+import { calloutLabel, kindName, numberCallouts, rfiDraftLayer } from './rfi-markups';
+import { layerKey } from '../file-room/markups';
 
 export const RFI_MODULE = 'rfis';
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -79,39 +81,51 @@ export class RfisService {
    * page with the RFI's markups drawn in, cropped around them. Best effort: the
    * form alone if a drawing can't be read.
    */
+  /**
+   * Nov 27 (Weekly Sync): after the form, the report -- a table of contents
+   * of the RFI's callouts, one cropped page per callout with its number,
+   * label and the question, then the photos added in notes.
+   */
   private async withDrawings(r: RfiEntity, form: Buffer): Promise<Buffer> {
-    if (!this.markups || !this.files || !r.drawings?.length) return form;
+    if (!this.markups || !this.files) return form;
     try {
-      const groups = new Map<string, { fileId: string; page?: number; markupIds: string[] }>();
-      for (const d of r.drawings) {
-        const k = `${d.fileId}|${d.page || ''}`;
-        const g = groups.get(k) || { fileId: d.fileId, page: d.page, markupIds: [] };
-        if (d.markupId) g.markupIds.push(d.markupId);
-        groups.set(k, g);
-      }
-      const sheets: DrawingSheet[] = [];
+      const linked = numberCallouts(await this.markups.find({ where: { linkType: 'rfi', linkId: r.id } as any }));
+      const extraIds = [...new Set((r.drawings || []).map((d) => d.markupId).filter((x): x is string => !!x && !linked.some((m) => m.id === x)))];
+      const extras = extraIds.length ? await this.markups.find({ where: { id: In(extraIds) } as any }) : [];
+      const all = [...linked, ...numberCallouts(extras).map((m) => ({ ...m, n: m.n + linked.length }))].slice(0, 40);
+      const draft = layerKey({ layer: rfiDraftLayer(r.number) });
       const bytesOf = new Map<string, Uint8Array | null>();
-      for (const g of [...groups.values()].slice(0, 8)) {
-        const all = await this.markups.find({ where: { fileId: g.fileId } as any });
-        const mine = all.filter((m) => g.markupIds.includes(m.id) || ((m as any).linkType === 'rfi' && (m as any).linkId === r.id));
-        const pages = g.page ? [g.page] : [...new Set(mine.map((m) => m.page))];
-        if (!pages.length) continue;
-        if (!bytesOf.has(g.fileId)) {
-          const f = await this.files.findOneBy({ id: g.fileId });
-          const pdf = f?.driveId && /pdf$/i.test(`${f.ext || ''} ${f.mimeType || ''}`) && Number(f.size || 0) < 60e6 ? await this.google.driveFileBuffer(f.driveId).catch(() => null) : null;
-          bytesOf.set(g.fileId, pdf);
+      const fileOf = new Map<string, FileRoomFileEntity | null>();
+      const items: ReportItem[] = [];
+      for (const m of all) {
+        if (!fileOf.has(m.fileId)) fileOf.set(m.fileId, await this.files.findOneBy({ id: m.fileId }));
+        const f = fileOf.get(m.fileId);
+        if (!bytesOf.has(m.fileId)) {
+          bytesOf.set(m.fileId, f?.driveId && /pdf$/i.test(`${f.ext || ''} ${f.mimeType || ''}`) && Number(f.size || 0) < 60e6 ? await this.google.driveFileBuffer(f.driveId).catch(() => null) : null);
         }
-        const bytes = bytesOf.get(g.fileId);
+        const bytes = bytesOf.get(m.fileId);
         if (!bytes) continue;
-        const f = await this.files.findOneBy({ id: g.fileId });
-        for (const page of pages) {
-          const marks = mine.filter((m) => m.page === page).map((m) => ({ page: m.page, kind: m.kind, data: m.data as any }));
-          if (!marks.length) continue;
-          const sheet = (f?.sheetNames || {})[String(page)];
-          sheets.push({ bytes, page, marks, title: `${sheet || f?.name || 'Drawing'} · p. ${page}` });
+        const sheetName = (f?.sheetNames || {})[String(m.page)];
+        items.push({
+          n: m.n, kind: kindName(m.kind), label: calloutLabel(m.data), sheet: `${sheetName || f?.name || 'Drawing'} p. ${m.page}`,
+          origin: m.authorName || '', status: layerKey(m) === draft ? 'Draft (our team)' : 'On the set',
+          bytes, page: m.page, mark: { page: m.page, kind: m.kind, data: m.data as any },
+          context: all.filter((x) => x.fileId === m.fileId && x.page === m.page).map((x) => ({ page: x.page, kind: x.kind, data: x.data as any })),
+          cacheKey: `${m.fileId}|${m.page}`,
+        });
+      }
+      // Photos added with notes (images only, a dozen at most).
+      const byId = new Map(normalizeAttachments(r.attachments).map((a) => [a.id, a]));
+      const photos: ReportPhoto[] = [];
+      for (const n of r.notes || []) {
+        for (const id of n.attachmentIds || []) {
+          const a = byId.get(id);
+          if (!a?.driveId || !/image\/(jpe?g|png)/i.test(a.mimeType || '') || Number(a.size || 0) > 15e6 || photos.length >= 12) continue;
+          const bytes = await this.google.driveFileBuffer(a.driveId).catch(() => null);
+          if (bytes) photos.push({ bytes, mimeType: a.mimeType || '', caption: `${a.name} — ${n.by}, ${String(n.at).slice(0, 10)}${n.text ? ` — ${n.text}` : ''}` });
         }
       }
-      return sheets.length ? Buffer.from(await appendDrawings(form, sheets)) : form;
+      return Buffer.from(await appendReport(form, { number: r.number, question: r.question, items, photos }));
     } catch (e) {
       this.log.warn(`${r.number} drawings not added to the PDF: ${(e as Error).message}`);
       return form;

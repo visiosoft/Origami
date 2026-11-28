@@ -758,6 +758,7 @@ export const api = {
     sendLog: (projectId: number, to: string[], note?: string) => request<{ sent: number; total: number; open: number; overdue: number }>('/rfis/log/send', { method: 'POST', body: JSON.stringify({ projectId, to, note }) }),
     /** Nov 17: the RFI's numbered callouts on its drawings; its own draft layer; publishing them to the set. */
     callouts: (id: string) => request<{ id: string; n: number; fileId: string; page: number; kind: string; note: string; authorName: string; draft: boolean }[]>(`/rfis/${encodeURIComponent(id)}/callouts`, { cache: 'no-store' } as any),
+    calloutLabel: (id: string, markupId: string, label: string) => request<any[]>(`/rfis/${encodeURIComponent(id)}/callouts/${encodeURIComponent(markupId)}/label`, { method: 'POST', body: JSON.stringify({ label }) }),
     draftLayer: (id: string, fileId: string) => request<{ layer: string; rfiId: string; number: string }>(`/rfis/${encodeURIComponent(id)}/draft-layer`, { method: 'POST', body: JSON.stringify({ fileId }) }),
     publishMarkups: (id: string) => request<{ published: number; layer: string }>(`/rfis/${encodeURIComponent(id)}/publish-markups`, { method: 'POST' }),
     list: (projectId?: number) => request<any[]>(`/rfis${projectId ? `?projectId=${projectId}` : ''}`),
@@ -772,7 +773,8 @@ export const api = {
     create: (data: unknown) => request<any>('/rfis', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request<any>(`/rfis/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/rfis/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-    send: (id: string, note?: string) => request<any>(`/rfis/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify({ note }) }),
+    send: (id: string, note?: string, by: 'email' | 'notify' = 'email') => request<any>(`/rfis/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify({ note, by }) }),
+    addNote: (id: string, text: string, attachmentIds: string[] = []) => request<any>(`/rfis/${encodeURIComponent(id)}/notes`, { method: 'POST', body: JSON.stringify({ text, attachmentIds }) }),
     markSent: (id: string) => request<any>(`/rfis/${encodeURIComponent(id)}/mark-sent`, { method: 'POST' }),
     answer: (id: string, data: unknown) => request<any>(`/rfis/${encodeURIComponent(id)}/answer`, { method: 'POST', body: JSON.stringify(data) }),
     close: (id: string, note?: string) => request<any>(`/rfis/${encodeURIComponent(id)}/close`, { method: 'POST', body: JSON.stringify({ note }) }),

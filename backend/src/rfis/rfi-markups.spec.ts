@@ -1,4 +1,4 @@
-import { canPublish, numberCallouts, rfiDraftLayer, rfiPublishedLayer } from './rfi-markups';
+import { calloutLabel, canPublish, kindName, numberCallouts, rfiDraftLayer, rfiPublishedLayer } from './rfi-markups';
 import { RfiMarkupsService } from './rfi-markups.service';
 
 /** Nov 17: RFI markups on their own layer until vetted. */
@@ -43,5 +43,18 @@ describe('RFI drawing layer', () => {
     expect(done.marks[1].layer).toBe('Someone');
     expect(done.layers).toHaveLength(0);
     expect(done.rfi.history[0].action).toBe('published markups');
+  });
+
+  it('Nov 27: callouts carry a 25-character label, set on the RFI', async () => {
+    expect(calloutLabel({ label: '', note: 'Toilet change' })).toBe('Toilet change');
+    expect(calloutLabel({ label: 'x'.repeat(40) })).toHaveLength(25);
+    expect(kindName('cloud')).toBe('Cloud');
+    const { svc, marks } = setup('open');
+    (svc as any).markups.findOneBy = async ({ id }: any) => marks.find((m) => m.id === id);
+    const rows = await svc.setLabel('R1', 'm1', '  Toilet   change ');
+    expect(marks[0].data.label).toBe('Toilet change');
+    expect(rows.find((r) => r.id === 'm1')).toMatchObject({ n: 1, label: 'Toilet change' });
+    (svc as any).markups.findOneBy = async () => ({ id: 'x', linkType: 'rfi', linkId: 'OTHER' });
+    await expect(svc.setLabel('R1', 'x', 'a')).rejects.toThrow(/not on this RFI/);
   });
 });

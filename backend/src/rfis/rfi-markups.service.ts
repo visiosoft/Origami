@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MarkupLayerEntity, PdfMarkupEntity, RfiEntity } from '../database/entities';
 import { layerKey } from '../file-room/markups';
-import { canPublish, numberCallouts, rfiDraftLayer, rfiPublishedLayer } from './rfi-markups';
+import { calloutLabel, canPublish, cleanCalloutLabel, kindName, numberCallouts, rfiDraftLayer, rfiPublishedLayer } from './rfi-markups';
 
 type Actor = { name: string; id?: string };
 
@@ -37,9 +37,20 @@ export class RfiMarkupsService {
     const rows = await this.markups.find({ where: { linkType: 'rfi', linkId: r.id } });
     const draft = layerKey({ layer: rfiDraftLayer(r.number) });
     return numberCallouts(rows).map((m) => ({
-      id: m.id, n: m.n, fileId: m.fileId, page: m.page, kind: m.kind, note: (m.data as any)?.note || (m.data as any)?.text || '',
+      id: m.id, n: m.n, fileId: m.fileId, page: m.page, kind: m.kind, kindName: kindName(m.kind), label: calloutLabel(m.data), note: (m.data as any)?.note || (m.data as any)?.text || '',
       authorName: m.authorName, draft: layerKey(m) === draft,
     }));
+  }
+
+  /** Nov 27: name one of the RFI's callouts (25 characters). */
+  async setLabel(id: string, markupId: string, label: string) {
+    const r = await this.rfi(id);
+    const m = await this.markups.findOneBy({ id: markupId });
+    if (!m || m.linkType !== 'rfi' || m.linkId !== r.id) throw new NotFoundException('That callout is not on this RFI.');
+    m.data = { ...((m.data as any) || {}), label: cleanCalloutLabel(label) } as any;
+    m.updatedAt = new Date().toISOString();
+    await this.markups.save(m);
+    return this.callouts(id);
   }
 
   /** Move the RFI's draft markups onto a layer everyone sees (staff, once answered or closed). */

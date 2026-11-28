@@ -20,6 +20,10 @@ export const RELEASES: Release[] = [
     date: '2026-11-27',
     title: 'Nov 27 sync: safer deletes, moving tasks, who-sees-it, mail read',
     items: [
+      { area: 'RFIs', kind: 'improved', text: 'The RFI panel is wider and never scrolls sideways. One row at the top holds the next step, More ▾ (Duplicate, Convert, Mark as sent, PDF, Void…), the saved state, Save & close and ✕.', where: 'An RFI' },
+      { area: 'RFIs', kind: 'new', text: 'Notes & updates on an RFI, with photos and files in line — like a task’s activity — instead of one long description. Each RFI can also have a short label of up to 25 characters, shown as “RFI-012 · Toilet change”.', where: 'An RFI → Notes & updates' },
+      { area: 'RFIs', kind: 'new', text: 'Send by email or by notification in Odin, for a recipient who has a login.', where: 'An RFI → Send' },
+      { area: 'RFIs', kind: 'new', text: 'Each callout on the drawings has a short name (25 characters): “1 · Cloud · Toilet change”. The RFI PDF now has a table of contents (item, type, label, sheet, who drew it, status, page), then one page per item with the drawing cropped around it, its number and the question, then the photos from the notes.', where: 'An RFI → Drawings & callouts · PDF' },
       { area: 'Tasks', kind: 'new', text: 'Repeating tasks: set Repeat next to the due date — every day, weekdays, weekly on chosen days, or monthly, optionally until a date. It stays one task (↻ on the card): marking it done moves the due date to the next time, and the daily reminder reminds you each time. A missed day moves on to today rather than sitting overdue.', where: 'A task → Repeat' },
       { area: 'Tasks', kind: 'improved', text: 'No quick delete: the ✕ on subtask rows is gone. Open a task to delete it, and say why — the reason goes into the project’s audit trail.', where: 'A task → More ▾ → Delete task' },
       { area: 'Tasks', kind: 'new', text: 'Admins and principals can move a task made on the wrong project to the right one; its subtasks go with it.', where: 'A task → Project' },

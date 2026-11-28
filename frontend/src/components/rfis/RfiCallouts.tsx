@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
 
-type Callout = { id: string; n: number; fileId: string; page: number; kind: string; note: string; authorName: string; draft: boolean };
+type Callout = { id: string; n: number; fileId: string; page: number; kind: string; kindName?: string; label?: string; note: string; authorName: string; draft: boolean };
 
 /**
  * Nov 17 (Edward): the drawings for an RFI, with numbered callouts, at the
@@ -57,10 +57,18 @@ export function RfiCallouts({ rfi, drawings, canManage, onPublished }: {
       {rows && rows.length > 0 && (
         <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 4 }}>
           {rows.map((c) => (
-            <li key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+            <li key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, flexWrap: 'wrap' }}>
               <span aria-label={`Callout ${c.n}`} style={{ width: 22, height: 22, borderRadius: 999, background: c.draft ? '#B0662F' : 'var(--forest)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{c.n}</span>
-              <a href={`/planroom?file=${encodeURIComponent(c.fileId)}&markup=${encodeURIComponent(c.id)}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)', textDecoration: 'none', fontWeight: 600 }}>
-                {c.note || c.kind} <span style={{ color: 'var(--muted)', fontWeight: 500 }}>· {nameOf(c.fileId)} p. {c.page}{c.draft ? ' · draft (our team only)' : ' · on the set'}</span>
+              <span style={{ fontWeight: 700, color: 'var(--muted)', flexShrink: 0 }}>{c.kindName || c.kind}</span>
+              <span aria-hidden style={{ color: 'var(--muted)' }}>·</span>
+              {canManage
+                ? <input aria-label={`Label for callout ${c.n}`} maxLength={25} defaultValue={c.label || ''} placeholder="Name it (25 characters)"
+                    onBlur={(e) => { const v = e.target.value.trim(); if (v !== (c.label || '')) api.rfis.calloutLabel(rfi.id, c.id, v).then(setRows).catch((er: Error) => setMsg(er.message || 'Could not save the label')); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                    style={{ minWidth: 0, flex: '0 1 220px', padding: '3px 8px', borderRadius: 7, border: '1px solid rgba(var(--rgb-shade), .14)', font: 'inherit', fontSize: 12.5, fontWeight: 600, background: 'var(--surface)', color: 'var(--ink)' }} />
+                : <span style={{ fontWeight: 600 }}>{c.label || c.note || '—'}</span>}
+              <a href={`/planroom?file=${encodeURIComponent(c.fileId)}&markup=${encodeURIComponent(c.id)}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--muted)', textDecoration: 'none', minWidth: 0, overflowWrap: 'anywhere' }}>
+                {nameOf(c.fileId)} p. {c.page}{c.draft ? ' · draft (our team only)' : ' · on the set'} ↗
               </a>
             </li>
           ))}

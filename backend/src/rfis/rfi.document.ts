@@ -76,6 +76,7 @@ export function rfiDocumentHtml(r: RfiEntity, project: { name: string; location?
   </table>
   ${block('Question', para(r.question))}
   ${r.suggestion ? block('Proposed solution', para(r.suggestion)) : ''}
+  ${(r.notes || []).length ? block('Notes & updates', (r.notes || []).map((n) => `<div style="margin-bottom:8px"><div style="font-size:9pt;color:#5C6B65">${escapeHtml(n.by)} · ${rfiDate(String(n.at).slice(0, 10))}${(n.attachmentIds || []).length ? ` · ${(n.attachmentIds || []).length} file${(n.attachmentIds || []).length === 1 ? '' : 's'}` : ''}</div>${n.text ? para(n.text) : ''}</div>`).join('')) : ''}
   ${block('Answer', r.answer ? `${para(r.answer)}<div style="font-size:9.5pt;color:#5C6B65;margin-top:6px">${escapeHtml(r.answeredBy || '')}${r.dateAnswered ? ` · ${rfiDate(r.dateAnswered)}` : ''}</div>` : '<div style="height:90px;border:1px dashed #C9C5BC;border-radius:4px"></div>')}
   <table style="width:100%;border-collapse:collapse;margin-top:14px">
     ${row('Cost impact', escapeHtml(imp.cost))}
