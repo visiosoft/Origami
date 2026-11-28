@@ -627,6 +627,10 @@ export const api = {
     /** Pull the meeting's "Notes by Gemini" from Google: a Doc link, or found by title and date (Nov 3 sync). */
     importGoogle: (id: string, link?: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}/import-google`, { method: 'POST', body: JSON.stringify({ link: link || undefined }) }),
     /** Raise a task, or a FOR RECORD item (FYI, observation, decision), from the meeting: a Special Actions Log entry linked to it. */
+    /** Nov 27: board tasks raised in meetings (yours, or on your projects). */
+    boardActions: () => request<import('./components/MoveMeetingTasksBanner').BoardAction[]>('/meetings/board-actions', { cache: 'no-store' } as any),
+    moveToBoardPlan: () => request<{ applied: boolean; count: number; rows: { id: string; serial: string | null; subject: string; status: string; assignee: string | null; dueDate: string | null; meetingId: string; projectId: number | null; projectName: string }[] }>('/meetings/move-to-board/plan', { cache: 'no-store' } as any),
+    moveToBoardApply: () => request<{ applied: boolean; count: number; moved: { id: string; boardId: string; serial: string }[] }>('/meetings/move-to-board/apply', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
     addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string; priority?: string; tags?: string[]; collaborators?: { id: string; name: string }[]; project?: string; projectId?: number | null }) =>
       request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
   },

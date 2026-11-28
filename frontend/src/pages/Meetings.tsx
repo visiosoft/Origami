@@ -23,12 +23,15 @@ import { dateInNotes, parseMeetingNotes } from '../data/meetingNotes';
 import { TagPicker } from '../components/TagPicker';
 import { OutsideMeeting } from '../components/OutsideMeeting';
 import { CalendarSyncPanel } from '../components/CalendarSyncPanel';
+import { MoveMeetingTasksBanner, type BoardAction } from '../components/MoveMeetingTasksBanner';
 import { localISO, weekStartISO } from '../data/localDate';
 
 type View = 'upcoming' | 'past' | 'all' | 'archived';
 type StatusFilter = 'all' | 'review' | MeetingStatus;
 type WhereFilter = 'all' | 'calls' | MeetingLocationType;
-interface Item { key: string; kind: 'meeting' | 'legacy'; date: string; time?: string; title: string; type: string; project?: string; status: string; actions: Task[]; meeting?: Meeting; archived?: boolean }
+interface Item { key: string; kind: 'meeting' | 'legacy'; date: string; time?: string; title: string; type: string; project?: string; status: string; actions: Task[]; meeting?: Meeting; archived?: boolean; board?: BoardAction[] }
+/** Nov 27: a board task raised in a meeting is done once complete or archived. */
+const boardDone = (b: BoardAction) => !!b.completed || !!b.archivedAt;
 const CO_LABEL: Record<string, string> = { draft: 'Pending', internal_review: 'Internal review', submitted: 'With client', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' };
 const isoDay = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
 /** Made in the app with no meeting: its meeting date is just the day it was created. */
@@ -62,9 +65,12 @@ const linkOk = (u?: string) => !!u && /^https?:\/\//i.test(u.trim());
  */
 /** `projectName`/`projectId`: shown inside a project (its Special Actions tab) -- that project's only, no project picker. */
 export function Meetings({ projectName, projectId }: { projectName?: string; projectId?: number } = {}) {
-  const { can, toast } = useApp();
+  const { can, toast, authUser } = useApp();
   const [meetings, setMeetings] = useState<Meeting[] | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  // Nov 27 (Weekly Sync): meeting tasks go on the project boards.
+  const [boardActs, setBoardActs] = useState<BoardAction[]>([]);
+  const loadBoardActs = () => api.meetings.boardActions().then((r) => setBoardActs(Array.isArray(r) ? r : [])).catch(() => { });
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [rfis, setRfis] = useState<any[]>([]);
   const [cos, setCos] = useState<any[]>([]);
@@ -94,6 +100,7 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
     api.meetings.list(true).then((r) => setMeetings(Array.isArray(r) ? r : [])).catch(() => setMeetings([]));
     api.meetings.hiddenGroups().then((r) => setHidden(new Set(Array.isArray(r) ? r : []))).catch(() => { });
     api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => { });
+    void loadBoardActs();
     api.projects.list().then((r: any) => setProjects((Array.isArray(r) ? r : []).map((p: any) => ({ id: p.id, name: p.name })))).catch(() => { });
     api.rfis.list().then((r) => setRfis(Array.isArray(r) ? r : [])).catch(() => { });
     api.finance.allChangeOrders().then((r: any) => setCos(Array.isArray(r) ? r : [])).catch(() => { });
@@ -106,6 +113,7 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
     const out: Item[] = (meetings || []).filter(inProject).map((m) => ({
       key: m.id, kind: 'meeting', date: m.date, time: m.time, title: m.title, type: m.type, project: m.project, status: meetingStatus(m.status), meeting: m, archived: !!m.archivedAt,
       actions: tasks.filter((t) => t.meetingId === m.id),
+      board: boardActs.filter((b) => b.meetingId === m.id),
     }));
     // Meetings that exist only as Special Actions Log entries (meeting type + date), grouped.
     const groups = new Map<string, Task[]>();
@@ -145,7 +153,7 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
   const weekStart = weekStartISO();
   const weekEnd = (() => { const d = new Date(weekStart + 'T12:00:00'); d.setDate(d.getDate() + 6); return localISO(d); })();
   const thisWeek = real.filter((i) => i.status !== 'cancelled' && i.date >= weekStart && i.date <= weekEnd).length;
-  const openActions = items.filter((i) => !i.archived).reduce((a, i) => a + i.actions.filter((t) => !isForRecord(t) && !isLogClosed(t.status)).length, 0);
+  const openActions = items.filter((i) => !i.archived).reduce((a, i) => a + i.actions.filter((t) => !isForRecord(t) && !isLogClosed(t.status)).length + (i.board || []).filter((b) => !boardDone(b)).length, 0);
   const projectNames = useMemo(() => [...new Set(items.map((i) => i.project).filter(Boolean) as string[])].sort(), [items]);
   const opened = openKey?.startsWith('new') ? null : items.find((i) => i.key === openKey) || null;
   const pickStatus = (s: StatusFilter) => { setStatus(s); if (s !== 'all') setView('all'); };
@@ -212,6 +220,9 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
         { key: 'review', label: 'To review', value: meetings ? reviewCount : '—', sub: 'occurred, special actions not pulled out', tone: reviewCount ? 'dark' : undefined, onClick: () => pickStatus('review'), on: status === 'review' },
         { key: 'act', label: 'Open actions', value: meetings ? openActions : '—', sub: 'tasks raised in meetings, not closed' },
       ]} />
+      {!projectName && projectId == null && authUser?.roleKey === 'admin' && !(authUser as any)?.viewedBy && (
+        <MoveMeetingTasksBanner onApplied={() => { void loadBoardActs(); api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => { }); }} />
+      )}
 
       <div className="ak-tools">
         <AkSeg<View> value={view} onChange={(v) => { setView(v); setPicked(new Set()); }} options={[['upcoming', 'Coming up', upcoming.length], ['past', 'Past'], ['all', 'All'], ...(archivedCount ? [['archived', 'Archived', archivedCount] as [View, string, number]] : [])]} />
@@ -304,7 +315,10 @@ export function Meetings({ projectName, projectId }: { projectName?: string; pro
           onSaved={(m) => setMeetings((p) => (p || []).map((x) => (x.id === m.id ? m : x)))}
           onArchived={(on) => { void archiveKeys([opened.key], on).then(() => { toast(on ? 'Archived — find it under Archived' : 'Brought back'); setOpenKey(null); }).catch((e: Error) => toast('⚠ ' + e.message)); }}
           onDeleted={(id) => { setMeetings((p) => (p || []).filter((x) => x.id !== id)); setTasks((ts) => ts.map((t) => (t.meetingId === id ? { ...t, meetingId: undefined } : t))); setOpenKey(null); }}
-          onAction={(t) => setTasks((ts) => [t, ...ts])}
+          onAction={(t: any) => {
+            if (t?.board) setBoardActs((bs) => [{ id: t.id, serial: t.serial, title: t.title || t.subject, status: t.status, completed: !!t.completed, assignee: t.assignee, assigneeId: t.assigneeId, dueDate: t.dueDate, projectId: t.projectId ?? null, meetingId: t.meetingId }, ...bs.filter((b) => b.id !== t.id)]);
+            else setTasks((ts) => [t, ...ts]);
+          }}
           onRfi={(r) => setRfis((p) => [r, ...p])}
           onCo={(c) => setCos((p) => [c, ...p])} />
       )}
@@ -700,12 +714,22 @@ function Captured({ item, draft, rfis, cos, navigate, compact }: { item: Item; d
       <AkPill tone={isLogClosed(t.status) ? 'soft' : 'green'}>{t.status}</AkPill>
     </button>
   );
-  const nActs = acts.length + linkedRfis.length + linkedCos.length;
+  // Nov 27: tasks raised in the meeting now live on the project boards.
+  const board = item.board || [];
+  const boardRow = (b: BoardAction) => (
+    <button type="button" key={'b' + b.id} className="mt-action" onClick={() => navigate(`/tasks?task=${encodeURIComponent(b.id)}&project=${b.projectId ?? 'null'}`)}>
+      <AkPill tone="dark">Board</AkPill>
+      <span className="mt-action-text"><b>{b.serial ? `${b.serial} · ` : ''}{b.title}</b><small>{[b.assignee && 'to ' + b.assignee, b.dueDate && 'due ' + akDay(b.dueDate)].filter(Boolean).join(' · ') || 'unassigned'}</small></span>
+      <AkPill tone={boardDone(b) ? 'soft' : 'green'}>{b.archivedAt ? 'Closed' : b.status || 'Open'}</AkPill>
+    </button>
+  );
+  const nActs = acts.length + board.length + linkedRfis.length + linkedCos.length;
   return (
     <>
       <h3 className="mt-h">Special actions <small>{nActs}</small></h3>
       <div className="mt-actions">
         {!nActs && <span className="mt-muted">No tasks, RFIs or change orders raised yet.</span>}
+        {board.map(boardRow)}
         {acts.map(taskRow)}
         {linkedRfis.map((r: any) => (
           <button type="button" key={r.id} className="mt-action" onClick={() => navigate(`/rfis?rfi=${encodeURIComponent(r.id)}`)}>
@@ -752,6 +776,10 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
   const [due, setDue] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
+  // Nov 27 (Weekly Sync): each item to its own project (the meeting's by default), or General.
+  const meetingPid = draft.projectId ?? ctx.projects.find((p) => p.name === draft.project)?.id ?? null;
+  const [itemPid, setItemPid] = useState<number | null>(meetingPid);
+  useEffect(() => { setItemPid(meetingPid); }, [meetingPid]);
   // A passage picked in the review: a short one is the subject; a long one goes in the details with its first line as the subject.
   useEffect(() => {
     if (!seed?.text) return;
@@ -778,11 +806,13 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
         toast(`${made.label} drafted`);
       } else {
         const u = users.find((x) => x.id === assignee);
-        const t = await api.meetings.addAction(draft.id, { topicType: kind, subject: subject.trim().slice(0, 300), description: details.trim() || undefined, assignedTo: u?.name, assignedToId: u?.id, dueDate: due || undefined, tags: tags.length ? tags : undefined });
+        const proj = itemPid != null ? ctx.projects.find((p) => p.id === itemPid) || null : null;
+        const t: any = await api.meetings.addAction(draft.id, { topicType: kind, subject: subject.trim().slice(0, 300), description: details.trim() || undefined, assignedTo: u?.name, assignedToId: u?.id, dueDate: due || undefined, tags: tags.length ? tags : undefined, project: proj?.name || '', projectId: proj?.id ?? null });
+        if (t?.duplicate) { toast('Already raised from this meeting'); return; }
         ctx.onAction(t);
         // A new open task takes a complete meeting back to reviewed.
         api.meetings.get(draft.id).then(ctx.applyServer).catch(() => { });
-        toast(`${kind} added${u ? ' — ' + u.name + ' is emailed' : ''}`);
+        toast(`${kind} added${t?.board ? ` to the ${t.projectName || 'General'} board` : ''}${u ? ' — ' + u.name + ' is emailed' : ''}`);
       }
       setSubject(''); setDetails(''); setDue(''); setTags([]);
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not added')); }
@@ -797,6 +827,12 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
       {details && <textarea className="mt-text" rows={3} value={details} onChange={(e) => setDetails(e.target.value)} aria-label="Details" />}
       {assignable && (
         <div className="mt-row">
+          {ctx.projects.length > 0 && (
+            <select aria-label="Project for this item" value={itemPid ?? ''} onChange={(e) => setItemPid(e.target.value ? Number(e.target.value) : null)} title={kind === 'Task' ? 'The board it goes on' : 'The project it is recorded under'}>
+              <option value="">General</option>
+              {ctx.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          )}
           <select value={assignee} onChange={(e) => setAssignee(e.target.value)}>
             <option value="">{kind === 'Task' ? 'Assign to…' : 'Share with / owner…'}</option>
             {users.filter((u) => u.status !== 'suspended').map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -910,7 +946,7 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, projects, onClose
         </div>
         {importing && (
           <MeetingNotesImport meeting={{ id: draft.id, title: draft.title, date: draft.date, project: draft.project || '', projectId: draft.projectId ?? null }} text={text} onClose={() => setImporting(false)}
-            existing={item.actions} projects={projects}
+            existing={[...item.actions, ...(item.board || []).map((b) => ({ subject: b.title, assignedTo: b.assignee }))]} projects={projects}
             onAdded={(made) => { made.filter((t) => !t.duplicate).forEach((t) => ctx.onAction(t)); if (!draft.project) { const p = made.find((t) => t.project)?.project; if (p) set({ project: p, projectId: projects.find((x) => x.name === p)?.id ?? null }); } api.meetings.get(draft.id).then(ctx.applyServer).catch(() => { }); }} />
         )}
       </aside>

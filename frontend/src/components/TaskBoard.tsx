@@ -214,6 +214,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     created: (t) => t.createdAt,
   };
   const loadedProject = useRef<number | null>(null);
+  // Nov 27 (Weekly Sync): a project you aren't on shows just your tasks on it.
+  const [onlyMine, setOnlyMine] = useState(false);
   // The emailed task opens once, not again on every reload.
   const openedLink = useRef(false);
 
@@ -223,6 +225,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
       .then((res: any) => {
         if (!res) return;
         setSections(res.sections || []);
+        setOnlyMine(!!res.onlyMine);
         setTasks((res.tasks || []).filter((t: ProjectTask) => !leadId || t.leadId === leadId).map(inBucket));
         // Open the deep-linked task now that it exists in `tasks`.
         if (initialTaskId && !openedLink.current && (res.tasks || []).some((t: ProjectTask) => t.id === initialTaskId)) {
@@ -1043,6 +1046,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
 
   return (
     <div>
+      {onlyMine && <div role="status" style={{ padding: '8px 12px', borderRadius: 10, background: 'var(--c-efede8)', fontSize: 12.5, color: 'var(--ink)', marginBottom: 10 }}>Only your tasks on this project — you aren’t on its team, so the rest of its board isn’t shown.</div>}
       {/* Fixed rows (Oct 27 sync: "keep it stacked") -- views, then filters, then saved views --
           each wrapping on its own, so nothing jumps between rows when the view changes. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>

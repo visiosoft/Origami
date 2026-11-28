@@ -8,6 +8,8 @@ type RecordKind = 'Observation' | 'FYI' | 'Decision' | 'Task';
 interface Row {
   key: string; on: boolean; kind: RecordKind; subject: string; description: string;
   assigneeId: string; others: string[]; dueDate: string; priority: string; tags: string[];
+  /** Nov 27 (Weekly Sync): each item to its own project, or General (null). */
+  projectId: number | null;
 }
 
 /**
@@ -31,16 +33,17 @@ export function MeetingNotesImport({ meeting, text, existing = [], projects = []
   const { users, toast } = useApp();
   const already = useMemo(() => new Map(existing.filter((t) => t.subject).map((t) => [norm(t.subject!), t] as const)), [existing]);
   // Nov 20: a meeting with no project files its items under the one picked here, not "General".
-  const [projectId, setProjectId] = useState<number | null>(meeting.projectId ?? null);
+  const meetingPid = meeting.projectId ?? projects.find((p) => p.name === meeting.project)?.id ?? null;
+  const [projectId, setProjectId] = useState<number | null>(meetingPid);
   const people = useMemo(() => users.filter((u) => u.status !== 'suspended'), [users]);
   const parsed = useMemo(() => parseMeetingNotes(text, meeting.date), [text, meeting.date]);
   const [rows, setRows] = useState<Row[]>(() => [
-    ...parsed.records.map((r, i): Row => ({ key: 'r' + i, on: !already.has(norm(r.title)), kind: r.kind || 'Observation', subject: r.title, description: r.description, assigneeId: '', others: [], dueDate: '', priority: '', tags: [] })),
+    ...parsed.records.map((r, i): Row => ({ key: 'r' + i, on: !already.has(norm(r.title)), kind: r.kind || 'Observation', subject: r.title, description: r.description, assigneeId: '', others: [], dueDate: '', priority: '', tags: [], projectId: meetingPid })),
     ...parsed.tasks.map((t, i): Row => {
       const { matched, unmatched } = matchPeople(t.names, people);
       return {
         key: 't' + i, on: !already.has(norm(t.title)), kind: 'Task', subject: t.title, description: t.description, assigneeId: matched[0]?.id || '',
-        others: [...matched.slice(1).map((p) => p.name), ...unmatched], dueDate: t.dueDate || '', priority: t.priority || '', tags: [],
+        others: [...matched.slice(1).map((p) => p.name), ...unmatched], dueDate: t.dueDate || '', priority: t.priority || '', tags: [], projectId: meetingPid,
       };
     }),
   ]);
@@ -57,14 +60,15 @@ export function MeetingNotesImport({ meeting, text, existing = [], projects = []
         const also = r.others.length ? `\n\nAlso named: ${r.others.join(', ')}.` : '';
         // Others named who are people here follow the task as collaborators, so it shows under their "Mine".
         const collaborators = r.others.map((n) => people.find((p) => p.name.toLowerCase() === n.toLowerCase())).filter((p): p is NonNullable<typeof p> => !!p && p.id !== u?.id).map((p) => ({ id: p.id, name: p.name }));
-        const proj = !meeting.project && projectId ? projects.find((p) => p.id === projectId) : null;
+        const proj = r.projectId != null ? projects.find((p) => p.id === r.projectId) || null : null;
         made.push(await api.meetings.addAction(meeting.id, {
           topicType: r.kind, subject: r.subject.trim().slice(0, 300), description: (r.description.trim() + also).trim() || undefined,
           assignedTo: u?.name, assignedToId: u?.id, dueDate: r.kind === 'Task' ? r.dueDate || undefined : undefined,
           priority: r.kind === 'Task' && !r.dueDate ? (r.priority || 'High') : r.priority || undefined,
           tags: r.tags.length ? r.tags : undefined,
           collaborators: collaborators.length ? collaborators : undefined,
-          ...(proj ? { project: proj.name, projectId: proj.id } : {}),
+          // Its own project, or General (Nov 27); a Task goes on that project's board.
+          project: proj?.name || '', projectId: proj?.id ?? null,
         }));
       }
       const dup = made.filter((m) => m?.duplicate).length;
@@ -100,6 +104,12 @@ export function MeetingNotesImport({ meeting, text, existing = [], projects = []
                 <option value="">{r.kind === 'Task' ? 'Assign to…' : 'Owner…'}</option>
                 {people.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
+              {projects.length > 0 && (
+                <select value={r.projectId ?? ''} onChange={(e) => patch(r.key, { projectId: e.target.value ? Number(e.target.value) : null })} aria-label="Project" style={{ maxWidth: 220 }}>
+                  <option value="">General</option>
+                  {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              )}
               {r.kind === 'Task' && <input type="date" value={r.dueDate} onChange={(e) => patch(r.key, { dueDate: e.target.value })} aria-label="Due date" />}
               {r.kind === 'Task' && !r.dueDate && <span className="mt-muted" style={{ fontSize: 11.5 }}>No date in the notes — comes in as High priority</span>}
               {r.others.length > 0 && <span className="mt-muted" style={{ fontSize: 11.5 }}>Also named: {r.others.join(', ')}</span>}
@@ -122,14 +132,14 @@ export function MeetingNotesImport({ meeting, text, existing = [], projects = []
         <p className="mt-muted" style={{ margin: 0 }}>
           Read from the notes of “{meeting.title}”. Check each one, change what’s wrong, untick what you don’t want. Every item notes that it came from this meeting.
         </p>
-        {!meeting.project && projects.length > 0 && (
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5 }}>
-            <b>Project</b>
-            <select aria-label="Project for these items" value={projectId ?? ''} onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : null)}>
-              <option value="">No project (General)</option>
+        {projects.length > 0 && (
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, flexWrap: 'wrap' }}>
+            <b>Project for all</b>
+            <select aria-label="Project for these items" value={projectId ?? ''} onChange={(e) => { const v = e.target.value ? Number(e.target.value) : null; setProjectId(v); setRows((cur) => cur.map((r) => ({ ...r, projectId: v }))); }}>
+              <option value="">General</option>
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <span className="mt-muted" style={{ fontSize: 11.5 }}>This meeting has no project — pick one so its items land there, not under General.</span>
+            <span className="mt-muted" style={{ fontSize: 11.5 }}>Each item can go to its own project below. Tasks go on that project’s board{!meeting.project ? ' — this meeting has no project yet' : ''}.</span>
           </label>
         )}
         {existing.length > 0 && <div className="mt-muted" style={{ fontSize: 12 }}>{existing.length} item{existing.length === 1 ? ' was' : 's were'} already raised from this meeting; those are unticked so nobody adds them twice.</div>}

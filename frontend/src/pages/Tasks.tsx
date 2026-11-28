@@ -44,6 +44,12 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const [showNew, setShowNew] = useState(false);
   const swallow = useRef(false);
   const [mode, setMode] = useState<'board' | 'log'>(initialMode);
+  // Nov 27 (Weekly Sync): tasks from meetings now go on the boards -- the log points there.
+  const [meetingBoard, setMeetingBoard] = useState<{ id: string; title: string; projectId: number | null; completed?: boolean; archivedAt?: string | null }[]>([]);
+  useEffect(() => {
+    if (mode !== 'log') return;
+    api.meetings.boardActions().then((r) => setMeetingBoard((Array.isArray(r) ? r : []).filter((b) => !b.completed && !b.archivedAt))).catch(() => setMeetingBoard([]));
+  }, [mode]);
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   // 'general' is a real, standing selection (the General Tasks board -- work
   // not tied to any client project), not an absence-of-choice placeholder.
@@ -221,6 +227,12 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
           board={{ value: String(boardProjectId), set: (v) => selectBoardProject(v === 'all' || v === 'general' || v.startsWith('lead:') ? v as BoardSel : (Number(v) || 'all')) }} />
       ) : (
       <>
+      {meetingBoard.length > 0 && (
+        <div role="status" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '8px 12px', borderRadius: 10, background: 'var(--c-efede8)', fontSize: 12.5, marginBottom: 14 }}>
+          <span><b>{meetingBoard.length}</b> open task{meetingBoard.length === 1 ? '' : 's'} from meetings {meetingBoard.length === 1 ? 'is' : 'are'} on the project boards — meeting tasks now go there.</span>
+          <button type="button" className="ak-btn" style={{ height: 28 }} onClick={() => { selectBoardProject('all'); setMode('board'); }}>Show on the boards →</button>
+        </div>
+      )}
       {/* Tabs + filter + new */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
         {TABS.map((t) => (

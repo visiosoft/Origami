@@ -40,6 +40,8 @@ export function SpecialActions({ phase }: { phase: Phase }) {
   const [projects, setProjects] = useState<{ id: number; name: string }[] | null>(null);
   const [rfis, setRfis] = useState<any[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  // Nov 27 (Weekly Sync): tasks raised in meetings (and converted ones) now live on the boards.
+  const [boardTasks, setBoardTasks] = useState<any[]>([]);
   const [cos, setCos] = useState<any[]>([]);
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(0);
@@ -57,6 +59,7 @@ export function SpecialActions({ phase }: { phase: Phase }) {
     api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => setTasks([])).finally(done);
     api.finance.allChangeOrders().then((r: any) => setCos(Array.isArray(r) ? r : [])).catch(() => setCos([])).finally(done);
     api.meetings.list().then((r) => setMeetings(Array.isArray(r) ? r : [])).catch(() => setMeetings([])).finally(done);
+    api.projectTasks.list(undefined, { slim: true }).then((r: any) => setBoardTasks((Array.isArray(r) ? r : []).filter((t: any) => t.sourceType && !t.parentId))).catch(() => setBoardTasks([])).finally(done);
   }, [phase]);
 
   const today = akToday();
@@ -101,6 +104,15 @@ export function SpecialActions({ phase }: { phase: Phase }) {
         status: t.status, open, overdue: open && !!t.dueDate && t.dueDate < today, to: isObs ? `/observations?item=${encodeURIComponent(t.id)}` : `/tasks?task=${encodeURIComponent(t.id)}&type=log`,
       });
     }
+    for (const t of boardTasks) {
+      if (t.projectId == null || !ids.has(Number(t.projectId))) continue;
+      const open = !t.completed && !t.archivedAt;
+      out.push({
+        key: 'b' + t.id, kind: 'task', projectId: Number(t.projectId), project: nameOf(Number(t.projectId)), date: String(t.createdAt || '').slice(0, 10),
+        title: `${t.serial ? t.serial + ' · ' : ''}${t.title}`, sub: [nameOf(Number(t.projectId)), 'on the board', t.sourceType === 'meeting' ? 'from a meeting' : '', t.assignee && 'to ' + t.assignee, t.dueDate && 'due ' + akDay(t.dueDate)].filter(Boolean).join(' · '),
+        status: t.archivedAt ? 'Closed' : t.status || 'Open', open, overdue: open && !!t.dueDate && t.dueDate < today, to: `/tasks?task=${encodeURIComponent(t.id)}&project=${t.projectId}`,
+      });
+    }
     for (const c of cos) {
       if (!ids.has(Number(c.projectId))) continue;
       const open = ['draft', 'internal_review', 'submitted'].includes(c.status);
@@ -113,14 +125,14 @@ export function SpecialActions({ phase }: { phase: Phase }) {
       });
     }
     return out.sort((a, b) => Number(b.open) - Number(a.open) || Number(b.overdue) - Number(a.overdue) || String(b.date || '').localeCompare(String(a.date || '')));
-  }, [projects, rfis, tasks, cos, meetings, today]);
+  }, [projects, rfis, tasks, cos, meetings, boardTasks, today]);
 
   const scope = items.filter((i) => !project || i.projectId === project);
   const count = (k: Item['kind']) => scope.filter((i) => i.kind === k && i.open).length;
   const needle = q.trim().toLowerCase();
   const shown = scope.filter((i) => (kind === 'all' || i.kind === kind) && (!openOnly || i.open) && (!needle || `${i.title} ${i.sub}`.toLowerCase().includes(needle)));
   const overdue = scope.filter((i) => i.overdue).length;
-  const loading = !projects || loaded < 4;
+  const loading = !projects || loaded < 5;
   const { sorted, sort, setSort } = useSort(shown, { date: (i) => i.date, title: (i) => i.title, project: (i) => i.project, kind: (i) => KIND_LABEL[i.kind] });
   const viewValue = { kind, openOnly, project, q, sort: sortToString(sort) };
 

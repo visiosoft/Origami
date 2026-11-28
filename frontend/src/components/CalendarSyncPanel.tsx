@@ -10,6 +10,8 @@ export interface CalSyncStatus {
   scope?: 'company' | 'everyone';
   people?: { name: string; email: string }[];
   notConnected?: number;
+  /** Nov 27: every staff member's calendar -- connected or not, and what the last run read. */
+  calendars?: { id: string; name: string; email: string; connected: boolean; lastAt: string | null; events: number | null; ok: boolean | null; error: string | null }[];
   last?: { at: string; events: number; created: number; moved: number; cancelled: number; notes: number; error?: string | null; sources?: CalSource[] } | null;
 }
 export interface CalSyncPreview {
@@ -67,6 +69,10 @@ export function CalendarSyncPanel({ onClose, onApplied }: { onClose: () => void;
             with their guests and Meet link. A meeting several people are in comes in once. Moved meetings follow; cancelled ones (by the organiser) are marked cancelled.
             After a meeting, Gemini’s notes are read in by themselves (Gemini note-taking must be on in the Meet). Meetings you archive or delete are never brought back.
           </p>
+          <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--panel)', fontSize: 12.5 }}>
+            <b>Invite systems@origamidb.com</b> to every meeting. The Fathom notetaker joins with it, and its notes come in through the shared mailbox
+            (reading Fathom notes in by themselves is a later step, once that mailbox is live).
+          </div>
           {!st && !error && <div style={{ color: 'var(--muted)' }}>Loading…</div>}
           {st && !st.connected && !st.people?.length && (
             <div role="alert" style={{ padding: '10px 12px', borderRadius: 10, background: '#FBEFD5', color: '#7A4B00' }}>
@@ -92,6 +98,24 @@ export function CalendarSyncPanel({ onClose, onApplied }: { onClose: () => void;
                 ))}
               </ul>
               {!!st.notConnected && <div style={{ fontSize: 12, color: '#7A4B00' }}>{st.notConnected} {st.notConnected === 1 ? 'person hasn’t' : 'people haven’t'} connected their calendar yet — each person does it under <b>Settings → My Calendar</b>.</div>}
+              {!!st.calendars?.length && (
+                <details>
+                  <summary style={{ cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>Everyone’s calendar ({st.calendars.filter((c) => c.connected).length} of {st.calendars.length} connected)</summary>
+                  <div role="table" aria-label="Everyone’s calendar" style={{ display: 'grid', gap: 2, marginTop: 6, fontSize: 12.5 }}>
+                    {st.calendars.map((c) => (
+                      <div role="row" key={c.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.3fr)', gap: 10, padding: '4px 0', borderBottom: '1px solid rgba(var(--rgb-shade), .06)' }}>
+                        <span role="cell" style={{ overflowWrap: 'anywhere' }}><b style={{ color: 'var(--ink)' }}>{c.name}</b></span>
+                        <span role="cell" style={{ color: !c.connected ? 'var(--muted)' : c.ok === false ? '#8E2E0A' : '#2F6B3A' }}>
+                          {!c.connected ? 'not connected'
+                            : c.ok === false ? 'connection expired — reconnect in Settings → My Calendar'
+                            : c.lastAt ? `✓ read ${new Date(c.lastAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${c.events ?? 0} meeting${c.events === 1 ? '' : 's'}`
+                            : 'connected — read on the next run'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
               {st.last && <div style={{ fontSize: 12, color: 'var(--muted)' }}>
                 Last run {new Date(st.last.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}:{' '}
                 {st.last.error ? <span style={{ color: '#8E2E0A' }}>{st.last.error}</span> : `${st.last.events} events · ${st.last.created} new · ${st.last.moved} moved · ${st.last.cancelled} cancelled · notes for ${st.last.notes}`}
