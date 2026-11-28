@@ -1,8 +1,9 @@
+import { randomUUID } from 'crypto';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { ChangeOrderEntity, FileRoomFileEntity, FileRoomShareEntity, MarkupLayerEntity, PdfMarkupEntity, ProjectTaskEntity, RfiEntity, TaskEntity } from '../database/entities';
+import { AuditEventEntity, ChangeOrderEntity, FileRoomFileEntity, FileRoomShareEntity, MarkupLayerEntity, PdfMarkupEntity, ProjectTaskEntity, RfiEntity, TaskEntity } from '../database/entities';
 import { DataSource } from 'typeorm';
 import type { SessionClaims } from '../auth/crypto.util';
 import { SettingsService } from '../settings/settings.service';
@@ -10,7 +11,7 @@ import { clean as plain } from '../documents/program-pdf';
 import { FileRoomService } from './file-room.service';
 import { MarkupsService } from './markups.service';
 import { leadsMarkups } from './markups';
-import { backfillPlan, canUploadBase, drawingHistory, drawingLogOf, isBaseArea, logEvent, nextMinor, nextUploadRev, revLabel } from './drawing-sets';
+import { backfillPlan, canUploadBase, drawingHistory, drawingTab, drawingLogOf, isBaseArea, logEvent, nextMinor, nextUploadRev, revLabel } from './drawing-sets';
 import { layerKey } from './markups';
 
 const KEY_UPLOADERS = 'fileRoom.baseUploaders';
@@ -261,7 +262,28 @@ export class DrawingSetsService {
     const ids = group.map((x) => x.id);
     const marks = await this.marks.find({ where: { fileId: In(ids) } });
     const shares = this.shares ? (await this.shares.find({ where: { projectId: f.projectId } })).flatMap((s) => (s.files || []).filter((x) => ids.includes(x.id)).map((x) => ({ fileId: x.id, at: s.sentAt, by: s.sentByName, to: s.to }))) : [];
-    return drawingHistory({ revisions: group, markups: marks.map((m) => ({ fileId: m.fileId, layer: m.layer, authorName: m.authorName, createdAt: m.createdAt, linkType: m.linkType, linkId: m.linkId })), shares });
+    const audit = this.data?.getRepository(AuditEventEntity);
+    const opens = audit ? (await audit.find({ where: { entityType: 'drawing', action: 'opened', entityId: In(ids) } }).catch(() => [])).map((e) => ({ fileId: String(e.entityId), at: e.at, by: e.userName })) : [];
+    return drawingHistory({ revisions: group, markups: marks.map((m) => ({ fileId: m.fileId, layer: m.layer, authorName: m.authorName, createdAt: m.createdAt, linkType: m.linkType, linkId: m.linkId })), shares, opens });
+  }
+
+  /**
+   * Nov 27 (Weekly Sync): who opened a drawing from the Approved or the Not
+   * city-approved tab -- once per person, drawing and day -- so the audit
+   * trail shows the field worked from the right set.
+   */
+  async opened(fileId: string, claims: SessionClaims | null) {
+    const audit = this.data?.getRepository(AuditEventEntity);
+    if (!audit || !claims?.sub) return { logged: false };
+    const f = await this.markups.file(fileId);
+    const pending = new Set((await this.files.find({ where: { projectId: f.projectId } as any })).flatMap((x) => (Array.isArray(x.pendingSetIds) ? x.pendingSetIds : []).map(String)));
+    const tab = drawingTab(f, { buildSet: await this.fileRoom.buildSetOf(Number(f.projectId)), pendingIds: pending });
+    if (tab !== 'approved' && tab !== 'city') return { logged: false, tab };
+    const day = new Date().toISOString().slice(0, 10);
+    const seen = (await audit.find({ where: { entityType: 'drawing', action: 'opened', entityId: f.id, userId: claims.sub } })).some((e) => String(e.at).startsWith(day));
+    if (seen) return { logged: false, tab };
+    await audit.insert({ id: randomUUID(), at: new Date().toISOString(), userId: claims.sub, userName: claims.name || null, entityType: 'drawing', entityId: f.id, label: f.name.slice(0, 200), action: 'opened', projectId: Number(f.projectId) || null, method: 'POST', path: `/file-room/files/${f.id}/opened`, changes: null } as any);
+    return { logged: true, tab };
   }
 
   // ---------------------------------------------------------------- numbering drawings already in sets (preview, then Apply)

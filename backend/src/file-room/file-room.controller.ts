@@ -38,6 +38,10 @@ export class FileRoomController {
    * Changing files is for people who manage the File Room (Oct 30 sync: field
    * staff view and mark up the build set, but don't move, rename or delete).
    */
+  private async manages(claims: SessionClaims | null) {
+    return this.assertManage(claims).then(() => true, () => false);
+  }
+
   private async assertManage(claims: SessionClaims | null) {
     if (claims?.roleKey === 'admin') return;
     const perms = claims ? await this.access.permissions(claims) : {} as any;
@@ -211,7 +215,7 @@ export class FileRoomController {
   async filesPage(@Query() q: Record<string, string>, @Claims() claims?: SessionClaims | null) {
     const pid = Number(q.projectId);
     if (Number.isFinite(pid) && pid > 0) await this.access.assert(claims ?? null, pid);
-    return this.service.filesPage(q, await this.seeProject(claims));
+    return this.service.filesPage(q, await this.seeProject(claims), { manage: await this.manages(claims ?? null) });
   }
 
   /** One file and its revisions. */
@@ -505,6 +509,12 @@ export class FileRoomController {
   async pendingSets(@Param('id') id: string, @Body() body: { ids?: string[] }, @Claims() claims?: SessionClaims | null) {
     await this.seeFile(id, claims);
     return this.needSets().setPendingSets(id, body?.ids, claims ?? null);
+  }
+  /** Nov 27: the viewer says a drawing was opened (logged for the Approved / Not city-approved tabs). */
+  @Post('files/:id/opened')
+  async drawingOpened(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.needSets().opened(id, claims ?? null);
   }
   @Get('files/:id/history')
   async drawingHistory(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {

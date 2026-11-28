@@ -107,6 +107,8 @@ export function drawingHistory(input: {
   revisions: { id: string; name: string; revMajor?: number | null; revMinor?: number | null; uploadedBy?: string | null; updatedAt?: string | null; drawingLog?: DrawingEvent[] | null }[];
   markups: { fileId: string; layer?: string | null; authorName?: string | null; createdAt: string; linkType?: string | null; linkId?: string | null }[];
   shares?: { fileId: string; at: string; by?: string | null; to?: string | null }[];
+  /** Nov 27: who opened it from the Approved / Not city-approved tabs. */
+  opens?: { fileId: string; at: string; by?: string | null }[];
 }): DrawingEvent[] {
   const rev = new Map(input.revisions.map((r) => [r.id, revLabel(r.revMajor, r.revMinor) || r.name]));
   const out: DrawingEvent[] = [];
@@ -122,6 +124,7 @@ export function drawingHistory(input: {
   }
   for (const m of firstOfLayer.values()) out.push({ at: m.createdAt, by: m.authorName || 'Someone', kind: 'layer', text: `${rev.get(m.fileId)}: started ${m.layer ? `layer ${m.layer}` : 'their own layer'}`, layer: m.layer || null });
   for (const s of input.shares || []) out.push({ at: s.at, by: s.by || 'Someone', kind: 'share', text: `${rev.get(s.fileId)}: emailed${s.to ? ` to ${s.to}` : ''}` });
+  for (const o of input.opens || []) out.push({ at: o.at, by: o.by || 'Someone', kind: 'open', text: `${rev.get(o.fileId)}: opened` });
   // De-duplicate RFI lines (several markups, one RFI) and sort newest first.
   const seen = new Set<string>();
   return out.filter((e) => { const k = `${e.kind}|${e.text}|${e.at.slice(0, 16)}`; if (seen.has(k)) return false; seen.add(k); return true; })
@@ -188,4 +191,34 @@ export function drawingLogOf(input: {
     const audit = input.audit.filter((a) => a.fileId === r.id).sort((a, b) => b.at.localeCompare(a.at)).map(({ at, text }) => ({ at, text }));
     return { id: r.id, rev: label, heading, drawingDate: r.drawingDate || null, lines, events, audit };
   });
+}
+
+// ---------------------------------------------------------------- Nov 27: drawing-set tabs
+/**
+ * Which tab a file sits in (Weekly Sync, Edward): "Approved set -- work from
+ * this", "Under review", "Not city-approved, in use", or "Other files".
+ * A city flag wins over approval, so nobody builds from it unaware.
+ */
+export const DRAWING_TABS = ['approved', 'review', 'city', 'other'] as const;
+export type DrawingTab = typeof DRAWING_TABS[number];
+export const DRAWING_TAB_LABEL: Record<DrawingTab, string> = {
+  approved: 'Approved set — work from this', review: 'Under review', city: 'Not city-approved, in use', other: 'Other files',
+};
+/** The tabs someone who doesn't manage the File Room sees. */
+export const FIELD_TABS: DrawingTab[] = ['approved', 'city'];
+
+export function drawingTab(
+  f: { id: string; folderPath?: string[] | null; approvedAt?: string | null; notCityApproved?: boolean | null },
+  ctx: { buildSet: string[]; pendingIds?: Set<string> },
+): DrawingTab {
+  if (!isBaseArea(f.folderPath, ctx.buildSet)) return 'other';
+  if (f.notCityApproved || ctx.pendingIds?.has(f.id)) return 'city';
+  if (f.approvedAt) return 'approved';
+  return 'review';
+}
+
+export function tabCounts(tabs: DrawingTab[]): Record<DrawingTab, number> {
+  const c = { approved: 0, review: 0, city: 0, other: 0 } as Record<DrawingTab, number>;
+  for (const t of tabs) c[t]++;
+  return c;
 }

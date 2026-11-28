@@ -1,5 +1,6 @@
 import { DEFAULT_FOLDER_TEMPLATE, FILE_ROOM_ROOT } from './layout';
 import { encodeAudience } from './folder-access';
+import { DRAWING_TABS, FIELD_TABS, drawingTab, tabCounts, type DrawingTab } from './drawing-sets';
 import { pageArgs, pageOf } from '../common/paging';
 import { TrackingService, type OpenSummary } from '../tracking/tracking.service';
 import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
@@ -306,23 +307,40 @@ export class FileRoomService {
    * One page of files: a folder's (projectId + path), or every project's
    * (no projectId -- "All Files"), with the name search, latest-only and sort.
    */
-  async filesPage(q: Record<string, string>, ok: (projectId: unknown, path?: string[] | null, fileAccess?: string | null) => boolean = () => true) {
+  async filesPage(q: Record<string, string>, ok: (projectId: unknown, path?: string[] | null, fileAccess?: string | null) => boolean = () => true, opts: { manage?: boolean } = { manage: true }) {
     const pid = Number(q.projectId);
     const rows = await this.files.find({ where: Number.isFinite(pid) && pid > 0 ? { projectId: pid } : {} });
     const folder = q.path === undefined ? null : String(q.path);
     const text = String(q.q || '').trim().toLowerCase();
-    const list = rows
+    // Nov 27: each file's drawing-set tab, worked out here (the build set per project, and the files linked as pending sets).
+    const sets = new Map<number, string[]>();
+    for (const p of await this.projects.find({ select: { id: true, buildSetFolders: true } as any })) sets.set(p.id, Array.isArray(p.buildSetFolders) ? p.buildSetFolders : []);
+    const pendingIds = new Set(rows.flatMap((f) => (Array.isArray(f.pendingSetIds) ? f.pendingSetIds : []).map(String)));
+    const tabbed = rows
       .filter((f) => ok(f.projectId, f.folderPath, f.access ?? null))
       .map((f) => this.hydrate(f))
+      .map((f) => ({ ...f, drawingTab: drawingTab(f, { buildSet: sets.get(Number(f.projectId)) || [], pendingIds }) }))
       .filter((f) => folder === null || (f.folderPath || []).join('>') === folder)
       .filter((f) => q.latest !== '1' || f.isLatest !== false)
-      .filter((f) => !text || f.name.toLowerCase().includes(text))
+      .filter((f) => !text || f.name.toLowerCase().includes(text));
+    // People who don't manage the File Room work from the approved set: a newer revision of a
+    // document that already has an approved one is hidden from them. Drawings never approved
+    // (and other files) stay visible as before, so nothing they see today disappears.
+    const approvedGroups = new Set(rows.filter((f) => f.approvedAt).map((f) => f.groupId || f.id));
+    const visible = opts.manage ? tabbed : tabbed.filter((f) => !(f.drawingTab === 'review' && approvedGroups.has(f.groupId || f.id)));
+    const counts = tabCounts(visible.map((f) => f.drawingTab));
+    const allowedTabs: DrawingTab[] = opts.manage ? [...DRAWING_TABS] : DRAWING_TABS.filter((t) => FIELD_TABS.includes(t) || counts[t] > 0);
+    const tab = allowedTabs.includes(q.tab as DrawingTab) ? (q.tab as DrawingTab) : null;
+    const list = visible
+      .filter((f) => !tab || f.drawingTab === tab)
       // By name (A-Z / Z-A) or, with sort=date, by when it last changed (newest first with dir=desc) (Nov 3 sync).
       .sort((a, b) => {
         const by = q.sort === 'date' ? String(a.updatedAt || '').localeCompare(String(b.updatedAt || '')) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name, undefined, { numeric: true });
         return q.dir === 'desc' ? -by : by;
       });
-    return pageOf(list, pageArgs(q.page, q.size));
+    const tabCountsOut: Partial<Record<DrawingTab, number>> = {};
+    for (const t of allowedTabs) tabCountsOut[t] = counts[t];
+    return { ...pageOf(list, pageArgs(q.page, q.size)), tab, tabs: allowedTabs, tabCounts: tabCountsOut };
   }
 
   /** One file, with every revision of it -- for its details panel or a link to it. */
